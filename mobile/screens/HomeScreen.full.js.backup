@@ -370,7 +370,7 @@ const HomeScreen = ({ navigation }) => {
         {/* Report Incident Button */}
         <TouchableOpacity 
           style={styles.reportButton}
-          onPress={() => navigation.navigate('ReportIncident')}
+          onPress={() => Alert.alert('Coming Soon', 'Incident reporting will be available in Phase 5')}
         >
           <Text style={styles.reportButtonIcon}>📷</Text>
           <Text style={styles.reportButtonText}>Report an Incident</Text>

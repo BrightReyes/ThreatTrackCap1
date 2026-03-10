@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // === HELPER FUNCTIONS ===
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of a document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is admin or moderator
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+    }
+    
+    // Validate incident data
+    function isValidIncident() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['type', 'severity', 'location', 'description', 'timestamp']) &&
+             data.type in ['theft', 'assault', 'vandalism', 'robbery', 'burglary', 'other'] &&
+             data.severity in ['high', 'medium', 'low'] &&
+             data.description is string &&
+             data.description.size() >= 10 &&
+             data.description.size() <= 2000 &&
+             data.location.latitude is number &&
+             data.location.longitude is number &&
+             data.location.latitude >= -90 &&
+             data.location.latitude <= 90 &&
+             data.location.longitude >= -180 &&
+             data.location.longitude <= 180;
+    }
+    
+    // Check rate limiting (max 5 incidents per hour per user)
+    function hasNotExceededRateLimit() {
+      // This is a simplified check - actual implementation would query recent documents
+      // For now, Cloud Function handles this validation
+      return true;
+    }
+    
+    // === USERS COLLECTION ===
+    match /users/{userId} {
+      // Anyone authenticated can read user profiles
+      allow read: if isAuthenticated();
+      
+      // Users can only create their own profile
+      allow create: if isOwner(userId) && 
+                      request.resource.data.uid == userId &&
+                      request.resource.data.email == request.auth.token.email;
+      
+      // Users can only update their own profile
+      allow update: if isOwner(userId) &&
+                      request.resource.data.uid == userId &&
+                      request.resource.data.email == resource.data.email; // Email can't be changed here
+      
+      // Users can delete their own profile, admins can delete any
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+    
+    // === INCIDENTS COLLECTION ===
+    match /incidents/{incidentId} {
+      // All authenticated users can read incidents
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create incidents with valid data
+      allow create: if isAuthenticated() && 
+                      isValidIncident() &&
+                      hasNotExceededRateLimit() &&
+                      request.resource.data.reporterId == request.auth.uid &&
+                      request.resource.data.status == 'pending' &&
+                      request.resource.data.reportedAt == request.time;
+      
+      // Users can update their own pending incidents
+      allow update: if isOwner(resource.data.reporterId) && 
+                      resource.data.status == 'pending' &&
+                      isValidIncident();
+      
+      // Admins can update any incident (for moderation)
+      allow update: if isAdmin();
+      
+      // Users can delete their own pending incidents, admins can delete any
+      allow delete: if (isOwner(resource.data.reporterId) && resource.data.status == 'pending') || 
+                      isAdmin();
+    }
+    
+    // === PRECINCTS COLLECTION ===
+    match /precincts/{precinctId} {
+      // Anyone (even unauthenticated) can read precinct data - it's public safety info
+      allow read: if true;
+      
+      // Only admins can create, update, or delete precincts
+      allow write: if isAdmin();
+    }
+    
+    // === CRIME STATISTICS COLLECTION ===
+    match /crime_statistics/{statisticId} {
+      // All authenticated users can read aggregated statistics
+      allow read: if isAuthenticated();
+      
+      // Only Cloud Functions can write (no direct user writes)
+      allow write: if false;
+    }
+    
+    // === NOTIFICATIONS COLLECTION ===
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
+      
+      // Users can update their own notifications (mark as read)
+      allow update: if isAuthenticated() && 
+                      resource.data.userId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
+      
+      // Only Cloud Functions can create notifications
+      allow create: if false;
+      
+      // Users can delete their own notifications
+      allow delete: if isAuthenticated() && 
+                      resource.data.userId == request.auth.uid;
+    }
+    
+    // === SUSPICIOUS ACTIVITY COLLECTION ===
+    match /suspicious_activity/{activityId} {
+      // Only admins can read suspicious activity logs
+      allow read: if isAdmin();
+      
+      // Only Cloud Functions can write
+      allow write: if false;
+    }
+    
+    // === DENY ALL OTHER COLLECTIONS ===
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,12 +1,15 @@
 import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 
 import HomeScreen from '../screens/HomeScreen';
+import ReportIncidentScreen from '../screens/ReportIncidentScreen';
 import StatusScreen from '../screens/StatusScreen';
 import AlertsScreen from '../screens/AlertsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
+const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TabIcon = ({ iconText, label, focused }) => (
@@ -19,6 +22,16 @@ const TabIcon = ({ iconText, label, focused }) => (
     </Text>
   </View>
 );
+
+// Stack Navigator for Home (includes Report screen)
+const HomeStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen name="ReportIncident" component={ReportIncidentScreen} />
+    </Stack.Navigator>
+  );
+};
 
 const MainNavigator = ({ onLogout }) => {
   return (
@@ -33,7 +46,7 @@ const MainNavigator = ({ onLogout }) => {
     >
       <Tab.Screen 
         name="Home" 
-        component={HomeScreen}
+        component={HomeStack}
         options={{
           tabBarIcon: ({ focused }) => (
             <TabIcon iconText="🏠" label="Home" focused={focused} />
