@@ -6,16 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../utils/firebase';
+import { db, storage, auth } from '../utils/firebase';
+import CustomAlert from '../components/CustomAlert';
 
 const ReportIncidentScreen = ({ navigation }) => {
   const [incidentType, setIncidentType] = useState('');
@@ -25,6 +25,29 @@ const ReportIncidentScreen = ({ navigation }) => {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = []) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
 
   const incidentTypes = [
     { id: 'theft', label: 'Theft', icon: '⚠️' },
@@ -49,7 +72,7 @@ const ReportIncidentScreen = ({ navigation }) => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to report incidents.');
+        showAlert('Permission Denied', 'Location permission is required to report incidents.', 'warning');
         return;
       }
 
@@ -63,7 +86,7 @@ const ReportIncidentScreen = ({ navigation }) => {
       });
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Error', 'Unable to get your location. Please try again.');
+      showAlert('Error', 'Unable to get your location. Please try again.', 'error');
     }
   };
 
@@ -71,7 +94,7 @@ const ReportIncidentScreen = ({ navigation }) => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera roll permission is required to upload photos.');
+        showAlert('Permission Denied', 'Camera roll permission is required to upload photos.', 'warning');
         return;
       }
 
@@ -87,7 +110,7 @@ const ReportIncidentScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Unable to pick image. Please try again.');
+      showAlert('Error', 'Unable to pick image. Please try again.', 'error');
     }
   };
 
@@ -95,7 +118,7 @@ const ReportIncidentScreen = ({ navigation }) => {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+        showAlert('Permission Denied', 'Camera permission is required to take photos.', 'warning');
         return;
       }
 
@@ -110,16 +133,18 @@ const ReportIncidentScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Unable to take photo. Please try again.');
+      showAlert('Error', 'Unable to take photo. Please try again.', 'error');
     }
   };
 
-  const uploadImage = async (uri) => {
+  const uploadImage = async (uri, userId, incidentId) => {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      const filename = `incidents/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-      const storageRef = ref(storage, filename);
+      const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      // Match storage rules path: incident-photos/{userId}/{incidentId}/{filename}
+      const storagePath = `incident-photos/${userId}/${incidentId}/${filename}`;
+      const storageRef = ref(storage, storagePath);
       
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
@@ -133,34 +158,34 @@ const ReportIncidentScreen = ({ navigation }) => {
   const handleSubmit = async () => {
     // Validation
     if (!incidentType) {
-      Alert.alert('Missing Information', 'Please select an incident type.');
+      showAlert('Missing Information', 'Please select an incident type.', 'warning');
       return;
     }
     if (!severity) {
-      Alert.alert('Missing Information', 'Please select a severity level.');
+      showAlert('Missing Information', 'Please select a severity level.', 'warning');
       return;
     }
     if (!description.trim()) {
-      Alert.alert('Missing Information', 'Please provide a description.');
+      showAlert('Missing Information', 'Please provide a description.', 'warning');
       return;
     }
     if (!location) {
-      Alert.alert('Missing Information', 'Location is required. Please enable location services.');
+      showAlert('Missing Information', 'Location is required. Please enable location services.', 'warning');
       return;
     }
 
     setLoading(true);
-    setUploading(true);
 
     try {
-      let imageUrl = null;
+      const currentUser = auth.currentUser;
       
-      // Upload image if provided
-      if (image) {
-        imageUrl = await uploadImage(image);
+      if (!currentUser) {
+        showAlert('Error', 'You must be logged in to report an incident.', 'error');
+        setLoading(false);
+        return;
       }
-
-      // Create incident document
+      
+      // Create incident document first to get ID
       const incidentData = {
         type: incidentType,
         severity: severity,
@@ -169,17 +194,35 @@ const ReportIncidentScreen = ({ navigation }) => {
           latitude: location.latitude,
           longitude: location.longitude,
         },
-        imageUrl: imageUrl,
-        status: 'pending',
+        status: 'under_review',
         timestamp: serverTimestamp(),
-        reportedBy: 'anonymous', // Will be replaced with actual user ID when auth is implemented
+        reporterId: currentUser.uid,
       };
 
-      await addDoc(collection(db, 'incidents'), incidentData);
+      const docRef = await addDoc(collection(db, 'incidents'), incidentData);
+      
+      // Upload photo if exists (don't fail submission if photo upload fails)
+      if (image) {
+        try {
+          setUploading(true);
+          const photoURL = await uploadImage(image, currentUser.uid, docRef.id);
+          setUploading(false);
+          
+          // Update incident with photo URL
+          await updateDoc(doc(db, 'incidents', docRef.id), {
+            photoURL
+          });
+        } catch (photoError) {
+          console.error('Photo upload failed, but incident saved:', photoError);
+          setUploading(false);
+          // Continue without photo
+        }
+      }
 
-      Alert.alert(
+      showAlert(
         'Success',
         'Incident reported successfully! It will be reviewed by our team.',
+        'success',
         [
           {
             text: 'OK',
@@ -189,7 +232,7 @@ const ReportIncidentScreen = ({ navigation }) => {
       );
     } catch (error) {
       console.error('Error submitting incident:', error);
-      Alert.alert('Error', 'Failed to submit incident. Please try again.');
+      showAlert('Error', 'Failed to submit incident. Please try again.', 'error');
     } finally {
       setLoading(false);
       setUploading(false);
@@ -197,11 +240,12 @@ const ReportIncidentScreen = ({ navigation }) => {
   };
 
   return (
-    <LinearGradient
-      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-      locations={[0, 0.3, 0.6, 0.85, 1]}
-      style={styles.container}
-    >
+    <>
+      <LinearGradient
+        colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
+        locations={[0, 0.3, 0.6, 0.85, 1]}
+        style={styles.container}
+      >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -347,7 +391,19 @@ const ReportIncidentScreen = ({ navigation }) => {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </LinearGradient>
+      </LinearGradient>
+
+      {/* Custom Alert Modal */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+        autoCloseDelay={5000}
+      />
+    </>
   );
 };
 
@@ -551,7 +607,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   bottomSpacer: {
-    height: 40,
+    height: 150,
   },
 });
 

@@ -7,18 +7,41 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleLogin, validateEmail, validatePassword } from './utils/auth';
+import CustomAlert from './components/CustomAlert';
 
 const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = []) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
 
   const onLogin = async () => {
     try {
@@ -30,16 +53,17 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
       }
       // Show non-blocking success message
       setTimeout(() => {
-        Alert.alert('✅ Success', `Welcome back, ${result.user.name}!`);
+        showAlert('✅ Success', `Welcome back, ${result.user.name}!`, 'success');
       }, 100);
     } catch (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
     <LinearGradient
       colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
       locations={[0, 0.3, 0.6, 0.85, 1]}
@@ -147,6 +171,18 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
+
+    {/* Custom Alert Modal */}
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      type={alertConfig.type}
+      buttons={alertConfig.buttons}
+      onClose={hideAlert}
+      autoCloseDelay={5000}
+    />
+  </>
   );
 };
 

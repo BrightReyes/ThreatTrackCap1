@@ -1,12 +1,37 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import CustomAlert from '../components/CustomAlert';
 
 const SettingsScreen = ({ onLogout }) => {
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = []) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
+
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Logout',
       'Are you sure you want to logout?',
+      'warning',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Logout', style: 'destructive', onPress: onLogout },
@@ -15,6 +40,7 @@ const SettingsScreen = ({ onLogout }) => {
   };
 
   return (
+    <>
     <LinearGradient
       colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
       locations={[0, 0.3, 0.6, 0.85, 1]}
@@ -89,6 +115,18 @@ const SettingsScreen = ({ onLogout }) => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </LinearGradient>
+
+    {/* Custom Alert Modal */}
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      type={alertConfig.type}
+      buttons={alertConfig.buttons}
+      onClose={hideAlert}
+      autoCloseDelay={5000}
+    />
+  </>
   );
 };
 

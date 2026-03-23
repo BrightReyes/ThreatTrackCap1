@@ -7,21 +7,53 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
-  Alert,
+  Linking,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, Polygon } from 'react-native-maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
+import CustomAlert from '../components/CustomAlert';
 
 const { width, height } = Dimensions.get('window');
+
+// Valenzuela City boundaries and center
+const VALENZUELA_CENTER = {
+  latitude: 14.6991,
+  longitude: 120.9820,
+  latitudeDelta: 0.05, // Approximately 5.5km north-south
+  longitudeDelta: 0.05, // Approximately 5.5km east-west
+};
+
+// Valenzuela City approximate boundaries
+const VALENZUELA_BOUNDS = {
+  northEast: { latitude: 14.7500, longitude: 121.0200 },
+  southWest: { latitude: 14.6500, longitude: 120.9500 },
+};
+
+// Valenzuela City boundary polygon coordinates (approximate outline)
+const VALENZUELA_BOUNDARY = [
+  { latitude: 14.7480, longitude: 120.9650 }, // North - Marulas/Malinta area
+  { latitude: 14.7450, longitude: 120.9850 }, // Northeast - Punturin area
+  { latitude: 14.7400, longitude: 121.0150 }, // East - Lingunan/Canumay area
+  { latitude: 14.7200, longitude: 121.0180 }, // East - Paso de Blas area
+  { latitude: 14.6950, longitude: 121.0100 }, // Southeast - Ugong area
+  { latitude: 14.6700, longitude: 121.0050 }, // Southeast - Gen. T. de Leon area
+  { latitude: 14.6550, longitude: 120.9900 }, // South - Marulas area
+  { latitude: 14.6520, longitude: 120.9700 }, // Southwest - Karuhatan area
+  { latitude: 14.6600, longitude: 120.9550 }, // Southwest - Polo area
+  { latitude: 14.6750, longitude: 120.9520 }, // West - Baritan/Bignay area
+  { latitude: 14.7000, longitude: 120.9500 }, // West - Malinta area
+  { latitude: 14.7250, longitude: 120.9530 }, // Northwest - Meycauayan border
+  { latitude: 14.7400, longitude: 120.9600 }, // Northwest - Malinta area
+];
 
 // Mock data generators for demo when Firestore is empty
 const generateMockIncidents = () => {
   const types = ['Theft', 'Assault', 'Vandalism', 'Robbery', 'Burglary', 'Other'];
   const severities = ['high', 'medium', 'low'];
-  const baseLocation = { latitude: 40.7128, longitude: -74.0060 }; // NYC
+  const baseLocation = { latitude: 14.6991, longitude: 120.9820 }; // Valenzuela City
   
   return Array.from({ length: 15 }, (_, i) => ({
     id: `mock-incident-${i}`,
@@ -29,8 +61,8 @@ const generateMockIncidents = () => {
     severity: severities[Math.floor(Math.random() * severities.length)],
     description: `Sample incident #${i + 1} - Demo data for testing`,
     location: {
-      latitude: baseLocation.latitude + (Math.random() - 0.5) * 0.05,
-      longitude: baseLocation.longitude + (Math.random() - 0.5) * 0.05,
+      latitude: baseLocation.latitude + (Math.random() - 0.5) * 0.04, // Keep within Valenzuela
+      longitude: baseLocation.longitude + (Math.random() - 0.5) * 0.04,
     },
     timestamp: { toDate: () => new Date(Date.now() - Math.random() * 86400000 * 7) },
     status: 'verified',
@@ -41,23 +73,23 @@ const generateMockPrecincts = () => {
   return [
     {
       id: 'mock-precinct-1',
-      name: '1st Precinct',
-      address: '16 Ericsson Pl, New York, NY 10013',
-      location: { latitude: 40.7157, longitude: -74.0054 },
+      name: 'Valenzuela City Police Station',
+      address: 'MacArthur Highway, Valenzuela City',
+      location: { latitude: 14.6991, longitude: 120.9820 },
       isActive: true,
     },
     {
       id: 'mock-precinct-2', 
-      name: '5th Precinct',
-      address: '19 Elizabeth St, New York, NY 10013',
-      location: { latitude: 40.7143, longitude: -73.9976 },
+      name: 'Karuhatan Police Station',
+      address: 'Karuhatan, Valenzuela City',
+      location: { latitude: 14.6850, longitude: 120.9750 },
       isActive: true,
     },
     {
       id: 'mock-precinct-3',
-      name: '7th Precinct',
-      address: '19 1/2 Pitt St, New York, NY 10002',
-      location: { latitude: 40.7180, longitude: -73.9845 },
+      name: 'Malinta Police Station',
+      address: 'Malinta, Valenzuela City',
+      location: { latitude: 14.7100, longitude: 120.9600 },
       isActive: true,
     },
   ];
@@ -73,6 +105,29 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef(null);
+
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = []) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
 
   // Initialize location and data on mount
   useEffect(() => {
@@ -97,8 +152,21 @@ const HomeScreen = ({ navigation }) => {
         // Get user location
         const location = await getCurrentLocation();
         if (location) {
-          setUserLocation(location);
+          // Check if user is within or near Valenzuela, otherwise default to center
+          const isNearValenzuela = 
+            location.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
+            location.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
+            location.longitude >= VALENZUELA_BOUNDS.southWest.longitude - 0.05 &&
+            location.longitude <= VALENZUELA_BOUNDS.northEast.longitude + 0.05;
+          
+          setUserLocation(isNearValenzuela ? location : VALENZUELA_CENTER);
+        } else {
+          // Default to Valenzuela center if location fetch fails
+          setUserLocation(VALENZUELA_CENTER);
         }
+      } else {
+        // Default to Valenzuela center if permission denied
+        setUserLocation(VALENZUELA_CENTER);
       }
 
       // Fetch data from Firestore
@@ -110,8 +178,12 @@ const HomeScreen = ({ navigation }) => {
       setLoading(false);
     } catch (error) {
       console.error('Error initializing app:', error);
+      // Ensure map shows even on error
+      if (!userLocation) {
+        setUserLocation(VALENZUELA_CENTER);
+      }
       setLoading(false);
-      Alert.alert('Error', 'Failed to load data. Please try again.');
+      showAlert('Error', 'Failed to load data. Please try again.', 'error');
     }
   };
 
@@ -120,7 +192,6 @@ const HomeScreen = ({ navigation }) => {
       const incidentsRef = collection(db, 'incidents');
       const q = query(
         incidentsRef,
-        where('status', 'in', ['verified', 'under_review']),
         orderBy('timestamp', 'desc'),
         limit(50)
       );
@@ -227,6 +298,37 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Constrain map to Valenzuela bounds
+  const handleRegionChange = (region) => {
+    if (!mapRef.current) return;
+
+    let constrainedRegion = { ...region };
+    let needsAdjustment = false;
+
+    // Keep latitude within bounds
+    if (region.latitude < VALENZUELA_BOUNDS.southWest.latitude) {
+      constrainedRegion.latitude = VALENZUELA_BOUNDS.southWest.latitude;
+      needsAdjustment = true;
+    } else if (region.latitude > VALENZUELA_BOUNDS.northEast.latitude) {
+      constrainedRegion.latitude = VALENZUELA_BOUNDS.northEast.latitude;
+      needsAdjustment = true;
+    }
+
+    // Keep longitude within bounds
+    if (region.longitude < VALENZUELA_BOUNDS.southWest.longitude) {
+      constrainedRegion.longitude = VALENZUELA_BOUNDS.southWest.longitude;
+      needsAdjustment = true;
+    } else if (region.longitude > VALENZUELA_BOUNDS.northEast.longitude) {
+      constrainedRegion.longitude = VALENZUELA_BOUNDS.northEast.longitude;
+      needsAdjustment = true;
+    }
+
+    // Animate back to constrained region if user panned too far
+    if (needsAdjustment) {
+      mapRef.current.animateToRegion(constrainedRegion, 300);
+    }
+  };
+
   const getMarkerColor = (severity) => {
     switch (severity) {
       case 'high': return '#dc2626';
@@ -282,6 +384,7 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
+    <>
     <LinearGradient
       colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
       locations={[0, 0.3, 0.6, 0.85, 1]}
@@ -307,12 +410,27 @@ const HomeScreen = ({ navigation }) => {
             <MapView
               ref={mapRef}
               style={styles.map}
-              initialRegion={userLocation}
+              initialRegion={VALENZUELA_CENTER}
               showsUserLocation={true}
               showsMyLocationButton={false}
               customMapStyle={darkMapStyle}
               onMapReady={() => setMapReady(true)}
+              onRegionChangeComplete={handleRegionChange}
+              minZoomLevel={12}
+              maxZoomLevel={17}
+              pitchEnabled={false}
+              rotateEnabled={false}
+              mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
             >
+              {/* Valenzuela City Boundary Outline */}
+              <Polygon
+                coordinates={VALENZUELA_BOUNDARY}
+                strokeColor="#6a8eef"
+                strokeWidth={3}
+                fillColor="rgba(106, 142, 239, 0.1)"
+                tappable={false}
+              />
+
               {/* Incident Markers */}
               {incidents.map((incident) => (
                 incident.location && incident.location.latitude && incident.location.longitude && (
@@ -401,7 +519,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Nearest Precinct</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => showAlert('Precincts', `Showing all ${precincts.length} police precincts on the map`, 'info')}>
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -423,9 +541,9 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.navigateIcon}
                 onPress={() => {
                   const url = `https://www.google.com/maps/dir/?api=1&destination=${nearestPrecinct.location.latitude},${nearestPrecinct.location.longitude}`;
-                  Alert.alert('Navigate', `Open in Google Maps?\n${nearestPrecinct.name}`, [
+                  showAlert('Navigate', `Open in Google Maps?\n${nearestPrecinct.name}`, 'info', [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Open', onPress: () => console.log('Would open:', url) }
+                    { text: 'Open', onPress: () => Linking.openURL(url) }
                   ]);
                 }}
               >
@@ -439,7 +557,7 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Incidents</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => showAlert('All Incidents', `Showing all ${incidents.length} incidents on the map. Scroll to view more details.`, 'info')}>
               <Text style={styles.viewAllText}>See All ({incidents.length})</Text>
             </TouchableOpacity>
           </View>
@@ -450,9 +568,10 @@ const HomeScreen = ({ navigation }) => {
                 key={incident.id}
                 style={styles.incidentCard}
                 onPress={() => {
-                  Alert.alert(
+                  showAlert(
                     incident.type.charAt(0).toUpperCase() + incident.type.slice(1),
                     incident.description,
+                    'info',
                     [{ text: 'OK' }]
                   );
                 }}
@@ -488,6 +607,18 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </LinearGradient>
+
+    {/* Custom Alert Modal */}
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      type={alertConfig.type}
+      buttons={alertConfig.buttons}
+      onClose={hideAlert}
+      autoCloseDelay={5000}
+    />
+  </>
   );
 };
 
@@ -684,9 +815,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
+    overflow: 'hidden',
   },
   markerText: {
     fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   precinctMarker: {
     width: 40,
@@ -697,9 +831,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
+    overflow: 'hidden',
   },
   precinctMarkerText: {
     fontSize: 20,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   
   // Report Button

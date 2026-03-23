@@ -7,12 +7,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleSignup } from './utils/auth';
+import CustomAlert from './components/CustomAlert';
 
 const SignUpScreen = ({ onNavigateToLogin }) => {
   const [fullName, setFullName] = useState('');
@@ -23,6 +23,29 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Custom alert state
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info',
+    buttons: [],
+  });
+
+  const showAlert = (title, message, type = 'info', buttons = []) => {
+    setAlertConfig({
+      visible: true,
+      title,
+      message,
+      type,
+      buttons,
+    });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig({ ...alertConfig, visible: false });
+  };
+
   const onSignUp = async () => {
     console.log('Sign Up button clicked!');
     
@@ -30,13 +53,13 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
       // Validate all fields
       if (!fullName || !email || !password || !confirmPassword) {
         console.log('Validation failed: missing fields');
-        Alert.alert('Error', 'Please fill in all required fields');
+        showAlert('Error', 'Please fill in all required fields', 'warning');
         return;
       }
 
       if (password !== confirmPassword) {
         console.log('Validation failed: passwords do not match');
-        Alert.alert('Error', 'Passwords do not match');
+        showAlert('Error', 'Passwords do not match', 'warning');
         return;
       }
 
@@ -67,17 +90,18 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
       
       // Show success message after navigation
       setTimeout(() => {
-        Alert.alert('✅ Account Created!', 'Your account has been created successfully. Please login to continue.');
+        showAlert('✅ Account Created!', 'Your account has been created successfully. Please login to continue.', 'success');
       }, 300);
     } catch (error) {
       console.error('Signup error:', error);
-      Alert.alert('Error', error.message || 'An error occurred during signup');
+      showAlert('Error', error.message || 'An error occurred during signup', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
     <LinearGradient
       colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
       locations={[0, 0.3, 0.6, 0.85, 1]}
@@ -238,6 +262,18 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
+
+    {/* Custom Alert Modal */}
+    <CustomAlert
+      visible={alertConfig.visible}
+      title={alertConfig.title}
+      message={alertConfig.message}
+      type={alertConfig.type}
+      buttons={alertConfig.buttons}
+      onClose={hideAlert}
+      autoCloseDelay={5000}
+    />
+  </>
   );
 };
 

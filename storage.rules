@@ -2,94 +2,23 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // === HELPER FUNCTIONS ===
-    
-    // Check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    // Temporary simplified rules - allows any authenticated user to upload
+    // TODO: Implement stricter rules in production
+    match /incident-photos/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                     request.resource.size <= 5 * 1024 * 1024 && // 5MB max
+                     request.resource.contentType.matches('image/.*');
     }
     
-    // Check if file is an image
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
+    match /profile-pictures/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+                     request.resource.size <= 5 * 1024 * 1024 &&
+                     request.resource.contentType.matches('image/.*');
     }
     
-    // Check if file is valid type
-    function isValidImageType() {
-      return request.resource.contentType in [
-        'image/jpeg',
-        'image/jpg', 
-        'image/png', 
-        'image/webp'
-      ];
-    }
-    
-    // Check if file size is within limit (5MB)
-    function isValidSize() {
-      return request.resource.size <= 5 * 1024 * 1024; // 5MB
-    }
-    
-    // Check if user owns the file
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    // === INCIDENT PHOTOS ===
-    // Path: incident-photos/{userId}/{incidentId}/{filename}
-    match /incident-photos/{userId}/{incidentId}/{filename} {
-      // Users can read any incident photo
-      allow read: if isAuthenticated();
-      
-      // Users can only upload to their own folder
-      allow create: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      isValidImageType() &&
-                      isValidSize();
-      
-      // Users can update their own photos
-      allow update: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      isValidImageType() &&
-                      isValidSize();
-      
-      // Users can delete their own photos
-      allow delete: if isAuthenticated() && isOwner(userId);
-    }
-    
-    // === PROFILE PICTURES ===
-    // Path: profile-pictures/{userId}/{filename}
-    match /profile-pictures/{userId}/{filename} {
-      // Anyone authenticated can read profile pictures
-      allow read: if isAuthenticated();
-      
-      // Users can only upload to their own folder
-      allow create: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      isValidImageType() &&
-                      isValidSize();
-      
-      // Users can update their own profile picture
-      allow update: if isAuthenticated() && 
-                      isOwner(userId) &&
-                      isValidImageType() &&
-                      isValidSize();
-      
-      // Users can delete their own profile picture
-      allow delete: if isAuthenticated() && isOwner(userId);
-    }
-    
-    // === PRECINCT IMAGES ===
-    // Path: precinct-images/{precinctId}/{filename}
-    match /precinct-images/{precinctId}/{filename} {
-      // Anyone can read precinct images (public safety info)
-      allow read: if true;
-      
-      // Only admins can upload precinct images
-      // Note: Admin check requires custom token claim or separate verification
-      allow write: if isAuthenticated(); // Simplified - enhance with admin claim check
-    }
-    
-    // === DENY ALL OTHER PATHS ===
+    // Deny all other paths
     match /{allPaths=**} {
       allow read, write: if false;
     }

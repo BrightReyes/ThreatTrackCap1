@@ -5,7 +5,10 @@
  */
 
 import * as Location from 'expo-location';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
+
+// Note: Alert dialogs should be handled by calling screens using CustomAlert
+// This utility file focuses on location logic only
 
 /**
  * Request location permissions from the user
@@ -16,14 +19,7 @@ export const requestLocationPermission = async () => {
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     
     if (foregroundStatus !== 'granted') {
-      Alert.alert(
-        'Location Permission Required',
-        'ThreatTrack needs access to your location to show nearby incidents and calculate risk levels in your area.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Location.requestForegroundPermissionsAsync() }
-        ]
-      );
+      console.log('Location permission denied by user');
       return false;
     }
 
@@ -75,11 +71,7 @@ export const getCurrentLocation = async () => {
     };
   } catch (error) {
     console.error('Error getting current location:', error);
-    Alert.alert(
-      'Location Error',
-      'Unable to get your current location. Please check your location services are enabled.',
-      [{ text: 'OK' }]
-    );
+    // Calling screens should handle showing user-friendly error messages
     return null;
   }
 };
@@ -168,11 +160,7 @@ export const isLocationEnabled = async () => {
     const enabled = await Location.hasServicesEnabledAsync();
     
     if (!enabled) {
-      Alert.alert(
-        'Location Services Disabled',
-        'Please enable location services in your device settings to use ThreatTrack.',
-        [{ text: 'OK' }]
-      );
+      console.log('Location services are disabled');
     }
     
     return enabled;
