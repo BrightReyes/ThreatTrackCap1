@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Dashboard — ThreatTrack Admin</title>
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+    </head>
+    <body>
+        <div id="page-dashboard" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <span class="sidebar__logo">ThreatTrack</span>
+                        <span class="sidebar__badge">Admin</span>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a
+                            href="#"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                            >Dashboard</a
+                        >
+                        <a href="#" class="sidebar__link">Incidents</a>
+                        <a href="#" class="sidebar__link">Users</a>
+                        <a href="#" class="sidebar__link">Reports</a>
+                        <a href="#" class="sidebar__link">Settings</a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Welcome Admin</h1>
+                        <p class="admin-dashboard__tagline">
+                            Real-time crime monitoring and management
+                        </p>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main">
+                    <section
+                        class="admin-dashboard__stats"
+                        aria-label="Key metrics"
+                    >
+                        <article class="stat-card">
+                            <p class="stat-card__label">Open incidents</p>
+                            <p class="stat-card__value">—</p>
+                            <p class="stat-card__hint">Connect Firestore</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Reports (24h)</p>
+                            <p class="stat-card__value">—</p>
+                            <p class="stat-card__hint">Connect Firestore</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Active users</p>
+                            <p class="stat-card__value">—</p>
+                            <p class="stat-card__hint">Connect Auth / users</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Avg. risk score</p>
+                            <p class="stat-card__value">—</p>
+                            <p class="stat-card__hint">Cloud Function</p>
+                        </article>
+                    </section>
+
+                    <section
+                        class="admin-dashboard__chart-block"
+                        aria-label="Chart placeholder"
+                    >
+                        <h2 class="admin-dashboard__section-title">
+                            Activity trend
+                        </h2>
+                        <div class="admin-dashboard__chart-placeholder">
+                            <p>
+                                Chart area — add a library (e.g. Chart.js) or
+                                embed your map here.
+                            </p>
+                        </div>
+                    </section>
+
+                    <section
+                        class="admin-dashboard__activity"
+                        aria-label="Recent activity"
+                    >
+                        <h2 class="admin-dashboard__section-title">
+                            Recent activity
+                        </h2>
+                        <ul class="admin-dashboard__activity-list">
+                            <li class="admin-dashboard__activity-item">
+                                No events yet — wire up Firestore listeners.
+                            </li>
+                            <li class="admin-dashboard__activity-item muted">
+                                Example: new incident reports, validation
+                                results, alerts sent.
+                            </li>
+                        </ul>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <script type="module" src="/js/dashboard.js"></script>
+    </body>
+</html>

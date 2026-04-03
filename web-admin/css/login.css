@@ -1,0 +1,203 @@
+/* Keep your existing colors — just refine layout */
+
+/* Chrome / Edge autofill fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    box-shadow: 0 0 0 1000px transparent inset !important;
+
+    -webkit-text-fill-color: #f9fafb !important;
+    caret-color: #f9fafb;
+
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+.login-screen {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0b173a;
+}
+
+/* Container stays centered */
+.login-container {
+    width: 100%;
+    max-width: 650px;
+    padding: 20px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* FIXED: removed width: 200% */
+.form-container {
+    background: #111827;
+    padding: 40px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 720px; /* controlled width */
+    box-sizing: border-box;
+    border: 1px solid #ffffff46;
+
+    /* subtle modern depth */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Logo */
+.form-container img {
+    width: 25%;
+    max-width: 120px; /* slightly more controlled */
+    height: auto;
+    margin: 0 auto 20px;
+    display: block;
+    object-fit: contain;
+    background-color: #1c77fff8;
+    border-radius: 16px;
+}
+
+/* Title */
+.title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #f9fafb;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: 16px;
+    color: #9ca3af;
+    margin-bottom: 32px; /* tighter spacing */
+    text-align: center;
+}
+
+/* Form */
+#login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* modern spacing instead of margins everywhere */
+}
+
+/* Error */
+.login-error {
+    color: #b91c1c;
+    font-size: 14px;
+    min-height: 1.25em;
+    text-align: center;
+}
+/* Group */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #ffffff;
+}
+
+/* Label */
+.input-group label {
+    font-size: 14px;
+    color: #f9fafb;
+}
+
+/* Wrapper */
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    padding: 12px 14px;
+    transition: all 0.2s ease;
+}
+
+/* Focus effect (important) */
+.input-wrapper:focus-within {
+    border-color: #007aff;
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+}
+
+/* Icon */
+.input-icon {
+    margin-right: 10px;
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+/* Input */
+.input-wrapper .input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #f9fafb;
+    font-size: 15px;
+    width: 100%;
+    padding: 0;
+}
+
+/* Placeholder */
+.input-wrapper .input::placeholder {
+    color: #9ca3af;
+}
+
+.login-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    margin-top: 8px;
+    border-radius: 12px;
+
+    background: rgba(255, 204, 0, 0.08);
+    border: 1px solid #ffcc00;
+
+    color: #f9fafb;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.warning-icon {
+    font-size: 18px;
+    color: #ffcc00;
+    margin-top: 2px;
+}
+
+/* Button */
+.login-button {
+    background-color: #007aff;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.login-button:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.login-button:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* Forgot */
+.forgot-password {
+    color: #007aff;
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 6px;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}

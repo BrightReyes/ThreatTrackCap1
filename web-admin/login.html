@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sign in — ThreatTrack Admin</title>
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/login.css" />
+    </head>
+    <body>
+        <div id="page-login" class="login-screen">
+            <div class="login-container">
+                <div class="form-container">
+                    <img src="/assets/logo.png" alt="ThreatTrack" />
+                    <h1 class="title">ThreatTrack</h1>
+                    <p class="subtitle">Admin Portal</p>
+
+                    <form id="login-form">
+                        <p
+                            id="login-error"
+                            class="login-error"
+                            role="alert"
+                            aria-live="polite"
+                        ></p>
+                        <div class="input-group">
+                            <label>Email</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">✉</span>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    class="input"
+                                    placeholder="sample@gmail.com"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Password</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">🔒</span>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    class="input"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div class="login-warning">
+                            <span class="warning-icon">⚠</span>
+                            <p>
+                                This portal is restricted to authorized law
+                                enforcement personnel only. Unauthorized access
+                                is prohibited and will be prosecuted.
+                            </p>
+                        </div>
+                        <button
+                            type="submit"
+                            id="login-submit"
+                            class="login-button"
+                        >
+                            Login
+                        </button>
+                        <a href="#" class="forgot-password">Forgot Password?</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/js/login.js"></script>
+    </body>
+</html>
