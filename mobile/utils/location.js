@@ -169,3 +169,37 @@ export const isLocationEnabled = async () => {
     return false;
   }
 };
+
+/**
+ * Get address from coordinates using reverse geocoding
+ * @param {number} latitude Latitude coordinate
+ * @param {number} longitude Longitude coordinate
+ * @returns {Promise<string|null>} Address string or null if failed
+ */
+export const getAddressFromCoordinates = async (latitude, longitude) => {
+  try {
+    const addresses = await Location.reverseGeocodeAsync({
+      latitude,
+      longitude,
+    });
+
+    if (addresses && addresses.length > 0) {
+      const address = addresses[0];
+      // Format address as readable string
+      const parts = [];
+      
+      if (address.street) parts.push(address.street);
+      if (address.city) parts.push(address.city);
+      if (address.region) parts.push(address.region);
+      if (address.postalCode) parts.push(address.postalCode);
+      if (address.country) parts.push(address.country);
+      
+      return parts.filter(p => p).join(', ') || null;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting address from coordinates:', error);
+    return null;
+  }
+};

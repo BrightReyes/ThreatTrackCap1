@@ -5,7 +5,9 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/favicon.png",
     "splash": {
+      "image": "./assets/favicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a2d52"
     },
@@ -17,7 +19,11 @@
       "bundleIdentifier": "com.threattrack.mobile"
     },
     "android": {
-      "package": "com.threattrack.mobile"
+      "package": "com.threattrack.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/favicon.png",
+        "backgroundColor": "#1a2d52"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

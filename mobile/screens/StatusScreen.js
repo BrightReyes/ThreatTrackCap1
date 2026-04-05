@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
-const StatusScreen = () => {
+const StatusScreen = ({ navigation }) => {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -99,6 +98,19 @@ const StatusScreen = () => {
     fetchMyIncidents();
   };
 
+  const handleSOSPress = async () => {
+    try {
+      // Import getCurrentLocation here since StatusScreen doesn't have it
+      const { getCurrentLocation } = require('../utils/location');
+      const location = await getCurrentLocation();
+      navigation.navigate('SOSReport', { userLocation: location });
+    } catch (error) {
+      console.error('Error getting location for SOS:', error);
+      // Navigate anyway without location, SOS screen will handle it
+      navigation.navigate('SOSReport');
+    }
+  };
+
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Unknown date';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -151,6 +163,22 @@ const StatusScreen = () => {
     }
   };
 
+  const getLocationDisplay = (location) => {
+    if (!location) return 'Location not specified';
+    
+    // If location has address property, use it
+    if (location.address) {
+      return location.address;
+    }
+    
+    // If location has coordinates, format them
+    if (location.latitude && location.longitude) {
+      return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
+    }
+    
+    return 'Location not specified';
+  };
+
   const handleIncidentPress = (incident) => {
     showAlert(
       `${incident.type.charAt(0).toUpperCase() + incident.type.slice(1)} Report`,
@@ -162,120 +190,132 @@ const StatusScreen = () => {
 
   if (loading) {
     return (
-      <LinearGradient
-        colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-        locations={[0, 0.3, 0.6, 0.85, 1]}
-        style={styles.container}
-      >
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6a8eef" />
+          <ActivityIndicator size="large" color="#dc2626" />
           <Text style={styles.loadingText}>Loading your reports...</Text>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
     <>
-    <LinearGradient
-      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-      locations={[0, 0.3, 0.6, 0.85, 1]}
-      style={styles.container}
-    >
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6a8eef" />
-        }
-      >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>MY REPORTS</Text>
-          <Text style={styles.headerSubtitle}>{stats.total} Total</Text>
-        </View>
+      <View style={styles.container}>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#dc2626" />
+          }
+        >
+          {/* Header */}
+          <View style={styles.headerNew}>
+            <Text style={styles.headerNewTitle}>REPORT STATUS</Text>
+          </View>
 
-        {/* Statistics Cards */}
-        <View style={styles.statsContainer}>
-          <View style={[styles.statCard, { borderColor: '#10b981' }]}>
-            <Text style={styles.statNumber}>{stats.verified}</Text>
-            <Text style={styles.statLabel}>Verified</Text>
-          </View>
-          <View style={[styles.statCard, { borderColor: '#f59e0b' }]}>
-            <Text style={styles.statNumber}>{stats.under_review}</Text>
-            <Text style={styles.statLabel}>Reviewing</Text>
-          </View>
-          <View style={[styles.statCard, { borderColor: '#dc2626' }]}>
-            <Text style={styles.statNumber}>{stats.rejected}</Text>
-            <Text style={styles.statLabel}>Rejected</Text>
-          </View>
-        </View>
-
-        {/* Incidents List */}
-        <View style={styles.content}>
-          {incidents.length > 0 ? (
-            incidents.map((incident) => (
-              <TouchableOpacity 
-                key={incident.id}
-                style={styles.incidentCard}
-                onPress={() => handleIncidentPress(incident)}
-              >
-                <View style={styles.incidentHeader}>
-                  <View style={styles.incidentLeft}>
-                    <View style={[
-                      styles.incidentIcon,
-                      { backgroundColor: getSeverityColor(incident.severity) }
-                    ]}>
-                      <Text style={styles.incidentIconText}>{getIncidentIcon(incident.type)}</Text>
-                    </View>
-                    <View style={styles.incidentInfo}>
-                      <Text style={styles.incidentType}>
-                        {incident.type.charAt(0).toUpperCase() + incident.type.slice(1)}
-                      </Text>
-                      <Text style={styles.incidentTime}>{formatTimestamp(incident.timestamp)}</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(incident.status) }]}>
-                    <Text style={styles.statusIcon}>{getStatusIcon(incident.status)}</Text>
-                    <Text style={styles.statusText}>
-                      {incident.status.replace('_', ' ').toUpperCase()}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.incidentDescription} numberOfLines={2}>
-                  {incident.description}
-                </Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📋</Text>
-              <Text style={styles.emptyTitle}>No Reports Yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Your submitted incident reports will appear here
-              </Text>
+          {/* Statistics Cards */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total Reports</Text>
             </View>
-          )}
-        </View>
-      </ScrollView>
-    </LinearGradient>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{stats.under_review}</Text>
+              <Text style={styles.statLabel}>In Progress</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{stats.verified}</Text>
+              <Text style={styles.statLabel}>Resolved</Text>
+            </View>
+          </View>
 
-    {/* Custom Alert Modal */}
-    <CustomAlert
-      visible={alertConfig.visible}
-      title={alertConfig.title}
-      message={alertConfig.message}
-      type={alertConfig.type}
-      buttons={alertConfig.buttons}
-      onClose={hideAlert}
-      autoCloseDelay={5000}
-    />
-  </>
+          {/* Incidents List */}
+          <View style={styles.content}>
+            {incidents.length > 0 ? (
+              incidents.map((incident) => (
+                <TouchableOpacity 
+                  key={incident.id} 
+                  style={styles.incidentCard}
+                  onPress={() => handleIncidentPress(incident)}
+                >
+                  <View style={styles.incidentRowTop}>
+                    <Text style={styles.incidentTitle}>{incident.type.charAt(0).toUpperCase() + incident.type.slice(1)}</Text>
+                    <View style={styles.rowRightTop}>
+                      <View style={styles.updateBadge}>
+                        <Text style={styles.updateBadgeText}>{incident.updatesCount || 2} updates</Text>
+                      </View>
+                      {incident.status === 'under_review' && (
+                        <View style={styles.investigationPill}>
+                          <Text style={styles.investigationPillText}>🔍 Under Investigation</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <Text style={styles.incidentBody} numberOfLines={2}>{incident.description}</Text>
+
+                  <View style={styles.incidentRowBottom}>
+                    <Text style={styles.incidentLocation}>📍 {getLocationDisplay(incident.location)}</Text>
+                    <Text style={styles.detailsLink}>Details ›</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>📋</Text>
+                <Text style={styles.emptyTitle}>No Reports Yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Your submitted incident reports will appear here
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Bottom Spacer */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+
+        {/* Bottom Navigation Bar */}
+        <View style={styles.bottomNavBarContainer}>
+          <View style={styles.bottomNavBar}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
+              <Text style={styles.navBottomLabel}>Home</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+              <Text style={styles.navBottomIcon}>📊</Text>
+              <Text style={styles.navBottomLabel}>Reports</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
+            <View style={styles.sosButtonInner}>
+              <Text style={styles.sosTextBottom}>SOS</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Custom Alert Modal */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+        buttons={alertConfig.buttons}
+        onClose={hideAlert}
+        autoCloseDelay={5000}
+      />
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
   },
   scrollView: {
     flex: 1,
@@ -284,130 +324,148 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#8b95a8',
+    color: '#6b7280',
   },
-  header: {
+  
+  // Header Styles
+  headerNew: {
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 8,
+    backgroundColor: '#ffffff',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#8b95a8',
-    letterSpacing: 1,
+  headerNewTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 1.2,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6a8eef',
-    fontWeight: '600',
-  },
+
+  // Statistics Cards
   statsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     justifyContent: 'space-between',
+    marginTop: 12,
     marginBottom: 20,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#1a2d52',
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: 15,
-    marginHorizontal: 5,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 6,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#dc2626',
+    marginBottom: 6,
   },
   statLabel: {
-    fontSize: 11,
-    color: '#8b95a8',
-    fontWeight: '600',
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '700',
+    textAlign: 'center',
   },
+
+  // Content Area
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   incidentCard: {
-    backgroundColor: '#1a2d52',
-    borderWidth: 1.5,
-    borderColor: '#3d5a8c',
-    borderRadius: 12,
-    padding: 15,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  incidentHeader: {
+  incidentRowTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  incidentLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  incidentTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#111827',
     flex: 1,
   },
-  incidentIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  incidentIconText: {
-    fontSize: 18,
-  },
-  incidentInfo: {
-    flex: 1,
-  },
-  incidentType: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 2,
-  },
-  incidentTime: {
-    fontSize: 12,
-    color: '#8b95a8',
-  },
-  statusBadge: {
+  rowRightTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 8,
+  },
+  updateBadge: {
+    backgroundColor: '#dbeafe',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
-    marginLeft: 10,
+    borderRadius: 20,
+    marginRight: 8,
   },
-  statusIcon: {
-    fontSize: 12,
-    color: '#ffffff',
-    marginRight: 4,
-  },
-  statusText: {
-    fontSize: 10,
+  updateBadgeText: {
+    color: '#0284c7',
+    fontSize: 11,
     fontWeight: '700',
-    color: '#ffffff',
   },
-  incidentDescription: {
+  investigationPill: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  investigationPillText: {
+    color: '#b45309',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  incidentBody: {
     fontSize: 13,
-    color: '#9ba5b8',
+    color: '#374151',
+    marginBottom: 10,
     lineHeight: 18,
   },
+  incidentRowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  incidentLocation: {
+    fontSize: 12,
+    color: '#9ca3af',
+    flex: 1,
+  },
+  detailsLink: {
+    color: '#dc2626',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+
+  // Empty State
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   emptyEmoji: {
     fontSize: 64,
@@ -415,15 +473,99 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '900',
+    color: '#111827',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#8b95a8',
+    color: '#9ca3af',
     textAlign: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 20,
+    lineHeight: 20,
+  },
+
+  // Bottom Spacer
+  bottomSpacer: {
+    height: 120,
+  },
+
+  // Bottom Navigation Bar Container
+  bottomNavBarContainer: {
+    position: 'relative',
+    backgroundColor: '#dc2626',
+  },
+
+  // Bottom Navigation Bar
+  bottomNavBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    backgroundColor: '#dc2626',
+    paddingBottom: 14,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+  },
+
+  navBottomItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 0,
+    paddingHorizontal: 14,
+  },
+  navBottomIcon: {
+    fontSize: 32,
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  navBottomIconImage: {
+    width: 32,
+    height: 32,
+    marginBottom: 4,
+    tintColor: '#ffffff',
+  },
+  navBottomLabel: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  sosButtonBottom: {
+    position: 'absolute',
+    top: -50,
+    left: '50%',
+    marginLeft: -50,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#7f1d1d',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.9,
+    shadowRadius: 28,
+    elevation: 35,
+  },
+  sosButtonInner: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: '#dc2626',
+    borderWidth: 3,
+    borderColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#fca5a5',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 10,
+  },
+  sosTextBottom: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 });
 

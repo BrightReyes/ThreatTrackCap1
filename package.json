@@ -1,5 +1,6 @@
 {
-  "dependencies": {
-    "expo": "^55.0.8"
-  }
+  "name": "ThreatTrackCap1",
+  "version": "1.0.0",
+  "scripts": {},
+  "dependencies": {}
 }

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,10 @@ import {
   Dimensions,
   ActivityIndicator,
   Linking,
-  Image,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, Polygon } from 'react-native-maps';
-import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { LinearGradient } from 'expo-linear-gradient';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
@@ -106,7 +105,6 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef(null);
-  const unsubscribeRef = useRef(null);
 
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
@@ -134,13 +132,6 @@ const HomeScreen = ({ navigation }) => {
   // Initialize location and data on mount
   useEffect(() => {
     initializeApp();
-
-    // Cleanup function to unsubscribe from real-time listener on unmount
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
   }, []);
 
   // Recalculate nearest precinct when location or precincts change
@@ -149,17 +140,6 @@ const HomeScreen = ({ navigation }) => {
       findNearestPrecinct();
     }
   }, [userLocation, precincts]);
-
-  // Refresh incidents when screen comes into focus (after reporting incident)
-  useFocusEffect(
-    useCallback(() => {
-      // Refresh incidents by re-fetching when user returns to Home
-      if (!loading) {
-        console.log('HomeScreen focused - refreshing incidents');
-        fetchIncidents();
-      }
-    }, [loading])
-  );
 
   const initializeApp = async () => {
     try {
@@ -216,58 +196,39 @@ const HomeScreen = ({ navigation }) => {
         limit(50)
       );
 
-      // Set up real-time listener with onSnapshot
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
+      const snapshot = await getDocs(q);
+      const incidentData = [];
+      let highCount = 0, mediumCount = 0, lowCount = 0;
 
-      unsubscribeRef.current = onSnapshot(q, (snapshot) => {
-        const incidentData = [];
-        let highCount = 0, mediumCount = 0, lowCount = 0;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        incidentData.push({ id: doc.id, ...data });
 
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          incidentData.push({ id: doc.id, ...data });
+        // Count by severity
+        if (data.severity === 'high') highCount++;
+        else if (data.severity === 'medium') mediumCount++;
+        else if (data.severity === 'low') lowCount++;
+      });
 
-          // Count by severity
-          if (data.severity === 'high') highCount++;
-          else if (data.severity === 'medium') mediumCount++;
-          else if (data.severity === 'low') lowCount++;
-        });
-
-        // If no data from Firestore, use mock data for demo
-        if (incidentData.length === 0) {
-          console.log('No Firestore data found - using mock data');
-          const mockIncidents = generateMockIncidents();
-          setIncidents(mockIncidents);
-          
-          // Count mock data by severity
-          mockIncidents.forEach(inc => {
-            if (inc.severity === 'high') highCount++;
-            else if (inc.severity === 'medium') mediumCount++;
-            else if (inc.severity === 'low') lowCount++;
-          });
-        } else {
-          setIncidents(incidentData);
-        }
-        
-        setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
-      }, (error) => {
-        console.error('Error fetching incidents with real-time listener:', error);
-        // Fallback to mock data on error
+      // If no data from Firestore, use mock data for demo
+      if (incidentData.length === 0) {
+        console.log('No Firestore data found - using mock data');
         const mockIncidents = generateMockIncidents();
         setIncidents(mockIncidents);
         
-        let highCount = 0, mediumCount = 0, lowCount = 0;
+        // Count mock data by severity
         mockIncidents.forEach(inc => {
           if (inc.severity === 'high') highCount++;
           else if (inc.severity === 'medium') mediumCount++;
           else if (inc.severity === 'low') lowCount++;
         });
-        setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
-      });
+      } else {
+        setIncidents(incidentData);
+      }
+      
+      setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
     } catch (error) {
-      console.error('Error setting up incidents listener:', error);
+      console.error('Error fetching incidents:', error);
       // Fallback to mock data on error
       const mockIncidents = generateMockIncidents();
       setIncidents(mockIncidents);
@@ -409,65 +370,40 @@ const HomeScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.headerNew}>
-          <Text style={styles.headerNewTitle}>HOME NEW</Text>
-        </View>
+      <LinearGradient
+        colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
+        locations={[0, 0.3, 0.6, 0.85, 1]}
+        style={styles.container}
+      >
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#dc2626" />
+          <ActivityIndicator size="large" color="#6a8eef" />
           <Text style={styles.loadingText}>Loading map data...</Text>
         </View>
-        <View style={styles.bottomNavBarContainer}>
-            <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-              <Text style={styles.navBottomIcon}>�</Text>
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-              <Text style={styles.navBottomIcon}>📊</Text>
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
+      </LinearGradient>
     );
   }
 
   return (
     <>
-    <View style={styles.container}>
-      {/* Header with "HOME NEW" */}
-      <View style={styles.headerNew}>
-        <Text style={styles.headerNewTitle}>HOME NEW</Text>
-        <View style={styles.headerIconsContainer}>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerIconButton}>
-            <View style={styles.settingsIconWrapper}>
-              <Text style={styles.settingsIcon}>⚙️</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={() => navigation.navigate('Alerts')} style={styles.headerIconButton}>
-            <View style={styles.notificationBellWrapper}>
-              <Text style={styles.bellIcon}>🔔</Text>
-              {riskStats.high > 0 && (
-                <View style={styles.redBadge}>
-                  <Text style={styles.redBadgeText}>{riskStats.high}</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
+    <LinearGradient
+      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
+      locations={[0, 0.3, 0.6, 0.85, 1]}
+      style={styles.container}
+    >
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>CRIME MAP</Text>
+          {userLocation && (
+            <TouchableOpacity style={styles.locationButton} onPress={centerMapOnUser}>
+              <Text style={styles.locationButtonText}>📍 Center</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Map Container */}
         <View style={styles.mapContainer}>
           {userLocation ? (
@@ -550,31 +486,32 @@ const HomeScreen = ({ navigation }) => {
         </View>
 
         {/* Report Incident Button */}
-        <TouchableOpacity
-          style={styles.reportButtonWire}
+        <TouchableOpacity 
+          style={styles.reportButton}
           onPress={() => navigation.navigate('ReportIncident')}
         >
-          <Image source={require('../assets/icons/report.png')} style={styles.reportButtonWireIcon} />
-          <Text style={styles.reportButtonWireText}>Report an Incident</Text>
+          <Text style={styles.reportButtonIcon}>📷</Text>
+          <Text style={styles.reportButtonText}>Report an Incident</Text>
         </TouchableOpacity>
 
-        {/* Quick Action Cards: Nearest Precinct + Call 911 */}
-        <View style={styles.quickCardsRow}>
-          <TouchableOpacity style={styles.quickCard} onPress={() => showAlert('Nearest Precinct', nearestPrecinct ? `${nearestPrecinct.name}\n${nearestPrecinct.address}` : 'No precinct found')}>
-            <Text style={styles.quickCardIcon}>📍</Text>
-            <View style={styles.quickCardTextWrap}>
-              <Text style={styles.quickCardNumber}>{nearestPrecinct ? formatDistance(nearestPrecinct.distance) : '—'}</Text>
-              <Text style={styles.quickCardLabel}>Nearest Station</Text>
+        {/* Risk Level Cards */}
+        <View style={styles.riskSection}>
+          <View style={styles.riskRow}>
+            <View style={[styles.riskCard, styles.riskHighCard]}>
+              <Text style={styles.riskNumber}>{riskStats.high}</Text>
+              <Text style={styles.riskLabel}>High Risk</Text>
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
-            <Text style={styles.quickCardIcon}>☎️</Text>
-            <View style={styles.quickCardTextWrap}>
-              <Text style={styles.quickCardNumber}>SOS</Text>
-              <Text style={styles.quickCardLabel}>Report Now</Text>
+            
+            <View style={[styles.riskCard, styles.riskMediumCard]}>
+              <Text style={styles.riskNumber}>{riskStats.medium}</Text>
+              <Text style={styles.riskLabel}>Medium</Text>
             </View>
-          </TouchableOpacity>
+            
+            <View style={[styles.riskCard, styles.riskLowCard]}>
+              <Text style={styles.riskNumber}>{riskStats.low}</Text>
+              <Text style={styles.riskLabel}>Low Risk</Text>
+            </View>
+          </View>
         </View>
 
         {/* Nearest Precinct Section */}
@@ -669,28 +606,7 @@ const HomeScreen = ({ navigation }) => {
         {/* Bottom Spacing for Tab Bar */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
-
-      {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNavBarContainer}>
-        <View style={styles.bottomNavBar}>
-          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.navBottomIcon}>�</Text>
-            <Text style={styles.navBottomLabel}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-            <Text style={styles.navBottomIcon}>📊</Text>
-            <Text style={styles.navBottomLabel}>Reports</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.sosButtonBottom} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
-          <View style={styles.sosButtonInner}>
-            <Text style={styles.sosTextBottom}>SOS</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-    </View>
+    </LinearGradient>
 
     {/* Custom Alert Modal */}
     <CustomAlert
@@ -801,7 +717,6 @@ const darkMapStyle = [
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   scrollView: {
     flex: 1,
@@ -810,78 +725,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6b7280',
+    color: '#8b95a8',
   },
-  
-  /* New Header Styles */
-  headerNew: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    backgroundColor: '#ffffff',
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 15,
   },
-  headerNewTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  notificationBellWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 8,
-  },
-  bellIcon: {
-    fontSize: 24,
-  },
-  headerIconsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: -1,
-  },
-  headerIconButton: {
-    padding: 4,
-  },
-  settingsIconWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 8,
-  },
-  settingsIcon: {
-    fontSize: 22,
-  },
-  redBadge: {
-    position: 'absolute',
-    top: -2,
-    right: 0,
-    backgroundColor: '#dc2626',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  redBadgeText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -904,184 +761,114 @@ const styles = StyleSheet.create({
   
   // Map Section
   mapContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   map: {
     width: '100%',
-    height: 320,
-    borderRadius: 24,
+    height: 250,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
   },
   mapPlaceholder: {
     width: '100%',
-    height: 320,
-    backgroundColor: '#f9fafb',
+    height: 250,
+    backgroundColor: '#1a2d52',
     borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 24,
+    borderColor: '#3d5a8c',
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   mapPlaceholderText: {
-    fontSize: 56,
-    marginBottom: 12,
+    fontSize: 48,
+    marginBottom: 8,
   },
   mapPlaceholderLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
   },
   mapPlaceholderSubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 20,
+    fontSize: 12,
+    color: '#8b95a8',
+    marginBottom: 16,
   },
   enableLocationButton: {
-    backgroundColor: '#dc2626',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 12,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    backgroundColor: '#6a8eef',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 8,
   },
   enableLocationButtonText: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
   },
   customMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  markerText: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  precinctMarker: {
     width: 40,
     height: 40,
+    backgroundColor: '#5178e8',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#ffffff',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  markerText: {
-    fontSize: 18,
+  precinctMarkerText: {
+    fontSize: 20,
     textAlign: 'center',
     lineHeight: 22,
   },
-  precinctMarker: {
-    width: 44,
-    height: 44,
-    backgroundColor: '#3b82f6',
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  precinctMarkerText: {
-    fontSize: 22,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
   
-  // Report Button - Red Button Style
-  reportButtonWire: {
+  // Report Button
+  reportButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#dc2626',
-    marginHorizontal: 16,
+    marginHorizontal: 20,
     marginBottom: 20,
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: 16,
+    borderRadius: 12,
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  reportButtonWireIcon: {
-    width: 28,
-    height: 28,
-    marginRight: 12,
-    tintColor: '#fff',
+  reportButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
   },
-  reportButtonWireText: {
+  reportButtonText: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  // Quick cards row
-  quickCardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    gap: 12,
-  },
-  quickCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  quickCardIcon: {
-    fontSize: 28,
-    marginBottom: 10,
-  },
-  quickCardTextWrap: {
-    alignItems: 'center',
-  },
-  quickCardNumber: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#dc2626',
-    marginBottom: 4,
-  },
-  quickCardLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   
   // Risk Cards
   riskSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     marginBottom: 20,
   },
   riskRow: {
@@ -1122,109 +909,96 @@ const styles = StyleSheet.create({
   
   // Sections
   section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#111827',
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   viewAllText: {
     fontSize: 13,
-    color: '#dc2626',
-    fontWeight: '700',
+    color: '#6a8eef',
+    fontWeight: '600',
   },
   
   // Precinct Card
   precinctCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1a2d52',
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#3d5a8c',
+    borderRadius: 12,
+    padding: 16,
   },
   precinctIcon: {
-    width: 52,
-    height: 52,
-    backgroundColor: '#fef2f2',
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    backgroundColor: '#5178e8',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   precinctIconText: {
-    fontSize: 26,
+    fontSize: 24,
   },
   precinctInfo: {
     flex: 1,
   },
   precinctName: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 5,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
   },
   precinctLocation: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   locationIcon: {
-    fontSize: 13,
-    marginRight: 5,
+    fontSize: 12,
+    marginRight: 4,
   },
   precinctAddress: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: 12,
+    color: '#8b95a8',
     flex: 1,
-    fontWeight: '500',
   },
   navigateIcon: {
-    padding: 10,
+    padding: 8,
   },
   navigateIconText: {
-    fontSize: 18,
-    color: '#dc2626',
+    fontSize: 16,
+    color: '#6a8eef',
   },
   
-  // Incident Cards (white)
+  // Incident Cards
   incidentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1a2d52',
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 15,
+    borderColor: '#3d5a8c',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
   },
   incidentIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
   incidentIconText: {
     fontSize: 20,
@@ -1234,27 +1008,25 @@ const styles = StyleSheet.create({
   },
   incidentTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 3,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
   },
   incidentDetails: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginBottom: 3,
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#8b95a8',
+    marginBottom: 2,
   },
   incidentTime: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '500',
+    fontSize: 11,
+    color: '#6b7280',
   },
   incidentArrow: {
-    padding: 10,
+    padding: 8,
   },
   incidentArrowText: {
     fontSize: 18,
-    color: '#dc2626',
+    color: '#6a8eef',
   },
   
   // Empty State
@@ -1265,100 +1037,13 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#8b95a8',
   },
   
   // Bottom Spacer
   bottomSpacer: {
-    height: 120,
-  },
-  
-  // Bottom Navigation Bar Container
-  bottomNavBarContainer: {
-    position: 'relative',
-    backgroundColor: '#dc2626',
-  },
-  
-  // Bottom Navigation Bar
-  bottomNavBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    backgroundColor: '#dc2626',
-    paddingBottom: 14,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-  },
-
-  navBottomItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 0,
-    paddingHorizontal: 14,
-  },
-  navBottomIcon: {
-    fontSize: 32,
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  navBottomIconImage: {
-    width: 32,
-    height: 32,
-    marginBottom: 4,
-    tintColor: '#ffffff',
-  },
-  navBottomLabel: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  sosButtonBottom: {
-    position: 'absolute',
-    top: -50,
-    left: '50%',
-    marginLeft: -50,
-    width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: '#7f1d1d',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.9,
-    shadowRadius: 28,
-    elevation: 35,
-  },
-  sosButtonInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#dc2626',
-    borderWidth: 3,
-    borderColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#fca5a5',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  sosTextBottom: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  
-  // Old SOS Button (disabled, kept for reference)
-  sosButton: {
-    display: 'none',
-  },
-  sosText: {
-    display: 'none',
   },
 });
 
 export default HomeScreen;
-

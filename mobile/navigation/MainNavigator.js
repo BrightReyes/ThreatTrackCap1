@@ -5,6 +5,7 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import HomeScreen from '../screens/HomeScreen';
 import ReportIncidentScreen from '../screens/ReportIncidentScreen';
+import SOSReportScreen from '../screens/SOSReportScreen';
 import StatusScreen from '../screens/StatusScreen';
 import AlertsScreen from '../screens/AlertsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
@@ -23,12 +24,13 @@ const TabIcon = ({ iconText, label, focused }) => (
   </View>
 );
 
-// Stack Navigator for Home (includes Report screen)
+// Stack Navigator for Home (includes Report and SOS screens)
 const HomeStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="ReportIncident" component={ReportIncidentScreen} />
+      <Stack.Screen name="SOSReport" component={SOSReportScreen} />
     </Stack.Navigator>
   );
 };
@@ -38,7 +40,7 @@ const MainNavigator = ({ onLogout }) => {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: { display: 'none' },
         tabBarShowLabel: false,
         tabBarActiveTintColor: '#6a8eef',
         tabBarInactiveTintColor: '#4a5f8a',

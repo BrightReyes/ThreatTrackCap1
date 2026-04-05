@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking, Image } from 'react-native';
 import CustomAlert from '../components/CustomAlert';
+import { auth } from '../utils/firebase';
 
-const SettingsScreen = ({ onLogout }) => {
+const SettingsScreen = ({ navigation, onLogout }) => {
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -12,6 +12,16 @@ const SettingsScreen = ({ onLogout }) => {
     type: 'info',
     buttons: [],
   });
+
+  const [pushNotifications, setPushNotifications] = useState(true);
+  const [highPriority, setHighPriority] = useState(true);
+  const [locationAlerts, setLocationAlerts] = useState(true);
+  const [anonymousMode, setAnonymousMode] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try { const u = auth.currentUser; setUser(u); } catch(e){}
+  }, []);
 
   const showAlert = (title, message, type = 'info', buttons = []) => {
     setAlertConfig({
@@ -39,82 +49,180 @@ const SettingsScreen = ({ onLogout }) => {
     );
   };
 
+  const handleSOSPress = async () => {
+    try {
+      // Import getCurrentLocation here since SettingsScreen doesn't have it
+      const { getCurrentLocation } = require('../utils/location');
+      const location = await getCurrentLocation();
+      navigation.navigate('SOSReport', { userLocation: location });
+    } catch (error) {
+      console.error('Error getting location for SOS:', error);
+      // Navigate anyway without location, SOS screen will handle it
+      navigation.navigate('SOSReport');
+    }
+  };
+
   return (
     <>
-    <LinearGradient
-      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-      locations={[0, 0.3, 0.6, 0.85, 1]}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>SETTINGS</Text>
-        </View>
+    <View style={styles.container}>
+      {/* Modern Header */}
+      <View style={styles.headerModern}>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
 
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        
         {/* Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>👤</Text>
-            <Text style={styles.menuText}>Edit Profile</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>🔒</Text>
-            <Text style={styles.menuText}>Change Password</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+          <View style={styles.profileCard}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.avatarText}>{(user?.displayName || user?.email || 'U').charAt(0)}</Text>
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{user?.displayName || 'User Profile'}</Text>
+              <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
+            </View>
+            <Text style={styles.profileArrow}>›</Text>
+          </View>
         </View>
 
         {/* Notifications Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>🔔</Text>
-            <Text style={styles.menuText}>Alert Preferences</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>📍</Text>
-            <Text style={styles.menuText}>Location Settings</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+          <View style={styles.settingsCard}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>🔔</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Push Notifications</Text>
+                <Text style={styles.settingDesc}>Receive alerts on your device</Text>
+              </View>
+              <Switch value={pushNotifications} onValueChange={setPushNotifications} trackColor={{true:'#dc2626', false:'#ccc'}} thumbColor={'#fff'} />
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>⚡</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>High Priority Alerts</Text>
+                <Text style={styles.settingDesc}>Critical safety notifications</Text>
+              </View>
+              <Switch value={highPriority} onValueChange={setHighPriority} trackColor={{true:'#dc2626', false:'#ccc'}} thumbColor={'#fff'} />
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>📍</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Location-based Alerts</Text>
+                <Text style={styles.settingDesc}>Alerts for your area</Text>
+              </View>
+              <Switch value={locationAlerts} onValueChange={setLocationAlerts} trackColor={{true:'#dc2626', false:'#ccc'}} thumbColor={'#fff'} />
+            </View>
+          </View>
         </View>
 
-        {/* App Settings */}
+        {/* Privacy & Security Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Settings</Text>
-          
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>🎨</Text>
-            <Text style={styles.menuText}>Theme</Text>
-            <View style={styles.themeBadge}>
-              <Text style={styles.themeBadgeText}>Dark</Text>
-            </View>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Privacy & Security</Text>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuIcon}>ℹ️</Text>
-            <Text style={styles.menuText}>About</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </TouchableOpacity>
+          <View style={styles.settingsCard}>
+            <TouchableOpacity style={styles.settingItem} onPress={() => showAlert('Change Password', 'Update your password to keep your account secure', 'info')}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>🔒</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Change Password</Text>
+                <Text style={styles.settingDesc}>Update your password</Text>
+              </View>
+              <Text style={styles.settingArrow}>›</Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>👤</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Anonymous Mode</Text>
+                <Text style={styles.settingDesc}>Hide your identity when reporting</Text>
+              </View>
+              <Switch value={anonymousMode} onValueChange={setAnonymousMode} trackColor={{true:'#dc2626', false:'#ccc'}} thumbColor={'#fff'} />
+            </View>
+          </View>
+        </View>
+
+        {/* Support Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support & About</Text>
+
+          <View style={styles.settingsCard}>
+            <TouchableOpacity style={styles.settingItem} onPress={() => showAlert('Help & Support', 'Contact our support team for assistance', 'info')}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>❓</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Help & Support</Text>
+                <Text style={styles.settingDesc}>Get help and contact support</Text>
+              </View>
+              <Text style={styles.settingArrow}>›</Text>
+            </TouchableOpacity>
+
+            <View style={styles.divider} />
+
+            <TouchableOpacity style={styles.settingItem} onPress={() => showAlert('About Threat Track', 'ThreatTrack v1.0\nA modern safety app for communities', 'info')}>
+              <View style={styles.settingIconWrapper}>
+                <Text style={styles.settingIcon}>ℹ️</Text>
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>About ThreatTrack</Text>
+                <Text style={styles.settingDesc}>App version and details</Text>
+              </View>
+              <Text style={styles.settingArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Logout Button */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutIcon}>🚪</Text>
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </LinearGradient>
+
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNavBarContainer}>
+        <View style={styles.bottomNavBar}>
+          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+            <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
+            <Text style={styles.navBottomLabel}>Home</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+            <Text style={styles.navBottomIcon}>📊</Text>
+            <Text style={styles.navBottomLabel}>Reports</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
+          <View style={styles.sosButtonInner}>
+            <Text style={styles.sosTextBottom}>SOS</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
 
     {/* Custom Alert Modal */}
     <CustomAlert
@@ -133,89 +241,247 @@ const SettingsScreen = ({ onLogout }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
   },
   scrollView: {
     flex: 1,
   },
-  header: {
+  
+  /* Modern Header */
+  headerModern: {
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 20,
+    paddingBottom: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#8b95a8',
-    letterSpacing: 1,
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.5,
   },
+  
+  /* Sections */
   section: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 24,
+    marginTop: 16,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#6a8eef',
+    color: '#111827',
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  menuItem: {
+  
+  /* Settings Card */
+  settingsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  
+  /* Setting Item */
+  settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a2d52',
-    borderWidth: 1.5,
-    borderColor: '#3d5a8c',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  settingIconWrapper: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  menuIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  menuText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#ffffff',
-    fontWeight: '500',
-  },
-  menuArrow: {
-    fontSize: 24,
-    color: '#6a8eef',
-  },
-  themeBadge: {
-    backgroundColor: '#0f1d3d',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  themeBadgeText: {
-    fontSize: 12,
-    color: '#8b95a8',
-    fontWeight: '600',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
-    backgroundColor: '#1a2d52',
-    borderWidth: 2,
-    borderColor: '#dc2626',
-    borderRadius: 12,
-    padding: 16,
-  },
-  logoutIcon: {
-    fontSize: 20,
+    alignItems: 'center',
     marginRight: 12,
+  },
+  settingIcon: {
+    fontSize: 20,
+  },
+  settingContent: {
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  settingDesc: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  settingArrow: {
+    fontSize: 18,
+    color: '#d1d5db',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+  },
+  
+  /* Profile Card */
+  profileCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  profileAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  avatarText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 20,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  profileEmail: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  profileArrow: {
+    fontSize: 20,
+    color: '#d1d5db',
+  },
+  
+  /* Logout Button */
+  logoutButton: {
+    backgroundColor: '#dc2626',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginHorizontal: 0,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   logoutText: {
-    fontSize: 16,
-    color: '#dc2626',
+    color: '#fff',
     fontWeight: '700',
+    fontSize: 16,
   },
+  
+  /* Bottom Spacer */
   bottomSpacer: {
-    height: 100,
+    height: 120,
+  },
+  
+  /* Bottom Navigation Bar */
+  bottomNavBarContainer: {
+    position: 'relative',
+    backgroundColor: '#dc2626',
+  },
+  bottomNavBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    backgroundColor: '#dc2626',
+    paddingBottom: 12,
+    paddingTop: 10,
+    paddingHorizontal: 20,
+  },
+  navBottomItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 0,
+    paddingHorizontal: 12,
+  },
+  navBottomIcon: {
+    fontSize: 28,
+    color: '#ffffff',
+    marginBottom: 3,
+  },
+  navBottomIconImage: {
+    width: 32,
+    height: 32,
+    marginBottom: 4,
+    tintColor: '#ffffff',
+  },
+  navBottomLabel: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  sosButtonBottom: {
+    position: 'absolute',
+    top: -48,
+    left: '50%',
+    marginLeft: -48,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#7f1d1d',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.85,
+    shadowRadius: 24,
+    elevation: 32,
+  },
+  sosButtonInner: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: '#dc2626',
+    borderWidth: 3,
+    borderColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#fca5a5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  sosTextBottom: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
 
