@@ -1,9 +1,25 @@
 import { initAdminPage } from './admin-auth.js';
 import { confirmDanger, toastError, toastSuccess } from './alerts.js';
 import { auth, db } from '../../shared/firebase.js';
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  getCountFromServer,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { fetchAuditLogs, logAudit } from './audit.js';
+import Papa from 'papaparse';
 
 initAdminPage({
   pageId: 'page-settings',
@@ -1319,10 +1335,366 @@ initAdminPage({
         el.addEventListener('change', () => requestSave('Auto-saved'));
       });
 
+    // === Data management ===
+    function downloadBlob(filename, text, mime) {
+      const blob = new Blob([text], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function csvEscape(v) {
+      const s = v == null ? '' : String(v);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }
+
+    function toIncidentRow(docSnap) {
+      const d = docSnap.data() || {};
+      const loc = d.location || {};
+      const ts = d.timestamp;
+      const when = ts && typeof ts.toDate === 'function' ? ts.toDate().toISOString() : '';
+      return {
+        id: docSnap.id,
+        type: d.type ?? '',
+        severity: d.severity ?? '',
+        status: d.status ?? '',
+        description: d.description ?? '',
+        timestamp: when,
+        latitude: loc.latitude ?? '',
+        longitude: loc.longitude ?? '',
+        address: loc.address ?? '',
+        reporterId: d.reporterId ?? '',
+      };
+    }
+
+    async function refreshDataSummary() {
+      const out = {
+        incidents: document.getElementById('dm-count-incidents'),
+        archived: document.getElementById('dm-count-archived'),
+        users: document.getElementById('dm-count-users'),
+        settings: document.getElementById('dm-settings-exists'),
+      };
+      try {
+        const [cInc, cArch, cUsers, sSnap] = await Promise.all([
+          getCountFromServer(collection(db, 'incidents')),
+          getCountFromServer(collection(db, 'incidents_archive')),
+          getCountFromServer(collection(db, 'users')),
+          getDoc(doc(db, 'settings', 'system')),
+        ]);
+        if (out.incidents) out.incidents.textContent = String(cInc.data().count);
+        if (out.archived) out.archived.textContent = String(cArch.data().count);
+        if (out.users) out.users.textContent = String(cUsers.data().count);
+        if (out.settings) out.settings.textContent = sSnap.exists() ? 'Yes' : 'No';
+      } catch (err) {
+        console.error('[data] summary', err);
+        toastError(err?.message || 'Failed to refresh summary');
+      }
+    }
+
+    document.getElementById('btn-dm-refresh')?.addEventListener('click', refreshDataSummary);
+
+    document.getElementById('btn-dm-backup-json')?.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const max = parseNum(document.getElementById('dm-backup-limit')?.value) ?? 500;
+      if (max < 50 || max > 5000) {
+        toastError('Backup limit must be between 50 and 5000.');
+        return;
+      }
+      try {
+        setStatus('Backing up…');
+        const [incSnap, userSnap, settingsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'incidents'), orderBy('timestamp', 'desc'), limit(max))),
+          getDocs(query(collection(db, 'users'), limit(max))),
+          getDoc(doc(db, 'settings', 'system')),
+        ]);
+        const backup = {
+          exportedAt: new Date().toISOString(),
+          limits: { perCollection: max },
+          incidents: incSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          users: userSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+          settings: settingsSnap.exists() ? { id: settingsSnap.id, ...settingsSnap.data() } : null,
+        };
+        downloadBlob(`threattrack-backup-${Date.now()}.json`, JSON.stringify(backup, null, 2), 'application/json');
+        // eslint-disable-next-line no-void
+        void logAudit('data.backup_json', { max });
+        setStatus('Backup downloaded');
+        toastSuccess('Backup downloaded');
+      } catch (err) {
+        console.error('[data] backup', err);
+        setStatus('Backup failed');
+        toastError(err?.message || 'Backup failed');
+      }
+    });
+
+    function syncExportCategoryOptions() {
+      const sel = document.getElementById('dm-export-category');
+      if (!sel) return;
+      const enabled = incidentCategories.filter((c) => c.enabled);
+      const opts = [{ value: 'all', label: 'All categories' }, ...enabled.map((c) => ({ value: c.key, label: c.name }))];
+      sel.innerHTML = opts.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+      if (!opts.some((o) => o.value === sel.value)) sel.value = 'all';
+    }
+
+    // Prime export category dropdown
+    syncExportCategoryOptions();
+
+    document.getElementById('btn-dm-export-csv')?.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const statusEl = document.getElementById('dm-export-status');
+      if (statusEl) statusEl.textContent = 'Exporting…';
+      try {
+        const days = parseNum(document.getElementById('dm-export-days')?.value) ?? 30;
+        const category = String(document.getElementById('dm-export-category')?.value || 'all');
+        const severity = String(document.getElementById('dm-export-severity')?.value || 'all');
+        const since = new Date(Date.now() - days * 24 * 60 * 60_000);
+
+        let q = query(collection(db, 'incidents'), where('timestamp', '>=', since), orderBy('timestamp', 'desc'), limit(2000));
+        if (severity !== 'all') q = query(q, where('severity', '==', severity));
+        if (category !== 'all') q = query(q, where('type', '==', category));
+
+        const snap = await getDocs(q);
+        const rows = snap.docs.map(toIncidentRow);
+        const headers = Object.keys(rows[0] || { id: '' });
+        const lines = [
+          headers.map(csvEscape).join(','),
+          ...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(',')),
+        ];
+        downloadBlob(`incidents-export-${Date.now()}.csv`, lines.join('\n'), 'text/csv');
+        // eslint-disable-next-line no-void
+        void logAudit('data.export_incidents_csv', { days, category, severity, count: snap.size });
+        if (statusEl) statusEl.textContent = `Exported ${snap.size} record(s).`;
+        toastSuccess('CSV downloaded');
+      } catch (err) {
+        console.error('[data] export csv', err);
+        if (statusEl) statusEl.textContent = 'Export failed';
+        toastError(err?.message || 'Export failed');
+      }
+    });
+
+    function normalizeIncidentForImport(raw) {
+      const type = normText(raw.type);
+      const severity = normText(raw.severity).toLowerCase();
+      const description = normText(raw.description);
+      const reporterId = normText(raw.reporterId) || auth.currentUser?.uid || '';
+      const lat = Number(raw.latitude);
+      const lng = Number(raw.longitude);
+      const timestamp = raw.timestamp ? new Date(raw.timestamp) : new Date();
+
+      return {
+        type,
+        severity,
+        description,
+        reporterId,
+        status: normText(raw.status) || 'pending',
+        timestamp,
+        location: {
+          latitude: Number.isFinite(lat) ? lat : null,
+          longitude: Number.isFinite(lng) ? lng : null,
+          address: normText(raw.address) || '',
+        },
+        meta: {
+          source: 'import',
+          importedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    function validateImportIncident(d) {
+      const errs = [];
+      if (!d.type) errs.push('Missing type');
+      if (!['low', 'medium', 'high'].includes(d.severity)) errs.push('Invalid severity');
+      if (!d.description) errs.push('Missing description');
+      if (d.location.latitude == null || d.location.longitude == null) errs.push('Missing coordinates');
+      if (d.location.latitude < -90 || d.location.latitude > 90) errs.push('Latitude out of range');
+      if (d.location.longitude < -180 || d.location.longitude > 180) errs.push('Longitude out of range');
+      if (!(d.timestamp instanceof Date) || Number.isNaN(d.timestamp.getTime())) errs.push('Invalid timestamp');
+      return errs;
+    }
+
+    document.getElementById('btn-dm-import-run')?.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const statusEl = document.getElementById('dm-import-status');
+      const fileEl = document.getElementById('dm-import-file');
+      const mode = String(document.getElementById('dm-import-mode')?.value || 'validate');
+      const file = fileEl?.files?.[0];
+      if (!file) {
+        toastError('Choose a CSV or JSON file first.');
+        return;
+      }
+
+      try {
+        if (statusEl) statusEl.textContent = 'Reading file…';
+        const text = await file.text();
+
+        let rows = [];
+        if (file.name.toLowerCase().endsWith('.json')) {
+          const parsed = JSON.parse(text);
+          rows = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.incidents) ? parsed.incidents : [];
+        } else {
+          const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+          if (parsed.errors?.length) throw new Error(parsed.errors[0].message || 'CSV parse error');
+          rows = parsed.data || [];
+        }
+
+        const normalized = rows.map(normalizeIncidentForImport);
+        const errors = [];
+        normalized.forEach((d, i) => {
+          const e = validateImportIncident(d);
+          if (e.length) errors.push(`Row ${i + 1}: ${e.join('; ')}`);
+        });
+
+        if (errors.length) {
+          if (statusEl) statusEl.textContent = `Validation failed (${errors.length} issue(s)). Check console.`;
+          console.warn('[import] validation errors', errors);
+          toastError('Import validation failed');
+          return;
+        }
+
+        if (mode === 'validate') {
+          if (statusEl) statusEl.textContent = `Validated ${normalized.length} row(s).`;
+          toastSuccess('Validation OK');
+          return;
+        }
+
+        const ok = await confirmDanger({
+          title: 'Import incidents?',
+          text: `This will create ${normalized.length} incident document(s).`,
+          confirmText: 'Import',
+        });
+        if (!ok) return;
+
+        if (statusEl) statusEl.textContent = 'Importing…';
+
+        let created = 0;
+        for (let i = 0; i < normalized.length; i += 1) {
+          const d = normalized[i];
+          await addDoc(collection(db, 'incidents'), {
+            type: d.type,
+            severity: d.severity,
+            status: d.status,
+            description: d.description,
+            reporterId: d.reporterId,
+            timestamp: d.timestamp,
+            location: d.location,
+            meta: d.meta,
+            reportedAt: serverTimestamp(),
+          });
+          created += 1;
+        }
+
+        // eslint-disable-next-line no-void
+        void logAudit('data.import_incidents', { count: created, format: file.name.toLowerCase().endsWith('.json') ? 'json' : 'csv' });
+        if (statusEl) statusEl.textContent = `Imported ${created} record(s).`;
+        toastSuccess('Import complete');
+        // refresh summary best-effort
+        // eslint-disable-next-line no-void
+        void refreshDataSummary();
+      } catch (err) {
+        console.error('[data] import', err);
+        if (statusEl) statusEl.textContent = 'Import failed';
+        toastError(err?.message || 'Import failed');
+      }
+    });
+
+    document.getElementById('btn-dm-cleanup-run')?.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const statusEl = document.getElementById('dm-cleanup-status');
+      const days = parseNum(document.getElementById('dm-cleanup-older-days')?.value);
+      const action = String(document.getElementById('dm-cleanup-action')?.value || 'archive');
+      if (!days || days < 1) {
+        toastError('Enter "older than" days.');
+        return;
+      }
+      const ok = await confirmDanger({
+        title: action === 'delete' ? 'Delete old incidents?' : 'Archive old incidents?',
+        text: `This will process incidents older than ${days} day(s).`,
+        confirmText: action === 'delete' ? 'Delete' : 'Archive',
+      });
+      if (!ok) return;
+
+      try {
+        if (statusEl) statusEl.textContent = 'Loading…';
+        const cutoff = new Date(Date.now() - days * 24 * 60 * 60_000);
+        const snap = await getDocs(query(collection(db, 'incidents'), where('timestamp', '<', cutoff), orderBy('timestamp', 'asc'), limit(500)));
+        if (snap.empty) {
+          if (statusEl) statusEl.textContent = 'No matching incidents.';
+          toastSuccess('Nothing to do');
+          return;
+        }
+
+        const batch = writeBatch(db);
+        snap.docs.forEach((d) => {
+          if (action === 'archive') {
+            batch.set(doc(db, 'incidents_archive', d.id), { ...d.data(), archivedAt: serverTimestamp(), archivedBy: auth.currentUser?.uid ?? null }, { merge: true });
+            batch.delete(doc(db, 'incidents', d.id));
+          } else {
+            batch.delete(doc(db, 'incidents', d.id));
+          }
+        });
+        await batch.commit();
+        // eslint-disable-next-line no-void
+        void logAudit('data.cleanup', { action, days, count: snap.size });
+        if (statusEl) statusEl.textContent = `Processed ${snap.size} incident(s).`;
+        toastSuccess('Cleanup complete');
+        // eslint-disable-next-line no-void
+        void refreshDataSummary();
+      } catch (err) {
+        console.error('[data] cleanup', err);
+        if (statusEl) statusEl.textContent = 'Cleanup failed';
+        toastError(err?.message || 'Cleanup failed');
+      }
+    });
+
+    document.getElementById('btn-dm-clear-test')?.addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const statusEl = document.getElementById('dm-clear-test-status');
+      const ok = await confirmDanger({
+        title: 'Clear test incidents?',
+        text: 'This deletes incidents where meta.isTest == true OR meta.source == "test".',
+        confirmText: 'Clear',
+      });
+      if (!ok) return;
+      try {
+        if (statusEl) statusEl.textContent = 'Scanning…';
+        const q1 = query(collection(db, 'incidents'), where('meta.isTest', '==', true), limit(500));
+        const q2 = query(collection(db, 'incidents'), where('meta.source', '==', 'test'), limit(500));
+        const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+        const ids = new Set([...s1.docs.map((d) => d.id), ...s2.docs.map((d) => d.id)]);
+        if (!ids.size) {
+          if (statusEl) statusEl.textContent = 'No test incidents found.';
+          toastSuccess('Nothing to clear');
+          return;
+        }
+        const batch = writeBatch(db);
+        Array.from(ids).forEach((id) => batch.delete(doc(db, 'incidents', id)));
+        await batch.commit();
+        // eslint-disable-next-line no-void
+        void logAudit('data.clear_test', { count: ids.size });
+        if (statusEl) statusEl.textContent = `Deleted ${ids.size} test incident(s).`;
+        toastSuccess('Test data cleared');
+        // eslint-disable-next-line no-void
+        void refreshDataSummary();
+      } catch (err) {
+        console.error('[data] clear test', err);
+        if (statusEl) statusEl.textContent = 'Clear failed';
+        toastError(err?.message || 'Clear failed');
+      }
+    });
+
     setActive(keyFromHash());
     window.addEventListener('hashchange', () => setActive(keyFromHash()));
 
     await loadSettings();
+
+    // Prime summary on load (best-effort).
+    // eslint-disable-next-line no-void
+    void refreshDataSummary();
   },
 });
 
