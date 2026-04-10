@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notifications — ThreatTrack Admin</title>
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/dashboard.css" />
+    <link rel="stylesheet" href="/css/incidents.css" />
+  </head>
+  <body>
+    <div id="page-notifications" class="admin-dashboard" hidden>
+      <aside class="admin-dashboard__sidebar" aria-label="Main navigation">
+        <div class="sidebar__top">
+          <div class="sidebar__brand">
+            <span class="sidebar__logo">ThreatTrack</span>
+            <span class="sidebar__badge">Admin</span>
+          </div>
+          <nav class="sidebar__nav">
+            <a href="dashboard.html" class="sidebar__link">Dashboard</a>
+            <a href="incidents.html" class="sidebar__link">Incidents</a>
+            <a href="users.html" class="sidebar__link">Users</a>
+            <a
+              href="notifications.html"
+              class="sidebar__link sidebar__link--active"
+              aria-current="page"
+              >Notifications</a
+            >
+            <a href="settings.html" class="sidebar__link">Settings</a>
+          </nav>
+        </div>
+
+        <div class="sidebar__footer">
+          <span id="user-email" class="sidebar__user-email"></span>
+          <button type="button" id="btn-signout" class="sidebar__signout">Sign out</button>
+        </div>
+      </aside>
+
+      <div class="admin-dashboard__shell">
+        <header class="admin-dashboard__header">
+          <div class="admin-dashboard__header-left">
+            <h1 class="admin-dashboard__title">Notifications</h1>
+            <p class="admin-dashboard__tagline">History of alerts sent to users</p>
+          </div>
+        </header>
+
+        <main class="admin-dashboard__main incidents-main">
+          <div class="incidents-toolbar">
+            <div class="incidents-toolbar__search">
+              <label class="visually-hidden" for="notifications-search">Search notifications</label>
+              <input
+                id="notifications-search"
+                type="search"
+                class="incidents-search-input"
+                placeholder="Search by title/body… (coming soon)"
+                disabled
+              />
+            </div>
+            <div class="incidents-toolbar__filters">
+              <select class="incidents-select" aria-label="Type filter" disabled>
+                <option>All types</option>
+              </select>
+            </div>
+          </div>
+
+          <section class="incidents-panel" aria-label="Notification list">
+            <div class="incidents-panel__head">
+              <h2 class="incidents-panel__title">All notifications</h2>
+              <p class="incidents-panel__meta" id="notifications-count">Loading…</p>
+            </div>
+
+            <div id="notifications-list" class="notifications-list" aria-live="polite">
+              <div class="notifications-empty">Loading…</div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="/js/notifications.js"></script>
+  </body>
+</html>
+

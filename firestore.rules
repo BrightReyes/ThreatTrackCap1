@@ -64,10 +64,11 @@ service cloud.firestore {
       // Authenticated users can create incidents with valid data
       // Allow creation when the authenticated user is the reporter.
       // Relaxed checks: accept status values set by client/server and require reporterId match.
-      allow create: if isAuthenticated() &&
-            isValidIncident() &&
-            hasNotExceededRateLimit() &&
-            request.resource.data.reporterId == request.auth.uid;
+      allow create: if (isAdmin()) ||
+            (isAuthenticated() &&
+              isValidIncident() &&
+              hasNotExceededRateLimit() &&
+              request.resource.data.reporterId == request.auth.uid);
 
       // Users can update their own pending incidents
       allow update: if isOwner(resource.data.reporterId) &&
@@ -79,6 +80,12 @@ service cloud.firestore {
 
       // Users can delete their own pending incidents
       allow delete: if isOwner(resource.data.reporterId) && resource.data.status == 'pending';
+    }
+
+    // === INCIDENTS ARCHIVE COLLECTION ===
+    match /incidents_archive/{incidentId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
     }
 
     // === PRECINCTS COLLECTION ===
@@ -101,11 +108,29 @@ service cloud.firestore {
 
     // === NOTIFICATIONS COLLECTION ===
     match /notifications/{notificationId} {
-      // Users can only read their own notifications
-      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      // Users can read their own notifications; admins/moderators can read all for the dashboard
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
 
-      // Users cannot write notifications directly
-      allow write: if false;
+      // Users can mark their own notifications as read. Admins/moderators can moderate notifications in dashboard.
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow delete: if isAdmin();
+      allow create: if false;
+    }
+
+    // === SETTINGS COLLECTION ===
+    // Stores admin-controlled system configuration (read-only for non-admins).
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // === AUDIT LOGS COLLECTION ===
+    // Client-side audit trail for admin panel actions.
+    // Note: for tamper-proof audit trails, write via server/Cloud Functions instead.
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
     }
 
     // Fallback: deny by default (explicit rules above control access)

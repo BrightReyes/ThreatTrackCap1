@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import MapView, { Marker, Polygon } from 'react-native-maps';
+import MapView, { Marker, Polygon } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../utils/firebase';

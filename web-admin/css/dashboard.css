@@ -1,22 +1,26 @@
 .admin-dashboard {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
   background: #f0f2f5;
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .admin-dashboard__sidebar {
   width: 260px;
   flex-shrink: 0;
-  min-height: 100vh;
+  height: 100vh;
   background: #111827;
   color: #e5e7eb;
   display: flex;
   flex-direction: column;
   padding: 20px 0 0;
   border-right: 1px solid #1f2937;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
 }
 
 .sidebar__top {
@@ -125,6 +129,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .admin-dashboard__header {
@@ -157,6 +164,7 @@
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
+  overflow: visible;
 }
 
 .admin-dashboard__stats {
@@ -201,23 +209,30 @@
   margin: 0 0 12px 0;
 }
 
-.admin-dashboard__chart-block {
+.admin-dashboard__map-block {
   margin-bottom: 24px;
 }
 
-.admin-dashboard__chart-placeholder {
-  background: #fff;
-  border: 1px dashed #d1d5db;
-  border-radius: 12px;
-  min-height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  text-align: center;
+.admin-dashboard__map-caption {
+  font-size: 0.8125rem;
   color: #6b7280;
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  margin: -4px 0 12px 0;
+  line-height: 1.45;
+}
+
+.admin-map {
+  height: min(55vh, 480px);
+  min-height: 320px;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  background: #e8ecf1;
+  z-index: 0;
+}
+
+.admin-map .leaflet-container {
+  font-family: inherit;
 }
 
 .admin-dashboard__activity {
@@ -252,13 +267,27 @@
 @media (max-width: 900px) {
   .admin-dashboard {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .admin-dashboard__sidebar {
     width: 100%;
-    min-height: 0;
+    height: auto;
     flex-direction: column;
     padding: 16px 0 0;
+    position: static;
+    overflow: visible;
+  }
+
+  .admin-dashboard__shell {
+    height: auto;
+    overflow: visible;
+  }
+
+  .admin-dashboard__main {
+    overflow: visible;
   }
 
   .sidebar__top {

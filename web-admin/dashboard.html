@@ -20,15 +20,15 @@
                     </div>
                     <nav class="sidebar__nav">
                         <a
-                            href="#"
+                            href="dashboard.html"
                             class="sidebar__link sidebar__link--active"
                             aria-current="page"
                             >Dashboard</a
                         >
-                        <a href="#" class="sidebar__link">Incidents</a>
-                        <a href="#" class="sidebar__link">Users</a>
-                        <a href="#" class="sidebar__link">Reports</a>
-                        <a href="#" class="sidebar__link">Settings</a>
+                        <a href="incidents.html" class="sidebar__link">Incidents</a>
+                        <a href="users.html" class="sidebar__link">Users</a>
+                        <a href="notifications.html" class="sidebar__link">Notifications</a>
+                        <a href="settings.html" class="sidebar__link">Settings</a>
                     </nav>
                 </div>
 
@@ -61,39 +61,48 @@
                     >
                         <article class="stat-card">
                             <p class="stat-card__label">Open incidents</p>
-                            <p class="stat-card__value">—</p>
-                            <p class="stat-card__hint">Connect Firestore</p>
+                            <p id="stat-open-incidents" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">Pending + under review</p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Reports (24h)</p>
-                            <p class="stat-card__value">—</p>
-                            <p class="stat-card__hint">Connect Firestore</p>
+                            <p id="stat-reports-24h" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">By incident timestamp</p>
                         </article>
                         <article class="stat-card">
-                            <p class="stat-card__label">Active users</p>
-                            <p class="stat-card__value">—</p>
-                            <p class="stat-card__hint">Connect Auth / users</p>
+                            <p class="stat-card__label">Registered users</p>
+                            <p id="stat-active-users" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">Documents in users</p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Avg. risk score</p>
-                            <p class="stat-card__value">—</p>
-                            <p class="stat-card__hint">Cloud Function</p>
+                            <p id="stat-avg-risk" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">0–100, last 200 incidents</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Total incidents</p>
+                            <p id="stat-total-incidents" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">All time</p>
                         </article>
                     </section>
 
                     <section
-                        class="admin-dashboard__chart-block"
-                        aria-label="Chart placeholder"
+                        class="admin-dashboard__map-block"
+                        aria-label="Coverage map"
                     >
                         <h2 class="admin-dashboard__section-title">
-                            Activity trend
+                            Coverage map
                         </h2>
-                        <div class="admin-dashboard__chart-placeholder">
-                            <p>
-                                Chart area — add a library (e.g. Chart.js) or
-                                embed your map here.
-                            </p>
-                        </div>
+                        <p class="admin-dashboard__map-caption">
+                            Valenzuela City — OpenStreetMap. Wire Firestore to
+                            plot incident markers next.
+                        </p>
+                        <div
+                            id="admin-map"
+                            class="admin-map"
+                            role="application"
+                            aria-label="Interactive map"
+                        ></div>
                     </section>
 
                     <section
