@@ -67,14 +67,42 @@ initAdminPage({
 
     const LOGS_LIMIT = 25;
 
+    const SETTINGS_PANEL_META = {
+      general: 'System name, location defaults, and behavior.',
+      account: 'Your profile and sign-in identity.',
+      map: 'Heatmap, markers, map controls, and appearance.',
+      incidents: 'Categories, severity, rules, and workflows.',
+      notifications: 'Alerts, nearby radius, and notification logs.',
+      security: 'Password, session, RBAC, and audit logs.',
+      data: 'Backup, export, import, and cleanup tools.',
+    };
+
+    function setPanelMeta(key) {
+      const meta = document.getElementById('settings-panel-meta');
+      if (meta) meta.textContent = SETTINGS_PANEL_META[key] || '';
+    }
+
+    function tabKeyFromLink(el) {
+      return el?.getAttribute?.('data-settings-tab') || '';
+    }
+
+    function sectionKeyFromEl(el) {
+      return el?.getAttribute?.('data-settings-section') || '';
+    }
+
     function setActive(key) {
-      links.forEach((a) => a.classList.toggle('is-active', a.dataset.settingsTab === key));
+      links.forEach((a) => a.classList.toggle('is-active', tabKeyFromLink(a) === key));
       sections.forEach((s) => {
-        s.hidden = s.dataset.settingsSection !== key;
+        s.hidden = sectionKeyFromEl(s) !== key;
       });
       if (title) {
-        const active = links.find((a) => a.dataset.settingsTab === key);
+        const active = links.find((a) => tabKeyFromLink(a) === key);
         title.textContent = active ? active.textContent.trim() : 'Settings';
+      }
+      setPanelMeta(key);
+      if (key === 'account') {
+        // eslint-disable-next-line no-void
+        void loadAccountProfile();
       }
       if (key === 'notifications') {
         // eslint-disable-next-line no-void
@@ -89,12 +117,88 @@ initAdminPage({
     function keyFromHash() {
       const h = window.location.hash.replace('#', '');
       if (h === 'general') return 'general';
+      if (h === 'account') return 'account';
       if (h === 'map') return 'map';
       if (h === 'incidents') return 'incidents';
       if (h === 'notifications') return 'notifications';
       if (h === 'security') return 'security';
       if (h === 'data') return 'data';
       return 'general';
+    }
+
+    function humanizeAccountRole(role) {
+      if (!role) return '—';
+      return String(role)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    async function loadAccountProfile() {
+      const emailEl = document.getElementById('account-email');
+      const uidEl = document.getElementById('account-uid');
+      const fnEl = document.getElementById('account-first-name');
+      const lnEl = document.getElementById('account-last-name');
+      const roleEl = document.getElementById('account-role');
+      const statusEl = document.getElementById('account-save-status');
+      const u = auth.currentUser;
+      if (emailEl) emailEl.textContent = u?.email || '—';
+      if (uidEl) uidEl.textContent = u?.uid || '—';
+      try {
+        const snap = await getDoc(USER_DOC);
+        if (snap.exists()) {
+          const d = snap.data();
+          if (fnEl) fnEl.value = d.firstName != null ? String(d.firstName) : '';
+          if (lnEl) lnEl.value = d.lastName != null ? String(d.lastName) : '';
+          if (roleEl) roleEl.textContent = humanizeAccountRole(d.role);
+          if (statusEl) statusEl.textContent = '';
+        } else {
+          if (fnEl) fnEl.value = '';
+          if (lnEl) lnEl.value = '';
+          if (roleEl) roleEl.textContent = '—';
+          if (statusEl) {
+            statusEl.textContent =
+              'No Firestore profile yet. Saving will create users/{uid} (ask an admin to set your role if needed).';
+          }
+        }
+      } catch (err) {
+        console.error('[settings] account profile', err);
+        if (statusEl) statusEl.textContent = err?.message || 'Failed to load profile';
+      }
+    }
+
+    async function saveAccountProfile() {
+      const fn = normText(document.getElementById('account-first-name')?.value);
+      const ln = normText(document.getElementById('account-last-name')?.value);
+      const statusEl = document.getElementById('account-save-status');
+      const email = auth.currentUser?.email;
+      if (!email) {
+        toastError('Not signed in');
+        return;
+      }
+      try {
+        if (statusEl) statusEl.textContent = 'Saving…';
+        const snap = await getDoc(USER_DOC);
+        if (snap.exists()) {
+          await updateDoc(USER_DOC, { firstName: fn, lastName: ln });
+        } else {
+          await setDoc(USER_DOC, {
+            uid: user.uid,
+            email,
+            firstName: fn,
+            lastName: ln,
+            createdAt: serverTimestamp(),
+          });
+        }
+        if (statusEl) statusEl.textContent = 'Profile saved.';
+        toastSuccess('Profile saved');
+        // eslint-disable-next-line no-void
+        void logAudit('account.profile_update', {});
+        await loadAccountProfile();
+      } catch (err) {
+        console.error('[settings] save profile', err);
+        if (statusEl) statusEl.textContent = err?.message || 'Failed to save';
+        toastError(err?.message || 'Failed to save profile');
+      }
     }
 
     function setStatus(text) {
@@ -129,106 +233,121 @@ initAdminPage({
       return div.innerHTML;
     }
 
-    function validate(payload) {
+    /** @param {'all'|'general'|'map'|'incidents'|'notifications'|'security'|'data'|'account'} section */
+    function validate(payload, section = 'all') {
       const errors = [];
+      const all = section === 'all';
+      const want = (name) => all || section === name;
 
-      if (!payload.systemName) errors.push('System name is required.');
+      if (want('general')) {
+        if (!payload.systemName) errors.push('System name is required.');
 
-      const lat = payload.location?.defaultCoordinates?.lat;
-      const lng = payload.location?.defaultCoordinates?.lng;
-      const zoom = payload.location?.defaultZoom;
+        const lat = payload.location?.defaultCoordinates?.lat;
+        const lng = payload.location?.defaultCoordinates?.lng;
+        const zoom = payload.location?.defaultZoom;
 
-      if (lat != null && (lat < -90 || lat > 90)) errors.push('Latitude must be between -90 and 90.');
-      if (lng != null && (lng < -180 || lng > 180)) errors.push('Longitude must be between -180 and 180.');
-      if (zoom != null && (zoom < 1 || zoom > 19)) errors.push('Zoom must be between 1 and 19.');
-
-      const map = payload.mapSettings || {};
-      const hm = map.heatmap || {};
-      if (hm.opacity != null && (hm.opacity < 0 || hm.opacity > 1)) errors.push('Heatmap opacity must be between 0 and 1.');
-      if (hm.radius != null && (hm.radius < 5 || hm.radius > 80)) errors.push('Heatmap radius must be between 5 and 80.');
-      if (hm.minThreshold != null && (hm.minThreshold < 1 || hm.minThreshold > 50)) errors.push('Hotspot threshold must be between 1 and 50.');
-
-      const inter = map.interaction || {};
-      const minZ = inter.minZoom;
-      const maxZ = inter.maxZoom;
-      if (minZ != null && (minZ < 1 || minZ > 19)) errors.push('Min zoom must be between 1 and 19.');
-      if (maxZ != null && (maxZ < 1 || maxZ > 19)) errors.push('Max zoom must be between 1 and 19.');
-      if (minZ != null && maxZ != null && minZ > maxZ) errors.push('Min zoom cannot be greater than max zoom.');
-
-      const perf = map.performance || {};
-      if (perf.markerLimit != null && (perf.markerLimit < 50 || perf.markerLimit > 2000)) errors.push('Marker limit must be between 50 and 2000.');
-      if (perf.refreshIntervalSec != null && (perf.refreshIntervalSec < 5 || perf.refreshIntervalSec > 600)) errors.push('Refresh interval must be between 5 and 600 seconds.');
-
-      const inc = payload.incidentSettings || {};
-      if (
-        inc.inputRules?.minDescriptionLength != null &&
-        (inc.inputRules.minDescriptionLength < 0 || inc.inputRules.minDescriptionLength > 2000)
-      ) {
-        errors.push('Minimum description length must be between 0 and 2000.');
+        if (lat != null && (lat < -90 || lat > 90)) errors.push('Latitude must be between -90 and 90.');
+        if (lng != null && (lng < -180 || lng > 180)) errors.push('Longitude must be between -180 and 180.');
+        if (zoom != null && (zoom < 1 || zoom > 19)) errors.push('Zoom must be between 1 and 19.');
       }
-      if (
-        inc.location?.accuracyThresholdMeters != null &&
-        (inc.location.accuracyThresholdMeters < 5 || inc.location.accuracyThresholdMeters > 500)
-      ) {
-        errors.push('Accuracy threshold must be between 5 and 500 meters.');
+
+      if (want('map')) {
+        const map = payload.mapSettings || {};
+        const hm = map.heatmap || {};
+        if (hm.opacity != null && (hm.opacity < 0 || hm.opacity > 1)) errors.push('Heatmap opacity must be between 0 and 1.');
+        if (hm.radius != null && (hm.radius < 5 || hm.radius > 80)) errors.push('Heatmap radius must be between 5 and 80.');
+        if (hm.minThreshold != null && (hm.minThreshold < 1 || hm.minThreshold > 50)) errors.push('Hotspot threshold must be between 1 and 50.');
+
+        const inter = map.interaction || {};
+        const minZ = inter.minZoom;
+        const maxZ = inter.maxZoom;
+        if (minZ != null && (minZ < 1 || minZ > 19)) errors.push('Min zoom must be between 1 and 19.');
+        if (maxZ != null && (maxZ < 1 || maxZ > 19)) errors.push('Max zoom must be between 1 and 19.');
+        if (minZ != null && maxZ != null && minZ > maxZ) errors.push('Min zoom cannot be greater than max zoom.');
+
+        const perf = map.performance || {};
+        if (perf.markerLimit != null && (perf.markerLimit < 50 || perf.markerLimit > 2000)) errors.push('Marker limit must be between 50 and 2000.');
+        if (perf.refreshIntervalSec != null && (perf.refreshIntervalSec < 5 || perf.refreshIntervalSec > 600)) errors.push('Refresh interval must be between 5 and 600 seconds.');
       }
-      if (
-        inc.timeRules?.maxBackdateDays != null &&
-        (inc.timeRules.maxBackdateDays < 0 || inc.timeRules.maxBackdateDays > 365)
-      ) {
-        errors.push('Max backdate limit must be between 0 and 365 days.');
-      }
-      if (inc.retention?.enabled) {
-        if (inc.retention.afterDays == null || inc.retention.afterDays < 1 || inc.retention.afterDays > 3650) {
-          errors.push('Retention days must be between 1 and 3650 when retention is enabled.');
+
+      if (want('incidents')) {
+        const inc = payload.incidentSettings || {};
+        if (
+          inc.inputRules?.minDescriptionLength != null &&
+          (inc.inputRules.minDescriptionLength < 0 || inc.inputRules.minDescriptionLength > 2000)
+        ) {
+          errors.push('Minimum description length must be between 0 and 2000.');
+        }
+        if (
+          inc.location?.accuracyThresholdMeters != null &&
+          (inc.location.accuracyThresholdMeters < 5 || inc.location.accuracyThresholdMeters > 500)
+        ) {
+          errors.push('Accuracy threshold must be between 5 and 500 meters.');
+        }
+        if (
+          inc.timeRules?.maxBackdateDays != null &&
+          (inc.timeRules.maxBackdateDays < 0 || inc.timeRules.maxBackdateDays > 365)
+        ) {
+          errors.push('Max backdate limit must be between 0 and 365 days.');
+        }
+        if (inc.retention?.enabled) {
+          if (inc.retention.afterDays == null || inc.retention.afterDays < 1 || inc.retention.afterDays > 3650) {
+            errors.push('Retention days must be between 1 and 3650 when retention is enabled.');
+          }
+        }
+        if (inc.duplicatePrevention?.enabled) {
+          const r = inc.duplicatePrevention.radiusMeters;
+          const w = inc.duplicatePrevention.timeWindowMinutes;
+          if (r != null && (r < 10 || r > 1000)) errors.push('Duplicate radius must be between 10 and 1000 meters.');
+          if (w != null && (w < 1 || w > 1440)) errors.push('Duplicate time window must be between 1 and 1440 minutes.');
+        }
+        if (inc.alerts?.enabled) {
+          const t = inc.alerts.areaThresholdCount;
+          if (t != null && (t < 2 || t > 100)) errors.push('Area threshold must be between 2 and 100 incidents.');
         }
       }
-      if (inc.duplicatePrevention?.enabled) {
-        const r = inc.duplicatePrevention.radiusMeters;
-        const w = inc.duplicatePrevention.timeWindowMinutes;
-        if (r != null && (r < 10 || r > 1000)) errors.push('Duplicate radius must be between 10 and 1000 meters.');
-        if (w != null && (w < 1 || w > 1440)) errors.push('Duplicate time window must be between 1 and 1440 minutes.');
-      }
-      if (inc.alerts?.enabled) {
-        const t = inc.alerts.areaThresholdCount;
-        if (t != null && (t < 2 || t > 100)) errors.push('Area threshold must be between 2 and 100 incidents.');
+
+      if (want('notifications')) {
+        const n = payload.notificationSettings || {};
+        if (n.hotspot?.enabled) {
+          const t = n.hotspot.thresholdCount;
+          if (t == null || t < 2 || t > 100) errors.push('Notification hotspot threshold must be between 2 and 100.');
+        }
+        if (n.nearby?.enabled) {
+          const r = n.nearby.radiusMeters;
+          if (r == null || ![500, 1000].includes(r)) errors.push('Nearby radius must be 500m or 1000m.');
+        }
       }
 
-      const n = payload.notificationSettings || {};
-      if (n.hotspot?.enabled) {
-        const t = n.hotspot.thresholdCount;
-        if (t == null || t < 2 || t > 100) errors.push('Notification hotspot threshold must be between 2 and 100.');
-      }
-      if (n.nearby?.enabled) {
-        const r = n.nearby.radiusMeters;
-        if (r == null || ![500, 1000].includes(r)) errors.push('Nearby radius must be 500m or 1000m.');
-      }
-
-      const s = payload.securitySettings || {};
-      if (
-        s.passwordPolicy?.minLength != null &&
-        (s.passwordPolicy.minLength < 6 || s.passwordPolicy.minLength > 64)
-      ) {
-        errors.push('Password min length must be between 6 and 64.');
-      }
-      if (s.loginLimit?.maxAttempts != null && (s.loginLimit.maxAttempts < 1 || s.loginLimit.maxAttempts > 20)) {
-        errors.push('Max failed attempts must be between 1 and 20.');
-      }
-      if (
-        s.loginLimit?.lockoutMinutes != null &&
-        (s.loginLimit.lockoutMinutes < 1 || s.loginLimit.lockoutMinutes > 60)
-      ) {
-        errors.push('Lockout minutes must be between 1 and 60.');
-      }
-      if (s.sessionTimeoutMinutes != null && (s.sessionTimeoutMinutes < 1 || s.sessionTimeoutMinutes > 240)) {
-        errors.push('Session timeout must be between 1 and 240 minutes.');
+      if (want('security')) {
+        const s = payload.securitySettings || {};
+        if (
+          s.passwordPolicy?.minLength != null &&
+          (s.passwordPolicy.minLength < 6 || s.passwordPolicy.minLength > 64)
+        ) {
+          errors.push('Password min length must be between 6 and 64.');
+        }
+        if (s.loginLimit?.maxAttempts != null && (s.loginLimit.maxAttempts < 1 || s.loginLimit.maxAttempts > 20)) {
+          errors.push('Max failed attempts must be between 1 and 20.');
+        }
+        if (
+          s.loginLimit?.lockoutMinutes != null &&
+          (s.loginLimit.lockoutMinutes < 1 || s.loginLimit.lockoutMinutes > 60)
+        ) {
+          errors.push('Lockout minutes must be between 1 and 60.');
+        }
+        if (s.sessionTimeoutMinutes != null && (s.sessionTimeoutMinutes < 1 || s.sessionTimeoutMinutes > 240)) {
+          errors.push('Session timeout must be between 1 and 240 minutes.');
+        }
       }
 
       return errors;
     }
 
     function setEditable(canEdit) {
-      const allInputs = Array.from(document.querySelectorAll('.settings-panel input, .settings-panel textarea, .settings-panel select, .settings-panel button'));
+      const allInputs = Array.from(
+        document.querySelectorAll('.settings-panel input, .settings-panel textarea, .settings-panel select, .settings-panel button'),
+      ).filter((el) => !el.closest('[data-settings-section="account"]'));
       allInputs.forEach((el) => {
         if (el === els.btnSave || el === els.btnReset || el === els.btnBarangayAdd || el === els.btnIncCatAdd) {
           el.disabled = !canEdit;
@@ -439,7 +558,6 @@ initAdminPage({
             intensity: normText(document.getElementById('map-heatmap-intensity')?.value) || 'medium',
             radius: parseNum(document.getElementById('map-heatmap-radius')?.value),
             opacity: parseNum(document.getElementById('map-heatmap-opacity')?.value),
-            gradient: normText(document.getElementById('map-heatmap-gradient')?.value) || 'blueYellowRed',
             sensitivity: normText(document.getElementById('map-hotspot-sensitivity')?.value) || 'medium',
             minThreshold: parseNum(document.getElementById('map-hotspot-threshold')?.value),
           },
@@ -738,7 +856,6 @@ initAdminPage({
       setValue('map-heatmap-intensity', hm.intensity, 'medium');
       setValue('map-heatmap-radius', hm.radius ?? 28, 28);
       setValue('map-heatmap-opacity', hm.opacity ?? 0.65, 0.65);
-      setValue('map-heatmap-gradient', hm.gradient, 'blueYellowRed');
       setValue('map-hotspot-sensitivity', hm.sensitivity, 'medium');
       setValue('map-hotspot-threshold', hm.minThreshold ?? 3, 3);
 
@@ -785,7 +902,6 @@ initAdminPage({
             intensity: 'medium',
             radius: 28,
             opacity: 0.65,
-            gradient: 'blueYellowRed',
             sensitivity: 'medium',
             minThreshold: 3,
           },
@@ -989,10 +1105,15 @@ initAdminPage({
       }
     }
 
-    async function saveNow({ reason = 'Saved' } = {}) {
+    async function saveNow({ reason = 'Saved', validateAll = false } = {}) {
       if (!isAdmin) return;
       const payload = readForm();
-      const errors = validate(payload);
+      const tab = keyFromHash();
+      // One merged document is written, but validation is scoped to the active tab so General
+      // is not blocked by unrelated sections. Full validation after reset and when saving from Account.
+      const section =
+        validateAll || tab === 'account' ? 'all' : tab === 'data' ? 'data' : tab;
+      const errors = validate(payload, section);
       if (errors.length) {
         toastError(errors[0]);
         setStatus('Fix validation errors');
@@ -1036,6 +1157,13 @@ initAdminPage({
     async function loadSettings() {
       setStatus('Loading…');
       try {
+        await auth.authStateReady();
+        await user.getIdToken();
+      } catch (err) {
+        console.warn('[settings] auth token', err);
+      }
+
+      try {
         const roleSnap = await getDoc(USER_DOC);
         const role = roleSnap.exists() ? roleSnap.data()?.role : null;
         isAdmin = role === 'admin' || role === 'moderator';
@@ -1068,8 +1196,25 @@ initAdminPage({
         setStatus('Defaults loaded');
 
         if (isAdmin) {
-          await setDoc(SETTINGS_DOC, { ...defaults, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-          setStatus('Initialized defaults');
+          try {
+            await setDoc(SETTINGS_DOC, { ...defaults, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+            setStatus('Initialized defaults');
+          } catch (err) {
+            console.error('[settings] init defaults', err);
+            setStatus('Could not save defaults');
+            if (err?.code === 'permission-denied') {
+              toastError(
+                'Could not save default settings. Ensure users/{your uid} has role admin or moderator in Firestore, and rules allow admin writes to settings.',
+              );
+            } else {
+              toastError(err?.message || 'Failed to initialize settings');
+            }
+            // eslint-disable-next-line no-void
+            void loadNotificationLogs();
+            // eslint-disable-next-line no-void
+            void loadAuditLogs();
+            return;
+          }
         }
         // eslint-disable-next-line no-void
         void loadNotificationLogs();
@@ -1078,7 +1223,11 @@ initAdminPage({
       } catch (err) {
         console.error('[settings] load', err);
         setStatus('Load failed');
-        toastError(err?.message || 'Failed to load settings');
+        const msg =
+          err?.code === 'permission-denied'
+            ? 'Permission denied loading settings. Sign in again, or confirm Firestore rules allow signed-in reads on settings/system (see firestore.rules in the project).'
+            : err?.message || 'Failed to load settings';
+        toastError(msg);
       }
     }
 
@@ -1120,7 +1269,7 @@ initAdminPage({
       if (!ok) return;
       const defaults = defaultConfig();
       writeForm(defaults);
-      await saveNow({ reason: 'Reset to defaults' });
+      await saveNow({ reason: 'Reset to defaults', validateAll: true });
     });
 
     els.btnIncCatAdd?.addEventListener('click', () => {
@@ -1152,6 +1301,8 @@ initAdminPage({
       renderIncidentCategories();
       requestSave('Auto-saved');
     });
+
+    document.getElementById('btn-account-save')?.addEventListener('click', () => saveAccountProfile());
 
     document.getElementById('btn-change-password')?.addEventListener('click', async () => {
       if (!isAdmin) return;
@@ -1227,7 +1378,6 @@ initAdminPage({
       'map-heatmap-intensity',
       'map-heatmap-radius',
       'map-heatmap-opacity',
-      'map-heatmap-gradient',
       'map-hotspot-sensitivity',
       'map-hotspot-threshold',
       'map-markers-enabled',
@@ -1687,8 +1837,20 @@ initAdminPage({
       }
     });
 
-    setActive(keyFromHash());
-    window.addEventListener('hashchange', () => setActive(keyFromHash()));
+    function syncTabFromHash() {
+      setActive(keyFromHash());
+    }
+
+    syncTabFromHash();
+    window.addEventListener('hashchange', syncTabFromHash);
+
+    // Keep UI in sync if hash updates without a hashchange (rare) or for clearer UX on click.
+    links.forEach((a) => {
+      a.addEventListener('click', () => {
+        const k = tabKeyFromLink(a);
+        if (k) queueMicrotask(syncTabFromHash);
+      });
+    });
 
     await loadSettings();
 

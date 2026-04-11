@@ -36,7 +36,7 @@ const VAL_BOUNDARY_LATLNG = [
 let mapInstance = null;
 let incidentsLayer = null;
 let unsubscribeIncidents = null;
-let heatLayer = null;
+let heatLayerGroup = null;
 let tileLayer = null;
 let boundaryLayer = null;
 let settings = null;
@@ -54,6 +54,44 @@ function severityColor(sev) {
   if (s === 'medium') return '#f59e0b';
   if (s === 'low') return '#22c55e';
   return '#6b7280';
+}
+
+function hexToRgb(hex) {
+  const str = String(hex || '').trim();
+  let m = /^#([0-9a-f]{6})$/i.exec(str);
+  if (m) {
+    const n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  m = /^#([0-9a-f]{3})$/i.exec(str);
+  if (m) {
+    const x = m[1];
+    return {
+      r: parseInt(x[0] + x[0], 16),
+      g: parseInt(x[1] + x[1], 16),
+      b: parseInt(x[2] + x[2], 16),
+    };
+  }
+  return { r: 107, g: 114, b: 128 };
+}
+
+/** Single-hue ramp for leaflet.heat (intensity → same color, higher alpha). */
+function monoHeatGradient(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return {
+    0.15: `rgba(${r},${g},${b},0.14)`,
+    0.4: `rgba(${r},${g},${b},0.38)`,
+    0.65: `rgba(${r},${g},${b},0.64)`,
+    0.9: `rgba(${r},${g},${b},0.92)`,
+  };
+}
+
+function heatSeverityBucket(severity) {
+  const s = String(severity || '').toLowerCase();
+  if (s === 'high') return 'high';
+  if (s === 'medium') return 'medium';
+  if (s === 'low') return 'low';
+  return 'other';
 }
 
 function formatIncidentCode(docId) {
@@ -77,6 +115,8 @@ function startIncidentListener() {
 
   const render = (snap) => {
     const markersEnabled = settings?.mapSettings?.markers?.enabled ?? true;
+    const markerType = String(settings?.mapSettings?.markers?.type || 'dot').toLowerCase();
+    const showMarkers = markersEnabled && markerType !== 'none';
     const heatEnabled = settings?.mapSettings?.heatmap?.enabled ?? false;
 
     const pts = [];
@@ -107,72 +147,85 @@ function startIncidentListener() {
       pts.push({ lat, lng, wBase, severity, docId: docSnap.id, data: d });
     });
 
-    // Heat points with threshold
+    // Heat points with threshold — one leaflet.heat layer per severity so spread color matches dot color.
     if (heatEnabled) {
       const threshold = Number(settings?.mapSettings?.heatmap?.minThreshold) || 3;
       const intensity = String(settings?.mapSettings?.heatmap?.intensity || 'medium');
       const intensityMul = intensity === 'high' ? 1.25 : intensity === 'low' ? 0.85 : 1.0;
 
-      const heatPts = pts
-        .filter((p) => {
-          const gx = Math.floor(p.lat / cellDeg);
-          const gy = Math.floor(p.lng / cellDeg);
-          return (buckets.get(`${gx}:${gy}`) || 0) >= threshold;
-        })
-        .map((p) => [p.lat, p.lng, Math.min(1, p.wBase * intensityMul)]);
+      const filtered = pts.filter((p) => {
+        const gx = Math.floor(p.lat / cellDeg);
+        const gy = Math.floor(p.lng / cellDeg);
+        return (buckets.get(`${gx}:${gy}`) || 0) >= threshold;
+      });
 
-      if (!heatLayer) {
-        heatLayer = L.heatLayer(heatPts, { radius: 28, blur: 18, minOpacity: 0.2 });
-      } else {
-        heatLayer.setLatLngs(heatPts);
+      const heatBuckets = { high: [], medium: [], low: [], other: [] };
+      filtered.forEach((p) => {
+        const b = heatSeverityBucket(p.severity);
+        heatBuckets[b].push([p.lat, p.lng, Math.min(1, p.wBase * intensityMul)]);
+      });
+
+      if (heatLayerGroup && mapInstance.hasLayer(heatLayerGroup)) {
+        mapInstance.removeLayer(heatLayerGroup);
       }
+      heatLayerGroup = L.layerGroup();
 
       const radius = Number(settings?.mapSettings?.heatmap?.radius) || 28;
       const opacity = Number(settings?.mapSettings?.heatmap?.opacity);
-      const gradientKey = String(settings?.mapSettings?.heatmap?.gradient || 'blueYellowRed');
-
-      const gradient =
-        gradientKey === 'greenYellowRed'
-          ? { 0.2: '#22c55e', 0.55: '#facc15', 0.85: '#ef4444' }
-          : gradientKey === 'purpleOrangeRed'
-            ? { 0.2: '#a855f7', 0.55: '#fb923c', 0.85: '#ef4444' }
-            : { 0.2: '#3b82f6', 0.55: '#facc15', 0.85: '#ef4444' };
-
-      heatLayer.setOptions({
+      const blur = Math.max(10, Math.round(radius * 0.6));
+      const baseOpts = {
         radius,
-        blur: Math.max(10, Math.round(radius * 0.6)),
+        blur,
         maxZoom: mapInstance.getMaxZoom(),
         minOpacity: Number.isFinite(opacity) ? opacity : 0.65,
-        gradient,
-      });
+      };
 
-      if (!mapInstance.hasLayer(heatLayer)) heatLayer.addTo(mapInstance);
-    } else if (heatLayer && mapInstance.hasLayer(heatLayer)) {
-      mapInstance.removeLayer(heatLayer);
+      const order = ['low', 'medium', 'high', 'other'];
+      for (const key of order) {
+        const arr = heatBuckets[key];
+        if (!arr.length) continue;
+        const dotColor = key === 'other' ? severityColor('unknown') : severityColor(key);
+        const hl = L.heatLayer(arr, {
+          ...baseOpts,
+          gradient: monoHeatGradient(dotColor),
+        });
+        heatLayerGroup.addLayer(hl);
+      }
+
+      if (heatLayerGroup.getLayers().length) {
+        heatLayerGroup.addTo(mapInstance);
+      }
+    } else if (heatLayerGroup && mapInstance.hasLayer(heatLayerGroup)) {
+      mapInstance.removeLayer(heatLayerGroup);
     }
 
-    // Markers
-    if (markersEnabled) {
+    // Markers (dot or icon), or none for heatmap-only view
+    if (showMarkers) {
+      const useIcon = markerType === 'icon';
       pts.forEach((p) => {
         const code = formatIncidentCode(p.docId);
         const type = p.data?.type ? String(p.data.type) : 'incident';
         const status = p.data?.status ? String(p.data.status) : 'unknown';
-
-        const marker = L.circleMarker([p.lat, p.lng], {
-          radius: 7,
-          color: '#0b1220',
-          weight: 1,
-          fillColor: severityColor(p.severity),
-          fillOpacity: 0.9,
-        });
-
-        marker.bindPopup(
+        const popup =
           `<strong>${code}</strong><br>` +
-            `${type} · ${p.severity} · ${status}<br>` +
-            `<span style="color:#6b7280">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>`,
-        );
+          `${type} · ${p.severity} · ${status}<br>` +
+          `<span style="color:#6b7280">${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>`;
 
-        marker.addTo(incidentsLayer);
+        if (useIcon) {
+          const marker = L.marker([p.lat, p.lng]);
+          marker.bindPopup(popup);
+          marker.addTo(incidentsLayer);
+        } else {
+          const marker = L.circleMarker([p.lat, p.lng], {
+            radius: 7,
+            color: '#0b1220',
+            weight: 1,
+            fillColor: severityColor(p.severity),
+            fillOpacity: 0.9,
+          });
+          marker.bindPopup(popup);
+          marker.addTo(incidentsLayer);
+        }
       });
     }
   };

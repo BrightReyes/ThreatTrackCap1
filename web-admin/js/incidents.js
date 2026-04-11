@@ -17,7 +17,7 @@ initAdminPage({
           err?.code === 'failed-precondition'
             ? 'Firestore index may be required. Check the browser console.'
             : err?.message || 'Something went wrong';
-        tbody.innerHTML = `<tr class="incidents-table__empty"><td colspan="6">${escapeCell(
+        tbody.innerHTML = `<tr class="incidents-table__empty"><td colspan="7">${escapeCell(
           msg,
         )}</td></tr>`;
       }

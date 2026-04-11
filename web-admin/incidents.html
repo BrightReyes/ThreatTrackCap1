@@ -52,16 +52,16 @@
                 id="incidents-search"
                 type="search"
                 class="incidents-search-input"
-                placeholder="Search by type, description… (coming soon)"
-                disabled
+                placeholder="Search by code, type, description…"
+                autocomplete="off"
               />
             </div>
             <div class="incidents-toolbar__filters">
-              <select class="incidents-select" aria-label="Status filter" disabled>
-                <option>All statuses</option>
+              <select id="incidents-filter-status" class="incidents-select" aria-label="Status filter">
+                <option value="all">All statuses</option>
               </select>
-              <select class="incidents-select" aria-label="Severity filter" disabled>
-                <option>All severities</option>
+              <select id="incidents-filter-severity" class="incidents-select" aria-label="Severity filter">
+                <option value="all">All severities</option>
               </select>
             </div>
           </div>
@@ -87,7 +87,7 @@
                 </thead>
                 <tbody id="incidents-tbody">
                   <tr class="incidents-table__empty">
-                    <td colspan="7">Firestore list will load here next.</td>
+                    <td colspan="7">Loading…</td>
                   </tr>
                 </tbody>
               </table>

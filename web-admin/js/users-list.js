@@ -9,6 +9,11 @@ import { db } from '../../shared/firebase.js';
 
 const LIST_LIMIT = 200;
 
+/** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
+let allDocs = [];
+let toolbarBound = false;
+let searchDebounceTimer = null;
+
 function escapeHtml(text) {
   if (text == null || text === '') return '';
   const div = document.createElement('div');
@@ -59,6 +64,12 @@ function humanizeRole(role) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function norm(s) {
+  return String(s ?? '')
+    .toLowerCase()
+    .trim();
+}
+
 function buildRow(docSnap) {
   const id = docSnap.id;
   const d = docSnap.data();
@@ -76,6 +87,133 @@ function buildRow(docSnap) {
       <button type="button" class="incidents-action-btn" title="View user profile">View</button>
     </td>
   </tr>`;
+}
+
+function docMatchesSearch(docSnap, q) {
+  if (!q) return true;
+  const d = docSnap.data();
+  const email = norm(d.email);
+  const fn = norm(d.firstName);
+  const ln = norm(d.lastName);
+  const full = norm(`${d.firstName || ''} ${d.lastName || ''}`);
+  const uid = norm(docSnap.id);
+  return (
+    email.includes(q) ||
+    fn.includes(q) ||
+    ln.includes(q) ||
+    full.includes(q) ||
+    uid.includes(q)
+  );
+}
+
+function docMatchesRole(docSnap, roleVal) {
+  if (!roleVal || roleVal === 'all') return true;
+  const r = norm(docSnap.data().role || 'user');
+  return r === norm(roleVal);
+}
+
+function getFilterValues() {
+  const searchEl = document.getElementById('users-search');
+  const roleEl = document.getElementById('users-filter-role');
+  return {
+    search: norm(searchEl?.value || ''),
+    role: roleEl?.value || 'all',
+  };
+}
+
+function filterDocs() {
+  const { search, role } = getFilterValues();
+  return allDocs.filter(
+    (docSnap) => docMatchesSearch(docSnap, search) && docMatchesRole(docSnap, role),
+  );
+}
+
+function populateRoleSelect() {
+  const roleSel = document.getElementById('users-filter-role');
+  if (!roleSel) return;
+
+  const current = roleSel.value;
+  const roles = new Set();
+  allDocs.forEach((docSnap) => {
+    const r = docSnap.data().role;
+    roles.add(r ? String(r).toLowerCase() : 'user');
+  });
+
+  const order = ['admin', 'moderator', 'police', 'user'];
+  const sorted = [...roles].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  roleSel.innerHTML =
+    '<option value="all">All roles</option>' +
+    sorted
+      .map(
+        (r) =>
+          `<option value="${escapeAttr(r)}">${escapeHtml(humanizeRole(r))}</option>`,
+      )
+      .join('');
+
+  if ([...roleSel.options].some((o) => o.value === current)) {
+    roleSel.value = current;
+  }
+}
+
+function renderFilteredTable() {
+  const tbody = document.getElementById('users-tbody');
+  const meta = document.getElementById('users-count');
+  if (!tbody) return;
+
+  const filtered = filterDocs();
+
+  if (!allDocs.length) {
+    tbody.innerHTML =
+      '<tr class="incidents-table__empty"><td colspan="5">No users yet.</td></tr>';
+    if (meta) meta.textContent = '0 users';
+    return;
+  }
+
+  if (!filtered.length) {
+    tbody.innerHTML =
+      '<tr class="incidents-table__empty"><td colspan="5">No users match your search or filter.</td></tr>';
+    if (meta) {
+      meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
+    }
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((docSnap) => buildRow(docSnap)).join('');
+
+  if (meta) {
+    const total = allDocs.length;
+    const shown = filtered.length;
+    const suffix =
+      shown < total ? ` (${shown} of ${total} shown)` : ` (${total} loaded)`;
+    meta.textContent =
+      `${shown} user${shown === 1 ? '' : 's'}${suffix}` +
+      (total >= LIST_LIMIT ? ` — max ${LIST_LIMIT} loaded` : '');
+  }
+}
+
+function bindToolbar() {
+  if (toolbarBound) return;
+  toolbarBound = true;
+
+  const searchEl = document.getElementById('users-search');
+  const roleEl = document.getElementById('users-filter-role');
+
+  const rerender = () => renderFilteredTable();
+
+  searchEl?.addEventListener('input', () => {
+    if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = window.setTimeout(rerender, 200);
+  });
+  searchEl?.addEventListener('search', rerender);
+  roleEl?.addEventListener('change', rerender);
 }
 
 async function fetchUsersQuery() {
@@ -114,25 +252,9 @@ export async function loadUsersTable() {
   if (meta) meta.textContent = 'Loading…';
 
   const snap = await fetchUsersQuery();
+  allDocs = snap.docs;
 
-  if (snap.empty) {
-    tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="5">No users yet.</td></tr>';
-    if (meta) meta.textContent = '0 users';
-    return;
-  }
-
-  const rows = [];
-  snap.forEach((docSnap) => {
-    rows.push(buildRow(docSnap));
-  });
-  tbody.innerHTML = rows.join('');
-
-  const n = snap.size;
-  if (meta) {
-    meta.textContent =
-      n >= LIST_LIMIT
-        ? `${n}+ users (showing first ${LIST_LIMIT})`
-        : `${n} user${n === 1 ? '' : 's'}`;
-  }
+  bindToolbar();
+  populateRoleSelect();
+  renderFilteredTable();
 }
