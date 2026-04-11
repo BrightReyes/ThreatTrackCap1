@@ -1,124 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Users — ThreatTrack Admin</title>
-    <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
-    <link rel="stylesheet" href="/css/base.css" />
-    <link rel="stylesheet" href="/css/dashboard.css" />
-    <link rel="stylesheet" href="/css/incidents.css" />
-  </head>
-  <body>
-    <div id="page-users" class="admin-dashboard" hidden>
-      <aside class="admin-dashboard__sidebar" aria-label="Main navigation">
-        <div class="sidebar__top">
-          <div class="sidebar__brand">
-            <span class="sidebar__logo">ThreatTrack</span>
-            <span class="sidebar__badge">Admin</span>
-          </div>
-          <nav class="sidebar__nav">
-            <a href="dashboard.html" class="sidebar__link">Dashboard</a>
-            <a href="incidents.html" class="sidebar__link">Incidents</a>
-            <a
-              href="users.html"
-              class="sidebar__link sidebar__link--active"
-              aria-current="page"
-              >Users</a
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Users</title>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+        <link rel="stylesheet" href="/css/incidents.css" />
+    </head>
+    <body>
+        <div id="page-users" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
             >
-            <a href="notifications.html" class="sidebar__link">Notifications</a>
-            <a href="settings.html" class="sidebar__link">Settings</a>
-          </nav>
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <span class="sidebar__logo">ThreatTrack</span>
+                        <span class="sidebar__badge">Admin</span>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a href="dashboard.html" class="sidebar__link"
+                            >Dashboard</a
+                        >
+                        <a href="incidents.html" class="sidebar__link"
+                            >Incidents</a
+                        >
+                        <a
+                            href="users.html"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                            >Users</a
+                        >
+                        <a href="notifications.html" class="sidebar__link"
+                            >Notifications</a
+                        >
+                        <a href="settings.html" class="sidebar__link"
+                            >Settings</a
+                        >
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Users</h1>
+                        <p class="admin-dashboard__tagline">
+                            Registered accounts and roles
+                        </p>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main incidents-main">
+                    <div class="incidents-toolbar">
+                        <div class="incidents-toolbar__search">
+                            <label class="visually-hidden" for="users-search"
+                                >Search users</label
+                            >
+                            <input
+                                id="users-search"
+                                type="search"
+                                class="incidents-search-input"
+                                placeholder="Search by email, name, or user ID…"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="incidents-toolbar__filters">
+                            <select
+                                id="users-filter-role"
+                                class="incidents-select"
+                                aria-label="Role filter"
+                            >
+                                <option value="all">All roles</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <section class="incidents-panel" aria-label="User list">
+                        <div class="incidents-panel__head">
+                            <h2 class="incidents-panel__title">All users</h2>
+                            <p class="incidents-panel__meta" id="users-count">
+                                Loading…
+                            </p>
+                        </div>
+
+                        <div class="incidents-table-wrap">
+                            <table class="incidents-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Email</th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Role</th>
+                                        <th scope="col">Joined</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-tbody">
+                                    <tr class="incidents-table__empty">
+                                        <td colspan="5">Loading…</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </main>
+            </div>
         </div>
 
-        <div class="sidebar__footer">
-          <span id="user-email" class="sidebar__user-email"></span>
-          <button type="button" id="btn-signout" class="sidebar__signout">Sign out</button>
+        <div
+            id="user-modal"
+            class="incident-modal"
+            hidden
+            role="dialog"
+            aria-modal="true"
+            aria-hidden="true"
+            aria-labelledby="user-modal-title"
+        >
+            <div
+                class="incident-modal__backdrop"
+                data-close-modal
+                tabindex="-1"
+            ></div>
+            <div class="incident-modal__panel">
+                <header class="incident-modal__header">
+                    <h2 id="user-modal-title" class="incident-modal__title">
+                        User details
+                    </h2>
+                    <button
+                        type="button"
+                        class="incident-modal__close"
+                        id="user-modal-close"
+                        aria-label="Close"
+                    >
+                        ×
+                    </button>
+                </header>
+                <div id="user-modal-body" class="incident-modal__body"></div>
+            </div>
         </div>
-      </aside>
 
-      <div class="admin-dashboard__shell">
-        <header class="admin-dashboard__header">
-          <div class="admin-dashboard__header-left">
-            <h1 class="admin-dashboard__title">Users</h1>
-            <p class="admin-dashboard__tagline">Registered accounts and roles</p>
-          </div>
-        </header>
-
-        <main class="admin-dashboard__main incidents-main">
-          <div class="incidents-toolbar">
-            <div class="incidents-toolbar__search">
-              <label class="visually-hidden" for="users-search">Search users</label>
-              <input
-                id="users-search"
-                type="search"
-                class="incidents-search-input"
-                placeholder="Search by email, name, or user ID…"
-                autocomplete="off"
-              />
-            </div>
-            <div class="incidents-toolbar__filters">
-              <select id="users-filter-role" class="incidents-select" aria-label="Role filter">
-                <option value="all">All roles</option>
-              </select>
-            </div>
-          </div>
-
-          <section class="incidents-panel" aria-label="User list">
-            <div class="incidents-panel__head">
-              <h2 class="incidents-panel__title">All users</h2>
-              <p class="incidents-panel__meta" id="users-count">Loading…</p>
-            </div>
-
-            <div class="incidents-table-wrap">
-              <table class="incidents-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Email</th>
-                    <th scope="col">Name</th>
-                    <th scope="col">Role</th>
-                    <th scope="col">Joined</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="users-tbody">
-                  <tr class="incidents-table__empty">
-                    <td colspan="5">Loading…</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </main>
-      </div>
-    </div>
-
-    <div
-      id="user-modal"
-      class="incident-modal"
-      hidden
-      role="dialog"
-      aria-modal="true"
-      aria-hidden="true"
-      aria-labelledby="user-modal-title"
-    >
-      <div class="incident-modal__backdrop" data-close-modal tabindex="-1"></div>
-      <div class="incident-modal__panel">
-        <header class="incident-modal__header">
-          <h2 id="user-modal-title" class="incident-modal__title">User details</h2>
-          <button
-            type="button"
-            class="incident-modal__close"
-            id="user-modal-close"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </header>
-        <div id="user-modal-body" class="incident-modal__body"></div>
-      </div>
-    </div>
-
-    <script type="module" src="/js/users.js"></script>
-  </body>
+        <script type="module" src="/js/users.js"></script>
+    </body>
 </html>
