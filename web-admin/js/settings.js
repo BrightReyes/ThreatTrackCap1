@@ -1,4 +1,5 @@
 import { initAdminPage } from './admin-auth.js';
+import { initAdminCustomSelects } from './admin-custom-select.js';
 import { confirmDanger, toastError, toastSuccess } from './alerts.js';
 import { auth, db } from '../../shared/firebase.js';
 import {
@@ -1853,6 +1854,7 @@ initAdminPage({
     });
 
     await loadSettings();
+    initAdminCustomSelects(document.getElementById('page-settings'));
 
     // Prime summary on load (best-effort).
     // eslint-disable-next-line no-void

@@ -156,41 +156,55 @@
   margin-left: auto;
 }
 
+/* Minimal clock: type-only, no card chrome */
 .admin-dashboard__clock {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
-  padding: 10px 16px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  min-width: 11rem;
+  gap: 0.2rem;
+  padding: 0;
+  text-align: right;
+}
+
+.admin-dashboard__clock-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .admin-dashboard__clock-time {
   font-variant-numeric: tabular-nums;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-  letter-spacing: 0.02em;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
-.admin-dashboard__clock-date {
+.admin-dashboard__clock-sep {
   font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
-  line-height: 1.3;
+  font-weight: 400;
+  color: #cbd5e1;
+  user-select: none;
 }
 
 .admin-dashboard__clock-tz {
   font-size: 0.625rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
+  letter-spacing: 0.12em;
+  color: #94a3b8;
   text-transform: uppercase;
-  margin-top: 2px;
+}
+
+.admin-dashboard__clock-date {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
 }
 
 .admin-dashboard__title {
@@ -312,6 +326,200 @@
   font-size: 0.875rem;
 }
 
+.admin-dashboard__activity-action {
+  display: block;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+  font-size: 0.9375rem;
+}
+
+.admin-dashboard__activity-detail {
+  display: block;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+/* Native <select> — minimal, shared across admin pages (hidden native uses .admin-select-custom__native) */
+.admin-dashboard select:not([multiple]):not(.admin-select-custom__native) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.5rem 2.35rem 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #0f172a;
+  background-color: #fafafa;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1rem;
+}
+
+.admin-dashboard select:not([multiple]):not(.admin-select-custom__native):hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.admin-dashboard select:not([multiple]):not(.admin-select-custom__native):focus {
+  outline: none;
+  background-color: #fff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.admin-dashboard select:not([multiple]):not(.admin-select-custom__native):disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background-color: #f1f5f9;
+  color: #94a3b8;
+}
+
+/* Full-width selects in settings (and any panel form using .settings-select) */
+.admin-dashboard .settings-panel select.settings-select,
+.admin-dashboard .settings-field > select,
+.admin-dashboard .settings-field select.settings-select {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Custom select listbox (admin-custom-select.js) — minimalist popdown
+--------------------------------------------------------------------------- */
+.admin-select-custom {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.admin-select-custom--toolbar {
+  width: auto;
+  min-width: 11rem;
+}
+
+.admin-select-custom__trigger {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem 2.35rem 0.5rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  color: #0f172a;
+  background-color: #fafafa;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  background-size: 1rem;
+}
+
+.admin-select-custom--toolbar .admin-select-custom__trigger {
+  width: 100%;
+}
+
+.admin-select-custom__trigger:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.admin-select-custom__trigger:focus {
+  outline: none;
+}
+
+.admin-select-custom__trigger:focus-visible {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background-color: #fff;
+}
+
+.admin-select-custom.is-open .admin-select-custom__trigger {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background-color: #fff;
+}
+
+.admin-select-custom__panel {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.admin-select-custom__panel:focus {
+  outline: none;
+}
+
+.admin-select-custom__option {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.admin-select-custom__option:hover,
+.admin-select-custom__option:focus {
+  outline: none;
+  background: #f1f5f9;
+}
+
+.admin-select-custom__option:focus-visible {
+  background: #e2e8f0;
+}
+
+.admin-select-custom__option[aria-selected='true'] {
+  font-weight: 600;
+  color: #1e40af;
+  background: #eff6ff;
+}
+
+.admin-select-custom__option--disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.admin-select-custom__native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 @media (max-width: 900px) {
   .admin-dashboard {
     flex-direction: column;
@@ -376,5 +584,20 @@
   .sidebar__signout {
     width: auto;
     flex-shrink: 0;
+  }
+
+  .admin-dashboard__header-right {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .admin-dashboard__clock,
+  .admin-dashboard__clock-line {
+    align-items: flex-start;
+    justify-content: flex-start;
+    text-align: left;
   }
 }

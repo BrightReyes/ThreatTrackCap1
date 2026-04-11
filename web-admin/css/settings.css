@@ -286,11 +286,17 @@
 }
 
 .settings-section--general .settings-input,
-.settings-section--general .settings-textarea,
-.settings-section--general .settings-select {
+.settings-section--general .settings-textarea {
     border-color: #e2e8f0;
     border-radius: 10px;
     padding: 0.55rem 0.75rem;
+    font-size: 0.875rem;
+    color: #0f172a;
+}
+
+.settings-section--general .settings-select {
+    border-color: #e2e8f0;
+    border-radius: 10px;
     font-size: 0.875rem;
     color: #0f172a;
 }
@@ -394,13 +400,6 @@
     margin-top: 2px;
 }
 
-.settings-select {
-    padding: 8px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #fff;
-}
-
 .settings-list {
     margin-top: 12px;
     display: flex;
@@ -495,8 +494,7 @@
 }
 
 .settings-input:focus,
-.settings-textarea:focus,
-.settings-select:focus {
+.settings-textarea:focus {
     border-color: #93c5fd;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
@@ -549,6 +547,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+    align-items: start;
 }
 
 .settings-actions {
@@ -697,21 +696,6 @@
     }
 }
 
-/* Ensure equal height fields */
-.settings-grid2 {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    align-items: stretch;
-}
-
-/* Make fields fill full height */
-.settings-field {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
 /* NEW ACCOUNT SETTINGS */
 
 /* —— Account section (modern parity with general) —— */
@@ -795,6 +779,11 @@
 }
 
 .settings-section--map .settings-field:first-child {
+    margin-top: 0;
+}
+
+/* 2-col rows: only the grid's first column matched :first-child, so the right column kept margin-top and sat lower */
+.settings-card__body > .settings-grid2 > .settings-field {
     margin-top: 0;
 }
 
@@ -1030,69 +1019,8 @@
 .settings-file__input:focus + .settings-file__button {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
-/* ================================
-   Modern Select (Global)
-================================ */
-
-.settings-select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-
-    width: 100%;
-    padding: 0.55rem 2.2rem 0.55rem 0.75rem;
-
-    font-size: 0.8125rem;
-    font-weight: 500;
-
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
-
-    background-color: #fafafa;
-    color: #0f172a;
-
-    transition: all 0.15s ease;
-
-    /* custom arrow */
-    background-image: url("data:image/svg+xml;utf8,<svg fill='%2364748b' height='20' viewBox='0 0 20 20' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M5.5 7l4.5 5 4.5-5'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 0.6rem center;
-    background-size: 14px;
-}
-
-/* Hover */
-.settings-select:hover {
-    background-color: #f8fafc;
-    border-color: #cbd5e1;
-}
-
-/* Focus */
-.settings-select:focus {
-    outline: none;
-    background-color: #fff;
-    border-color: #93c5fd;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-/* Active (click) */
-.settings-select:active {
-    transform: scale(0.995);
-}
-
-/* Disabled */
-.settings-select:disabled {
-    background-color: #f1f5f9;
-    color: #94a3b8;
-    cursor: not-allowed;
-}
-
-/* Smaller dropdowns (optional consistency) */
-.settings-field .settings-select {
-    height: 36px;
-}
-
-.settings-label {
-    margin-bottom: 4px;
-    font-size: 0.75rem;
-    color: #64748b;
+/* Settings selects use shared .admin-dashboard select rules (dashboard.css). */
+.settings-field > .settings-select,
+.settings-field select.settings-select {
+    min-height: 2.375rem;
 }

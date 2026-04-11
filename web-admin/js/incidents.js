@@ -1,4 +1,5 @@
 import { initAdminPage } from './admin-auth.js';
+import { initAdminCustomSelects } from './admin-custom-select.js';
 import { initIncidentModal } from './incident-modal.js';
 import { loadIncidentsTable } from './incidents-list.js';
 
@@ -7,6 +8,7 @@ initIncidentModal();
 initAdminPage({
   pageId: 'page-incidents',
   onReady() {
+    initAdminCustomSelects(document.getElementById('page-incidents'));
     loadIncidentsTable().catch((err) => {
       console.error('[incidents]', err);
       const meta = document.getElementById('incidents-count');

@@ -53,18 +53,11 @@
   gap: 10px;
 }
 
+/* Toolbar filters: inherit global select look from dashboard.css */
 .incidents-select {
-  padding: 10px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  background: #fff;
-  min-width: 140px;
-}
-
-.incidents-select:disabled {
-  background: #f9fafb;
-  color: #9ca3af;
+  width: auto;
+  min-width: 11rem;
+  flex-shrink: 0;
 }
 
 .incidents-panel {
@@ -224,6 +217,11 @@
 .incidents-badge--role-moderator {
   background: #dbeafe;
   color: #1e40af;
+}
+
+.incidents-badge--role-police {
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .incidents-action-btn {
@@ -390,6 +388,7 @@
   max-height: min(90vh, 720px);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
@@ -434,9 +433,11 @@
 
 .incident-modal__body {
   padding: 20px;
+  overflow-x: hidden;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  min-width: 0;
 }
 
 .incident-modal__loading,
@@ -542,6 +543,145 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
+.incident-actions--moderation .incident-actions__title,
+.incident-actions--moderation .incident-actions__hint {
+  text-align: center;
+}
+
+.incident-actions--moderation .incident-actions__buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.incident-actions--moderation .incident-action-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  text-align: center;
+}
+
+.incident-actions--user .incident-actions__title {
+  text-align: left;
+}
+
+.incident-actions--user .incident-actions__hint {
+  text-align: left;
+}
+
+.incident-actions--user .incident-actions__buttons {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.incident-actions--user .incident-action-btn {
+  min-width: 7.5rem;
+  text-align: center;
+}
+
+.incident-actions--user .incident-actions__feedback {
+  text-align: left;
+}
+
+.user-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 4px;
+}
+
+.user-modal-form__readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: #111827;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.user-modal-form__field:first-of-type {
+  margin-top: 6px;
+}
+
+.user-modal-form__readonly-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.user-modal-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.user-modal-form__label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.user-modal-form__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #0f172a;
+  background-color: #fafafa;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.user-modal-form__input:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.user-modal-form__input:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background-color: #fff;
+}
+
+/* Full-width custom select (same widget as toolbar filters) */
+.user-modal-form__select-wrap {
+  width: 100%;
+}
+
+.user-modal-form__select-wrap .admin-select-custom--toolbar {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.incident-action-btn--primary {
+  border-color: #007aff;
+  background: #007aff;
+  color: #fff;
+}
+
+.incident-action-btn--primary:hover:not(:disabled) {
+  background: #0066d6;
+  border-color: #0066d6;
+}
+
 .incident-action-btn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #9ca3af;
@@ -573,6 +713,10 @@
   min-height: 1.2em;
   font-size: 0.8125rem;
   color: #4b5563;
+}
+
+.incident-actions--moderation .incident-actions__feedback {
+  text-align: center;
 }
 
 @media (max-width: 520px) {

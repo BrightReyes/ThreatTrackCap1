@@ -11,9 +11,25 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function callerUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function callerRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? callerUserDoc().data.role
+        : null;
+    }
+
     function isAdmin() {
       return isAuthenticated() &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+             callerRole() in ['admin', 'moderator'];
+    }
+
+    // Staff (admin, moderator, police): can edit other users' Firestore profiles (not Auth).
+    function canManageUserProfiles() {
+      return isAuthenticated() &&
+             callerRole() in ['admin', 'moderator', 'police'];
     }
 
     function isValidIncident() {
@@ -47,10 +63,15 @@ service cloud.firestore {
                     request.resource.data.uid == userId &&
                     request.resource.data.email == request.auth.token.email;
 
-      // Users can only update their own profile
-      allow update: if isOwner(userId) &&
+      // Users update own profile (email unchanged). Staff may update others: uid must match doc id,
+      // and only safe scalar fields may change (diff-based — avoids email== failures when email is missing/mismatched).
+      allow update: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
-                    request.resource.data.email == resource.data.email; // Email can't be changed here
+                    request.resource.data.email == resource.data.email) ||
+                   (canManageUserProfiles() &&
+                    request.resource.data.uid == userId &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['firstName', 'lastName', 'role', 'uid']));
 
       // Users can delete their own profile, admins can delete any
       allow delete: if isOwner(userId) || isAdmin();

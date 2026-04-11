@@ -54,6 +54,7 @@ function roleBadgeClass(role) {
   const r = String(role || 'user').toLowerCase();
   if (r === 'admin') return 'incidents-badge incidents-badge--role-admin';
   if (r === 'moderator') return 'incidents-badge incidents-badge--role-moderator';
+  if (r === 'police') return 'incidents-badge incidents-badge--role-police';
   return 'incidents-badge incidents-badge--role-user';
 }
 

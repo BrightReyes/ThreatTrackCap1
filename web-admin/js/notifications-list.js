@@ -135,6 +135,11 @@ export async function loadNotificationsTable() {
         : `${n} notification${n === 1 ? '' : 's'}`;
   }
 
+  if (list.dataset.notificationActionsBound === '1') {
+    return;
+  }
+  list.dataset.notificationActionsBound = '1';
+
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-action]');
     if (!btn) return;
@@ -169,12 +174,28 @@ export async function loadNotificationsTable() {
         await deleteDoc(doc(db, 'notifications', id));
         toastSuccess('Notification deleted');
         card.remove();
+        syncNotificationsMeta(list, meta);
       } catch (err) {
         console.error('[notifications] delete', err);
         toastError(err?.message || 'Failed to delete notification');
         btn.disabled = false;
       }
     }
-  }, { once: true });
+  });
+}
+
+function syncNotificationsMeta(list, meta) {
+  if (!list || !meta) return;
+  const remaining = list.querySelectorAll('[data-notification-id]').length;
+  if (remaining === 0) {
+    list.innerHTML =
+      '<div class="notifications-empty">No notifications yet.</div>';
+    meta.textContent = '0 notifications';
+    return;
+  }
+  meta.textContent =
+    remaining >= LIST_LIMIT
+      ? `${remaining}+ notifications (showing latest ${LIST_LIMIT})`
+      : `${remaining} notification${remaining === 1 ? '' : 's'}`;
 }
 

@@ -1,4 +1,5 @@
 import { initAdminPage } from './admin-auth.js';
+import { initAdminCustomSelects } from './admin-custom-select.js';
 import { initUserModal } from './user-modal.js';
 import { loadUsersTable } from './users-list.js';
 
@@ -7,6 +8,7 @@ initUserModal();
 initAdminPage({
   pageId: 'page-users',
   onReady() {
+    initAdminCustomSelects(document.getElementById('page-users'));
     loadUsersTable().catch((err) => {
       console.error('[users]', err);
       const meta = document.getElementById('users-count');

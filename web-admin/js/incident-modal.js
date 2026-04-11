@@ -95,6 +95,17 @@ function buildPhotosHtml(data) {
     .join(' · ');
 }
 
+function reportedAtDisplay(d) {
+  const primary = d.reportedAt || d.timestamp;
+  return escapeHtml(formatTimestamp(primary));
+}
+
+function reporterSummary(d) {
+  if (d.isAnonymous === true) return 'Anonymous';
+  if (d.reporterId) return 'Signed-in user';
+  return '—';
+}
+
 function renderIncidentDetail(docId, d) {
   const loc = d.location || {};
   const lat =
@@ -114,7 +125,6 @@ function renderIncidentDetail(docId, d) {
 
   const rows = [
     ['Incident code', escapeHtml(code)],
-    ['Document ID', `<span class="incident-detail__mono">${escapeHtml(docId)}</span>`],
     [
       'Status',
       `<span class="${statusBadgeClass(d.status)}">${escapeHtml(humanize(d.status))}</span>`,
@@ -128,8 +138,7 @@ function renderIncidentDetail(docId, d) {
       'Description',
       `<div class="incident-detail__desc">${escapeHtml(d.description || '—')}</div>`,
     ],
-    ['Timestamp', escapeHtml(formatTimestamp(d.timestamp))],
-    ['Reported at', escapeHtml(formatTimestamp(d.reportedAt))],
+    ['Reported', reportedAtDisplay(d)],
     [
       'Location',
       lat != null && lng != null
@@ -141,27 +150,7 @@ function renderIncidentDetail(docId, d) {
         : '—',
     ],
     ['Address', escapeHtml(loc.address || '—')],
-    ['Reporter ID', escapeHtml(d.reporterId || '—')],
-    [
-      'Anonymous report',
-      escapeHtml(d.isAnonymous === true ? 'Yes' : d.isAnonymous === false ? 'No' : '—'),
-    ],
-    [
-      'Verification score',
-      escapeHtml(
-        typeof d.verificationScore === 'number' ? String(d.verificationScore) : '—',
-      ),
-    ],
-    ['Moderated by', escapeHtml(d.moderatedBy || '—')],
-    ['Moderated at', escapeHtml(formatTimestamp(d.moderatedAt))],
-    [
-      'View count',
-      escapeHtml(typeof d.viewCount === 'number' ? String(d.viewCount) : '—'),
-    ],
-    [
-      'Report count',
-      escapeHtml(typeof d.reportCount === 'number' ? String(d.reportCount) : '—'),
-    ],
+    ['Reporter', escapeHtml(reporterSummary(d))],
     ['Photos', buildPhotosHtml(d)],
   ];
 
@@ -174,9 +163,9 @@ function renderIncidentDetail(docId, d) {
       )
       .join('')}
   </dl>
-  <section class="incident-actions" aria-label="Incident actions">
+  <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
     <h3 class="incident-actions__title">Actions</h3>
-    <p class="incident-actions__hint">Change incident status for moderation workflow.</p>
+    <p class="incident-actions__hint">Set status for this report.</p>
     <div class="incident-actions__buttons">
       <button type="button" class="incident-action-btn${actionStatus === 'under_review' ? ' is-active' : ''}" data-action-status="under_review">Under review</button>
       <button type="button" class="incident-action-btn${actionStatus === 'verified' ? ' is-active' : ''}" data-action-status="verified">Verify</button>

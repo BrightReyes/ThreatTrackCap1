@@ -25,10 +25,16 @@
                             aria-current="page"
                             >Dashboard</a
                         >
-                        <a href="incidents.html" class="sidebar__link">Incidents</a>
+                        <a href="incidents.html" class="sidebar__link"
+                            >Incidents</a
+                        >
                         <a href="users.html" class="sidebar__link">Users</a>
-                        <a href="notifications.html" class="sidebar__link">Notifications</a>
-                        <a href="settings.html" class="sidebar__link">Settings</a>
+                        <a href="notifications.html" class="sidebar__link"
+                            >Notifications</a
+                        >
+                        <a href="settings.html" class="sidebar__link"
+                            >Settings</a
+                        >
                     </nav>
                 </div>
 
@@ -58,15 +64,24 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
-                            <span
-                                id="dashboard-clock-time"
-                                class="admin-dashboard__clock-time"
-                            ></span>
-                            <span
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >·</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
                                 id="dashboard-clock-date"
                                 class="admin-dashboard__clock-date"
-                            ></span>
-                            <span class="admin-dashboard__clock-tz">PHT</span>
+                            ></p>
                         </div>
                     </div>
                 </header>
@@ -78,27 +93,45 @@
                     >
                         <article class="stat-card">
                             <p class="stat-card__label">Open incidents</p>
-                            <p id="stat-open-incidents" class="stat-card__value">…</p>
-                            <p class="stat-card__hint">Pending + under review</p>
+                            <p
+                                id="stat-open-incidents"
+                                class="stat-card__value"
+                            >
+                                …
+                            </p>
+                            <p class="stat-card__hint">
+                                Pending + under review
+                            </p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Reports (24h)</p>
-                            <p id="stat-reports-24h" class="stat-card__value">…</p>
+                            <p id="stat-reports-24h" class="stat-card__value">
+                                …
+                            </p>
                             <p class="stat-card__hint">By incident timestamp</p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Registered users</p>
-                            <p id="stat-active-users" class="stat-card__value">…</p>
+                            <p id="stat-active-users" class="stat-card__value">
+                                …
+                            </p>
                             <p class="stat-card__hint">Documents in users</p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Avg. risk score</p>
                             <p id="stat-avg-risk" class="stat-card__value">…</p>
-                            <p class="stat-card__hint">0–100, last 200 incidents</p>
+                            <p class="stat-card__hint">
+                                0–100, last 200 incidents
+                            </p>
                         </article>
                         <article class="stat-card">
                             <p class="stat-card__label">Total incidents</p>
-                            <p id="stat-total-incidents" class="stat-card__value">…</p>
+                            <p
+                                id="stat-total-incidents"
+                                class="stat-card__value"
+                            >
+                                …
+                            </p>
                             <p class="stat-card__hint">All time</p>
                         </article>
                     </section>
@@ -129,13 +162,15 @@
                         <h2 class="admin-dashboard__section-title">
                             Recent activity
                         </h2>
-                        <ul class="admin-dashboard__activity-list">
-                            <li class="admin-dashboard__activity-item">
-                                No events yet — wire up Firestore listeners.
-                            </li>
-                            <li class="admin-dashboard__activity-item muted">
-                                Example: new incident reports, validation
-                                results, alerts sent.
+                        <ul
+                            id="dashboard-activity-list"
+                            class="admin-dashboard__activity-list"
+                        >
+                            <li
+                                class="admin-dashboard__activity-item muted"
+                                role="status"
+                            >
+                                Loading activity…
                             </li>
                         </ul>
                     </section>
