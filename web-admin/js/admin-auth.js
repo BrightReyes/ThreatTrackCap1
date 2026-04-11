@@ -1,5 +1,6 @@
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, db } from '../../shared/firebase.js';
+import { refreshSidebarSystemName } from './admin-branding.js';
 import { doc, getDoc } from 'firebase/firestore';
 import { confirmDanger, toastError, toastSuccess } from './alerts.js';
 import { logAudit } from './audit.js';
@@ -70,6 +71,8 @@ export function initAdminPage({ pageId, onReady }) {
       userEmail.title = user.email ?? '';
     }
     if (page) page.hidden = false;
+    // eslint-disable-next-line no-void
+    void refreshSidebarSystemName();
     // eslint-disable-next-line no-void
     void startInactivityTimer();
     if (typeof onReady === 'function') onReady(user);

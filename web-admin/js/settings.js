@@ -1,3 +1,4 @@
+import { applySidebarSystemName } from './admin-branding.js';
 import { initAdminPage } from './admin-auth.js';
 import { initAdminCustomSelects } from './admin-custom-select.js';
 import { confirmDanger, toastError, toastSuccess } from './alerts.js';
@@ -878,6 +879,8 @@ initAdminPage({
       setValue('map-marker-limit', perf.markerLimit ?? 250, 250);
       setValue('map-refresh-mode', perf.refreshMode, 'realtime');
       setValue('map-refresh-interval', perf.refreshIntervalSec ?? 30, 30);
+
+      applySidebarSystemName(data?.systemName);
     }
 
     function defaultConfig() {
@@ -1133,6 +1136,7 @@ initAdminPage({
           },
           { merge: true },
         );
+        applySidebarSystemName(payload.systemName);
         // eslint-disable-next-line no-void
         void logAudit('settings.update', { reason });
         setStatus(reason);
