@@ -65,6 +65,32 @@
                             Review and moderate reported incidents
                         </p>
                     </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >·</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
+                                id="dashboard-clock-date"
+                                class="admin-dashboard__clock-date"
+                            ></p>
+                        </div>
+                    </div>
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
@@ -175,5 +201,6 @@
         </div>
 
         <script type="module" src="/js/incidents.js"></script>
+        <script type="module" src="/js/dashboard.js"></script>
     </body>
 </html>

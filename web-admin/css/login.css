@@ -20,7 +20,7 @@ input:-webkit-autofill:active {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #0b173a;
+    background-color: #0b0f19; /* slightly neutral dark */
 }
 
 /* Container stays centered */
@@ -40,23 +40,22 @@ input:-webkit-autofill:active {
     padding: 40px;
     border-radius: 20px;
     width: 100%;
-    max-width: 720px; /* controlled width */
+    max-width: 720px;
     box-sizing: border-box;
-    border: 1px solid #ffffff46;
+    border: 1px solid rgba(239, 68, 68, 0.25); /* subtle red border */
 
-    /* subtle modern depth */
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 /* Logo */
 .form-container img {
     width: 50%;
-    max-width: 120px; /* slightly more controlled */
+    max-width: 120px;
     height: auto;
     margin: 0 auto 20px;
     display: block;
     object-fit: contain;
-    background-color: #1c77fff8;
+    background-color: #ef4444; /* changed */
     border-radius: 16px;
 }
 
@@ -73,7 +72,7 @@ input:-webkit-autofill:active {
 .subtitle {
     font-size: 16px;
     color: #9ca3af;
-    margin-bottom: 32px; /* tighter spacing */
+    margin-bottom: 32px;
     text-align: center;
 }
 
@@ -81,16 +80,17 @@ input:-webkit-autofill:active {
 #login-form {
     display: flex;
     flex-direction: column;
-    gap: 10px; /* modern spacing instead of margins everywhere */
+    gap: 10px;
 }
 
 /* Error */
 .login-error {
-    color: #b91c1c;
+    color: #ef4444; /* updated */
     font-size: 14px;
     min-height: 1.25em;
     text-align: center;
 }
+
 /* Group */
 .input-group {
     display: flex;
@@ -116,10 +116,10 @@ input:-webkit-autofill:active {
     transition: all 0.2s ease;
 }
 
-/* Focus effect (important) */
+/* Focus effect */
 .input-wrapper:focus-within {
-    border-color: #007aff;
-    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+    border-color: #ef4444; /* changed */
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15); /* subtle */
 }
 
 /* Icon */
@@ -153,8 +153,8 @@ input:-webkit-autofill:active {
     margin-top: 8px;
     border-radius: 12px;
 
-    background: rgba(255, 204, 0, 0.08);
-    border: 1px solid #ffcc00;
+    background: rgba(239, 68, 68, 0.08); /* changed */
+    border: 1px solid #ef4444; /* changed */
 
     color: #f9fafb;
     font-size: 14px;
@@ -163,13 +163,13 @@ input:-webkit-autofill:active {
 
 .warning-icon {
     font-size: 18px;
-    color: #ffcc00;
+    color: #ef4444; /* changed */
     margin-top: 2px;
 }
 
 /* Button */
 .login-button {
-    background-color: #007aff;
+    background-color: #ef4444; /* changed */
     color: white;
     padding: 15px;
     border-radius: 8px;
@@ -182,7 +182,7 @@ input:-webkit-autofill:active {
 }
 
 .login-button:hover:not(:disabled) {
-    background-color: #0056b3;
+    background-color: #dc2626; /* darker red */
 }
 
 .login-button:active:not(:disabled) {
@@ -191,7 +191,7 @@ input:-webkit-autofill:active {
 
 /* Forgot */
 .forgot-password {
-    color: #007aff;
+    color: #ef4444; /* changed */
     font-size: 14px;
     text-align: center;
     text-decoration: none;
