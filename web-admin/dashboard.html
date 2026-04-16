@@ -4,6 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Dashboard</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
@@ -16,26 +20,61 @@
             >
                 <div class="sidebar__top">
                     <div class="sidebar__brand">
-                        <span class="sidebar__logo">ThreatTrack</span>
-                        <span class="sidebar__badge">Admin</span>
+                        <div class="sidebar__brand-left">
+                            <img
+                                src="/assets/image 10.png"
+                                alt="Logo"
+                                class="sidebar__logo-img"
+                            />
+                        </div>
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo"></span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
                     </div>
                     <nav class="sidebar__nav">
                         <a
                             href="dashboard.html"
                             class="sidebar__link sidebar__link--active"
-                            aria-current="page"
-                            >Dashboard</a
                         >
-                        <a href="incidents.html" class="sidebar__link"
-                            >Incidents</a
-                        >
-                        <a href="users.html" class="sidebar__link">Users</a>
-                        <a href="notifications.html" class="sidebar__link"
-                            >Notifications</a
-                        >
-                        <a href="settings.html" class="sidebar__link"
-                            >Settings</a
-                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
+
+                        <a href="users.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+
+                        <a href="notifications.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
                     </nav>
                 </div>
 
@@ -56,7 +95,8 @@
                     <div class="admin-dashboard__header-left">
                         <h1 class="admin-dashboard__title">Welcome Admin</h1>
                         <p class="admin-dashboard__tagline">
-                            Real-time crime monitoring and management
+                            Monitor incidents, track activity, and manage
+                            reports in real time
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -92,7 +132,7 @@
                         class="admin-dashboard__stats"
                         aria-label="Key metrics"
                     >
-                        <article class="stat-card">
+                        <article class="stat-card" id="card-open-incidents">
                             <p class="stat-card__label">Open incidents</p>
                             <p
                                 id="stat-open-incidents"
@@ -104,28 +144,28 @@
                                 Pending + under review
                             </p>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card" id="card-reports-24h">
                             <p class="stat-card__label">Reports (24h)</p>
                             <p id="stat-reports-24h" class="stat-card__value">
                                 …
                             </p>
                             <p class="stat-card__hint">By incident timestamp</p>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card" id="card-users">
                             <p class="stat-card__label">Registered users</p>
                             <p id="stat-active-users" class="stat-card__value">
                                 …
                             </p>
                             <p class="stat-card__hint">Documents in users</p>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card" id="card-risk">
                             <p class="stat-card__label">Avg. risk score</p>
                             <p id="stat-avg-risk" class="stat-card__value">…</p>
                             <p class="stat-card__hint">
                                 0–100, last 200 incidents
                             </p>
                         </article>
-                        <article class="stat-card">
+                        <article class="stat-card" id="card-total-incidents">
                             <p class="stat-card__label">Total incidents</p>
                             <p
                                 id="stat-total-incidents"
@@ -142,12 +182,58 @@
                         aria-label="Coverage map"
                     >
                         <h2 class="admin-dashboard__section-title">
-                            Coverage map
+                            Incident Map
                         </h2>
                         <p class="admin-dashboard__map-caption">
-                            Valenzuela City — OpenStreetMap. Wire Firestore to
-                            plot incident markers next.
+                            Real-time incident visualization across Valenzuela
+                            City.
                         </p>
+                        <div class="admin-map__filters">
+                            <div class="admin-map__filter">
+                                <label for="map-filter-type">Type</label>
+                                <select
+                                    id="map-filter-type"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All types</option>
+                                </select>
+                            </div>
+                            <div class="admin-map__filter">
+                                <label for="map-filter-severity"
+                                    >Severity</label
+                                >
+                                <select
+                                    id="map-filter-severity"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All severities</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="admin-map__filter">
+                                <label for="map-filter-timeframe"
+                                    >Time Range</label
+                                >
+                                <select
+                                    id="map-filter-timeframe"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All time</option>
+                                    <option value="24h">Last 24 hours</option>
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                </select>
+                            </div>
+                            <button
+                                id="map-filter-reset"
+                                type="button"
+                                class="admin-map__filter-reset"
+                            >
+                                Clear Filters
+                            </button>
+                        </div>
                         <div
                             id="admin-map"
                             class="admin-map"
