@@ -1,5 +1,6 @@
 .settings-main {
-    max-width: 1120px;
+    width: 100%;
+    max-width: none;
 }
 
 /* —— Settings panel shell (minimal) —— */
@@ -333,8 +334,13 @@
 .settings-layout {
     display: grid;
     grid-template-columns: 220px 1fr;
-    gap: 16px;
+    gap: 26px;
     align-items: start;
+}
+
+.settings-panel {
+    width: 100%;
+    min-width: 0; /* VERY IMPORTANT (prevents overflow lock) */
 }
 
 .settings-nav {

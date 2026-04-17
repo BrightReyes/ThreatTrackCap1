@@ -144,17 +144,11 @@ body {
 }
 
 .sidebar__link span:not(.sidebar__icon) {
-    display: inline-block;
-    white-space: nowrap;
-    overflow: hidden;
-    max-width: 240px;
     opacity: 1;
+    transform: translateX(0);
     transition:
-        opacity 0.3s ease,
-        max-width 0.3s ease,
-        margin 0.3s ease,
-        padding 0.3s ease;
-    min-width: 0;
+        opacity 0.2s ease,
+        transform 0.25s ease;
 }
 
 .sidebar__brand-right {
@@ -193,7 +187,13 @@ body {
     bottom: 6px;
     width: 3px;
     border-radius: 2px;
-    background: #3b82f6;
+    background: #f63b3b;
+
+    transition: transform 0.3s ease;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__link--active::before {
+    transform: translateX(2px);
 }
 
 .sidebar__link--active:hover {
@@ -211,7 +211,9 @@ body {
     width: 20px;
 
     color: #9ca3af;
-    transition: 0.15s ease;
+    transition:
+        transform 0.3s ease,
+        color 0.2s ease;
 }
 
 .sidebar__icon {
@@ -370,13 +372,20 @@ body {
     padding: 0;
     border-radius: 10px;
     margin-bottom: 8px;
-    transition: all 0.3s ease;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     position: relative;
     z-index: 10;
     align-self: center;
+}
+
+.sidebar__link,
+.sidebar__icon {
+    will-change: transform;
 }
 
 .sidebar-toggle:hover {
@@ -433,12 +442,8 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__link {
 }
 
 .admin-dashboard__sidebar--collapsed .sidebar__link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-left: 10px;
-    padding-right: 0;
-    transition: all 0.3s ease;
+    justify-content: flex-start; /* KEEP SAME */
+    padding-left: 14px; /* SAME as default */
 }
 
 html.sidebar-collapsed-initial
@@ -559,9 +564,12 @@ html.sidebar-collapsed-initial .sidebar-toggle__logo-img {
 
 .admin-dashboard__sidebar--collapsed .sidebar__link span:not(.sidebar__icon) {
     opacity: 0;
-    max-width: 0;
-    margin: 0;
-    padding: 0;
+    transform: translateX(-8px);
+    pointer-events: none;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__icon {
+    transform: translateX(2px);
 }
 
 .admin-dashboard__sidebar--collapsed .sidebar__user-email {
@@ -602,20 +610,21 @@ html.sidebar-collapsed-initial .sidebar-toggle__logo-img {
 
 /* Smooth transitions */
 .admin-dashboard__sidebar {
-    transition:
-        width 0.3s ease,
-        padding 0.3s ease;
-    overflow: hidden;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
 .sidebar__link {
-    transition: all 0.3s ease;
+    transition:
+        background 0.2s ease,
+        color 0.2s ease;
 }
 
 .admin-dashboard__main {
     flex: 1;
     padding: 24px 28px 40px;
-    max-width: 1200px;
+
     width: 100%;
     margin: 0 auto;
     overflow: visible;
