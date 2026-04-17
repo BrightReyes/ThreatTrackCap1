@@ -121,12 +121,66 @@ export function initAdminPage({ pageId, onReady }) {
         applyCachedSidebarSystemName();
         // Load latest from Firestore
         await refreshSidebarSystemName();
+        initSidebarToggle();
         if (page) page.hidden = false;
         // eslint-disable-next-line no-void
         void startInactivityTimer();
         startAdminClock();
         if (typeof onReady === "function") onReady(user);
     });
+
+    function applyInitialSidebarState(collapsed) {
+        const html = document.documentElement;
+        if (collapsed) {
+            html.classList.add("sidebar-collapsed-initial");
+        } else {
+            html.classList.remove("sidebar-collapsed-initial");
+        }
+    }
+
+    function initSidebarToggle() {
+        const sidebar = document.querySelector(".admin-dashboard__sidebar");
+        const toggleBtn = document.getElementById("sidebar-toggle");
+        const hasToggleIcon = document.querySelector(".sidebar-toggle__icon");
+        const hasLogoImg = document.querySelector(".sidebar-toggle__logo-img");
+
+        if (!sidebar || !toggleBtn || !hasToggleIcon || !hasLogoImg) return;
+
+        const isCollapsed =
+            localStorage.getItem("sidebar-collapsed") === "true";
+        if (isCollapsed) {
+            sidebar.classList.add("admin-dashboard__sidebar--collapsed");
+        }
+        applyInitialSidebarState(isCollapsed);
+
+        function updateToggleState(collapsed) {
+            toggleBtn.setAttribute("aria-pressed", String(collapsed));
+        }
+
+        updateToggleState(isCollapsed);
+
+        if (
+            document.documentElement.classList.contains(
+                "sidebar-collapsed-initial",
+            )
+        ) {
+            window.requestAnimationFrame(() => {
+                document.documentElement.classList.remove(
+                    "sidebar-collapsed-initial",
+                );
+            });
+        }
+
+        toggleBtn.addEventListener("click", () => {
+            const isCurrentlyCollapsed = sidebar.classList.contains(
+                "admin-dashboard__sidebar--collapsed",
+            );
+            const nextState = !isCurrentlyCollapsed;
+            sidebar.classList.toggle("admin-dashboard__sidebar--collapsed");
+            localStorage.setItem("sidebar-collapsed", nextState);
+            updateToggleState(nextState);
+        });
+    }
 
     btnSignout?.addEventListener("click", async () => {
         const ok = await confirmDanger({

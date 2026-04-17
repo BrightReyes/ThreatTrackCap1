@@ -15,6 +15,11 @@
     --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
+html,
+body {
+    overflow-x: hidden;
+}
+
 .admin-dashboard {
     width: 100%;
     height: 100vh;
@@ -38,6 +43,7 @@
     position: sticky;
     top: 0;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .sidebar__top {
@@ -45,12 +51,14 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow-x: hidden;
 }
 
 .sidebar__brand {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 12px;
     padding: 16px 20px;
     border-bottom: 1px solid #1f2937;
     margin-bottom: 10px;
@@ -59,35 +67,19 @@
 .sidebar__brand-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.sidebar__logo-img {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
-}
-
-.sidebar__brand {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    justify-content: start;
-
-    padding: 16px 20px;
-    border-bottom: 1px solid #1f2937;
-}
-
-.sidebar__brand-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.sidebar__logo-img {
+    justify-content: center;
+    flex-shrink: 0;
     width: 40px;
     height: 40px;
-    object-fit: fill;
+}
+
+.sidebar__brand-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    width: 100%;
 }
 
 .sidebar__logo {
@@ -95,14 +87,19 @@
     font-weight: 700;
     color: #ffffff;
     letter-spacing: -0.01em;
+    display: block;
+}
+
+.sidebar__logo-img {
+    display: none;
 }
 
 .sidebar__logo {
-    display: block;
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 700;
-    color: #fff;
-    letter-spacing: -0.02em;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    display: block;
 }
 
 .sidebar__badge {
@@ -123,13 +120,16 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 0 12px;
+    padding: 0 30px;
+    overflow-x: hidden;
 }
 
 .sidebar__link {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
+    overflow: hidden;
 
     padding: 10px 12px;
     border-radius: 8px;
@@ -138,7 +138,38 @@
     color: #9ca3af;
     text-decoration: none;
 
-    transition: all 0.15s ease;
+    transition:
+        background 0.15s ease,
+        color 0.15s ease;
+}
+
+.sidebar__link span:not(.sidebar__icon) {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 240px;
+    opacity: 1;
+    transition:
+        opacity 0.3s ease,
+        max-width 0.3s ease,
+        margin 0.3s ease,
+        padding 0.3s ease;
+    min-width: 0;
+}
+
+.sidebar__brand-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    overflow: hidden;
+    opacity: 1;
+    max-width: 260px;
+    transition:
+        opacity 0.3s ease,
+        max-width 0.3s ease,
+        margin 0.3s ease,
+        padding 0.3s ease;
 }
 
 .sidebar__link:hover {
@@ -233,6 +264,11 @@
     color: #9ca3af;
     word-break: break-all;
     line-height: 1.35;
+    overflow: hidden;
+    max-width: 100%;
+    transition:
+        opacity 0.2s ease,
+        max-width 0.2s ease;
 }
 
 .admin-dashboard__shell {
@@ -321,6 +357,259 @@
     letter-spacing: 0.01em;
 
     margin: 0;
+}
+
+/* Sidebar Toggle Styles */
+.sidebar-toggle {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    align-self: center;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.sidebar-toggle__icon,
+.sidebar-toggle__logo-img {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar-toggle__icon {
+    font-size: 24px;
+    opacity: 1;
+}
+
+.sidebar-toggle__logo-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    opacity: 0;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar-toggle__icon {
+    opacity: 0;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar-toggle__logo-img {
+    opacity: 1;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar {
+    width: 70px;
+    transition: none;
+    overflow: hidden;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 0;
+    transition: none;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 0;
+    transition: all 0.3s ease;
+}
+
+html.sidebar-collapsed-initial
+    .admin-dashboard__sidebar
+    .sidebar__link
+    span:not(.sidebar__icon) {
+    opacity: 0;
+    max-width: 0;
+}
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__brand-right {
+    opacity: 0;
+    max-width: 0;
+    pointer-events: none;
+}
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__user-email {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__brand-right {
+    opacity: 0;
+    max-width: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__brand {
+    padding-left: 16px;
+    padding-right: 12px;
+    gap: 0;
+    transition: padding 0.3s ease;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__nav {
+    padding: 0 8px;
+    transition: padding 0.3s ease;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer {
+    padding-left: 10px;
+    padding-right: 10px;
+    transition: padding 0.3s ease;
+}
+
+html.sidebar-collapsed-initial
+    .admin-dashboard__sidebar
+    .sidebar__link
+    span:not(.sidebar__icon) {
+    opacity: 0;
+    max-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__user-email {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition:
+        opacity 0.2s ease,
+        max-width 0.2s ease;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__signout {
+    padding: 10px;
+    text-align: center;
+    font-size: 0;
+}
+
+html.sidebar-collapsed-initial
+    .admin-dashboard__sidebar
+    .sidebar__signout::before {
+    content: "logout";
+    font-family: "Material Symbols Outlined";
+    font-size: 20px;
+    display: block;
+}
+
+html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__logo-img {
+    width: 24px;
+    height: 24px;
+}
+
+html.sidebar-collapsed-initial .sidebar-toggle__icon {
+    opacity: 0;
+}
+
+html.sidebar-collapsed-initial .sidebar-toggle__logo-img {
+    opacity: 1;
+}
+
+/* Collapsed sidebar styles */
+.admin-dashboard__sidebar--collapsed {
+    width: 70px;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__brand-right {
+    opacity: 0;
+    max-width: 0;
+    pointer-events: none;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__brand {
+    padding-left: 16px;
+    padding-right: 12px;
+    gap: 0;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__nav {
+    padding: 0 8px;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__footer {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__link span:not(.sidebar__icon) {
+    opacity: 0;
+    max-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__user-email {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+    transition:
+        opacity 0.2s ease,
+        max-width 0.2s ease;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__signout {
+    padding: 10px;
+    text-align: center;
+    font-size: 0;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__signout::before {
+    content: "logout";
+    font-family: "Material Symbols Outlined";
+    font-size: 20px;
+    display: block;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__logo-img {
+    width: 24px;
+    height: 24px;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar-toggle {
+    margin-bottom: 4px;
+    align-self: center;
+}
+
+.admin-dashboard__sidebar--collapsed .sidebar__brand-left {
+    margin-bottom: 0;
+}
+
+/* Smooth transitions */
+.admin-dashboard__sidebar {
+    transition:
+        width 0.3s ease,
+        padding 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar__link {
+    transition: all 0.3s ease;
 }
 
 .admin-dashboard__main {

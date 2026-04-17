@@ -4,6 +4,17 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Users</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+        </script>
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
@@ -17,28 +28,70 @@
             >
                 <div class="sidebar__top">
                     <div class="sidebar__brand">
-                        <span class="sidebar__logo"></span>
-                        <span class="sidebar__badge">Admin</span>
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Toggle sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >menu</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
                     </div>
                     <nav class="sidebar__nav">
-                        <a href="dashboard.html" class="sidebar__link"
-                            >Dashboard</a
-                        >
-                        <a href="incidents.html" class="sidebar__link"
-                            >Incidents</a
-                        >
+                        <a href="dashboard.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
                         <a
                             href="users.html"
                             class="sidebar__link sidebar__link--active"
                             aria-current="page"
-                            >Users</a
                         >
-                        <a href="notifications.html" class="sidebar__link"
-                            >Notifications</a
-                        >
-                        <a href="settings.html" class="sidebar__link"
-                            >Settings</a
-                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+                        <a href="notifications.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
                     </nav>
                 </div>
 
