@@ -187,6 +187,7 @@ body {
 
 .sidebar__link--active {
     position: relative;
+    color: #ffffff;
 }
 
 .sidebar__link--active::before {
@@ -235,11 +236,11 @@ body {
 }
 
 .sidebar__link:hover .sidebar__icon {
-    color: #ffffff;
+    color: #f63b3b;
 }
 
 .sidebar__link--active .sidebar__icon {
-    color: #ffffff;
+    color: #f63b3b;
 }
 
 .sidebar__footer {
@@ -401,7 +402,7 @@ body {
 
 .sidebar-toggle:hover {
     background: rgba(255, 255, 255, 0.08);
-    color: #ffffff;
+    color: #f63b3b;
 }
 
 .sidebar-toggle__icon,
