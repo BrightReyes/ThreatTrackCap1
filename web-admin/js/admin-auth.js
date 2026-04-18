@@ -141,10 +141,10 @@ export function initAdminPage({ pageId, onReady }) {
     function initSidebarToggle() {
         const sidebar = document.querySelector(".admin-dashboard__sidebar");
         const toggleBtn = document.getElementById("sidebar-toggle");
-        const hasToggleIcon = document.querySelector(".sidebar-toggle__icon");
+        const toggleIcon = document.querySelector(".sidebar-toggle__icon");
         const hasLogoImg = document.querySelector(".sidebar-toggle__logo-img");
 
-        if (!sidebar || !toggleBtn || !hasToggleIcon || !hasLogoImg) return;
+        if (!sidebar || !toggleBtn || !toggleIcon || !hasLogoImg) return;
 
         const isCollapsed =
             localStorage.getItem("sidebar-collapsed") === "true";
@@ -155,6 +155,11 @@ export function initAdminPage({ pageId, onReady }) {
 
         function updateToggleState(collapsed) {
             toggleBtn.setAttribute("aria-pressed", String(collapsed));
+            toggleBtn.setAttribute(
+                "aria-label",
+                collapsed ? "Expand sidebar" : "Collapse sidebar",
+            );
+            toggleIcon.textContent = collapsed ? "menu" : "close";
         }
 
         updateToggleState(isCollapsed);
