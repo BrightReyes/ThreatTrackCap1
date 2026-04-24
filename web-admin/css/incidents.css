@@ -178,6 +178,11 @@
   color: #065f46;
 }
 
+.incidents-badge--done {
+  background: #dcfce7;
+  color: #166534;
+}
+
 .incidents-badge--rejected,
 .incidents-badge--spam {
   background: #fee2e2;
@@ -682,6 +687,17 @@
   border-color: #0066d6;
 }
 
+.incident-action-btn--success {
+  border-color: #16a34a;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.incident-action-btn--success:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #15803d;
+}
+
 .incident-action-btn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #9ca3af;
@@ -691,6 +707,12 @@
   border-color: #007aff;
   color: #007aff;
   background: #eff6ff;
+}
+
+.incident-action-btn--success.is-active {
+  border-color: #16a34a;
+  color: #166534;
+  background: #dcfce7;
 }
 
 .incident-action-btn--danger {

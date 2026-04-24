@@ -45,19 +45,21 @@ function displayName(d) {
 }
 
 function roleBadgeClass(role) {
-    const r = String(role || "user").toLowerCase();
+    const r = normalizeRole(role);
     if (r === "admin") return "incidents-badge incidents-badge--role-admin";
-    if (r === "moderator")
-        return "incidents-badge incidents-badge--role-moderator";
     if (r === "police") return "incidents-badge incidents-badge--role-police";
     return "incidents-badge incidents-badge--role-user";
 }
 
 function humanizeRole(role) {
-    if (!role) return "User";
-    return String(role)
+    return String(normalizeRole(role))
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function normalizeRole(role) {
+    const value = String(role || "user").toLowerCase();
+    return value === "moderator" ? "admin" : value;
 }
 
 function norm(s) {
@@ -104,7 +106,7 @@ function docMatchesSearch(docSnap, q) {
 
 function docMatchesRole(docSnap, roleVal) {
     if (!roleVal || roleVal === "all") return true;
-    const r = norm(docSnap.data().role || "user");
+    const r = norm(normalizeRole(docSnap.data().role || "user"));
     return r === norm(roleVal);
 }
 
@@ -133,10 +135,10 @@ function populateRoleSelect() {
     const roles = new Set();
     allDocs.forEach((docSnap) => {
         const r = docSnap.data().role;
-        roles.add(r ? String(r).toLowerCase() : "user");
+        roles.add(normalizeRole(r));
     });
 
-    const order = ["admin", "moderator", "police", "user"];
+    const order = ["admin", "police", "user"];
     const sorted = [...roles].sort((a, b) => {
         const ia = order.indexOf(a);
         const ib = order.indexOf(b);

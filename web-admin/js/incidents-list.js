@@ -62,7 +62,7 @@ function statusBadgeClass(status) {
     'under_review',
     'verified',
     'rejected',
-    'spam',
+    'done',
   ];
   const s = status && allowed.includes(status) ? status : 'unknown';
   return `incidents-badge incidents-badge--${s}`;
@@ -180,7 +180,7 @@ function populateFilterSelects() {
     if (d.severity) severities.add(String(d.severity).toLowerCase());
   });
 
-  const statusOrder = ['pending', 'under_review', 'verified', 'rejected', 'spam'];
+  const statusOrder = ['pending', 'under_review', 'verified', 'done', 'rejected'];
   const sortedStatus = [...statuses].sort((a, b) => {
     const ia = statusOrder.indexOf(a);
     const ib = statusOrder.indexOf(b);
@@ -277,6 +277,31 @@ function bindToolbar() {
   sevEl?.addEventListener('change', rerender);
 }
 
+function bindIncidentUpdates() {
+  if (window.__threatTrackIncidentUpdatesBound) return;
+  window.__threatTrackIncidentUpdatesBound = true;
+
+  window.addEventListener('incident:updated', (event) => {
+    const { id, status } = event.detail || {};
+    if (!id || !status) return;
+
+    const incidentIndex = allDocs.findIndex((docSnap) => docSnap.id === id);
+    if (incidentIndex === -1) return;
+
+    const currentDoc = allDocs[incidentIndex];
+    allDocs[incidentIndex] = {
+      id: currentDoc.id,
+      data: () => ({
+        ...currentDoc.data(),
+        status,
+      }),
+    };
+
+    populateFilterSelects();
+    renderFilteredTable();
+  });
+}
+
 export async function loadIncidentsTable() {
   const tbody = document.getElementById('incidents-tbody');
   const meta = document.getElementById('incidents-count');
@@ -296,6 +321,7 @@ export async function loadIncidentsTable() {
   allDocs = snap.docs;
 
   bindToolbar();
+  bindIncidentUpdates();
   populateFilterSelects();
   renderFilteredTable();
 }

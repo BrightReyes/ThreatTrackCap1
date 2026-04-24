@@ -38,7 +38,7 @@ function humanize(str) {
 }
 
 function statusBadgeClass(status) {
-    const allowed = ["pending", "under_review", "verified", "rejected", "spam"];
+    const allowed = ["pending", "under_review", "verified", "rejected", "done"];
     const s = status && allowed.includes(status) ? status : "unknown";
     return `incidents-badge incidents-badge--${s}`;
 }
@@ -163,8 +163,8 @@ function renderIncidentDetail(docId, d) {
     <div class="incident-actions__buttons">
       <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
       <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
-      <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " is-active" : ""}" data-action-status="rejected">Reject</button>
-      <button type="button" class="incident-action-btn${actionStatus === "spam" ? " is-active" : ""}" data-action-status="spam">Mark spam</button>
+      <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">Done</button>
+      <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">Reject</button>
     </div>
     <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
   </section>`;

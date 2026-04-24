@@ -3,7 +3,7 @@ import { db } from "../../shared/firebase.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 
-const EDIT_ROLES = ["user", "moderator", "police", "admin"];
+const EDIT_ROLES = ["user", "police", "admin"];
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -41,19 +41,21 @@ function displayName(d) {
 }
 
 function humanizeRole(role) {
-    if (!role) return "User";
-    return String(role)
+    return String(normalizeRole(role))
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function roleBadgeClass(role) {
-    const r = String(role || "user").toLowerCase();
+    const r = normalizeRole(role);
     if (r === "admin") return "incidents-badge incidents-badge--role-admin";
-    if (r === "moderator")
-        return "incidents-badge incidents-badge--role-moderator";
     if (r === "police") return "incidents-badge incidents-badge--role-police";
     return "incidents-badge incidents-badge--role-user";
+}
+
+function normalizeRole(role) {
+    const value = String(role || "user").toLowerCase();
+    return value === "moderator" ? "admin" : value;
 }
 
 function renderUserDetail(userId, d) {
@@ -93,7 +95,7 @@ function renderUserDetail(userId, d) {
 }
 
 function renderUserEditForm(userId, d) {
-    const cur = String(d.role || "user").toLowerCase();
+    const cur = normalizeRole(d.role);
     const roleOptions = EDIT_ROLES.map((r) => {
         const sel = r === cur ? " selected" : "";
         return `<option value="${escapeAttr(r)}"${sel}>${escapeHtml(humanizeRole(r))}</option>`;
@@ -282,7 +284,7 @@ export function initUserModal() {
             const roleEl = body.querySelector("#user-edit-role");
             const firstName = String(fnEl?.value ?? "").trim();
             const lastName = String(lnEl?.value ?? "").trim();
-            let role = String(roleEl?.value ?? "user").toLowerCase();
+            let role = normalizeRole(roleEl?.value ?? "user");
             if (!EDIT_ROLES.includes(role)) role = "user";
 
             if (feedback) feedback.textContent = "Saving…";
