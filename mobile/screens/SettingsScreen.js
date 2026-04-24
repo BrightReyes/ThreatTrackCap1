@@ -211,7 +211,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-            <Text style={styles.navBottomIcon}>📊</Text>
+            <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
             <Text style={styles.navBottomLabel}>Reports</Text>
           </TouchableOpacity>
         </View>

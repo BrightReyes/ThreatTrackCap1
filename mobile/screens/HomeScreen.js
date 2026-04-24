@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Linking,
   Image,
+  Animated,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, Polygon } from 'react-native-maps';
@@ -73,24 +74,52 @@ const generateMockIncidents = () => {
 const generateMockPrecincts = () => {
   return [
     {
-      id: 'mock-precinct-1',
-      name: 'Valenzuela City Police Station',
-      address: 'MacArthur Highway, Valenzuela City',
-      location: { latitude: 14.6991, longitude: 120.9820 },
+      id: 'precinct-1',
+      name: 'Police Community Precinct 2',
+      address: 'Gen. T. de Leon, Valenzuela, 1442 Metro Manila',
+      location: { latitude: 14.6700, longitude: 121.0050 },
       isActive: true,
     },
     {
-      id: 'mock-precinct-2', 
-      name: 'Karuhatan Police Station',
-      address: 'Karuhatan, Valenzuela City',
+      id: 'precinct-2', 
+      name: 'Police Community Precinct 4 (Malinta)',
+      address: 'Governor I. Santiago Rd., Malinta, Valenzuela, Metro Manila',
+      location: { latitude: 14.7100, longitude: 120.9600 },
+      isActive: true,
+    },
+    {
+      id: 'precinct-3',
+      name: 'Police Community Precinct 7',
+      address: 'Maysan Rd., Valenzuela, 1440 Metro Manila',
+      location: { latitude: 14.7200, longitude: 120.9700 },
+      isActive: true,
+    },
+    {
+      id: 'substation-1',
+      name: 'Sub-Station 7 Bignay Police',
+      address: 'Phase 2B, Block 1 Lot 1, Northville 1, Brgy. Bignay, Valenzuela',
+      location: { latitude: 14.6750, longitude: 120.9520 },
+      isActive: true,
+    },
+    {
+      id: 'clearance-section',
+      name: 'Valenzuela City Police Clearance Section',
+      address: 'Near MacArthur Highway, Brgy. Karuhatan, Valenzuela',
       location: { latitude: 14.6850, longitude: 120.9750 },
       isActive: true,
     },
     {
-      id: 'mock-precinct-3',
-      name: 'Malinta Police Station',
-      address: 'Malinta, Valenzuela City',
-      location: { latitude: 14.7100, longitude: 120.9600 },
+      id: 'community-relations',
+      name: 'Police Community Relations Division (Valenzuela)',
+      address: 'Maysan Rd., Valenzuela',
+      location: { latitude: 14.7250, longitude: 120.9700 },
+      isActive: true,
+    },
+    {
+      id: 'environmental-unit',
+      name: 'Environmental Police Unit Valenzuela',
+      address: 'Valenzuela City Action Center, MacArthur Hwy, Valenzuela',
+      location: { latitude: 14.6991, longitude: 120.9820 },
       isActive: true,
     },
   ];
@@ -107,6 +136,7 @@ const HomeScreen = ({ navigation }) => {
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef(null);
   const unsubscribeRef = useRef(null);
+  const rotationValue = useRef(new Animated.Value(0)).current;
 
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
@@ -131,6 +161,42 @@ const HomeScreen = ({ navigation }) => {
     setAlertConfig({ ...alertConfig, visible: false });
   };
 
+  const handleSOSPress = async () => {
+    try {
+      const location = await getCurrentLocation();
+      navigation.navigate('SOSReport', { userLocation: location });
+    } catch (error) {
+      console.error('Error getting location for SOS:', error);
+      // Navigate anyway without location, SOS screen will handle it
+      navigation.navigate('SOSReport');
+    }
+  };
+
+  const handleCallPrecinct = () => {
+    showAlert('Call Precinct', 
+      '🚓 Valenzuela City Police Station\n\n8352-4000  •  0906-419-7676  •  0998-598-7868', 
+      'info', 
+      [
+        { 
+          text: '📞 8352-4000', 
+          onPress: () => Linking.openURL('tel:8352-4000')
+        },
+        { 
+          text: '📱 0906-419-7676', 
+          onPress: () => Linking.openURL('tel:0906-419-7676')
+        },
+        { 
+          text: '📱 0998-598-7868', 
+          onPress: () => Linking.openURL('tel:0998-598-7868')
+        },
+        { 
+          text: 'Close', 
+          style: 'cancel' 
+        },
+      ]
+    );
+  };
+
   // Initialize location and data on mount
   useEffect(() => {
     initializeApp();
@@ -149,6 +215,22 @@ const HomeScreen = ({ navigation }) => {
       findNearestPrecinct();
     }
   }, [userLocation, precincts]);
+
+  // Rotate spinner while loading
+  useEffect(() => {
+    if (loading) {
+      rotationValue.setValue(0);
+      Animated.loop(
+        Animated.timing(rotationValue, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        })
+      ).start();
+    } else {
+      rotationValue.setValue(0);
+    }
+  }, [loading, rotationValue]);
 
   // Refresh incidents when screen comes into focus (after reporting incident)
   useFocusEffect(
@@ -408,27 +490,37 @@ const HomeScreen = ({ navigation }) => {
   const recentIncidents = incidents.slice(0, 3);
 
   if (loading) {
+    const spin = rotationValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: ['0deg', '360deg'],
+    });
+
     return (
       <View style={styles.container}>
         <View style={styles.headerNew}>
           <Text style={styles.headerNewTitle}>HOME NEW</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#dc2626" />
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Image 
+              source={require('../assets/icons/police-station.png')}
+              style={styles.loadingSpinner}
+            />
+          </Animated.View>
           <Text style={styles.loadingText}>Loading map data...</Text>
         </View>
         <View style={styles.bottomNavBarContainer}>
             <View style={styles.bottomNavBar}>
             <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-              <Text style={styles.navBottomIcon}>�</Text>
+              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Home</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-              <Text style={styles.navBottomIcon}>📊</Text>
+              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
+          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
             <View style={styles.sosButtonInner}>
               <Text style={styles.sosTextBottom}>SOS</Text>
             </View>
@@ -495,26 +587,6 @@ const HomeScreen = ({ navigation }) => {
                 tappable={false}
               />
 
-              {/* Incident Markers */}
-              {incidents.map((incident) => (
-                incident.location && incident.location.latitude && incident.location.longitude && (
-                  <Marker
-                    key={incident.id}
-                    coordinate={{
-                      latitude: incident.location.latitude,
-                      longitude: incident.location.longitude,
-                    }}
-                    pinColor={getMarkerColor(incident.severity)}
-                    title={incident.type.charAt(0).toUpperCase() + incident.type.slice(1)}
-                    description={incident.description}
-                  >
-                    <View style={[styles.customMarker, { backgroundColor: getMarkerColor(incident.severity) }]}>
-                      <Text style={styles.markerText}>{getIncidentIcon(incident.type)}</Text>
-                    </View>
-                  </Marker>
-                )
-              ))}
-
               {/* Precinct Markers */}
               {precincts.map((precinct) => (
                 precinct.location && precinct.location.latitude && precinct.location.longitude && (
@@ -527,9 +599,10 @@ const HomeScreen = ({ navigation }) => {
                     title={precinct.name}
                     description={precinct.address}
                   >
-                    <View style={styles.precinctMarker}>
-                      <Text style={styles.precinctMarkerText}>🛡️</Text>
-                    </View>
+                    <Image 
+                      source={require('../assets/icons/police-station.png')}
+                      style={styles.policeStationMarker}
+                    />
                   </Marker>
                 )
               ))}
@@ -561,18 +634,21 @@ const HomeScreen = ({ navigation }) => {
         {/* Quick Action Cards: Nearest Precinct + Call 911 */}
         <View style={styles.quickCardsRow}>
           <TouchableOpacity style={styles.quickCard} onPress={() => showAlert('Nearest Precinct', nearestPrecinct ? `${nearestPrecinct.name}\n${nearestPrecinct.address}` : 'No precinct found')}>
-            <Text style={styles.quickCardIcon}>📍</Text>
+            <Image 
+              source={require('../assets/icons/police-station.png')}
+              style={styles.quickCardIconImage}
+            />
             <View style={styles.quickCardTextWrap}>
               <Text style={styles.quickCardNumber}>{nearestPrecinct ? formatDistance(nearestPrecinct.distance) : '—'}</Text>
               <Text style={styles.quickCardLabel}>Nearest Station</Text>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickCard} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
+          <TouchableOpacity style={styles.quickCard} onPress={handleCallPrecinct}>
             <Text style={styles.quickCardIcon}>☎️</Text>
             <View style={styles.quickCardTextWrap}>
-              <Text style={styles.quickCardNumber}>SOS</Text>
-              <Text style={styles.quickCardLabel}>Report Now</Text>
+              <Text style={styles.quickCardNumber}>📞</Text>
+              <Text style={styles.quickCardLabel}>Call Precinct</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -589,12 +665,18 @@ const HomeScreen = ({ navigation }) => {
 
             <View style={styles.precinctCard}>
               <View style={styles.precinctIcon}>
-                <Text style={styles.precinctIconText}>🛡️</Text>
+                <Image 
+                  source={require('../assets/icons/police-station.png')}
+                  style={styles.precinctIconImage}
+                />
               </View>
               <View style={styles.precinctInfo}>
                 <Text style={styles.precinctName}>{nearestPrecinct.name}</Text>
                 <View style={styles.precinctLocation}>
-                  <Text style={styles.locationIcon}>📍</Text>
+                  <Image 
+                    source={require('../assets/icons/police-station.png')}
+                    style={styles.precinctLocationIcon}
+                  />
                   <Text style={styles.precinctAddress} numberOfLines={1}>
                     {nearestPrecinct.address} • {formatDistance(nearestPrecinct.distance)}
                   </Text>
@@ -674,17 +756,17 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.bottomNavBarContainer}>
         <View style={styles.bottomNavBar}>
           <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-            <Text style={styles.navBottomIcon}>�</Text>
+            <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
             <Text style={styles.navBottomLabel}>Home</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-            <Text style={styles.navBottomIcon}>📊</Text>
+            <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
             <Text style={styles.navBottomLabel}>Reports</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.sosButtonBottom} onPress={() => navigation.navigate('SOSReport', { userLocation })}>
+        <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
           <View style={styles.sosButtonInner}>
             <Text style={styles.sosTextBottom}>SOS</Text>
           </View>
@@ -816,6 +898,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6b7280',
+  },
+  loadingSpinner: {
+    width: 64,
+    height: 64,
+    resizeMode: 'contain',
   },
   
   /* New Header Styles */
@@ -1041,42 +1128,49 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 24,
-    gap: 12,
+    gap: 14,
   },
   quickCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: '#dc2626',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   quickCardIcon: {
-    fontSize: 28,
-    marginBottom: 10,
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  quickCardIconImage: {
+    width: 36,
+    height: 36,
+    marginBottom: 12,
+    resizeMode: 'contain',
   },
   quickCardTextWrap: {
     alignItems: 'center',
   },
   quickCardNumber: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    fontWeight: '900',
     color: '#dc2626',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   quickCardLabel: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#374151',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   
   // Risk Cards
@@ -1170,6 +1264,12 @@ const styles = StyleSheet.create({
   },
   precinctIconText: {
     fontSize: 26,
+    display: 'none',
+  },
+  precinctIconImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
   precinctInfo: {
     flex: 1,
@@ -1187,6 +1287,13 @@ const styles = StyleSheet.create({
   locationIcon: {
     fontSize: 13,
     marginRight: 5,
+    display: 'none',
+  },
+  precinctLocationIcon: {
+    width: 16,
+    height: 16,
+    marginRight: 6,
+    resizeMode: 'contain',
   },
   precinctAddress: {
     fontSize: 13,
@@ -1349,6 +1456,47 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     letterSpacing: 2,
+  },
+  
+  // Police Station Marker
+  policeStationMarker: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  
+  // Old location marker styles
+  locationMarker: {
+    display: 'none',
+  },
+  markerHead: {
+    display: 'none',
+  },
+  markerPointer: {
+    display: 'none',
+  },
+  
+  // Old marker styles (removed)
+  precinctMarkerContainer: {
+    display: 'none',
+  },
+  precinctMarkerPulse: {
+    display: 'none',
+  },
+  precinctMarkerOuter: {
+    display: 'none',
+  },
+  precinctMarkerMiddle: {
+    display: 'none',
+  },
+  precinctMarkerInner: {
+    display: 'none',
+  },
+  precinctMarkerCenterDot: {
+    display: 'none',
+  },
+  precinctMarkerText: {
+    display: 'none',
   },
   
   // Old SOS Button (disabled, kept for reference)
