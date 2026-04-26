@@ -247,6 +247,7 @@ const AlertsScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
+            <View style={styles.sosGlowRing} />
             <View style={styles.sosButtonInner}>
               <Text style={styles.sosTextBottom}>SOS</Text>
             </View>
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
   // Bottom Navigation Bar Container
   bottomNavBarContainer: {
     position: 'relative',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#991b1b',
   },
 
   // Bottom Navigation Bar
@@ -436,9 +437,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    backgroundColor: '#dc2626',
-    paddingBottom: 14,
-    paddingTop: 12,
+    backgroundColor: '#991b1b',
+    borderTopWidth: 1,
+    borderTopColor: '#b91c1c',
+    paddingBottom: 15,
+    paddingTop: 13,
     paddingHorizontal: 20,
   },
 
@@ -466,41 +469,50 @@ const styles = StyleSheet.create({
   },
   sosButtonBottom: {
     position: 'absolute',
-    top: -50,
+    top: -58,
     left: '50%',
-    marginLeft: -50,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#7f1d1d',
+    marginLeft: -56,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#ff1238',
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.9,
+    shadowOpacity: 0.68,
     shadowRadius: 28,
     elevation: 35,
   },
+  sosGlowRing: {
+    position: 'absolute',
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    backgroundColor: '#ffe4e6',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
   sosButtonInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#dc2626',
-    borderWidth: 3,
-    borderColor: '#ef4444',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#ff1238',
+    borderWidth: 4,
+    borderColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#fca5a5',
+    shadowColor: '#ff1238',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 10,
   },
   sosTextBottom: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 3,
   },
 });
 

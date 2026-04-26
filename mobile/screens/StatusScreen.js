@@ -4,6 +4,19 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
+const INCIDENT_TYPE_LABELS = {
+  theft_snatching: 'Theft / Snatching',
+  robbery_holdup: 'Robbery / Hold-up',
+  physical_assault_injury: 'Physical Assault / Injury',
+  domestic_violence: 'Domestic Violence',
+  drug_related_activity: 'Drug-Related Activity',
+  public_disturbance: 'Public Disturbance',
+  vandalism_property_damage: 'Vandalism / Property Damage',
+  traffic_accident: 'Traffic Accidents',
+  illegal_weapons: 'Illegal Possession of Weapons',
+  suspicious_activity: 'Suspicious Activity / Persons',
+};
+
 const StatusScreen = ({ navigation }) => {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,13 +158,22 @@ const StatusScreen = ({ navigation }) => {
 
   const getIncidentIcon = (type) => {
     switch (type?.toLowerCase()) {
-      case 'theft': return '⚠️';
-      case 'assault': return '🚨';
-      case 'vandalism': return '🔨';
-      case 'robbery': return '💰';
-      case 'burglary': return '🏠';
-      default: return 'ℹ️';
+      case 'theft_snatching': return 'TS';
+      case 'robbery_holdup': return 'RH';
+      case 'physical_assault_injury': return 'AI';
+      case 'domestic_violence': return 'DV';
+      case 'drug_related_activity': return 'DR';
+      case 'public_disturbance': return 'PD';
+      case 'vandalism_property_damage': return 'VP';
+      case 'traffic_accident': return 'TA';
+      case 'illegal_weapons': return 'IW';
+      case 'suspicious_activity': return 'SA';
+      default: return 'IN';
     }
+  };
+
+  const formatIncidentType = (incident) => {
+    return incident.typeLabel || INCIDENT_TYPE_LABELS[incident.type] || 'Incident';
   };
 
   const getSeverityColor = (severity) => {
@@ -181,7 +203,7 @@ const StatusScreen = ({ navigation }) => {
 
   const handleIncidentPress = (incident) => {
     showAlert(
-      `${incident.type.charAt(0).toUpperCase() + incident.type.slice(1)} Report`,
+      `${formatIncidentType(incident)} Report`,
       `Status: ${incident.status.replace('_', ' ').toUpperCase()}\n\n${incident.description}\n\nReported: ${formatTimestamp(incident.timestamp)}`,
       'info',
       [{ text: 'OK' }]
@@ -240,7 +262,7 @@ const StatusScreen = ({ navigation }) => {
                   onPress={() => handleIncidentPress(incident)}
                 >
                   <View style={styles.incidentRowTop}>
-                    <Text style={styles.incidentTitle}>{incident.type.charAt(0).toUpperCase() + incident.type.slice(1)}</Text>
+                    <Text style={styles.incidentTitle}>{formatIncidentType(incident)}</Text>
                     <View style={styles.rowRightTop}>
                       <View style={styles.updateBadge}>
                         <Text style={styles.updateBadgeText}>{incident.updatesCount || 2} updates</Text>
@@ -291,6 +313,7 @@ const StatusScreen = ({ navigation }) => {
           </View>
 
           <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
+            <View style={styles.sosGlowRing} />
             <View style={styles.sosButtonInner}>
               <Text style={styles.sosTextBottom}>SOS</Text>
             </View>
@@ -493,7 +516,7 @@ const styles = StyleSheet.create({
   // Bottom Navigation Bar Container
   bottomNavBarContainer: {
     position: 'relative',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#991b1b',
   },
 
   // Bottom Navigation Bar
@@ -501,9 +524,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    backgroundColor: '#dc2626',
-    paddingBottom: 14,
-    paddingTop: 12,
+    backgroundColor: '#991b1b',
+    borderTopWidth: 1,
+    borderTopColor: '#b91c1c',
+    paddingBottom: 15,
+    paddingTop: 13,
     paddingHorizontal: 20,
   },
 
@@ -531,41 +556,50 @@ const styles = StyleSheet.create({
   },
   sosButtonBottom: {
     position: 'absolute',
-    top: -50,
+    top: -58,
     left: '50%',
-    marginLeft: -50,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#7f1d1d',
+    marginLeft: -56,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#ff1238',
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.9,
+    shadowOpacity: 0.68,
     shadowRadius: 28,
     elevation: 35,
   },
+  sosGlowRing: {
+    position: 'absolute',
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    backgroundColor: '#ffe4e6',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
   sosButtonInner: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#dc2626',
-    borderWidth: 3,
-    borderColor: '#ef4444',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: '#ff1238',
+    borderWidth: 4,
+    borderColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#fca5a5',
+    shadowColor: '#ff1238',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 10,
   },
   sosTextBottom: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 2,
+    letterSpacing: 3,
   },
 });
 

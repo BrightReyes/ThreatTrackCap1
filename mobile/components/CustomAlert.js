@@ -1,33 +1,29 @@
 import React, { useEffect, useRef } from 'react';
-import { 
-  Modal, 
-  View, 
-  Text, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Dimensions 
+import {
+  Modal,
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-const CustomAlert = ({ 
-  visible, 
-  title, 
-  message, 
-  type = 'info', // 'success', 'error', 'warning', 'info'
-  buttons = [], 
+const CustomAlert = ({
+  visible,
+  title,
+  message,
+  type = 'info',
+  buttons = [],
   onClose,
-  autoCloseDelay = 0 // No auto-close by default
+  autoCloseDelay = 0,
 }) => {
-  
   const timerRef = useRef(null);
 
-  // Auto-close timer
   useEffect(() => {
     if (visible && autoCloseDelay > 0) {
       timerRef.current = setTimeout(() => {
-        // Auto-click first button or just close
         if (buttons.length > 0 && buttons[0].onPress) {
           buttons[0].onPress();
         }
@@ -43,7 +39,6 @@ const CustomAlert = ({
   }, [visible, autoCloseDelay, buttons, onClose]);
 
   const handleButtonPress = (button) => {
-    // Clear auto-close timer when user interacts
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -54,40 +49,22 @@ const CustomAlert = ({
   };
 
   const handleManualClose = () => {
-    // Clear auto-close timer when user closes manually
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
     onClose();
   };
 
-  // Get header color and icon based on alert type
   const getTypeConfig = () => {
-    switch(type) {
+    switch (type) {
       case 'success':
-        return { 
-          headerColor: '#dc2626', 
-          icon: '✓',
-          iconColor: '#ffffff' 
-        };
+        return { icon: 'OK', label: 'Success' };
       case 'error':
-        return { 
-          headerColor: '#dc2626', 
-          icon: '✕',
-          iconColor: '#ffffff' 
-        };
+        return { icon: '!', label: 'Alert' };
       case 'warning':
-        return { 
-          headerColor: '#dc2626', 
-          icon: '⚠️',
-          iconColor: '#ffffff' 
-        };
-      default: // info
-        return { 
-          headerColor: '#dc2626', 
-          icon: 'ℹ',
-          iconColor: '#ffffff' 
-        };
+        return { icon: '!', label: 'Warning' };
+      default:
+        return { icon: 'i', label: 'Notice' };
     }
   };
 
@@ -102,32 +79,26 @@ const CustomAlert = ({
     >
       <View style={styles.overlay}>
         <View style={styles.alertCard}>
-          {/* Header with colored bar */}
-          <View style={[styles.header, { backgroundColor: typeConfig.headerColor }]}>
-            <Text style={styles.headerIcon}>{typeConfig.icon}</Text>
-            <Text style={styles.headerTitle}>{title}</Text>
-            <TouchableOpacity 
-              onPress={handleManualClose}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeIcon}>✕</Text>
+          <View style={styles.header}>
+            <View style={styles.headerIconWrap}>
+              <Text style={styles.headerIcon}>{typeConfig.icon}</Text>
+            </View>
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerEyebrow}>{typeConfig.label}</Text>
+              <Text style={styles.headerTitle}>{title}</Text>
+            </View>
+            <TouchableOpacity onPress={handleManualClose} style={styles.closeButton}>
+              <Text style={styles.closeIcon}>X</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
           <View style={styles.contentContainer}>
-            {/* Message */}
             <Text style={styles.message}>{message}</Text>
 
-            {/* Buttons */}
             <View style={styles.buttonContainer}>
               {buttons.length === 0 ? (
                 <TouchableOpacity
-                  style={[
-                    styles.button,
-                    styles.primaryButton,
-                    { backgroundColor: typeConfig.headerColor }
-                  ]}
+                  style={[styles.button, styles.primaryButton]}
                   onPress={handleManualClose}
                 >
                   <Text style={styles.buttonText}>OK</Text>
@@ -138,17 +109,18 @@ const CustomAlert = ({
                     key={index}
                     style={[
                       styles.button,
-                      button.style === 'cancel' 
-                        ? styles.secondaryButton 
-                        : [styles.primaryButton, { backgroundColor: typeConfig.headerColor }],
-                      buttons.length > 1 && styles.multiButton
+                      button.style === 'cancel' ? styles.secondaryButton : styles.primaryButton,
+                      buttons.length > 1 && styles.multiButton,
                     ]}
                     onPress={() => handleButtonPress(button)}
                   >
-                    <Text style={[
-                      styles.buttonText,
-                      button.style === 'cancel' && styles.secondaryButtonText
-                    ]}>
+                    <Text
+                      style={[
+                        styles.buttonText,
+                        button.style === 'cancel' && styles.secondaryButtonText,
+                      ]}
+                      numberOfLines={2}
+                    >
                       {button.text}
                     </Text>
                   </TouchableOpacity>
@@ -165,7 +137,7 @@ const CustomAlert = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: 'rgba(17, 24, 39, 0.48)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -173,97 +145,118 @@ const styles = StyleSheet.create({
   alertCard: {
     width: width * 0.88,
     maxWidth: 400,
-    borderRadius: 24,
+    borderRadius: 26,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
-    elevation: 16,
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    elevation: 18,
   },
   header: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#dc2626',
   },
-  headerIcon: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginRight: 14,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 0.5,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  headerIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+  },
+  headerIcon: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerEyebrow: {
+    color: '#fee2e2',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.2,
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
   },
   closeIcon: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '900',
     color: '#ffffff',
   },
   contentContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+    paddingHorizontal: 22,
+    paddingVertical: 22,
   },
   message: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#1f2937',
-    textAlign: 'center',
-    lineHeight: 26,
-    marginBottom: 28,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    textAlign: 'left',
+    lineHeight: 23,
+    marginBottom: 22,
+    fontWeight: '700',
   },
   buttonContainer: {
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 14,
+    gap: 12,
     flexWrap: 'wrap',
   },
   button: {
-    paddingVertical: 15,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    minWidth: 110,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 15,
+    minWidth: 112,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
   },
   multiButton: {
     flex: 1,
   },
   primaryButton: {
     backgroundColor: '#dc2626',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 7,
   },
   secondaryButton: {
     backgroundColor: '#ffffff',
-    borderWidth: 2.5,
+    borderWidth: 1.5,
     borderColor: '#dc2626',
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
   secondaryButtonText: {
     color: '#dc2626',

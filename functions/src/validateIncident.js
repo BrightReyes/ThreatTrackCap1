@@ -93,7 +93,18 @@ function validateLocation(location) {
  * Validate incident type
  */
 function validateType(type) {
-  const validTypes = ["theft", "assault", "vandalism", "robbery", "burglary", "other"];
+  const validTypes = [
+    "theft_snatching",
+    "robbery_holdup",
+    "physical_assault_injury",
+    "domestic_violence",
+    "drug_related_activity",
+    "public_disturbance",
+    "vandalism_property_damage",
+    "traffic_accident",
+    "illegal_weapons",
+    "suspicious_activity",
+  ];
   return validTypes.includes(type);
 }
 

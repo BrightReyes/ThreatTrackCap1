@@ -1,8 +1,9 @@
 // Firebase configuration for ThreatTrack Mobile
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA2hkOVWFxkHTx9jYEfZ_SPCocfX4gSdVA",
@@ -17,8 +18,11 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+// Initialize auth with AsyncStorage persistence
+const persistence = getReactNativePersistence(ReactNativeAsyncStorage);
+export const auth = initializeAuth(app, { persistence });
+
 // Initialize services
-export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 

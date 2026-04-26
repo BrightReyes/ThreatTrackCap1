@@ -17,6 +17,7 @@ admin.initializeApp();
 exports.validateIncident = require("./src/validateIncident");
 exports.calculateRiskLevel = require("./src/calculateRiskLevel");
 exports.aggregateHeatmapData = require("./src/aggregateHeatmapData");
+exports.getHeatmapData = require("./src/getHeatmapData");
 exports.findNearestPrecinct = require("./src/findNearestPrecinct");
 exports.sendNearbyIncidentAlert = require("./src/sendNearbyIncidentAlert");
 

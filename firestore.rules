@@ -19,7 +19,18 @@ service cloud.firestore {
     function isValidIncident() {
       let data = request.resource.data;
       return data.keys().hasAll(['type', 'severity', 'location', 'description', 'timestamp']) &&
-             data.type in ['theft', 'assault', 'vandalism', 'robbery', 'burglary', 'other'] &&
+             data.type in [
+               'theft_snatching',
+               'robbery_holdup',
+               'physical_assault_injury',
+               'domestic_violence',
+               'drug_related_activity',
+               'public_disturbance',
+               'vandalism_property_damage',
+               'traffic_accident',
+               'illegal_weapons',
+               'suspicious_activity'
+             ] &&
              data.severity in ['high', 'medium', 'low'] &&
              data.description is string &&
              data.description.size() >= 10 &&
@@ -81,12 +92,10 @@ service cloud.firestore {
     }
 
     // === PRECINCTS COLLECTION ===
+    // Precincts are public safety information - always readable
     match /precincts/{precinctId} {
-      // Precincts are public safety info — public read
-      allow read: if true;
-
-      // Only admins can create, update, or delete precincts
-      allow write: if isAdmin();
+      allow read, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // === CRIME STATISTICS COLLECTION ===

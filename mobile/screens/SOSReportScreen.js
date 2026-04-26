@@ -235,11 +235,11 @@ const SOSReportScreen = ({ navigation, route }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Text style={styles.warningIcon}>⚠️</Text>
+              <Text style={styles.warningIcon}>!</Text>
             </View>
-            <Text style={styles.headerTitle}>Report Incident</Text>
+            <Text style={styles.headerTitle}>SOS Report</Text>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-              <Text style={styles.closeIcon}>✕</Text>
+              <Text style={styles.closeIcon}>X</Text>
             </TouchableOpacity>
           </View>
 
@@ -337,7 +337,7 @@ const SOSReportScreen = ({ navigation, route }) => {
                 </View>
               ) : (
                 <View style={styles.locationStatus}>
-                  <Text style={styles.locationStatusText}>✓ Location acquired</Text>
+                  <Text style={styles.locationStatusText}>Location acquired</Text>
                 </View>
               )}
             </View>
@@ -360,7 +360,7 @@ const SOSReportScreen = ({ navigation, route }) => {
 
             {/* Info Box */}
             <View style={styles.infoContainer}>
-              <Text style={styles.infoIcon}>ℹ️</Text>
+              <Text style={styles.infoIcon}>i</Text>
               <Text style={styles.infoText}>
                 Your report will be submitted anonymously to protect your identity. Only essential information will be shared with authorities.
               </Text>
@@ -388,7 +388,7 @@ const SOSReportScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: '#fff1f2',
   },
   overlay: {
     flex: 1,
@@ -397,49 +397,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   modalCard: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
     borderRadius: 24,
     overflow: 'hidden',
     maxHeight: '85%',
     width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    shadowColor: '#ff1238',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
     elevation: 20,
   },
   header: {
-    backgroundColor: '#dc2626',
-    paddingVertical: 16,
+    backgroundColor: '#ff1238',
+    paddingVertical: 18,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   headerIcon: {
-    width: 32,
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   warningIcon: {
-    fontSize: 26,
+    fontSize: 22,
+    color: '#ff1238',
+    fontWeight: '900',
   },
   headerTitle: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontSize: 19,
+    fontWeight: '900',
+    letterSpacing: 0.8,
     flex: 1,
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
   closeButton: {
-    width: 32,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeIcon: {
     color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '900',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -450,8 +462,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1f2937',
+    fontWeight: '900',
+    color: '#111827',
     marginBottom: 12,
   },
   gridContainer: {
@@ -464,16 +476,16 @@ const styles = StyleSheet.create({
     width: '48%',
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#e0e0e0',
+    borderColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   gridButtonSelected: {
-    backgroundColor: '#e8e8e8',
-    borderColor: '#dc2626',
+    backgroundColor: '#fff1f2',
+    borderColor: '#ff1238',
   },
   gridButtonText: {
     fontSize: 12,
@@ -482,8 +494,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   gridButtonTextSelected: {
-    color: '#dc2626',
-    fontWeight: '700',
+    color: '#ff1238',
+    fontWeight: '900',
   },
   severityLabel: {
     fontSize: 12,
@@ -495,10 +507,10 @@ const styles = StyleSheet.create({
   severityContainer: {
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
+    backgroundColor: '#fff1f2',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#fecaca',
   },
   severityText: {
     fontSize: 13,
@@ -507,7 +519,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   severityHigh: {
-    color: '#dc2626',
+    color: '#ff1238',
   },
   severityMedium: {
     color: '#f59e0b',
@@ -523,16 +535,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#e0e0e0',
+    borderColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
   },
   reportingButtonSelected: {
-    backgroundColor: '#e8e8e8',
-    borderColor: '#dc2626',
+    backgroundColor: '#fff1f2',
+    borderColor: '#ff1238',
   },
   reportingButtonText: {
     fontSize: 13,
@@ -540,13 +552,13 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   reportingButtonTextSelected: {
-    color: '#dc2626',
-    fontWeight: '700',
+    color: '#ff1238',
+    fontWeight: '900',
   },
   descriptionInput: {
     borderWidth: 1.5,
-    borderColor: '#e0e0e0',
-    borderRadius: 10,
+    borderColor: '#fecaca',
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
@@ -561,50 +573,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    backgroundColor: '#fff1f2',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#fecaca',
     gap: 10,
   },
   locationStatusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#dc2626',
+    color: '#ff1238',
   },
   submitButton: {
-    backgroundColor: '#dc2626',
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: '#ff1238',
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 16,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowColor: '#ff1238',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.36,
+    shadowRadius: 14,
+    elevation: 10,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   infoContainer: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#fff1f2',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fecaca',
     flexDirection: 'row',
     gap: 10,
     marginBottom: 16,
   },
   infoIcon: {
-    fontSize: 18,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ff1238',
+    color: '#ffffff',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontSize: 13,
+    fontWeight: '900',
     marginTop: 2,
   },
   infoText: {
