@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Dashboard</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+        </script>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+    </head>
+    <body>
+        <div id="page-dashboard" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Collapse sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >close</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a
+                            href="dashboard.html"
+                            class="sidebar__link sidebar__link--active"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
+
+                        <a href="users.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+
+                        <a href="notifications.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Welcome Admin</h1>
+                        <p class="admin-dashboard__tagline">
+                            Monitor incidents, track activity, and manage
+                            reports in real time
+                        </p>
+                    </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >·</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
+                                id="dashboard-clock-date"
+                                class="admin-dashboard__clock-date"
+                            ></p>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main">
+                    <section
+                        class="admin-dashboard__stats"
+                        aria-label="Key metrics"
+                    >
+                        <article class="stat-card" id="card-open-incidents">
+                            <p class="stat-card__label">Open incidents</p>
+                            <p
+                                id="stat-open-incidents"
+                                class="stat-card__value"
+                            >
+                                …
+                            </p>
+                            <p class="stat-card__hint">
+                                Pending + under review
+                            </p>
+                        </article>
+                        <article class="stat-card" id="card-reports-24h">
+                            <p class="stat-card__label">Reports (24h)</p>
+                            <p id="stat-reports-24h" class="stat-card__value">
+                                …
+                            </p>
+                            <p class="stat-card__hint">By incident timestamp</p>
+                        </article>
+                        <article class="stat-card" id="card-users">
+                            <p class="stat-card__label">Registered users</p>
+                            <p id="stat-active-users" class="stat-card__value">
+                                …
+                            </p>
+                            <p class="stat-card__hint">Documents in users</p>
+                        </article>
+                        <article class="stat-card" id="card-risk">
+                            <p class="stat-card__label">Avg. risk score</p>
+                            <p id="stat-avg-risk" class="stat-card__value">…</p>
+                            <p class="stat-card__hint">
+                                0–100, last 200 incidents
+                            </p>
+                        </article>
+                        <article class="stat-card" id="card-total-incidents">
+                            <p class="stat-card__label">Total incidents</p>
+                            <p
+                                id="stat-total-incidents"
+                                class="stat-card__value"
+                            >
+                                …
+                            </p>
+                            <p class="stat-card__hint">All time</p>
+                        </article>
+                    </section>
+
+                    <section
+                        class="admin-dashboard__map-block"
+                        aria-label="Coverage map"
+                    >
+                        <h2 class="admin-dashboard__section-title">
+                            Incident Map
+                        </h2>
+                        <p class="admin-dashboard__map-caption">
+                            Real-time incident visualization across Valenzuela
+                            City.
+                        </p>
+                        <div class="admin-map__filters">
+                            <div class="admin-map__filter">
+                                <label for="map-filter-type">Type</label>
+                                <select
+                                    id="map-filter-type"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All types</option>
+                                </select>
+                            </div>
+                            <div class="admin-map__filter">
+                                <label for="map-filter-severity"
+                                    >Severity</label
+                                >
+                                <select
+                                    id="map-filter-severity"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All severities</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="admin-map__filter">
+                                <label for="map-filter-timeframe"
+                                    >Time Range</label
+                                >
+                                <select
+                                    id="map-filter-timeframe"
+                                    class="admin-map__select"
+                                >
+                                    <option value="all">All time</option>
+                                    <option value="24h">Last 24 hours</option>
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                </select>
+                            </div>
+                            <button
+                                id="map-filter-reset"
+                                type="button"
+                                class="admin-map__filter-reset"
+                            >
+                                Clear Filters
+                            </button>
+                        </div>
+                        <div
+                            id="admin-map"
+                            class="admin-map"
+                            role="application"
+                            aria-label="Interactive map"
+                        ></div>
+                    </section>
+
+                    <section
+                        class="admin-dashboard__activity"
+                        aria-label="Recent activity"
+                    >
+                        <h2 class="admin-dashboard__section-title">
+                            Recent activity
+                        </h2>
+                        <ul
+                            id="dashboard-activity-list"
+                            class="admin-dashboard__activity-list"
+                        >
+                            <li
+                                class="admin-dashboard__activity-item muted"
+                                role="status"
+                            >
+                                Loading activity…
+                            </li>
+                        </ul>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <script type="module" src="/js/dashboard.js"></script>
+    </body>
+</html>

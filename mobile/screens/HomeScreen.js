@@ -16,6 +16,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Marker, Polygon, Heatmap, Circle } from 'react-native-maps';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import MapView, { Marker, Polygon } from '../components/maps';
+import { LinearGradient } from 'expo-linear-gradient';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';

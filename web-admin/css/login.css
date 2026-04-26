@@ -1,0 +1,232 @@
+/* Keep your existing colors — just refine layout */
+
+/* Chrome / Edge autofill fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    box-shadow: 0 0 0 1000px transparent inset !important;
+
+    -webkit-text-fill-color: #f9fafb !important;
+    caret-color: #f9fafb;
+
+    transition: background-color 9999s ease-in-out 0s;
+}
+
+.login-screen {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0b0f19; /* slightly neutral dark */
+}
+
+/* Container stays centered */
+.login-container {
+    width: 100%;
+    max-width: 650px;
+    padding: 20px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* FIXED: removed width: 200% */
+.form-container {
+    background: #111827;
+    padding: 40px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 720px;
+    box-sizing: border-box;
+    border: 1px solid rgba(239, 68, 68, 0.25); /* subtle red border */
+
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Logo */
+.form-container img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+
+    display: block;
+
+    background-color: #ef4444;
+    border-radius: 12px;
+}
+
+.logo-wrapper {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #ef4444;
+    border-radius: 12px;
+}
+
+/* Title */
+.title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #f9fafb;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: 16px;
+    color: #9ca3af;
+    margin-bottom: 32px;
+    text-align: center;
+}
+
+/* Form */
+#login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Error */
+.login-error {
+    color: #ef4444; /* updated */
+    font-size: 14px;
+    min-height: 1.25em;
+    text-align: center;
+}
+
+/* Group */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #ffffff;
+}
+
+/* Label */
+.input-group label {
+    font-size: 14px;
+    color: #f9fafb;
+}
+
+/* Wrapper */
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: transparent;
+    padding: 12px 14px;
+    transition: all 0.2s ease;
+}
+
+/* Focus effect */
+.input-wrapper:focus-within {
+    border-color: #ef4444; /* changed */
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15); /* subtle */
+}
+
+/* Icon */
+.input-icon {
+    margin-right: 10px;
+    font-size: 16px;
+    opacity: 0.7;
+}
+
+/* Input */
+.input-wrapper .input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #f9fafb;
+    font-size: 15px;
+    width: 100%;
+    padding: 0;
+}
+
+/* Placeholder */
+.input-wrapper .input::placeholder {
+    color: #9ca3af;
+}
+
+.login-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    margin-top: 8px;
+    border-radius: 12px;
+
+    background: rgba(239, 68, 68, 0.08); /* changed */
+    border: 1px solid #ef4444; /* changed */
+
+    color: #f9fafb;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.warning-icon {
+    font-size: 18px;
+    color: #ef4444; /* changed */
+    margin-top: 2px;
+}
+
+/* Button */
+.login-button {
+    background-color: #ef4444; /* changed */
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.login-button:hover:not(:disabled) {
+    background-color: #dc2626; /* darker red */
+}
+
+.login-button:active:not(:disabled) {
+    transform: scale(0.97);
+}
+
+/* Forgot */
+.forgot-password {
+    color: #ef4444; /* changed */
+    font-size: 14px;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 6px;
+}
+
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+.btn-loader {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

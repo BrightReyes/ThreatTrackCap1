@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Notifications</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+        </script>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+        <link rel="stylesheet" href="/css/incidents.css" />
+    </head>
+    <body>
+        <div id="page-notifications" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Collapse sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >close</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a href="dashboard.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
+                        <a href="users.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+                        <a
+                            href="notifications.html"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Notifications</h1>
+                        <p class="admin-dashboard__tagline">
+                            History of alerts sent to users
+                        </p>
+                    </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >·</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
+                                id="dashboard-clock-date"
+                                class="admin-dashboard__clock-date"
+                            ></p>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main incidents-main">
+                    <section
+                        class="incidents-panel"
+                        aria-label="Notification list"
+                    >
+                        <div class="incidents-panel__head">
+                            <h2 class="incidents-panel__title">
+                                All notifications
+                            </h2>
+                            <p
+                                class="incidents-panel__meta"
+                                id="notifications-count"
+                            >
+                                Loading…
+                            </p>
+                        </div>
+
+                        <div
+                            id="notifications-list"
+                            class="notifications-list"
+                            aria-live="polite"
+                        >
+                            <div class="notifications-empty">Loading…</div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <script type="module" src="/js/notifications.js"></script>
+    </body>
+</html>
