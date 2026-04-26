@@ -7,6 +7,7 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import { logAudit } from "./audit.js";
+import { startAdminPriorityAlerts } from "./admin-sos-alerts.js";
 
 // Apply cached system name immediately on script load
 applyCachedSidebarSystemName();
@@ -126,6 +127,7 @@ export function initAdminPage({ pageId, onReady }) {
         // eslint-disable-next-line no-void
         void startInactivityTimer();
         startAdminClock();
+        startAdminPriorityAlerts();
         if (typeof onReady === "function") onReady(user);
     });
 

@@ -1,6 +1,13 @@
 import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
 import { toastError, toastSuccess } from "./alerts.js";
+import {
+    canRespondToIncident,
+    formatDistanceKm,
+    getIncidentTypeLabel,
+    hasResponderAssigned,
+    respondToIncident,
+} from "./admin-response.js";
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -38,7 +45,7 @@ function humanize(str) {
 }
 
 function statusBadgeClass(status) {
-    const allowed = ["pending", "under_review", "verified", "rejected", "done"];
+    const allowed = ["pending", "under_review", "verified", "responding", "rejected", "done"];
     const s = status && allowed.includes(status) ? status : "unknown";
     return `incidents-badge incidents-badge--${s}`;
 }
@@ -100,6 +107,37 @@ function reporterSummary(d) {
     return "—";
 }
 
+function buildPriorityPanel(d) {
+    if (!canRespondToIncident(d)) return "";
+    const label = d.isSOSReport ? "SOS auto-validated" : "High priority auto-validated";
+    return `<section class="incident-priority-card">
+    <div class="incident-priority-card__icon">!</div>
+    <div>
+      <h3>${escapeHtml(label)}</h3>
+      <p>This report is ready for responder acknowledgement. Click Respond to alert the reporter.</p>
+    </div>
+  </section>`;
+}
+
+function buildResponsePanel(d) {
+    if (!hasResponderAssigned(d)) return "";
+    const response = d.response || {};
+    const responder = d.responder || response.responder || {};
+    const distanceText = formatDistanceKm(response.distanceKm);
+    const etaText = response.etaMinutes ? `${response.etaMinutes} min ETA` : "ETA unavailable";
+
+    return `<section class="incident-response-card">
+    <p class="incident-response-card__eyebrow">Responder update sent</p>
+    <h3>${escapeHtml(responder.precinctName || "Malinta Precinct")}</h3>
+    <p>${escapeHtml(response.message || "Help is on the way to the reporter.")}</p>
+    <div class="incident-response-card__meta">
+      <span>${escapeHtml(distanceText)}</span>
+      <span>${escapeHtml(etaText)}</span>
+      <span>${escapeHtml(responder.address || "Valenzuela City")}</span>
+    </div>
+  </section>`;
+}
+
 function renderIncidentDetail(docId, d) {
     const loc = d.location || {};
     const lat =
@@ -127,7 +165,7 @@ function renderIncidentDetail(docId, d) {
             "Severity",
             `<span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>`,
         ],
-        ["Type", escapeHtml(humanize(d.type))],
+        ["Type", escapeHtml(getIncidentTypeLabel(d))],
         [
             "Description",
             `<div class="incident-detail__desc">${escapeHtml(d.description || "—")}</div>`,
@@ -157,10 +195,17 @@ function renderIncidentDetail(docId, d) {
         )
         .join("")}
   </dl>
+  ${buildPriorityPanel(d)}
+  ${buildResponsePanel(d)}
   <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
     <h3 class="incident-actions__title">Actions</h3>
     <p class="incident-actions__hint">Set status for this report.</p>
     <div class="incident-actions__buttons">
+      ${
+          canRespondToIncident(d)
+              ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true">Respond</button>'
+              : ""
+      }
       <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
       <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
       <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">Done</button>
@@ -205,6 +250,47 @@ export function initIncidentModal() {
 
     function bindActionHandlers() {
         const feedback = document.getElementById("incident-actions-feedback");
+        body.querySelector("[data-action-respond]")?.addEventListener("click", async () => {
+            if (!currentIncidentId || !currentData) return;
+
+            if (feedback) feedback.textContent = "Sending responder update...";
+            body.querySelectorAll("[data-action-status], [data-action-respond]").forEach(
+                (b) => (b.disabled = true),
+            );
+
+            try {
+                const responseUpdate = await respondToIncident(
+                    currentIncidentId,
+                    currentData,
+                );
+                currentData = {
+                    ...currentData,
+                    ...responseUpdate,
+                };
+                body.innerHTML = renderIncidentDetail(currentIncidentId, currentData);
+                bindActionHandlers();
+                updateStatusCell(currentIncidentId, "responding");
+                toastSuccess("Responder alert sent to user");
+                window.dispatchEvent(
+                    new CustomEvent("incident:updated", {
+                        detail: {
+                            id: currentIncidentId,
+                            status: "responding",
+                        },
+                    }),
+                );
+            } catch (err) {
+                console.error("[incident-modal] respond", err);
+                if (feedback)
+                    feedback.textContent =
+                        err?.message || "Failed to send responder update.";
+                toastError(err?.message || "Failed to send responder update");
+                body.querySelectorAll("[data-action-status], [data-action-respond]").forEach(
+                    (b) => (b.disabled = false),
+                );
+            }
+        });
+
         body.querySelectorAll("[data-action-status]").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!currentIncidentId || !currentData) return;

@@ -59,6 +59,17 @@ service cloud.firestore {
              data.location.longitude <= 180;
     }
 
+    function isValidIncidentPhotoUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isOwner(resource.data.reporterId) &&
+             request.resource.data.reporterId == resource.data.reporterId &&
+             request.resource.data.status == resource.data.status &&
+             isValidIncident() &&
+             changedKeys.hasOnly(['photoURL']) &&
+             request.resource.data.photoURL is string &&
+             request.resource.data.photoURL.size() > 0;
+    }
+
     function hasNotExceededRateLimit() {
       // Simplified; production should enforce via Cloud Functions or server
       return true;
@@ -105,7 +116,12 @@ service cloud.firestore {
       // Users can update their own pending incidents
       allow update: if isOwner(resource.data.reporterId) &&
                     resource.data.status == 'pending' &&
+                    request.resource.data.reporterId == resource.data.reporterId &&
                     isValidIncident();
+
+      // Users can attach the uploaded evidence photo URL to their own incident
+      // after creation, even if validation has already moved it out of pending.
+      allow update: if isValidIncidentPhotoUpdate();
 
       // Admins can update or delete any incident (for moderation)
       allow update, delete: if isAdmin();
@@ -144,7 +160,7 @@ service cloud.firestore {
       // Users can mark their own notifications as read. Admins/moderators can moderate notifications in dashboard.
       allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
       allow delete: if isAdmin();
-      allow create: if false;
+      allow create: if isAdmin();
     }
 
     // === SETTINGS COLLECTION ===

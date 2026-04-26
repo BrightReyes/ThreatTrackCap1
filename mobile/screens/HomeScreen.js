@@ -14,11 +14,9 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import MapView, { Marker, Polygon, Heatmap, Circle } from 'react-native-maps';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import MapView, { Marker, Polygon } from '../components/maps';
+import MapView, { Marker, Polygon, Heatmap, Circle } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
@@ -49,6 +47,7 @@ const HEATMAP_VISIBLE_STATUSES = new Set([
   'pending',
   'submitted',
   'open',
+  'responding',
 ]);
 
 const INCIDENT_TYPE_LABELS = {

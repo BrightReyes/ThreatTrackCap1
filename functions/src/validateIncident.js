@@ -18,6 +18,12 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
   console.log(`Validating incident: ${incidentId}`);
 
   try {
+    const incidentRef = db.collection("incidents").doc(incidentId);
+    const currentSnap = await incidentRef.get();
+    const currentIncident = currentSnap.exists ? currentSnap.data() : incident;
+    const alreadyResponding = currentIncident?.status === "responding" ||
+      currentIncident?.responseStatus === "help_on_the_way";
+
     // Validation checks
     const validationResults = {
       hasValidLocation: validateLocation(incident.location),
@@ -30,9 +36,13 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
     // Calculate verification score (0-100)
     const verificationScore = calculateVerificationScore(validationResults);
 
+    const isHighPriority = isHighPriorityIncident(incident);
+
     // Determine initial status
     let status = "pending";
-    if (verificationScore >= 80) {
+    if (isHighPriority && validationResults.hasValidLocation && validationResults.hasValidType) {
+      status = "verified"; // SOS/high severity reports go straight to responder review.
+    } else if (verificationScore >= 80) {
       status = "verified"; // Auto-verify high-quality reports
     } else if (verificationScore < 30) {
       status = "spam"; // Auto-flag low-quality reports
@@ -41,13 +51,29 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
     }
 
     // Update the incident document
-    await db.collection("incidents").doc(incidentId).update({
+    const updatePayload = {
       verificationScore,
-      status,
+      status: alreadyResponding ? "responding" : status,
       validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (isHighPriority && status === "verified") {
+      updatePayload.priority = "high";
+      updatePayload.responseStatus = alreadyResponding ?
+        currentIncident.responseStatus || "help_on_the_way" :
+        incident.responseStatus || "awaiting_response";
+      updatePayload.autoValidated = true;
+      updatePayload.autoValidatedReason = incident.isSOSReport ? "sos_report" : "high_severity";
+      updatePayload.autoValidatedAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+
+    await incidentRef.update(updatePayload);
 
     console.log(`Incident ${incidentId} validated. Score: ${verificationScore}, Status: ${status}`);
+
+    if (isHighPriority && status === "verified" && !alreadyResponding) {
+      await createAdminPriorityNotification(db, incident, incidentId);
+    }
 
     // If spam, log for admin review
     if (status === "spam") {
@@ -195,6 +221,51 @@ function calculateVerificationScore(results) {
   if (results.isNotSpam) score += 20;
   
   return score;
+}
+
+/**
+ * SOS and high severity reports must surface immediately to admin response.
+ */
+function isHighPriorityIncident(incident) {
+  return incident?.isSOSReport === true ||
+    String(incident?.severity || "").toLowerCase() === "high" ||
+    String(incident?.priority || "").toLowerCase() === "high";
+}
+
+/**
+ * Create/refresh a deterministic admin notification for urgent reports.
+ */
+async function createAdminPriorityNotification(db, incident, incidentId) {
+  try {
+    const notificationId = `admin_priority_${incidentId}`;
+    const typeLabel = incident.typeLabel || humanizeType(incident.type);
+    const isSos = incident.isSOSReport === true;
+
+    await db.collection("notifications").doc(notificationId).set({
+      userId: "admin",
+      audience: "admin",
+      incidentId,
+      title: isSos ? "SOS report needs response" : "High priority report needs response",
+      body: `${typeLabel} was auto-validated. Click Respond to notify the reporter that help is on the way.`,
+      type: isSos ? "admin_sos_report" : "admin_high_priority_report",
+      severity: "high",
+      priority: "high",
+      readAt: null,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      location: incident.location || null,
+      reportType: incident.type || null,
+    }, {merge: true});
+  } catch (error) {
+    console.error(`Error creating admin priority notification for ${incidentId}:`, error);
+  }
+}
+
+function humanizeType(type) {
+  if (!type) return "Incident";
+  return String(type)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**

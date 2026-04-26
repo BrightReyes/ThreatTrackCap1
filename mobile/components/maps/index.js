@@ -1,4 +1,4 @@
-import MapView, { Marker, Polygon } from 'react-native-maps';
+import MapView, { Marker, Polygon, Heatmap, Circle } from 'react-native-maps';
 
 export default MapView;
-export { Marker, Polygon };
+export { Marker, Polygon, Heatmap, Circle };

@@ -37,5 +37,13 @@ function Polygon() {
   return null;
 }
 
+function Heatmap() {
+  return null;
+}
+
+function Circle() {
+  return null;
+}
+
 export default MapView;
-export { Marker, Polygon };
+export { Marker, Polygon, Heatmap, Circle };

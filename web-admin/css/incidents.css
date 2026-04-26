@@ -178,6 +178,11 @@
   color: #065f46;
 }
 
+.incidents-badge--responding {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .incidents-badge--done {
   background: #dcfce7;
   color: #166534;
@@ -511,6 +516,79 @@
   text-decoration: underline;
 }
 
+.incident-priority-card,
+.incident-response-card {
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid #fecaca;
+  background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
+  box-shadow: 0 12px 28px rgba(220, 38, 38, 0.1);
+}
+
+.incident-priority-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+}
+
+.incident-priority-card__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 900;
+}
+
+.incident-priority-card h3,
+.incident-response-card h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.incident-priority-card p,
+.incident-response-card p {
+  margin: 5px 0 0;
+  color: #6b7280;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.incident-response-card {
+  padding: 15px;
+}
+
+.incident-response-card__eyebrow {
+  margin: 0 0 5px !important;
+  color: #dc2626 !important;
+  font-size: 0.7rem !important;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.incident-response-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.incident-response-card__meta span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #fee2e2;
+  color: #991b1b;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
 .incident-actions {
   margin-top: 18px;
   padding-top: 16px;
@@ -698,6 +776,19 @@
   border-color: #15803d;
 }
 
+.incident-action-btn--respond {
+  grid-column: 1 / -1;
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(220, 38, 38, 0.2);
+}
+
+.incident-action-btn--respond:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
 .incident-action-btn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #9ca3af;
@@ -735,6 +826,13 @@
   min-height: 1.2em;
   font-size: 0.8125rem;
   color: #4b5563;
+}
+
+.incident-action-btn--respond,
+.incident-action-btn--respond:hover:not(:disabled) {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
 }
 
 .incident-actions--moderation .incident-actions__feedback {

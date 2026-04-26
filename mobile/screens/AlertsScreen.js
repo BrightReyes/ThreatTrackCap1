@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
@@ -82,10 +82,35 @@ const AlertsScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    // Load notifications immediately
-    setTimeout(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
       setLoading(false);
-    }, 300);
+      return undefined;
+    }
+
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('userId', '==', currentUser.uid));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const nextNotifications = snapshot.docs
+          .map((snap) => ({ id: snap.id, ...snap.data() }))
+          .sort((a, b) => getTimeValue(b.sentAt || b.timestamp) - getTimeValue(a.sentAt || a.timestamp));
+
+        setNotifications(nextNotifications);
+        setLoading(false);
+        setRefreshing(false);
+      },
+      (error) => {
+        console.error('Error loading notifications:', error);
+        setNotifications([]);
+        setLoading(false);
+        setRefreshing(false);
+      }
+    );
+
+    return unsubscribe;
   }, []);
 
   const onRefresh = () => {
@@ -93,6 +118,24 @@ const AlertsScreen = ({ navigation }) => {
     setTimeout(() => {
       setRefreshing(false);
     }, 500);
+  };
+
+  const markAllRead = async () => {
+    const unread = notifications.filter(item => !item.read && !item.readAt && typeof item.id === 'string');
+    setNotifications(prev => prev.map(item => ({ ...item, read: true, readAt: item.readAt || new Date().toISOString() })));
+
+    try {
+      await Promise.all(
+        unread.map(item => updateDoc(doc(db, 'notifications', item.id), {
+          read: true,
+          readAt: serverTimestamp(),
+        }))
+      );
+      showAlert('Marked read', 'All notifications were marked as read.', 'success');
+    } catch (error) {
+      console.error('Error marking notifications read:', error);
+      showAlert('Error', 'Some notifications could not be updated.', 'error');
+    }
   };
 
   const handleSOSPress = async () => {
@@ -119,6 +162,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertIcon = (type) => {
     switch (type?.toLowerCase()) {
+      case 'response_update': return '!';
       case 'crime': return '⚠️';
       case 'safety': return '✓';
       case 'precinct': return '🛡️';
@@ -130,6 +174,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertColor = (type) => {
     switch (type?.toLowerCase()) {
+      case 'response_update': return '#dc2626';
       case 'crime': return '#dc2626';
       case 'safety': return '#10b981';
       case 'precinct': return '#3b82f6';
@@ -141,6 +186,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertBgColor = (type) => {
     switch (type?.toLowerCase()) {
+      case 'response_update': return '#fee2e2';
       case 'crime': return '#fee2e2';
       case 'safety': return '#d1fae5';
       case 'precinct': return '#dbeafe';
@@ -150,8 +196,8 @@ const AlertsScreen = ({ navigation }) => {
     }
   };
 
-  const filteredAlerts = filterTab === 'all' ? notifications : notifications.filter(a => !a.read);
-  const unreadCount = notifications.filter(a => !a.read).length;
+  const filteredAlerts = filterTab === 'all' ? notifications : notifications.filter(a => !a.read && !a.readAt);
+  const unreadCount = notifications.filter(a => !a.read && !a.readAt).length;
 
   return (
     <>
@@ -174,7 +220,7 @@ const AlertsScreen = ({ navigation }) => {
               style={[styles.tab, filterTab === 'all' && styles.tabActive]}
               onPress={() => setFilterTab('all')}
             >
-              <Text style={[styles.tabText, filterTab === 'all' && styles.tabTextActive]}>All ({alerts.length})</Text>
+              <Text style={[styles.tabText, filterTab === 'all' && styles.tabTextActive]}>All ({notifications.length})</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.tab, filterTab === 'unread' && styles.tabActive]}
@@ -182,7 +228,7 @@ const AlertsScreen = ({ navigation }) => {
             >
               <Text style={[styles.tabText, filterTab === 'unread' && styles.tabTextActive]}>Unread ({unreadCount})</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.tab}>
+            <TouchableOpacity style={styles.tab} onPress={markAllRead}>
               <Text style={styles.tabText}>Mark all read</Text>
             </TouchableOpacity>
           </View>
@@ -197,7 +243,7 @@ const AlertsScreen = ({ navigation }) => {
                     styles.notificationCard,
                     { 
                       borderLeftColor: getAlertColor(alert.type),
-                      backgroundColor: index === 4 ? '#dbeafe' : '#ffffff'
+                      backgroundColor: alert.read || alert.readAt ? '#ffffff' : '#fff7f7'
                     }
                   ]}
                 >
@@ -208,14 +254,14 @@ const AlertsScreen = ({ navigation }) => {
                       </View>
                       <View style={styles.notificationTextContainer}>
                         <Text style={styles.notificationTitle}>{alert.title || alert.type}</Text>
-                        {alert.badge && (
+                        {(alert.badge || alert.priority === 'high' || alert.severity === 'high') && (
                           <View style={styles.badgeContainer}>
-                            <Text style={styles.badge}>{alert.badge}</Text>
+                            <Text style={styles.badge}>{alert.badge || 'High Priority'}</Text>
                           </View>
                         )}
                       </View>
                     </View>
-                    <Text style={styles.notificationBody}>{alert.description}</Text>
+                    <Text style={styles.notificationBody}>{alert.body || alert.description}</Text>
                   </View>
                 </TouchableOpacity>
               ))
@@ -515,5 +561,13 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
 });
+
+const getTimeValue = (value) => {
+  if (!value) return 0;
+  if (value.toDate) return value.toDate().getTime();
+  if (value.seconds) return value.seconds * 1000;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+};
 
 export default AlertsScreen;

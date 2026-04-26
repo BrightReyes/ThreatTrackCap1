@@ -125,6 +125,9 @@ const SEVERITY_CONFIG = {
   },
 };
 
+const DESCRIPTION_MIN_LENGTH = 10;
+const DESCRIPTION_MAX_LENGTH = 2000;
+
 const getSeverityFromType = (type) => {
   return INCIDENT_TYPES.find((incidentType) => incidentType.id === type)?.severity || 'medium';
 };
@@ -282,8 +285,26 @@ const ReportIncidentScreen = ({ navigation }) => {
       showAlert('Missing Information', 'Please select who you are reporting as.', 'warning');
       return;
     }
-    if (!description.trim()) {
+    const trimmedDescription = description.trim();
+
+    if (!trimmedDescription) {
       showAlert('Missing Information', 'Please provide a description.', 'warning');
+      return;
+    }
+    if (trimmedDescription.length < DESCRIPTION_MIN_LENGTH) {
+      showAlert(
+        'Description Too Short',
+        `Please enter at least ${DESCRIPTION_MIN_LENGTH} characters so the report can be submitted.`,
+        'warning',
+      );
+      return;
+    }
+    if (trimmedDescription.length > DESCRIPTION_MAX_LENGTH) {
+      showAlert(
+        'Description Too Long',
+        `Please keep the description under ${DESCRIPTION_MAX_LENGTH} characters.`,
+        'warning',
+      );
       return;
     }
 
@@ -334,7 +355,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         typeLabel: selectedIncident?.label || incidentType,
         severity: selectedSeverity,
         reportingAs,
-        description: description.trim(),
+        description: trimmedDescription,
         location: {
           latitude: reportLocation.latitude,
           longitude: reportLocation.longitude,
@@ -549,6 +570,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                 placeholderTextColor="#9ca3af"
                 value={description}
                 onChangeText={setDescription}
+                maxLength={DESCRIPTION_MAX_LENGTH}
                 multiline
                 numberOfLines={6}
                 textAlignVertical="top"

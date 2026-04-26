@@ -61,6 +61,7 @@ function statusBadgeClass(status) {
     'pending',
     'under_review',
     'verified',
+    'responding',
     'rejected',
     'done',
   ];
@@ -180,7 +181,7 @@ function populateFilterSelects() {
     if (d.severity) severities.add(String(d.severity).toLowerCase());
   });
 
-  const statusOrder = ['pending', 'under_review', 'verified', 'done', 'rejected'];
+  const statusOrder = ['pending', 'under_review', 'verified', 'responding', 'done', 'rejected'];
   const sortedStatus = [...statuses].sort((a, b) => {
     const ia = statusOrder.indexOf(a);
     const ib = statusOrder.indexOf(b);

@@ -17,7 +17,7 @@ const admin = require("firebase-admin");
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 30;
 const GRID_SIZE = 0.002;
-const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open"];
+const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open", "responding"];
 
 module.exports = onRequest(async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");

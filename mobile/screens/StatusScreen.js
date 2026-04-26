@@ -11,7 +11,7 @@ import {
   Modal,
   StatusBar,
 } from 'react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
@@ -31,6 +31,15 @@ const INCIDENT_TYPE_LABELS = {
 };
 
 const STATUS_META = {
+  responding: {
+    label: 'Help On The Way',
+    shortLabel: 'Responding',
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 3,
+    assurance: 'A responder has acknowledged your report. Keep your phone reachable and stay in a safe place.',
+  },
   verified: {
     label: 'Verified',
     shortLabel: 'Verified',
@@ -103,6 +112,15 @@ const STATUS_META = {
     step: 1,
     assurance: 'There was a validation issue. Refresh or submit a new report if needed.',
   },
+  done: {
+    label: 'Completed',
+    shortLabel: 'Done',
+    color: '#047857',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+    step: 3,
+    assurance: 'This report has been marked completed by the admin team.',
+  },
 };
 
 const TRACKING_STEPS = ['Submitted', 'Review', 'Responder'];
@@ -143,8 +161,71 @@ const StatusScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    fetchMyIncidents();
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.log('No user logged in');
+      setLoading(false);
+      return undefined;
+    }
+
+    const incidentsRef = collection(db, 'incidents');
+    const q = query(
+      incidentsRef,
+      where('reporterId', '==', currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const fetchedIncidents = [];
+        querySnapshot.forEach((doc) => {
+          fetchedIncidents.push({
+            id: doc.id,
+            ...doc.data(),
+          });
+        });
+
+        applyIncidentSnapshot(fetchedIncidents);
+      },
+      (error) => {
+        console.error('Error listening to incidents:', error);
+        setLoading(false);
+        setRefreshing(false);
+        showAlert('Error', 'Failed to load your incidents', 'error');
+      }
+    );
+
+    return unsubscribe;
   }, []);
+
+  const applyIncidentSnapshot = (fetchedIncidents) => {
+    fetchedIncidents.sort((a, b) => {
+      const aTime = getIncidentDate(a)?.getTime() || 0;
+      const bTime = getIncidentDate(b)?.getTime() || 0;
+      return bTime - aTime;
+    });
+
+    setIncidents(fetchedIncidents);
+    setSelectedIncident(current => {
+      if (!current) return current;
+      return fetchedIncidents.find(item => item.id === current.id) || current;
+    });
+
+    const verified = fetchedIncidents.filter(i => ['verified', 'done'].includes(i.status)).length;
+    const responding = fetchedIncidents.filter(i => i.status === 'responding' || i.responseStatus === 'help_on_the_way').length;
+    const under_review = fetchedIncidents.filter(i => ['under_review', 'pending', 'submitted', 'open'].includes(i.status)).length + responding;
+    const rejected = fetchedIncidents.filter(i => ['rejected', 'error', 'spam'].includes(i.status)).length;
+
+    setStats({
+      verified,
+      under_review,
+      rejected,
+      total: fetchedIncidents.length
+    });
+
+    setLoading(false);
+    setRefreshing(false);
+  };
 
   const fetchMyIncidents = async () => {
     try {
@@ -171,29 +252,7 @@ const StatusScreen = ({ navigation }) => {
         });
       });
 
-      // Sort locally by timestamp
-      fetchedIncidents.sort((a, b) => {
-        const aTime = getIncidentDate(a)?.getTime() || 0;
-        const bTime = getIncidentDate(b)?.getTime() || 0;
-        return bTime - aTime;
-      });
-
-      setIncidents(fetchedIncidents);
-      
-      // Calculate statistics
-      const verified = fetchedIncidents.filter(i => i.status === 'verified').length;
-      const under_review = fetchedIncidents.filter(i => ['under_review', 'pending', 'submitted', 'open'].includes(i.status)).length;
-      const rejected = fetchedIncidents.filter(i => ['rejected', 'error', 'spam'].includes(i.status)).length;
-      
-      setStats({
-        verified,
-        under_review,
-        rejected,
-        total: fetchedIncidents.length
-      });
-
-      setLoading(false);
-      setRefreshing(false);
+      applyIncidentSnapshot(fetchedIncidents);
     } catch (error) {
       console.error('Error fetching incidents:', error);
       setLoading(false);
@@ -252,7 +311,19 @@ const StatusScreen = ({ navigation }) => {
 
   const getStatusIcon = (status) => {
     const meta = getStatusMeta(status);
+    if (status === 'responding') return 'SOS';
     return meta.step >= 3 ? 'OK' : meta.step === 2 ? '...' : '1';
+  };
+
+  const getDisplayStatus = (incident) => {
+    if (
+      incident?.status === 'responding' ||
+      incident?.responseStatus === 'help_on_the_way' ||
+      incident?.response?.status === 'help_on_the_way'
+    ) {
+      return 'responding';
+    }
+    return incident?.status;
   };
 
   const getIncidentIcon = (type) => {
@@ -358,8 +429,18 @@ const StatusScreen = ({ navigation }) => {
   const renderDetailsModal = () => {
     if (!selectedIncident) return null;
 
-    const meta = getStatusMeta(selectedIncident.status);
+    const displayStatus = getDisplayStatus(selectedIncident);
+    const meta = getStatusMeta(displayStatus);
     const severityColor = getSeverityColor(selectedIncident.severity);
+    const response = selectedIncident.response || {};
+    const responder = selectedIncident.responder || response.responder || {};
+    const hasResponse = displayStatus === 'responding' ||
+      selectedIncident.responseStatus === 'help_on_the_way' ||
+      response.status === 'help_on_the_way';
+    const distanceText = Number.isFinite(Number(response.distanceKm))
+      ? `${Number(response.distanceKm).toFixed(1)} km away`
+      : 'Distance unavailable';
+    const etaText = response.etaMinutes ? `${response.etaMinutes} min ETA` : 'ETA unavailable';
 
     return (
       <Modal
@@ -385,7 +466,7 @@ const StatusScreen = ({ navigation }) => {
             <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.detailsStatusPanel}>
                 <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
-                  <Text style={[styles.detailsStatusIconText, { color: meta.color }]}>{getStatusIcon(selectedIncident.status)}</Text>
+                  <Text style={[styles.detailsStatusIconText, { color: meta.color }]}>{getStatusIcon(displayStatus)}</Text>
                 </View>
                 <View style={styles.detailsStatusCopy}>
                   <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
@@ -393,7 +474,39 @@ const StatusScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {renderTrackingSteps(selectedIncident.status)}
+              {renderTrackingSteps(displayStatus)}
+
+              {hasResponse && (
+                <View style={styles.responderCard}>
+                  <View style={styles.responderHeader}>
+                    <View style={styles.responderSignal}>
+                      <Text style={styles.responderSignalText}>!</Text>
+                    </View>
+                    <View style={styles.responderTitleBlock}>
+                      <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
+                      <Text style={styles.responderTitle}>
+                        {responder.precinctName || 'Police Community Precinct 4 (Malinta)'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.responderMessage}>
+                    {response.message || 'A responder has acknowledged your report and is moving from Malinta Precinct.'}
+                  </Text>
+                  <View style={styles.responderMetaRow}>
+                    <View style={styles.responderMetaPill}>
+                      <Text style={styles.responderMetaLabel}>Distance</Text>
+                      <Text style={styles.responderMetaValue}>{distanceText}</Text>
+                    </View>
+                    <View style={styles.responderMetaPill}>
+                      <Text style={styles.responderMetaLabel}>Arrival</Text>
+                      <Text style={styles.responderMetaValue}>{etaText}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.responderAddress}>
+                    {responder.address || 'Governor I. Santiago Rd., Malinta, Valenzuela'}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.detailsGrid}>
                 <View style={styles.detailsInfoCard}>
@@ -434,7 +547,9 @@ const StatusScreen = ({ navigation }) => {
               <View style={styles.assuranceCard}>
                 <Text style={styles.assuranceTitle}>What happens next</Text>
                 <Text style={styles.assuranceText}>
-                  Your report is saved with your submitted location. Once admin dispatch tools are connected, this tracker can show responder assignment and live updates.
+                  {hasResponse
+                    ? 'Stay near a safe, visible area if possible. The response details above update from the admin side.'
+                    : 'Your report is saved with your submitted location. Responder assignment will appear here once the admin acknowledges the report.'}
                 </Text>
               </View>
             </ScrollView>
@@ -494,7 +609,7 @@ const StatusScreen = ({ navigation }) => {
             <View style={styles.assuranceBannerCopy}>
               <Text style={styles.assuranceBannerTitle}>Your reports stay trackable</Text>
               <Text style={styles.assuranceBannerText}>
-                Status updates appear here after review. Live responder updates can be connected with the admin module later.
+                Responder updates from the admin side will appear here automatically once help is on the way.
               </Text>
             </View>
           </View>
@@ -503,7 +618,8 @@ const StatusScreen = ({ navigation }) => {
           <View style={styles.content}>
             {incidents.length > 0 ? (
               incidents.map((incident) => {
-                const meta = getStatusMeta(incident.status);
+                const displayStatus = getDisplayStatus(incident);
+                const meta = getStatusMeta(displayStatus);
                 const severityColor = getSeverityColor(incident.severity);
 
                 return (
@@ -526,7 +642,7 @@ const StatusScreen = ({ navigation }) => {
                       </View>
                     </View>
 
-                    {renderTrackingSteps(incident.status, true)}
+                    {renderTrackingSteps(displayStatus, true)}
 
                     <Text style={styles.incidentBody} numberOfLines={2}>{incident.description}</Text>
 
@@ -973,6 +1089,93 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '600',
     lineHeight: 18,
+  },
+  responderCard: {
+    backgroundColor: '#fff7f7',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 14,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  responderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  responderSignal: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+  responderSignalText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  responderTitleBlock: {
+    flex: 1,
+  },
+  responderEyebrow: {
+    color: '#dc2626',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    marginBottom: 4,
+  },
+  responderTitle: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  responderMessage: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  responderMetaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  responderMetaPill: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 14,
+    padding: 10,
+  },
+  responderMetaLabel: {
+    color: '#991b1b',
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 4,
+  },
+  responderMetaValue: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  responderAddress: {
+    color: '#7f1d1d',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   detailsGrid: {
     flexDirection: 'row',

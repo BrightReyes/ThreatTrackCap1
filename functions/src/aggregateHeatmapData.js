@@ -10,7 +10,7 @@
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 
-const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open"];
+const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open", "responding"];
 
 module.exports = onSchedule("every 1 hours", async (event) => {
   console.log("Starting heatmap data aggregation...");
