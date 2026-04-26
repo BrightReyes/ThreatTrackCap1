@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleSignup } from './utils/auth';
@@ -103,8 +104,8 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
   return (
     <>
     <LinearGradient
-      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-      locations={[0, 0.3, 0.6, 0.85, 1]}
+      colors={['#dc2626', '#ef4444', '#ffffff', '#ffffff']}
+      locations={[0, 0.28, 0.5, 1]}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -121,6 +122,11 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
             <View style={styles.logoContainer}>
               <View style={styles.shieldOuter}>
                 <View style={styles.shieldInner}>
+                  <Image
+                    source={require('./assets/icons/Threat Track Logo Red.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
                   <Text style={styles.shieldIcon}>🛡️</Text>
                 </View>
               </View>
@@ -146,7 +152,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
                 <View style={styles.featureIcon}>
                   <Text style={styles.featureIconText}>📊</Text>
                 </View>
-                <Text style={styles.featureText}>Real-time spatial analysis</Text>
+                <Text style={styles.featureText}>SOS report</Text>
               </View>
               <View style={styles.featureItem}>
                 <View style={styles.featureIcon}>
@@ -162,8 +168,8 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
               <Text style={styles.inputIcon}>👤</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Sabrina Baker"
-                placeholderTextColor="#4a5f8a"
+                placeholder="Juan Dela Cruz"
+                placeholderTextColor="#9ca3af"
                 value={fullName}
                 onChangeText={setFullName}
                 editable={!loading}
@@ -176,8 +182,8 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
               <Text style={styles.inputIcon}>✉️</Text>
               <TextInput
                 style={styles.input}
-                placeholder="sammy@young.com"
-                placeholderTextColor="#4a5f8a"
+                placeholder="JuanDelacruz.com"
+                placeholderTextColor="#9ca3af"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -194,7 +200,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#4a5f8a"
+                placeholderTextColor="#9ca3af"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -216,7 +222,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#4a5f8a"
+                placeholderTextColor="#9ca3af"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
@@ -287,39 +293,42 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 40,
-    paddingBottom: 30,
   },
   logoSection: {
     alignItems: 'center',
     paddingTop: 20,
-    paddingBottom: 30,
+    paddingBottom: 24,
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   shieldOuter: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    backgroundColor: '#5178e8',
+    width: 124,
+    height: 124,
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#4169e1',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.24,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 10,
   },
   shieldInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 16,
-    backgroundColor: '#6a8eef',
+    width: 112,
+    height: 112,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  logoImage: {
+    width: 102,
+    height: 102,
+  },
   shieldIcon: {
-    fontSize: 48,
+    display: 'none',
   },
   brandTitle: {
     fontSize: 28,
@@ -330,23 +339,28 @@ const styles = StyleSheet.create({
   },
   brandSubtitle: {
     fontSize: 14,
-    color: '#a0aec0',
+    color: '#fff1f2',
     letterSpacing: 0.3,
   },
   formContainer: {
     paddingHorizontal: 30,
     flex: 1,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 28,
+    paddingBottom: 30,
   },
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#111827',
     marginBottom: 8,
     textAlign: 'center',
   },
   welcomeSubtitle: {
     fontSize: 14,
-    color: '#8b95a8',
+    color: '#6b7280',
     marginBottom: 24,
     textAlign: 'center',
   },
@@ -362,9 +376,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#1a2d52',
+    backgroundColor: '#fff7f7',
     borderWidth: 1,
-    borderColor: '#2d4573',
+    borderColor: '#fecaca',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -374,28 +388,28 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 14,
-    color: '#a0aec0',
+    color: '#6b7280',
   },
   label: {
     fontSize: 14,
-    color: '#ffffff',
+    color: '#7f1d1d',
     marginBottom: 8,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a2d52',
+    backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#3d5a8c',
+    borderColor: '#fecaca',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     height: 52,
-    shadowColor: '#000',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -406,7 +420,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#ffffff',
+    color: '#111827',
     paddingVertical: 0,
   },
   eyeIcon: {
@@ -416,19 +430,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   signupButton: {
-    backgroundColor: '#5178e8',
+    backgroundColor: '#dc2626',
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 24,
     marginTop: 8,
-    shadowColor: '#4169e1',
+    shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 8,
   },
   signupButtonDisabled: {
-    backgroundColor: '#555',
+    backgroundColor: '#fca5a5',
   },
   signupButtonText: {
     color: '#ffffff',
@@ -445,10 +459,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2d4573',
+    backgroundColor: '#fee2e2',
   },
   dividerText: {
-    color: '#8b95a8',
+    color: '#991b1b',
     paddingHorizontal: 16,
     fontSize: 13,
     fontWeight: '500',
@@ -460,11 +474,11 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   loginText: {
-    color: '#8b95a8',
+    color: '#6b7280',
     fontSize: 14,
   },
   loginLink: {
-    color: '#6a8eef',
+    color: '#dc2626',
     fontSize: 14,
     fontWeight: '700',
   },

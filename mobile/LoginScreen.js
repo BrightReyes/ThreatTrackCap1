@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleLogin, validateEmail, validatePassword } from './utils/auth';
@@ -65,8 +66,8 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   return (
     <>
     <LinearGradient
-      colors={['#3d5a8c', '#2d4a7c', '#1a2f5c', '#0f1d3d', '#0a1428']}
-      locations={[0, 0.3, 0.6, 0.85, 1]}
+      colors={['#dc2626', '#ef4444', '#ffffff', '#ffffff']}
+      locations={[0, 0.32, 0.58, 1]}
       style={styles.container}
     >
       <KeyboardAvoidingView
@@ -83,12 +84,17 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
             <View style={styles.logoContainer}>
               <View style={styles.shieldOuter}>
                 <View style={styles.shieldInner}>
+                  <Image
+                    source={require('./assets/icons/Threat Track Logo Red.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
                   <Text style={styles.shieldIcon}>🛡️</Text>
                 </View>
               </View>
             </View>
             <Text style={styles.brandTitle}>Threat Track</Text>
-            <Text style={styles.brandSubtitle}>Interactive Spatial Analysis</Text>
+            <Text style={styles.brandSubtitle}></Text>
           </View>
 
           {/* Form Container */}
@@ -102,8 +108,8 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
               <Text style={styles.inputIcon}>✉️</Text>
               <TextInput
                 style={styles.input}
-                placeholder="sample@long.com"
-                placeholderTextColor="#4a5f8a"
+                placeholder="sample@.com"
+                placeholderTextColor="#9ca3af"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -120,7 +126,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#4a5f8a"
+                placeholderTextColor="#9ca3af"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -196,39 +202,42 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 40,
-    paddingBottom: 30,
   },
   logoSection: {
     alignItems: 'center',
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 28,
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   shieldOuter: {
-    width: 100,
-    height: 100,
-    borderRadius: 20,
-    backgroundColor: '#5178e8',
+    width: 124,
+    height: 124,
+    borderRadius: 28,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#4169e1',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.24,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 10,
   },
   shieldInner: {
-    width: 90,
-    height: 90,
-    borderRadius: 16,
-    backgroundColor: '#6a8eef',
+    width: 112,
+    height: 112,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  logoImage: {
+    width: 102,
+    height: 102,
+  },
   shieldIcon: {
-    fontSize: 48,
+    display: 'none',
   },
   brandTitle: {
     fontSize: 28,
@@ -239,46 +248,51 @@ const styles = StyleSheet.create({
   },
   brandSubtitle: {
     fontSize: 14,
-    color: '#a0aec0',
+    color: '#fff1f2',
     letterSpacing: 0.3,
   },
   formContainer: {
     paddingHorizontal: 30,
     flex: 1,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 30,
+    paddingBottom: 30,
   },
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#111827',
     marginBottom: 8,
     textAlign: 'center',
   },
   welcomeSubtitle: {
     fontSize: 14,
-    color: '#8b95a8',
+    color: '#6b7280',
     marginBottom: 30,
     textAlign: 'center',
   },
   label: {
     fontSize: 14,
-    color: '#ffffff',
+    color: '#7f1d1d',
     marginBottom: 8,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a2d52',
+    backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#3d5a8c',
+    borderColor: '#fecaca',
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 16,
     height: 52,
-    shadowColor: '#000',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -289,7 +303,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#ffffff',
+    color: '#111827',
     paddingVertical: 0,
   },
   eyeIcon: {
@@ -303,22 +317,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: '#8b95a8',
+    color: '#991b1b',
     fontSize: 13,
+    fontWeight: '700',
   },
   loginButton: {
-    backgroundColor: '#5178e8',
+    backgroundColor: '#dc2626',
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 24,
-    shadowColor: '#4169e1',
+    shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 8,
   },
   loginButtonDisabled: {
-    backgroundColor: '#555',
+    backgroundColor: '#fca5a5',
   },
   loginButtonText: {
     color: '#ffffff',
@@ -335,10 +350,10 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2d4573',
+    backgroundColor: '#fee2e2',
   },
   dividerText: {
-    color: '#8b95a8',
+    color: '#991b1b',
     paddingHorizontal: 16,
     fontSize: 13,
     fontWeight: '500',
@@ -349,11 +364,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   signupText: {
-    color: '#8b95a8',
+    color: '#6b7280',
     fontSize: 14,
   },
   signupLink: {
-    color: '#6a8eef',
+    color: '#dc2626',
     fontSize: 14,
     fontWeight: '700',
   },
