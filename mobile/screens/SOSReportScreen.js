@@ -1,56 +1,140 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
   ActivityIndicator,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../utils/firebase';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
-// Default location (Valenzuela City center)
 const DEFAULT_LOCATION = {
   latitude: 14.6991,
   longitude: 120.9820,
 };
 
-// Severity mapping for each incident type
-const INCIDENT_SEVERITY_MAP = {
-  'Theft': 'medium',
-  'Vandalism': 'low',
-  'Murder': 'high',
-  'Drugs': 'high',
-  'Human Trafficking': 'high',
-  'Kidnapping': 'high',
-  'Physical Injury': 'high',
-  'Carjacking': 'high',
+const INCIDENT_TYPES = [
+  {
+    id: 'robbery_holdup',
+    label: 'Robbery / Hold-up',
+    icon: '🚨',
+    severity: 'high',
+    description: 'Force or intimidation',
+  },
+  {
+    id: 'physical_assault_injury',
+    label: 'Physical Assault / Injury',
+    icon: '🤕',
+    severity: 'high',
+    description: 'Fight or violent injury',
+  },
+  {
+    id: 'domestic_violence',
+    label: 'Domestic Violence',
+    icon: '🏠',
+    severity: 'high',
+    description: 'Household abuse',
+  },
+  {
+    id: 'traffic_accident',
+    label: 'Traffic Accidents',
+    icon: '🚑',
+    severity: 'high',
+    description: 'Collision or injured person',
+  },
+  {
+    id: 'illegal_weapons',
+    label: 'Illegal Weapons',
+    icon: '⚠️',
+    severity: 'high',
+    description: 'Firearm or deadly weapon',
+  },
+  {
+    id: 'theft_snatching',
+    label: 'Theft / Snatching',
+    icon: '🎒',
+    severity: 'medium',
+    description: 'Phone or bag snatching',
+  },
+  {
+    id: 'drug_related_activity',
+    label: 'Drug-Related Activity',
+    icon: '💊',
+    severity: 'medium',
+    description: 'Illegal selling or usage',
+  },
+  {
+    id: 'public_disturbance',
+    label: 'Public Disturbance',
+    icon: '📢',
+    severity: 'medium',
+    description: 'Noise, conflict, riot',
+  },
+  {
+    id: 'suspicious_activity',
+    label: 'Suspicious Activity',
+    icon: '👀',
+    severity: 'medium',
+    description: 'Unusual behavior',
+  },
+  {
+    id: 'vandalism_property_damage',
+    label: 'Vandalism / Damage',
+    icon: '🧱',
+    severity: 'low',
+    description: 'Property damage',
+  },
+];
+
+const REPORTING_OPTIONS = [
+  { id: 'witness', label: 'Witness' },
+  { id: 'victim', label: 'Victim' },
+];
+
+const SEVERITY_CONFIG = {
+  high: {
+    label: 'High',
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  medium: {
+    label: 'Medium',
+    color: '#b45309',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  low: {
+    label: 'Low',
+    color: '#047857',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
 };
 
-// Severity colors and labels
-const SEVERITY_CONFIG = {
-  'high': { color: '#dc2626', label: 'High - Critical' },
-  'medium': { color: '#f59e0b', label: 'Medium - Important' },
-  'low': { color: '#10b981', label: 'Low - Minor' },
+const getIncidentByType = (type) => {
+  return INCIDENT_TYPES.find((incidentType) => incidentType.id === type);
+};
+
+const getSeverityFromType = (type) => {
+  return getIncidentByType(type)?.severity || 'medium';
 };
 
 const SOSReportScreen = ({ navigation, route }) => {
   const passedLocation = route?.params?.userLocation;
-  
+
   const [incidentType, setIncidentType] = useState('');
-  const [severity, setSeverity] = useState('');
-  const [reportingAs, setReportingAs] = useState('');
+  const [reportingAs, setReportingAs] = useState('witness');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState(passedLocation || null);
-
-  // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -59,7 +143,10 @@ const SOSReportScreen = ({ navigation, route }) => {
     buttons: [],
   });
 
-  // Auto-get location if not provided
+  const selectedIncident = getIncidentByType(incidentType);
+  const selectedSeverity = getSeverityFromType(incidentType);
+  const severityStyle = SEVERITY_CONFIG[selectedSeverity];
+
   useEffect(() => {
     const initializeLocation = async () => {
       try {
@@ -70,47 +157,9 @@ const SOSReportScreen = ({ navigation, route }) => {
         setLocationLoading(false);
       }
     };
-    
+
     initializeLocation();
   }, []);
-
-  const getLocationAutomatically = async () => {
-    try {
-      const location = await getCurrentLocation();
-      if (location) {
-        setCurrentLocation(location);
-        console.log('Location obtained:', location);
-      } else {
-        // Use default location if unable to get actual location
-        console.log('Using default location');
-        setCurrentLocation(DEFAULT_LOCATION);
-      }
-    } catch (error) {
-      console.error('Error getting location:', error);
-      // Use default location as fallback
-      setCurrentLocation(DEFAULT_LOCATION);
-    }
-  };
-
-  // Handle incident type change and auto-set severity
-  const handleIncidentTypeChange = (type) => {
-    setIncidentType(type);
-    const autoSeverity = INCIDENT_SEVERITY_MAP[type] || 'medium';
-    setSeverity(autoSeverity);
-  };
-
-  const incidentTypes = [
-    'Theft',
-    'Vandalism',
-    'Murder',
-    'Drugs',
-    'Human Trafficking',
-    'Kidnapping',
-    'Physical Injury',
-    'Carjacking',
-  ];
-
-  const reportingAsOptions = ['Victim', 'Witness'];
 
   const showAlert = (title, message, type = 'info', buttons = []) => {
     setAlertConfig({
@@ -126,26 +175,36 @@ const SOSReportScreen = ({ navigation, route }) => {
     setAlertConfig({ ...alertConfig, visible: false });
   };
 
+  const getLocationAutomatically = async () => {
+    try {
+      const location = await getCurrentLocation();
+      setCurrentLocation(location || DEFAULT_LOCATION);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setCurrentLocation(DEFAULT_LOCATION);
+    }
+  };
+
+  const handleIncidentTypeChange = (type) => {
+    setIncidentType(type);
+  };
+
   const handleSubmit = async () => {
-    // Validation
     if (!incidentType) {
       showAlert('Missing Information', 'Please select an incident type.', 'warning');
       return;
     }
-    if (!reportingAs) {
-      showAlert('Missing Information', 'Please select your reporting status.', 'warning');
-      return;
-    }
 
-    // Wait for location to be ready
     if (locationLoading) {
-      showAlert('Please Wait', 'Getting your location... Please try again in a moment.', 'warning');
+      showAlert('Please Wait', 'Getting your location. Please try again in a moment.', 'warning');
       return;
     }
 
-    // Ensure location is set (use default if not)
-    if (!currentLocation) {
-      setCurrentLocation(DEFAULT_LOCATION);
+    const reportLocation = currentLocation || DEFAULT_LOCATION;
+
+    if (!reportLocation.latitude || !reportLocation.longitude) {
+      showAlert('Error', 'Unable to determine location. Please check your location settings.', 'error');
+      return;
     }
 
     setLoading(true);
@@ -159,16 +218,6 @@ const SOSReportScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Create incident document - use current location or default
-      const reportLocation = currentLocation || DEFAULT_LOCATION;
-      
-      if (!reportLocation.latitude || !reportLocation.longitude) {
-        showAlert('Error', 'Unable to determine location. Please check your location settings.', 'error');
-        setLoading(false);
-        return;
-      }
-
-      // Get address from coordinates
       let locationAddress = 'Valenzuela City, Philippines';
       try {
         const address = await getAddressFromCoordinates(reportLocation.latitude, reportLocation.longitude);
@@ -177,14 +226,17 @@ const SOSReportScreen = ({ navigation, route }) => {
         }
       } catch (error) {
         console.error('Error getting address:', error);
-        // Continue with default address
       }
-      
+
+      const safeDescription = description.trim() ||
+        `SOS quick report: ${selectedIncident?.label || 'Incident'} reported via emergency flow.`;
+
       const incidentData = {
         type: incidentType,
-        severity: severity,
-        description: description.trim() || '',
-        reportingAs: reportingAs,
+        typeLabel: selectedIncident?.label || incidentType,
+        severity: selectedSeverity,
+        description: safeDescription,
+        reportingAs,
         location: {
           latitude: reportLocation.latitude,
           longitude: reportLocation.longitude,
@@ -192,186 +244,189 @@ const SOSReportScreen = ({ navigation, route }) => {
         },
         status: 'under_review',
         timestamp: serverTimestamp(),
+        clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
-        isSOSReport: true, // Mark as SOS report for relaxed validation
+        isSOSReport: true,
       };
 
       await addDoc(collection(db, 'incidents'), incidentData);
 
       showAlert(
-        'Report Submitted',
-        'Your incident has been reported successfully. Emergency services have been notified. Your identity is protected.',
+        'SOS Report Sent',
+        'Your urgent report has been submitted with your current location.',
         'success',
         [
           {
             text: 'OK',
-            onPress: () => {
-              hideAlert();
-              resetForm();
-              navigation.goBack();
-            },
+            onPress: () => navigation.goBack(),
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error('Error submitting SOS report:', error);
-      showAlert('Error', 'Failed to submit report. Please try again.', 'error');
+      showAlert('Error', 'Failed to submit SOS report. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setIncidentType('');
-    setSeverity('');
-    setReportingAs('');
-    setDescription('');
-  };
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.overlay}>
-        <View style={styles.modalCard}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerIcon}>
-              <Text style={styles.warningIcon}>!</Text>
+    <>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerContainer}>
+          <View style={styles.headerTopRow}>
+            <View style={styles.sosBadge}>
+              <Text style={styles.sosBadgeText}>SOS</Text>
             </View>
-            <Text style={styles.headerTitle}>SOS Report</Text>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-              <Text style={styles.closeIcon}>X</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.closeButtonText}>x</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.headerTitle}>Quick Emergency Report</Text>
+          <Text style={styles.headerSubtitle}>Choose the incident, confirm your role, and send your location fast.</Text>
+          <View style={styles.statusStrip}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>
+              {locationLoading ? 'Locking location...' : 'Location ready'}
+            </Text>
+          </View>
+        </View>
 
-          <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* Incident Type Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Incident Type</Text>
-              <View style={styles.gridContainer}>
-                {incidentTypes.map((type, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.gridButton,
-                      incidentType === type && styles.gridButtonSelected,
-                    ]}
-                    onPress={() => handleIncidentTypeChange(type)}
-                  >
-                    <Text
-                      style={[
-                        styles.gridButtonText,
-                        incidentType === type && styles.gridButtonTextSelected,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <View style={styles.summaryPanel}>
+              <View>
+                <Text style={styles.summaryLabel}>Selected incident</Text>
+                <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Choose one below'}</Text>
+              </View>
+              <View
+                style={[
+                  styles.summarySeverityPill,
+                  {
+                    backgroundColor: severityStyle.backgroundColor,
+                    borderColor: severityStyle.borderColor,
+                  },
+                ]}
+              >
+                <Text style={[styles.summarySeverityText, { color: severityStyle.color }]}>
+                  {severityStyle.label}
+                </Text>
               </View>
             </View>
 
-            {/* Severity Section */}
-            {incidentType && (
-              <View style={styles.section}>
-                <Text style={styles.severityLabel}>AUTOMATICALLY SEVERITY</Text>
-                <View style={styles.severityContainer}>
-                  <Text style={[
-                    styles.severityText,
-                    severity === 'high' && styles.severityHigh,
-                    severity === 'medium' && styles.severityMedium,
-                    severity === 'low' && styles.severityLow,
-                  ]}>
-                    {severity ? severity.toUpperCase() : 'MEDIUM'}
-                  </Text>
-                </View>
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>Incident type</Text>
+            <View style={styles.incidentTypeGrid}>
+              {INCIDENT_TYPES.map((type) => {
+                const isSelected = incidentType === type.id;
 
-            {/* Reporting As Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>I'm reporting as</Text>
-              <View style={styles.reportingContainer}>
-                {reportingAsOptions.map((option, index) => (
+                return (
                   <TouchableOpacity
-                    key={index}
+                    key={type.id}
+                    style={[
+                      styles.incidentTypeButton,
+                      isSelected && styles.incidentTypeButtonSelected,
+                    ]}
+                    onPress={() => handleIncidentTypeChange(type.id)}
+                    activeOpacity={0.86}
+                  >
+                    <View
+                      style={[
+                        styles.incidentIconBadge,
+                        isSelected && styles.incidentIconBadgeSelected,
+                      ]}
+                    >
+                      <Text style={styles.incidentTypeIcon}>{type.icon}</Text>
+                    </View>
+                    <View style={styles.incidentTextWrap}>
+                      <Text
+                        style={[
+                          styles.incidentTypeLabel,
+                          isSelected && styles.incidentTypeLabelSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {type.label}
+                      </Text>
+                      <Text style={styles.incidentTypeDescription} numberOfLines={1}>
+                        {type.description}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.sectionTitle}>Reporting as</Text>
+            <View style={styles.reportingContainer}>
+              {REPORTING_OPTIONS.map((option) => {
+                const isSelected = reportingAs === option.id;
+
+                return (
+                  <TouchableOpacity
+                    key={option.id}
                     style={[
                       styles.reportingButton,
-                      reportingAs === option && styles.reportingButtonSelected,
+                      isSelected && styles.reportingButtonSelected,
                     ]}
-                    onPress={() => setReportingAs(option)}
+                    onPress={() => setReportingAs(option.id)}
                   >
                     <Text
                       style={[
                         styles.reportingButtonText,
-                        reportingAs === option && styles.reportingButtonTextSelected,
+                        isSelected && styles.reportingButtonTextSelected,
                       ]}
                     >
-                      {option}
+                      {option.label}
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                );
+              })}
             </View>
 
-            {/* Description Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <TextInput
-                style={styles.descriptionInput}
-                placeholder="Describe what happened in detail..."
-                placeholderTextColor="#ccc"
-                multiline={true}
-                numberOfLines={4}
-                value={description}
-                onChangeText={setDescription}
-                editable={!loading}
-              />
-            </View>
+            <Text style={styles.sectionTitle}>Quick details</Text>
+            <TextInput
+              style={styles.descriptionInput}
+              placeholder="Optional: add a short detail for responders..."
+              placeholderTextColor="#9ca3af"
+              multiline
+              numberOfLines={3}
+              value={description}
+              onChangeText={setDescription}
+              editable={!loading}
+              textAlignVertical="top"
+            />
 
-            {/* Location Status */}
-            <View style={styles.section}>
-              {locationLoading ? (
-                <View style={styles.locationStatus}>
-                  <ActivityIndicator color="#dc2626" size="small" />
-                  <Text style={styles.locationStatusText}>Getting your location...</Text>
-                </View>
-              ) : (
-                <View style={styles.locationStatus}>
-                  <Text style={styles.locationStatusText}>Location acquired</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (loading || locationLoading) && styles.submitButtonDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={loading || locationLoading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit Report</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Info Box */}
-            <View style={styles.infoContainer}>
-              <Text style={styles.infoIcon}>i</Text>
+            <View style={styles.infoBox}>
               <Text style={styles.infoText}>
-                Your report will be submitted anonymously to protect your identity. Only essential information will be shared with authorities.
+                SOS reports send your location immediately. Details are optional for faster reporting.
               </Text>
             </View>
 
             <View style={styles.bottomSpacing} />
-          </ScrollView>
-        </View>
-      </View>
+          </View>
+        </ScrollView>
 
-      {/* Custom Alert Modal */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (loading || locationLoading) && styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={loading || locationLoading}
+          >
+            {loading ? (
+              <>
+                <ActivityIndicator color="#ffffff" />
+                <Text style={styles.submitButtonText}>Sending...</Text>
+              </>
+            ) : (
+              <Text style={styles.submitButtonText}>Send SOS Report</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+
       <CustomAlert
         visible={alertConfig.visible}
         title={alertConfig.title}
@@ -381,263 +436,294 @@ const SOSReportScreen = ({ navigation, route }) => {
         onClose={hideAlert}
         autoCloseDelay={5000}
       />
-    </SafeAreaView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff1f2',
+    backgroundColor: '#f8fafc',
   },
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerContainer: {
+    backgroundColor: '#dc2626',
+    paddingTop: 34,
     paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
+    elevation: 10,
   },
-  modalCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    overflow: 'hidden',
-    maxHeight: '85%',
-    width: '100%',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 20,
-  },
-  header: {
-    backgroundColor: '#ff1238',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  headerIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
+  sosBadge: {
     backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  warningIcon: {
-    fontSize: 22,
-    color: '#ff1238',
-    fontWeight: '900',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 19,
-    fontWeight: '900',
-    letterSpacing: 0.8,
-    flex: 1,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeIcon: {
-    color: '#fff',
+  sosBadgeText: {
+    color: '#dc2626',
     fontSize: 15,
     fontWeight: '900',
+    letterSpacing: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
-  section: {
-    marginBottom: 20,
+  closeButtonText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '800',
+    marginTop: -2,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  headerSubtitle: {
+    color: '#fff1f2',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+    marginTop: 5,
+    marginBottom: 12,
+  },
+  statusStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+    marginRight: 8,
+  },
+  statusText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+  },
+  summaryPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: '#991b1b',
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  summaryTitle: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '900',
+  },
+  summarySeverityPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  summarySeverityText: {
+    fontSize: 12,
+    fontWeight: '900',
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 12,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  gridButton: {
-    width: '48%',
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#fee2e2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridButtonSelected: {
-    backgroundColor: '#fff1f2',
-    borderColor: '#ff1238',
-  },
-  gridButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-  },
-  gridButtonTextSelected: {
-    color: '#ff1238',
-    fontWeight: '900',
-  },
-  severityLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#666',
-    letterSpacing: 0.5,
     marginBottom: 10,
   },
-  severityContainer: {
+  incidentTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+    marginBottom: 16,
+  },
+  incidentTypeButton: {
+    width: '48.5%',
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    paddingHorizontal: 10,
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff1f2',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#fecaca',
   },
-  severityText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#374151',
-    letterSpacing: 0.5,
+  incidentTypeButtonSelected: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#dc2626',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  severityHigh: {
-    color: '#ff1238',
+  incidentIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#f9fafb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
-  severityMedium: {
-    color: '#f59e0b',
+  incidentIconBadgeSelected: {
+    backgroundColor: '#ffffff',
   },
-  severityLow: {
-    color: '#10b981',
+  incidentTypeIcon: {
+    fontSize: 17,
+  },
+  incidentTextWrap: {
+    flex: 1,
+  },
+  incidentTypeLabel: {
+    fontSize: 11,
+    color: '#111827',
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  incidentTypeLabelSelected: {
+    color: '#991b1b',
+  },
+  incidentTypeDescription: {
+    fontSize: 10,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   reportingContainer: {
     flexDirection: 'row',
     gap: 10,
+    marginBottom: 16,
   },
   reportingButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderRadius: 14,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e5e7eb',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   reportingButtonSelected: {
-    backgroundColor: '#fff1f2',
-    borderColor: '#ff1238',
+    backgroundColor: '#fef2f2',
+    borderColor: '#dc2626',
   },
   reportingButtonText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '800',
     color: '#374151',
   },
   reportingButtonTextSelected: {
-    color: '#ff1238',
+    color: '#dc2626',
     fontWeight: '900',
   },
   descriptionInput: {
+    minHeight: 76,
     borderWidth: 1.5,
-    borderColor: '#fecaca',
+    borderColor: '#e5e7eb',
     borderRadius: 16,
+    backgroundColor: '#ffffff',
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 13,
-    color: '#1f2937',
-    backgroundColor: '#fff',
-    minHeight: 100,
-    textAlignVertical: 'top',
-    fontFamily: 'System',
-  },
-  locationStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff1f2',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    gap: 10,
-  },
-  locationStatusText: {
-    fontSize: 12,
+    color: '#111827',
     fontWeight: '600',
-    color: '#ff1238',
+    marginBottom: 12,
+  },
+  infoBox: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 16,
+    padding: 12,
+  },
+  infoText: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  bottomSpacing: {
+    height: 96,
+  },
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 18,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#fee2e2',
   },
   submitButton: {
-    backgroundColor: '#ff1238',
-    paddingVertical: 16,
-    borderRadius: 16,
+    minHeight: 56,
+    borderRadius: 18,
+    backgroundColor: '#dc2626',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 16,
-    shadowColor: '#ff1238',
+    flexDirection: 'row',
+    gap: 10,
+    shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.36,
-    shadowRadius: 14,
-    elevation: 10,
+    shadowOpacity: 0.26,
+    shadowRadius: 16,
+    elevation: 8,
   },
   submitButtonDisabled: {
     opacity: 0.6,
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '900',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  infoContainer: {
-    backgroundColor: '#fff1f2',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  infoIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#ff1238',
-    color: '#ffffff',
-    textAlign: 'center',
-    lineHeight: 22,
-    fontSize: 13,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 18,
-  },
-  bottomSpacing: {
-    height: 20,
+    letterSpacing: 0.4,
   },
 });
 

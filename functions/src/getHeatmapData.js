@@ -16,7 +16,8 @@ const admin = require("firebase-admin");
 
 const DEFAULT_DAYS = 7;
 const MAX_DAYS = 30;
-const GRID_SIZE = 0.01;
+const GRID_SIZE = 0.002;
+const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open"];
 
 module.exports = onRequest(async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
@@ -50,7 +51,7 @@ module.exports = onRequest(async (req, res) => {
 
     const db = admin.firestore();
     const incidentsSnapshot = await db.collection("incidents")
-        .where("status", "in", ["verified", "under_review"])
+        .where("status", "in", VISIBLE_STATUSES)
         .where("timestamp", ">=", admin.firestore.Timestamp.fromDate(startDate))
         .where("timestamp", "<=", admin.firestore.Timestamp.fromDate(endDate))
         .get();
@@ -161,9 +162,9 @@ function buildHeatmapCells(incidents) {
   let maxCount = 0;
 
   incidents.forEach((incident) => {
-    const cellLat = Math.floor(incident.location.latitude / GRID_SIZE) * GRID_SIZE;
-    const cellLng = Math.floor(incident.location.longitude / GRID_SIZE) * GRID_SIZE;
-    const cellKey = `${cellLat.toFixed(2)}_${cellLng.toFixed(2)}`;
+    const cellLat = (Math.floor(incident.location.latitude / GRID_SIZE) + 0.5) * GRID_SIZE;
+    const cellLng = (Math.floor(incident.location.longitude / GRID_SIZE) + 0.5) * GRID_SIZE;
+    const cellKey = `${cellLat.toFixed(3)}_${cellLng.toFixed(3)}`;
 
     if (!gridCells.has(cellKey)) {
       gridCells.set(cellKey, {

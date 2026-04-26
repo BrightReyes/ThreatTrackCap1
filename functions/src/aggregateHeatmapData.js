@@ -10,15 +10,17 @@
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 
+const VISIBLE_STATUSES = ["verified", "under_review", "pending", "submitted", "open"];
+
 module.exports = onSchedule("every 1 hours", async (event) => {
   console.log("Starting heatmap data aggregation...");
 
   const db = admin.firestore();
   
   try {
-    // Get all verified incidents
+    // Get all visible incidents
     const snapshot = await db.collection("incidents")
-      .where("status", "in", ["verified", "under_review"])
+      .where("status", "in", VISIBLE_STATUSES)
       .get();
 
     console.log(`Processing ${snapshot.size} incidents for heatmap aggregation`);

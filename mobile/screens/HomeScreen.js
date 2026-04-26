@@ -22,7 +22,7 @@ import CustomAlert from '../components/CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 
-const APP_LOGO = require('../assets/icons/Threat Track Logo Red.png');
+const APP_LOGO = require('../assets/icons/Threat Track Logo Reversed.png');
 const BELL_ICON = require('../assets/icons/bell.png');
 const CAMERA_ICON = require('../assets/icons/camera.png');
 const GEAR_ICON = require('../assets/icons/gear.png');
@@ -39,6 +39,14 @@ const VALENZUELA_CENTER = {
 const DEFAULT_HEATMAP_DAYS = 7;
 const HEATMAP_NATIVE_RADIUS = 50;
 const MAX_HEATMAP_MARKERS = 45;
+const HEATMAP_GRID_SIZE = 0.002;
+const HEATMAP_VISIBLE_STATUSES = new Set([
+  'verified',
+  'under_review',
+  'pending',
+  'submitted',
+  'open',
+]);
 
 const INCIDENT_TYPE_LABELS = {
   theft_snatching: 'Theft / Snatching',
@@ -572,6 +580,22 @@ const HomeScreen = ({ navigation }) => {
     return Number.isNaN(date.getTime()) ? null : date;
   };
 
+  const getIncidentHeatmapDate = (incident) => {
+    return (
+      getIncidentDate(incident.timestamp) ||
+      getIncidentDate(incident.clientTimestamp) ||
+      getIncidentDate(incident.createdAt) ||
+      getIncidentDate(incident.submittedAt)
+    );
+  };
+
+  const getBoundsFromRegion = (region) => ({
+    north: region.latitude + region.latitudeDelta / 2,
+    south: region.latitude - region.latitudeDelta / 2,
+    east: region.longitude + region.longitudeDelta / 2,
+    west: region.longitude - region.longitudeDelta / 2,
+  });
+
   const getPrecinctDistance = (precinct) => {
     if (typeof precinct?.distance === 'number') {
       return precinct.distance;
@@ -612,32 +636,34 @@ const HomeScreen = ({ navigation }) => {
   const buildHeatmapPointsFromIncidents = (sourceIncidents, bounds, days) => {
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
-    const gridSize = 0.01;
     const gridCells = new Map();
     let maxCount = 0;
 
     sourceIncidents.forEach((incident) => {
       const location = incident.location;
-      const incidentDate = getIncidentDate(incident.timestamp);
+      const latitude = Number(location?.latitude);
+      const longitude = Number(location?.longitude);
+      const incidentDate = getIncidentHeatmapDate(incident);
       const status = incident.status || 'verified';
 
       if (
-        !location ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
         !incidentDate ||
-        !['verified', 'under_review'].includes(status) ||
+        !HEATMAP_VISIBLE_STATUSES.has(status) ||
         incidentDate < startDate ||
         incidentDate > endDate ||
-        location.latitude < bounds.south ||
-        location.latitude > bounds.north ||
-        location.longitude < bounds.west ||
-        location.longitude > bounds.east
+        latitude < bounds.south ||
+        latitude > bounds.north ||
+        longitude < bounds.west ||
+        longitude > bounds.east
       ) {
         return;
       }
 
-      const cellLat = Math.floor(location.latitude / gridSize) * gridSize;
-      const cellLng = Math.floor(location.longitude / gridSize) * gridSize;
-      const cellKey = `${cellLat.toFixed(2)}_${cellLng.toFixed(2)}`;
+      const cellLat = (Math.floor(latitude / HEATMAP_GRID_SIZE) + 0.5) * HEATMAP_GRID_SIZE;
+      const cellLng = (Math.floor(longitude / HEATMAP_GRID_SIZE) + 0.5) * HEATMAP_GRID_SIZE;
+      const cellKey = `${cellLat.toFixed(3)}_${cellLng.toFixed(3)}`;
       const currentCount = (gridCells.get(cellKey)?.count || 0) + 1;
 
       gridCells.set(cellKey, {
@@ -660,15 +686,15 @@ const HomeScreen = ({ navigation }) => {
 
     const requestId = heatmapRequestIdRef.current + 1;
     heatmapRequestIdRef.current = requestId;
-    const bounds = {
-      north: region.latitude + region.latitudeDelta / 2,
-      south: region.latitude - region.latitudeDelta / 2,
-      east: region.longitude + region.longitudeDelta / 2,
-      west: region.longitude - region.longitudeDelta / 2,
-    };
+    const bounds = getBoundsFromRegion(region);
+    const localHeatmapPoints = buildHeatmapPointsFromIncidents(incidents, bounds, days);
+
+    if (localHeatmapPoints.length > 0) {
+      setHeatmapData(localHeatmapPoints);
+    }
 
     if (heatmapEndpointUnavailableRef.current) {
-      setHeatmapData(buildHeatmapPointsFromIncidents(incidents, bounds, days));
+      setHeatmapData(localHeatmapPoints);
       return;
     }
 
@@ -702,10 +728,10 @@ const HomeScreen = ({ navigation }) => {
           longitude: cell.longitude,
           weight: cell.weight || 0.5,
         }));
-        setHeatmapData(heatmapPoints);
+        setHeatmapData(localHeatmapPoints.length > 0 ? localHeatmapPoints : heatmapPoints);
       } else {
         console.log('No heatmap data returned:', result);
-        setHeatmapData([]);
+        setHeatmapData(localHeatmapPoints);
       }
     } catch (error) {
       if (error.status === 404) {
@@ -715,7 +741,7 @@ const HomeScreen = ({ navigation }) => {
       }
 
       if (requestId === heatmapRequestIdRef.current) {
-        setHeatmapData(buildHeatmapPointsFromIncidents(incidents, bounds, days));
+        setHeatmapData(localHeatmapPoints);
       }
     } finally {
       if (requestId === heatmapRequestIdRef.current) {
@@ -732,7 +758,7 @@ const HomeScreen = ({ navigation }) => {
   }, [mapReady]);
 
   useEffect(() => {
-    if (mapReady && mapRegion && incidents.length > 0 && (!heatmapData || heatmapData.length === 0)) {
+    if (mapReady && mapRegion) {
       fetchHeatmapData(mapRegion, DEFAULT_HEATMAP_DAYS);
     }
   }, [incidents, mapReady]);

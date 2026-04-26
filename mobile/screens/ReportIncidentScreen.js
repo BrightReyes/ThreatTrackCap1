@@ -342,6 +342,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         },
         status: 'under_review',
         timestamp: serverTimestamp(),
+        clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
       };
 

@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Image,
+  Modal,
+  StatusBar,
+} from 'react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
+
+const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 const INCIDENT_TYPE_LABELS = {
   theft_snatching: 'Theft / Snatching',
@@ -17,11 +30,94 @@ const INCIDENT_TYPE_LABELS = {
   suspicious_activity: 'Suspicious Activity / Persons',
 };
 
+const STATUS_META = {
+  verified: {
+    label: 'Verified',
+    shortLabel: 'Verified',
+    color: '#047857',
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+    step: 3,
+    assurance: 'Your report was validated and is available for responder review.',
+  },
+  under_review: {
+    label: 'Under Review',
+    shortLabel: 'Review',
+    color: '#b45309',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    step: 2,
+    assurance: 'Your report is in the review queue. Keep your phone reachable for possible updates.',
+  },
+  pending: {
+    label: 'Submitted',
+    shortLabel: 'Submitted',
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 1,
+    assurance: 'Your report was received and is waiting for review.',
+  },
+  submitted: {
+    label: 'Submitted',
+    shortLabel: 'Submitted',
+    color: '#dc2626',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 1,
+    assurance: 'Your report was received and is waiting for review.',
+  },
+  open: {
+    label: 'Responder Review',
+    shortLabel: 'Active',
+    color: '#b45309',
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    step: 3,
+    assurance: 'Your report is active for responder coordination.',
+  },
+  rejected: {
+    label: 'Needs Attention',
+    shortLabel: 'Attention',
+    color: '#991b1b',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 1,
+    assurance: 'This report needs more information before it can move forward.',
+  },
+  spam: {
+    label: 'Needs Attention',
+    shortLabel: 'Attention',
+    color: '#991b1b',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 1,
+    assurance: 'This report was flagged and needs admin review.',
+  },
+  error: {
+    label: 'Needs Attention',
+    shortLabel: 'Attention',
+    color: '#991b1b',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    step: 1,
+    assurance: 'There was a validation issue. Refresh or submit a new report if needed.',
+  },
+};
+
+const TRACKING_STEPS = ['Submitted', 'Review', 'Responder'];
+
+const getStatusMeta = (status) => {
+  return STATUS_META[status] || STATUS_META.pending;
+};
+
 const StatusScreen = ({ navigation }) => {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({ verified: 0, under_review: 0, rejected: 0, total: 0 });
+  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
 
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
@@ -77,8 +173,8 @@ const StatusScreen = ({ navigation }) => {
 
       // Sort locally by timestamp
       fetchedIncidents.sort((a, b) => {
-        const aTime = a.timestamp?.toDate?.() || new Date(a.timestamp);
-        const bTime = b.timestamp?.toDate?.() || new Date(b.timestamp);
+        const aTime = getIncidentDate(a)?.getTime() || 0;
+        const bTime = getIncidentDate(b)?.getTime() || 0;
         return bTime - aTime;
       });
 
@@ -86,8 +182,8 @@ const StatusScreen = ({ navigation }) => {
       
       // Calculate statistics
       const verified = fetchedIncidents.filter(i => i.status === 'verified').length;
-      const under_review = fetchedIncidents.filter(i => i.status === 'under_review').length;
-      const rejected = fetchedIncidents.filter(i => i.status === 'rejected').length;
+      const under_review = fetchedIncidents.filter(i => ['under_review', 'pending', 'submitted', 'open'].includes(i.status)).length;
+      const rejected = fetchedIncidents.filter(i => ['rejected', 'error', 'spam'].includes(i.status)).length;
       
       setStats({
         verified,
@@ -138,37 +234,40 @@ const StatusScreen = ({ navigation }) => {
     return date.toLocaleDateString();
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'verified': return '#10b981';
-      case 'under_review': return '#f59e0b';
-      case 'rejected': return '#dc2626';
-      default: return '#6b7280';
-    }
+  const getIncidentDate = (incident) => {
+    const timestamp = incident?.timestamp || incident?.clientTimestamp || incident?.createdAt;
+    if (!timestamp) return null;
+    if (timestamp.toDate) return timestamp.toDate();
+    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const formatFullTimestamp = (incident) => {
+    const date = getIncidentDate(incident);
+    if (!date) return 'Unknown date';
+    return date.toLocaleString();
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'verified': return '✓';
-      case 'under_review': return '⏳';
-      case 'rejected': return '✗';
-      default: return '?';
-    }
+    const meta = getStatusMeta(status);
+    return meta.step >= 3 ? 'OK' : meta.step === 2 ? '...' : '1';
   };
 
   const getIncidentIcon = (type) => {
     switch (type?.toLowerCase()) {
-      case 'theft_snatching': return 'TS';
-      case 'robbery_holdup': return 'RH';
-      case 'physical_assault_injury': return 'AI';
-      case 'domestic_violence': return 'DV';
-      case 'drug_related_activity': return 'DR';
-      case 'public_disturbance': return 'PD';
-      case 'vandalism_property_damage': return 'VP';
-      case 'traffic_accident': return 'TA';
-      case 'illegal_weapons': return 'IW';
-      case 'suspicious_activity': return 'SA';
-      default: return 'IN';
+      case 'theft_snatching': return '👜';
+      case 'robbery_holdup': return '🚨';
+      case 'physical_assault_injury': return '🤕';
+      case 'domestic_violence': return '🏠';
+      case 'drug_related_activity': return '🔥';
+      case 'public_disturbance': return '⚠️';
+      case 'vandalism_property_damage': return '🧱';
+      case 'traffic_accident': return '🚗';
+      case 'illegal_weapons': return '🔒';
+      case 'suspicious_activity': return '👁️';
+      default: return '!';
     }
   };
 
@@ -182,6 +281,15 @@ const StatusScreen = ({ navigation }) => {
       case 'medium': return '#f59e0b';
       case 'low': return '#10b981';
       default: return '#6b7280';
+    }
+  };
+
+  const getSeverityBackground = (severity) => {
+    switch (severity) {
+      case 'high': return '#fef2f2';
+      case 'medium': return '#fffbeb';
+      case 'low': return '#ecfdf5';
+      default: return '#f3f4f6';
     }
   };
 
@@ -202,11 +310,137 @@ const StatusScreen = ({ navigation }) => {
   };
 
   const handleIncidentPress = (incident) => {
-    showAlert(
-      `${formatIncidentType(incident)} Report`,
-      `Status: ${incident.status.replace('_', ' ').toUpperCase()}\n\n${incident.description}\n\nReported: ${formatTimestamp(incident.timestamp)}`,
-      'info',
-      [{ text: 'OK' }]
+    setSelectedIncident(incident);
+    setDetailsVisible(true);
+  };
+
+  const closeDetailsModal = () => {
+    setDetailsVisible(false);
+    setSelectedIncident(null);
+  };
+
+  const renderTrackingSteps = (status, compact = false) => {
+    const currentStep = getStatusMeta(status).step;
+
+    return (
+      <View style={compact ? styles.trackingCompact : styles.trackingTimeline}>
+        {TRACKING_STEPS.map((step, index) => {
+          const stepNumber = index + 1;
+          const isActive = currentStep >= stepNumber;
+          const isCurrent = currentStep === stepNumber;
+
+          return (
+            <View key={step} style={styles.trackingStepWrap}>
+              <View
+                style={[
+                  styles.trackingDot,
+                  isActive && styles.trackingDotActive,
+                  isCurrent && styles.trackingDotCurrent,
+                ]}
+              >
+                <Text style={[styles.trackingDotText, isActive && styles.trackingDotTextActive]}>
+                  {stepNumber}
+                </Text>
+              </View>
+              <Text style={[styles.trackingLabel, isActive && styles.trackingLabelActive]}>
+                {step}
+              </Text>
+              {index < TRACKING_STEPS.length - 1 && (
+                <View style={[styles.trackingLine, currentStep > stepNumber && styles.trackingLineActive]} />
+              )}
+            </View>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderDetailsModal = () => {
+    if (!selectedIncident) return null;
+
+    const meta = getStatusMeta(selectedIncident.status);
+    const severityColor = getSeverityColor(selectedIncident.severity);
+
+    return (
+      <Modal
+        visible={detailsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeDetailsModal}
+      >
+        <View style={styles.detailsBackdrop}>
+          <View style={styles.detailsSheet}>
+            <View style={styles.detailsHandle} />
+            <View style={styles.detailsHeader}>
+              <View style={styles.detailsTitleBlock}>
+                <Text style={styles.detailsEyebrow}>REPORT TRACKING</Text>
+                <Text style={styles.detailsTitle}>{formatIncidentType(selectedIncident)}</Text>
+                <Text style={styles.detailsSubtitle}>Submitted {formatTimestamp(selectedIncident.timestamp || selectedIncident.clientTimestamp)}</Text>
+              </View>
+              <TouchableOpacity style={styles.detailsCloseButton} onPress={closeDetailsModal}>
+                <Text style={styles.detailsCloseText}>X</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.detailsStatusPanel}>
+                <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
+                  <Text style={[styles.detailsStatusIconText, { color: meta.color }]}>{getStatusIcon(selectedIncident.status)}</Text>
+                </View>
+                <View style={styles.detailsStatusCopy}>
+                  <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
+                  <Text style={styles.detailsStatusMessage}>{meta.assurance}</Text>
+                </View>
+              </View>
+
+              {renderTrackingSteps(selectedIncident.status)}
+
+              <View style={styles.detailsGrid}>
+                <View style={styles.detailsInfoCard}>
+                  <Text style={styles.detailsInfoLabel}>Severity</Text>
+                  <Text style={[styles.detailsInfoValue, { color: severityColor }]}>
+                    {(selectedIncident.severity || 'medium').toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.detailsInfoCard}>
+                  <Text style={styles.detailsInfoLabel}>Report ID</Text>
+                  <Text style={styles.detailsInfoValue} numberOfLines={1}>
+                    {selectedIncident.id?.slice(0, 8) || 'Pending'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailsSection}>
+                <Text style={styles.detailsSectionLabel}>Description</Text>
+                <Text style={styles.detailsSectionText}>
+                  {selectedIncident.description || 'No description provided.'}
+                </Text>
+              </View>
+
+              <View style={styles.detailsSection}>
+                <Text style={styles.detailsSectionLabel}>Location</Text>
+                <Text style={styles.detailsSectionText}>
+                  {getLocationDisplay(selectedIncident.location)}
+                </Text>
+              </View>
+
+              <View style={styles.detailsSection}>
+                <Text style={styles.detailsSectionLabel}>Reported</Text>
+                <Text style={styles.detailsSectionText}>
+                  {formatFullTimestamp(selectedIncident)}
+                </Text>
+              </View>
+
+              <View style={styles.assuranceCard}>
+                <Text style={styles.assuranceTitle}>What happens next</Text>
+                <Text style={styles.assuranceText}>
+                  Your report is saved with your submitted location. Once admin dispatch tools are connected, this tracker can show responder assignment and live updates.
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -234,6 +468,7 @@ const StatusScreen = ({ navigation }) => {
           {/* Header */}
           <View style={styles.headerNew}>
             <Text style={styles.headerNewTitle}>REPORT STATUS</Text>
+            <Text style={styles.headerSubtitle}>Track your submitted reports and review response progress.</Text>
           </View>
 
           {/* Statistics Cards */}
@@ -252,39 +487,61 @@ const StatusScreen = ({ navigation }) => {
             </View>
           </View>
 
+          <View style={styles.assuranceBanner}>
+            <View style={styles.assuranceBannerIcon}>
+              <Text style={styles.assuranceBannerIconText}>i</Text>
+            </View>
+            <View style={styles.assuranceBannerCopy}>
+              <Text style={styles.assuranceBannerTitle}>Your reports stay trackable</Text>
+              <Text style={styles.assuranceBannerText}>
+                Status updates appear here after review. Live responder updates can be connected with the admin module later.
+              </Text>
+            </View>
+          </View>
+
           {/* Incidents List */}
           <View style={styles.content}>
             {incidents.length > 0 ? (
-              incidents.map((incident) => (
-                <TouchableOpacity 
-                  key={incident.id} 
-                  style={styles.incidentCard}
-                  onPress={() => handleIncidentPress(incident)}
-                >
-                  <View style={styles.incidentRowTop}>
-                    <Text style={styles.incidentTitle}>{formatIncidentType(incident)}</Text>
-                    <View style={styles.rowRightTop}>
-                      <View style={styles.updateBadge}>
-                        <Text style={styles.updateBadgeText}>{incident.updatesCount || 2} updates</Text>
+              incidents.map((incident) => {
+                const meta = getStatusMeta(incident.status);
+                const severityColor = getSeverityColor(incident.severity);
+
+                return (
+                  <TouchableOpacity
+                    key={incident.id}
+                    style={styles.incidentCard}
+                    onPress={() => handleIncidentPress(incident)}
+                    activeOpacity={0.86}
+                  >
+                    <View style={styles.incidentRowTop}>
+                      <View style={[styles.incidentTypeIconWrap, { backgroundColor: getSeverityBackground(incident.severity) }]}>
+                        <Text style={styles.incidentTypeIconText}>{getIncidentIcon(incident.type)}</Text>
                       </View>
-                      {incident.status === 'under_review' && (
-                        <View style={styles.investigationPill}>
-                          <Text style={styles.investigationPillText}>🔍 Under Investigation</Text>
-                        </View>
-                      )}
+                      <View style={styles.incidentTitleBlock}>
+                        <Text style={styles.incidentTitle} numberOfLines={1}>{formatIncidentType(incident)}</Text>
+                        <Text style={styles.incidentTime}>Submitted {formatTimestamp(incident.timestamp || incident.clientTimestamp)}</Text>
+                      </View>
+                      <View style={[styles.statusPill, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
+                        <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.shortLabel}</Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <Text style={styles.incidentBody} numberOfLines={2}>{incident.description}</Text>
+                    {renderTrackingSteps(incident.status, true)}
 
-                  <View style={styles.incidentRowBottom}>
-                    <Text style={styles.incidentLocation}>📍 {getLocationDisplay(incident.location)}</Text>
-                    <Text style={styles.detailsLink}>Details ›</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
+                    <Text style={styles.incidentBody} numberOfLines={2}>{incident.description}</Text>
+
+                    <View style={styles.incidentRowBottom}>
+                      <Text style={styles.incidentLocation} numberOfLines={1}>{getLocationDisplay(incident.location)}</Text>
+                      <Text style={styles.detailsLink}>Details</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
             ) : (
               <View style={styles.emptyState}>
+                <View style={styles.emptyIcon}>
+                  <Text style={styles.emptyIconText}>!</Text>
+                </View>
                 <Text style={styles.emptyEmoji}>📋</Text>
                 <Text style={styles.emptyTitle}>No Reports Yet</Text>
                 <Text style={styles.emptySubtitle}>
@@ -321,6 +578,8 @@ const StatusScreen = ({ navigation }) => {
         </View>
       </View>
 
+      {renderDetailsModal()}
+
       {/* Custom Alert Modal */}
       <CustomAlert
         visible={alertConfig.visible}
@@ -338,7 +597,7 @@ const StatusScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
@@ -358,9 +617,11 @@ const styles = StyleSheet.create({
   // Header Styles
   headerNew: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
+    paddingTop: HEADER_TOP_PADDING,
+    paddingBottom: 14,
     backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   headerNewTitle: {
     fontSize: 24,
@@ -368,28 +629,36 @@ const styles = StyleSheet.create({
     color: '#111827',
     letterSpacing: 1.2,
   },
+  headerSubtitle: {
+    marginTop: 6,
+    fontSize: 13,
+    color: '#6b7280',
+    fontWeight: '700',
+    lineHeight: 19,
+  },
 
   // Statistics Cards
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     justifyContent: 'space-between',
-    marginTop: 12,
-    marginBottom: 20,
+    marginTop: 16,
+    marginBottom: 14,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    marginHorizontal: 5,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 3,
   },
   statNumber: {
@@ -404,6 +673,46 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  assuranceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 18,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 14,
+  },
+  assuranceBannerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  assuranceBannerIconText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  assuranceBannerCopy: {
+    flex: 1,
+  },
+  assuranceBannerTitle: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '900',
+    marginBottom: 3,
+  },
+  assuranceBannerText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+    lineHeight: 17,
+  },
 
   // Content Area
   content: {
@@ -412,77 +721,326 @@ const styles = StyleSheet.create({
   },
   incidentCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
+    borderRadius: 18,
+    padding: 15,
+    marginBottom: 14,
+    borderWidth: 1.5,
     borderColor: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 3,
   },
   incidentRowTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  incidentTypeIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  incidentTypeIconText: {
+    fontSize: 22,
+  },
+  incidentTitleBlock: {
+    flex: 1,
+    marginRight: 10,
   },
   incidentTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#111827',
-    flex: 1,
+    marginBottom: 4,
   },
-  rowRightTop: {
+  incidentTime: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '700',
+  },
+  statusPill: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  trackingCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
+    marginBottom: 12,
   },
-  updateBadge: {
-    backgroundColor: '#dbeafe',
+  trackingTimeline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginRight: 8,
+    paddingVertical: 14,
+    marginBottom: 14,
   },
-  updateBadgeText: {
-    color: '#0284c7',
-    fontSize: 11,
-    fontWeight: '700',
+  trackingStepWrap: {
+    flex: 1,
+    alignItems: 'center',
+    position: 'relative',
   },
-  investigationPill: {
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+  trackingDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
-  investigationPillText: {
-    color: '#b45309',
-    fontSize: 11,
-    fontWeight: '700',
+  trackingDotActive: {
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626',
+  },
+  trackingDotCurrent: {
+    borderColor: '#991b1b',
+    borderWidth: 2.5,
+  },
+  trackingDotText: {
+    color: '#9ca3af',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  trackingDotTextActive: {
+    color: '#ffffff',
+  },
+  trackingLabel: {
+    marginTop: 6,
+    color: '#9ca3af',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  trackingLabelActive: {
+    color: '#991b1b',
+  },
+  trackingLine: {
+    position: 'absolute',
+    top: 13,
+    left: '58%',
+    right: '-42%',
+    height: 2,
+    backgroundColor: '#e5e7eb',
+    zIndex: 1,
+  },
+  trackingLineActive: {
+    backgroundColor: '#dc2626',
   },
   incidentBody: {
     fontSize: 13,
     color: '#374151',
     marginBottom: 10,
-    lineHeight: 18,
+    lineHeight: 19,
+    fontWeight: '600',
   },
   incidentRowBottom: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   incidentLocation: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: '#6b7280',
     flex: 1,
+    fontWeight: '600',
+    marginRight: 12,
   },
   detailsLink: {
     color: '#dc2626',
-    fontWeight: '800',
+    fontWeight: '900',
     fontSize: 13,
+  },
+  detailsBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 24, 39, 0.46)',
+  },
+  detailsSheet: {
+    maxHeight: '86%',
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 28,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 24,
+  },
+  detailsHandle: {
+    alignSelf: 'center',
+    width: 54,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#fecaca',
+    marginBottom: 16,
+  },
+  detailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+    marginBottom: 16,
+  },
+  detailsTitleBlock: {
+    flex: 1,
+  },
+  detailsEyebrow: {
+    fontSize: 11,
+    color: '#dc2626',
+    fontWeight: '900',
+    letterSpacing: 1.3,
+    marginBottom: 6,
+  },
+  detailsTitle: {
+    fontSize: 22,
+    color: '#111827',
+    fontWeight: '900',
+  },
+  detailsSubtitle: {
+    marginTop: 5,
+    fontSize: 13,
+    color: '#6b7280',
+    fontWeight: '700',
+  },
+  detailsCloseButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  detailsCloseText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  detailsScroll: {
+    maxHeight: 560,
+  },
+  detailsStatusPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 12,
+  },
+  detailsStatusIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  detailsStatusIconText: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  detailsStatusCopy: {
+    flex: 1,
+  },
+  detailsStatusLabel: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  detailsStatusMessage: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  detailsInfoCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  detailsInfoLabel: {
+    fontSize: 10,
+    color: '#991b1b',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 5,
+  },
+  detailsInfoValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '900',
+  },
+  detailsSection: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    borderRadius: 16,
+    padding: 13,
+    marginBottom: 10,
+  },
+  detailsSectionLabel: {
+    fontSize: 11,
+    color: '#dc2626',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 5,
+  },
+  detailsSectionText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  assuranceCard: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  assuranceTitle: {
+    fontSize: 14,
+    color: '#991b1b',
+    fontWeight: '900',
+    marginBottom: 5,
+  },
+  assuranceText: {
+    fontSize: 12,
+    color: '#7f1d1d',
+    fontWeight: '700',
+    lineHeight: 18,
   },
 
   // Empty State
@@ -490,7 +1048,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 80,
   },
+  emptyIcon: {
+    width: 62,
+    height: 62,
+    borderRadius: 22,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyIconText: {
+    color: '#dc2626',
+    fontSize: 24,
+    fontWeight: '900',
+  },
   emptyEmoji: {
+    display: 'none',
     fontSize: 64,
     marginBottom: 16,
   },
