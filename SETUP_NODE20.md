@@ -63,3 +63,11 @@ If nvm doesn't work after installation:
 3. Open a fresh PowerShell window
 
 Once Node v20 is installed, everything should work perfectly!
+
+backup branch git switch backup-main-current-progress-20260426-211628
+Created the backup branch:
+
+backup-main-current-progress-20260426-211628
+
+It points to commit 8413d93. Your working tree was clean, and you’re still on main, so this is a copy of the current committed version. You can restore/check it anytime with:
+
