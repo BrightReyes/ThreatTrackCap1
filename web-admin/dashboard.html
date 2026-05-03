@@ -71,6 +71,14 @@
                             <span>Incidents</span>
                         </a>
 
+                        <a href="analytics.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >query_stats</span
+                            >
+                            <span>Analytics</span>
+                        </a>
+
                         <a href="users.html" class="sidebar__link">
                             <span
                                 class="sidebar__icon material-symbols-outlined"
@@ -200,13 +208,25 @@
                         class="admin-dashboard__map-block"
                         aria-label="Coverage map"
                     >
-                        <h2 class="admin-dashboard__section-title">
-                            Incident Map
-                        </h2>
-                        <p class="admin-dashboard__map-caption">
-                            Real-time incident visualization across Valenzuela
-                            City.
-                        </p>
+                        <div class="admin-map__header">
+                            <div>
+                                <h2 class="admin-dashboard__section-title">
+                                    Incident Map
+                                </h2>
+                                <p class="admin-dashboard__map-caption">
+                                    Real-time incident visualization across
+                                    Valenzuela City.
+                                </p>
+                            </div>
+                            <div
+                                class="admin-map__legend"
+                                aria-label="Map severity legend"
+                            >
+                                <span><i class="legend-dot legend-dot--high"></i>High</span>
+                                <span><i class="legend-dot legend-dot--medium"></i>Medium</span>
+                                <span><i class="legend-dot legend-dot--low"></i>Low</span>
+                            </div>
+                        </div>
                         <div class="admin-map__filters">
                             <div class="admin-map__filter">
                                 <label for="map-filter-type">Type</label>

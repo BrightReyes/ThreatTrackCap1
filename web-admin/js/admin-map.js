@@ -52,6 +52,7 @@ let heatLayerGroup = null;
 let tileLayer = null;
 let boundaryLayer = null;
 let settings = null;
+let heatRerenderBound = false;
 
 function severityColor(sev) {
     const custom = settings?.mapSettings?.markers?.severityColors;
@@ -150,6 +151,40 @@ function monoHeatGradient(hex) {
     };
 }
 
+function getAdaptiveHeatOptions() {
+    const configuredRadius = Number(settings?.mapSettings?.heatmap?.radius) || 28;
+    const configuredOpacity = Number(settings?.mapSettings?.heatmap?.opacity);
+    const zoom = mapInstance?.getZoom?.() || 13;
+
+    let zoomScale = 1;
+    if (zoom <= 10) zoomScale = 0.38;
+    else if (zoom <= 11) zoomScale = 0.5;
+    else if (zoom <= 12) zoomScale = 0.68;
+    else if (zoom >= 15) zoomScale = 1.08;
+
+    const radius = Math.max(10, Math.round(configuredRadius * zoomScale));
+    const blur = Math.max(6, Math.round(radius * 0.5));
+    const baseOpacity = Number.isFinite(configuredOpacity)
+        ? configuredOpacity
+        : 0.42;
+    const opacityScale = zoom <= 11 ? 0.42 : zoom <= 12 ? 0.62 : 1;
+
+    return {
+        radius,
+        blur,
+        minOpacity: Math.max(0.12, Math.min(0.56, baseOpacity * opacityScale)),
+    };
+}
+
+function bindHeatZoomRerender() {
+    if (!mapInstance || heatRerenderBound) return;
+    heatRerenderBound = true;
+    mapInstance.on("zoomend", () => {
+        if (!heatLayerGroup || !lastIncidentsSnap) return;
+        rerenderIncidentLayers();
+    });
+}
+
 function heatSeverityBucket(severity) {
     const s = String(severity || "").toLowerCase();
     if (s === "high") return "high";
@@ -166,6 +201,65 @@ function formatIncidentCode(docId) {
         hash = (hash * 31 + s.charCodeAt(i)) % 10000;
     }
     return `TR-${String(hash).padStart(4, "0")}`;
+}
+
+function createSeverityClusterIcon(cluster) {
+    const markers = cluster.getAllChildMarkers();
+    const counts = { high: 0, medium: 0, low: 0, other: 0 };
+    markers.forEach((marker) => {
+        const sev = String(marker.options?.incidentSeverity || "").toLowerCase();
+        if (sev === "high") counts.high += 1;
+        else if (sev === "medium") counts.medium += 1;
+        else if (sev === "low") counts.low += 1;
+        else counts.other += 1;
+    });
+
+    const total = markers.length || 1;
+    const highPct = Math.round((counts.high / total) * 100);
+    const mediumPct = Math.round((counts.medium / total) * 100);
+    const lowPct = Math.round((counts.low / total) * 100);
+    const otherPct = Math.max(0, 100 - highPct - mediumPct - lowPct);
+
+    const size = total >= 50 ? 48 : total >= 20 ? 42 : 36;
+    const conic = `conic-gradient(
+        ${severityColor("high")} 0 ${highPct}%,
+        ${severityColor("medium")} ${highPct}% ${highPct + mediumPct}%,
+        ${severityColor("low")} ${highPct + mediumPct}% ${highPct + mediumPct + lowPct}%,
+        ${severityColor("unknown")} ${highPct + mediumPct + lowPct}% ${highPct + mediumPct + lowPct + otherPct}%
+    )`;
+
+    return L.divIcon({
+        html: `<span style="
+            width:${size}px;
+            height:${size}px;
+            display:grid;
+            place-items:center;
+            border-radius:999px;
+            background:${conic};
+            box-shadow:0 10px 24px rgba(15,23,42,.28), 0 0 0 2px rgba(255,255,255,.72);
+        "><b style="
+            width:${Math.max(22, size - 12)}px;
+            height:${Math.max(22, size - 12)}px;
+            display:grid;
+            place-items:center;
+            border-radius:999px;
+            background:rgba(255,255,255,.92);
+            color:#0f172a;
+            font-size:.75rem;
+            font-weight:900;
+        ">${total}</b></span>`,
+        className: "admin-map__severity-cluster",
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+    });
+}
+
+function createIncidentClusterLayer() {
+    return L.markerClusterGroup({
+        iconCreateFunction: createSeverityClusterIcon,
+        showCoverageOnHover: false,
+        maxClusterRadius: 42,
+    });
 }
 
 let lastIncidentsSnap = null;
@@ -289,7 +383,7 @@ function bindMapFilters() {
 function startIncidentRender(snap) {
     if (!mapInstance) return;
     if (!incidentsLayer) {
-        incidentsLayer = L.markerClusterGroup().addTo(mapInstance);
+        incidentsLayer = createIncidentClusterLayer().addTo(mapInstance);
     }
 
     lastIncidentsSnap = snap;
@@ -366,17 +460,16 @@ function startIncidentRender(snap) {
         }
         heatLayerGroup = L.layerGroup();
 
-        const radius = Number(settings?.mapSettings?.heatmap?.radius) || 28;
-        const opacity = Number(settings?.mapSettings?.heatmap?.opacity);
-        const blur = Math.max(10, Math.round(radius * 0.6));
+        const adaptive = getAdaptiveHeatOptions();
         const baseOpts = {
-            radius,
-            blur,
+            radius: adaptive.radius,
+            blur: adaptive.blur,
             maxZoom: mapInstance.getMaxZoom(),
-            minOpacity: Number.isFinite(opacity) ? opacity : 0.65,
+            minOpacity: adaptive.minOpacity,
         };
 
-        const order = ["low", "medium", "high", "other"];
+        // Render low first and high last so severe hotspots remain visually dominant.
+        const order = ["low", "medium", "other", "high"];
         for (const key of order) {
             const arr = filtered
                 .filter((p) => heatSeverityBucket(p.severity) === key)
@@ -397,6 +490,7 @@ function startIncidentRender(snap) {
 
         if (heatLayerGroup.getLayers().length) {
             heatLayerGroup.addTo(mapInstance);
+            bindHeatZoomRerender();
         }
     } else if (heatLayerGroup && mapInstance.hasLayer(heatLayerGroup)) {
         mapInstance.removeLayer(heatLayerGroup);
@@ -443,7 +537,9 @@ function startIncidentRender(snap) {
       `;
 
             if (useIcon) {
-                const marker = L.marker([p.lat, p.lng]);
+                const marker = L.marker([p.lat, p.lng], {
+                    incidentSeverity: String(p.severity).toLowerCase(),
+                });
                 marker.bindPopup(popupHtml);
                 marker.bindTooltip(tooltipHtml, {
                     direction: "top",
@@ -459,6 +555,7 @@ function startIncidentRender(snap) {
                     weight: 1,
                     fillColor: severityColor(p.severity),
                     fillOpacity: 0.9,
+                    incidentSeverity: String(p.severity).toLowerCase(),
                 });
                 marker.bindPopup(popupHtml);
                 marker.bindTooltip(tooltipHtml, {
@@ -478,7 +575,7 @@ function startIncidentListener() {
     if (unsubscribeIncidents) return;
 
     incidentsLayer =
-        incidentsLayer || L.markerClusterGroup().addTo(mapInstance);
+        incidentsLayer || createIncidentClusterLayer().addTo(mapInstance);
 
     const markerLimit =
         Number(settings?.mapSettings?.performance?.markerLimit) || 250;

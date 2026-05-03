@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Analytics</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+        </script>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+        <link rel="stylesheet" href="/css/analytics.css" />
+    </head>
+    <body>
+        <div id="page-analytics" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Collapse sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >close</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a href="dashboard.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
+
+                        <a
+                            href="analytics.html"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >query_stats</span
+                            >
+                            <span>Analytics</span>
+                        </a>
+
+                        <a href="users.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+
+                        <a href="notifications.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Analytics</h1>
+                        <p class="admin-dashboard__tagline">
+                            Track incident patterns, workload, and hotspot
+                            activity
+                        </p>
+                    </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >.</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
+                                id="dashboard-clock-date"
+                                class="admin-dashboard__clock-date"
+                            ></p>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main analytics-main">
+                    <section class="analytics-toolbar">
+                        <div>
+                            <h2 class="admin-dashboard__section-title">
+                                Incident Intelligence
+                            </h2>
+                            <p class="analytics-muted">
+                                Based on the latest Firestore incident records.
+                            </p>
+                        </div>
+                        <label class="analytics-range">
+                            <span>Range</span>
+                            <select id="analytics-range">
+                                <option value="7d">Last 7 days</option>
+                                <option value="30d" selected>
+                                    Last 30 days
+                                </option>
+                                <option value="90d">Last 90 days</option>
+                                <option value="all">All loaded data</option>
+                            </select>
+                        </label>
+                    </section>
+
+                    <section
+                        class="admin-dashboard__stats analytics-stats"
+                        aria-label="Analytics metrics"
+                    >
+                        <article class="stat-card">
+                            <p class="stat-card__label">Total incidents</p>
+                            <p id="analytics-total" class="stat-card__value">
+                                ...
+                            </p>
+                            <p class="stat-card__hint">All records</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Reports today</p>
+                            <p id="analytics-today" class="stat-card__value">
+                                ...
+                            </p>
+                            <p class="stat-card__hint">PHT calendar day</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">High severity</p>
+                            <p id="analytics-high" class="stat-card__value">
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Selected range</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Pending review</p>
+                            <p id="analytics-pending" class="stat-card__value">
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Pending + under review</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">SOS reports</p>
+                            <p id="analytics-sos" class="stat-card__value">
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Selected range</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Verified rate</p>
+                            <p
+                                id="analytics-verified-rate"
+                                class="stat-card__value"
+                            >
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Verified / range total</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Daily average</p>
+                            <p
+                                id="analytics-daily-average"
+                                class="stat-card__value"
+                            >
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Reports per day</p>
+                        </article>
+                        <article class="stat-card">
+                            <p class="stat-card__label">Location coverage</p>
+                            <p
+                                id="analytics-location-coverage"
+                                class="stat-card__value"
+                            >
+                                ...
+                            </p>
+                            <p class="stat-card__hint">Reports with coordinates</p>
+                        </article>
+                    </section>
+
+                    <section class="analytics-grid">
+                        <article class="analytics-panel analytics-panel--wide">
+                            <div class="analytics-panel__header">
+                                <h2>Incident Trend</h2>
+                                <span id="analytics-trend-meta"></span>
+                            </div>
+                            <div
+                                id="analytics-trend-chart"
+                                class="analytics-trend"
+                                role="img"
+                                aria-label="Incident trend chart"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Crime Types</h2>
+                                <span>Severity mix</span>
+                            </div>
+                            <div
+                                id="analytics-type-chart"
+                                class="analytics-stacked"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Severity</h2>
+                            </div>
+                            <div
+                                id="analytics-severity-chart"
+                                class="analytics-donut"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Status Workload</h2>
+                            </div>
+                            <div
+                                id="analytics-status-chart"
+                                class="analytics-bars"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Peak Reporting Hours</h2>
+                                <span>PHT</span>
+                            </div>
+                            <div
+                                id="analytics-hour-chart"
+                                class="analytics-hour-grid"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Response Readiness</h2>
+                            </div>
+                            <div
+                                id="analytics-readiness"
+                                class="analytics-readiness"
+                            ></div>
+                        </article>
+
+                        <article class="analytics-panel">
+                            <div class="analytics-panel__header">
+                                <h2>Top Hotspots</h2>
+                            </div>
+                            <div class="analytics-table-wrap">
+                                <table class="analytics-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Area</th>
+                                            <th>Reports</th>
+                                            <th>High</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="analytics-hotspots">
+                                        <tr>
+                                            <td colspan="3">Loading...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <script type="module" src="/js/analytics.js"></script>
+    </body>
+</html>
