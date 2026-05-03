@@ -83,6 +83,9 @@ function buildCard(docSnap) {
   const isRead = Boolean(d.readAt);
 
   return `<article class="notification-card${isRead ? ' notification-card--read' : ''}" data-notification-id="${escapeAttr(id)}">
+    <label class="notification-card__select" title="Select notification">
+      <input type="checkbox" class="notification-select" value="${escapeAttr(id)}" aria-label="Select notification" />
+    </label>
     <div class="notification-card__top">
       <h3 class="notification-card__title">${escapeHtml(title)}</h3>
       <time class="notification-card__time" title="${escapeAttr(sentFull)}">${escapeHtml(sentRel)}</time>
@@ -103,10 +106,14 @@ function buildCard(docSnap) {
 export async function loadNotificationsTable() {
   const list = document.getElementById('notifications-list');
   const meta = document.getElementById('notifications-count');
+  const selectAll = document.getElementById('notifications-select-all');
+  const archiveSelected = document.getElementById('notifications-archive-selected');
+  const deleteSelected = document.getElementById('notifications-delete-selected');
   if (!list) return;
 
   list.innerHTML = '<div class="notifications-empty">Loading…</div>';
   if (meta) meta.textContent = 'Loading…';
+  updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
 
   const q = query(
     collection(db, 'notifications'),
@@ -116,18 +123,20 @@ export async function loadNotificationsTable() {
 
   const snap = await getDocs(q);
 
-  if (snap.empty) {
+  const visibleDocs = snap.docs.filter((docSnap) => !docSnap.data()?.archivedAt);
+
+  if (!visibleDocs.length) {
     list.innerHTML =
       '<div class="notifications-empty">No notifications yet.</div>';
     if (meta) meta.textContent = '0 notifications';
+    updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
     return;
   }
 
-  const cards = [];
-  snap.forEach((docSnap) => cards.push(buildCard(docSnap)));
+  const cards = visibleDocs.map((docSnap) => buildCard(docSnap));
   list.innerHTML = cards.join('');
 
-  const n = snap.size;
+  const n = visibleDocs.length;
   if (meta) {
     meta.textContent =
       n >= LIST_LIMIT
@@ -139,6 +148,67 @@ export async function loadNotificationsTable() {
     return;
   }
   list.dataset.notificationActionsBound = '1';
+
+  selectAll?.addEventListener('change', () => {
+    const checked = Boolean(selectAll.checked);
+    list.querySelectorAll('.notification-select').forEach((input) => {
+      input.checked = checked;
+    });
+    updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+  });
+
+  archiveSelected?.addEventListener('click', async () => {
+    const ids = getSelectedNotificationIds(list);
+    if (!ids.length) return;
+    archiveSelected.disabled = true;
+    deleteSelected.disabled = true;
+    try {
+      await Promise.all(
+        ids.map((id) =>
+          updateDoc(doc(db, 'notifications', id), {
+            archivedAt: serverTimestamp(),
+          }),
+        ),
+      );
+      removeNotificationCards(list, ids);
+      toastSuccess(`${ids.length} notification${ids.length === 1 ? '' : 's'} archived`);
+      syncNotificationsMeta(list, meta);
+      updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+    } catch (err) {
+      console.error('[notifications] archive selected', err);
+      toastError(err?.message || 'Failed to archive notifications');
+      updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+    }
+  });
+
+  deleteSelected?.addEventListener('click', async () => {
+    const ids = getSelectedNotificationIds(list);
+    if (!ids.length) return;
+    const ok = await confirmDanger({
+      title: 'Delete selected notifications?',
+      text: `This will permanently delete ${ids.length} notification${ids.length === 1 ? '' : 's'}.`,
+      confirmText: 'Delete',
+    });
+    if (!ok) return;
+    archiveSelected.disabled = true;
+    deleteSelected.disabled = true;
+    try {
+      await Promise.all(ids.map((id) => deleteDoc(doc(db, 'notifications', id))));
+      removeNotificationCards(list, ids);
+      toastSuccess(`${ids.length} notification${ids.length === 1 ? '' : 's'} deleted`);
+      syncNotificationsMeta(list, meta);
+      updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+    } catch (err) {
+      console.error('[notifications] delete selected', err);
+      toastError(err?.message || 'Failed to delete notifications');
+      updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+    }
+  });
+
+  list.addEventListener('change', (e) => {
+    if (!e.target.matches('.notification-select')) return;
+    updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
+  });
 
   list.addEventListener('click', async (e) => {
     const btn = e.target.closest('button[data-action]');
@@ -175,6 +245,7 @@ export async function loadNotificationsTable() {
         toastSuccess('Notification deleted');
         card.remove();
         syncNotificationsMeta(list, meta);
+        updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
       } catch (err) {
         console.error('[notifications] delete', err);
         toastError(err?.message || 'Failed to delete notification');
@@ -182,6 +253,8 @@ export async function loadNotificationsTable() {
       }
     }
   });
+
+  updateBulkControls(list, selectAll, archiveSelected, deleteSelected);
 }
 
 function syncNotificationsMeta(list, meta) {
@@ -197,5 +270,33 @@ function syncNotificationsMeta(list, meta) {
     remaining >= LIST_LIMIT
       ? `${remaining}+ notifications (showing latest ${LIST_LIMIT})`
       : `${remaining} notification${remaining === 1 ? '' : 's'}`;
+}
+
+function getSelectedNotificationIds(list) {
+  return Array.from(list.querySelectorAll('.notification-select:checked'))
+    .map((input) => input.value)
+    .filter(Boolean);
+}
+
+function removeNotificationCards(list, ids) {
+  ids.forEach((id) => {
+    list
+      .querySelector(`[data-notification-id="${CSS.escape(id)}"]`)
+      ?.remove();
+  });
+}
+
+function updateBulkControls(list, selectAll, archiveSelected, deleteSelected) {
+  const boxes = Array.from(list?.querySelectorAll('.notification-select') || []);
+  const selected = boxes.filter((box) => box.checked);
+  const hasSelected = selected.length > 0;
+
+  if (archiveSelected) archiveSelected.disabled = !hasSelected;
+  if (deleteSelected) deleteSelected.disabled = !hasSelected;
+
+  if (!selectAll) return;
+  selectAll.disabled = boxes.length === 0;
+  selectAll.checked = boxes.length > 0 && selected.length === boxes.length;
+  selectAll.indeterminate = hasSelected && selected.length < boxes.length;
 }
 

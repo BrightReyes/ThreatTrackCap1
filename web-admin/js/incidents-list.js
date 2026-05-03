@@ -50,12 +50,6 @@ function humanize(str) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function truncate(text, max) {
-  const s = text == null ? '' : String(text);
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
-}
-
 function statusBadgeClass(status) {
   const allowed = [
     'pending',
@@ -94,7 +88,6 @@ function buildRow(docSnap) {
   const typeLabel = humanize(d.type);
   const sevLabel = humanize(d.severity);
   const statusLabel = humanize(d.status);
-  const desc = truncate(d.description, 120);
   const code = formatIncidentCode(id);
 
   return `<tr data-incident-id="${escapeAttr(id)}">
@@ -103,9 +96,10 @@ function buildRow(docSnap) {
     <td>${escapeHtml(typeLabel)}</td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
-    <td class="incidents-table__desc" title="${escapeAttr(d.description || '')}">${escapeHtml(desc)}</td>
     <td>
-      <button type="button" class="incidents-action-btn" title="View full report">View</button>
+      <button type="button" class="incidents-more-btn incidents-action-btn" title="View full report" aria-label="View full report">
+        <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+      </button>
     </td>
   </tr>`;
 }
@@ -230,14 +224,14 @@ function renderFilteredTable() {
 
   if (!allDocs.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents yet.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="6">No incidents yet.</td></tr>';
     if (meta) meta.textContent = '0 incidents';
     return;
   }
 
   if (!filtered.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents match your search or filters.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="6">No incidents match your search or filters.</td></tr>';
     if (meta) {
       meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
     }
@@ -309,7 +303,7 @@ export async function loadIncidentsTable() {
   if (!tbody) return;
 
   tbody.innerHTML =
-    '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
+    '<tr class="incidents-table__empty"><td colspan="6">Loading…</td></tr>';
   if (meta) meta.textContent = 'Loading…';
 
   const q = query(

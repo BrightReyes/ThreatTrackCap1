@@ -1,10 +1,7 @@
 import {
     collection,
     getCountFromServer,
-    getDocs,
-    limit,
     onSnapshot,
-    orderBy,
     query,
     Timestamp,
     where,
@@ -13,13 +10,6 @@ import { db } from "../../shared/firebase.js";
 
 /** Pending + under review — needs admin attention */
 const OPEN_STATUSES = ["pending", "under_review"];
-
-function severityToScore(sev) {
-    if (sev === "high") return 100;
-    if (sev === "medium") return 55;
-    if (sev === "low") return 25;
-    return null;
-}
 
 function setText(id, text) {
     const el = document.getElementById(id);
@@ -76,33 +66,4 @@ export async function loadAdminStats() {
         },
     );
 
-    try {
-        const recentQ = query(
-            collection(db, "incidents"),
-            orderBy("timestamp", "desc"),
-            limit(200),
-        );
-        const recentSnap = await getDocs(recentQ);
-        let total = 0;
-        let n = 0;
-        recentSnap.forEach((docSnap) => {
-            const d = docSnap.data();
-            let score =
-                typeof d.verificationScore === "number"
-                    ? d.verificationScore
-                    : null;
-            if (score == null) {
-                const s = severityToScore(d.severity);
-                if (s != null) score = s;
-            }
-            if (score != null) {
-                total += score;
-                n += 1;
-            }
-        });
-        setText("stat-avg-risk", n ? String(Math.round(total / n)) : "—");
-    } catch (e) {
-        console.error("[admin-stats] avg risk", e);
-        setText("stat-avg-risk", "—");
-    }
 }

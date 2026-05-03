@@ -166,6 +166,36 @@
                                 Loading…
                             </p>
                         </div>
+                        <div
+                            class="notifications-toolbar"
+                            aria-label="Bulk notification actions"
+                        >
+                            <label class="notifications-select-all">
+                                <input
+                                    type="checkbox"
+                                    id="notifications-select-all"
+                                />
+                                <span>Select all</span>
+                            </label>
+                            <div class="notifications-toolbar__actions">
+                                <button
+                                    type="button"
+                                    id="notifications-archive-selected"
+                                    class="notification-btn notification-btn--secondary"
+                                    disabled
+                                >
+                                    Archive
+                                </button>
+                                <button
+                                    type="button"
+                                    id="notifications-delete-selected"
+                                    class="notification-btn notification-btn--danger"
+                                    disabled
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
 
                         <div
                             id="notifications-list"

@@ -34,8 +34,7 @@ body {
     width: 260px;
     flex-shrink: 0;
     height: 100vh;
-    background:
-        linear-gradient(180deg, #101827 0%, #0b1120 100%);
+    background: linear-gradient(180deg, #101827 0%, #0b1120 100%);
     color: var(--border);
     display: flex;
     flex-direction: column;
@@ -246,7 +245,11 @@ body {
 
 .sidebar__link--active:hover {
     background:
-        linear-gradient(90deg, rgba(239, 68, 68, 0.24), rgba(239, 68, 68, 0.08)),
+        linear-gradient(
+            90deg,
+            rgba(239, 68, 68, 0.24),
+            rgba(239, 68, 68, 0.08)
+        ),
         rgba(255, 255, 255, 0.07);
 }
 
@@ -389,43 +392,47 @@ body {
     border-left: 1px solid var(--border-soft);
 }
 
-/* Minimal clock: type-only, no card chrome */
 .admin-dashboard__clock {
-    gap: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 178px;
+    min-height: 58px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    box-shadow:
+        0 12px 28px rgba(153, 27, 27, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .admin-dashboard__clock-time {
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    color: inherit;
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
 }
 
 .admin-dashboard__clock-date {
-    font-size: 0.75rem;
-    color: #9ca3af;
+    display: none;
 }
 
 .admin-dashboard__clock-line {
     display: inline-flex;
     align-items: baseline;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: 0;
+    justify-content: center;
 }
 
 .admin-dashboard__clock-sep {
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: #cbd5e1;
-    user-select: none;
+    display: none;
 }
 
 .admin-dashboard__clock-tz {
-    font-size: 0.625rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    color: #94a3b8;
-    text-transform: uppercase;
+    display: none;
 }
 
 .admin-dashboard__title {
@@ -687,7 +694,9 @@ html.sidebar-collapsed-initial .sidebar-toggle__logo-img {
 }
 
 .admin-dashboard__sidebar--collapsed .sidebar__footer::before,
-html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::before {
+html.sidebar-collapsed-initial
+    .admin-dashboard__sidebar
+    .sidebar__footer::before {
     display: none;
 }
 
@@ -763,8 +772,10 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::befor
 
 .admin-dashboard__stats {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
+    margin-top: 6px;
+    padding-top: 6px;
     margin-bottom: 24px;
     overflow-x: auto; /* optional safety */
 }
@@ -790,21 +801,67 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::befor
 .stat-card__label {
     font-size: 0.8125rem;
     color: #6b7280;
-    margin: 0 0 8px 0;
+    margin: 0 0 4px 0;
     font-weight: 500;
+}
+
+.stat-card__summary {
+    display: flex;
+    align-items: center;
+    gap: 35px;
+    margin: 0 0 10px 0;
+}
+
+.stat-card__content {
+    min-width: 0;
+}
+
+.stat-card__icon {
+    flex: 0 0 42px;
+    color: var(--stat-value, #6b7280);
+    font-size: 42px;
+    line-height: 1;
+    opacity: 0.92;
+    font-variation-settings:
+        "FILL" 0,
+        "wght" 450,
+        "GRAD" 0,
+        "opsz" 48;
+    pointer-events: none;
 }
 
 .stat-card__value {
     font-size: 1.75rem;
     font-weight: 700;
     color: #111827;
-    margin: 0 0 6px 0;
+    margin: 0;
 }
 
 .stat-card__hint {
     font-size: 0.75rem;
     color: #9ca3af;
+    /* text-align: center; */
     margin: 0;
+}
+
+.stat-card[id] .stat-card__value {
+    color: var(--stat-value, #111827);
+}
+
+#card-open-incidents {
+    --stat-value: #dc2626;
+}
+
+#card-reports-24h {
+    --stat-value: #2563eb;
+}
+
+#card-users {
+    --stat-value: #059669;
+}
+
+#card-total-incidents {
+    --stat-value: #4f46e5;
 }
 
 .admin-dashboard__section-title {
@@ -836,8 +893,7 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::befor
     padding: 18px;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 16px;
-    background:
-        linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
     box-shadow:
         0 1px 2px rgba(15, 23, 42, 0.04),
         0 18px 44px rgba(15, 23, 42, 0.06);
@@ -906,8 +962,7 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::befor
 
     border: 1px solid #e6eaf0;
     border-radius: 14px;
-    background:
-        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
 
     margin: 0 0 14px;
 }
@@ -1399,18 +1454,23 @@ html.sidebar-collapsed-initial .admin-dashboard__sidebar .sidebar__footer::befor
         border-top: 1px solid var(--border-soft);
     }
 
-    .admin-dashboard__clock,
     .admin-dashboard__clock-line {
         align-items: flex-start;
         justify-content: flex-start;
         text-align: left;
+    }
+
+    .admin-dashboard__clock {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
     }
 }
 
 .stat-card:hover {
     transform: translateY(-3px);
 
-    border-color: #d1d5db;
+    border-color: var(--stat-value, #d1d5db);
     cursor: pointer;
 }
 

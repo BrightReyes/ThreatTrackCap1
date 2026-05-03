@@ -4,6 +4,7 @@ import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 
 const EDIT_ROLES = ["user", "police", "admin"];
+const EDIT_STATUSES = ["active", "inactive", "suspended"];
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -33,11 +34,55 @@ function formatTimestamp(ts) {
     return "—";
 }
 
+function formatDate(ts) {
+    if (ts && typeof ts.toDate === "function") {
+        try {
+            return ts.toDate().toLocaleDateString(undefined, {
+                dateStyle: "medium",
+            });
+        } catch {
+            return "—";
+        }
+    }
+    return "—";
+}
+
 function displayName(d) {
     const fn = (d.firstName || "").trim();
     const ln = (d.lastName || "").trim();
     const parts = [fn, ln].filter(Boolean);
     return parts.length ? parts.join(" ") : "—";
+}
+
+function userInitials(d) {
+    const name = displayName(d);
+    if (name === "—") return "?";
+    return name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("");
+}
+
+function userStatus(data) {
+    const raw = String(data.status || "").trim().toLowerCase();
+    if (raw) return raw;
+    if (data.disabled === true) return "inactive";
+    if (data.suspended === true) return "suspended";
+    return "active";
+}
+
+function statusBadgeClass(status) {
+    const s = String(status || "").toLowerCase();
+    if (s === "active") return "users-status users-status--active";
+    if (s === "suspended") return "users-status users-status--suspended";
+    return "users-status users-status--inactive";
+}
+
+function humanizeStatus(status) {
+    return String(status || "inactive")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function humanizeRole(role) {
@@ -59,31 +104,60 @@ function normalizeRole(role) {
 }
 
 function renderUserDetail(userId, d) {
-    const rows = [
-        [
-            "User ID",
-            `<span class="incident-detail__mono">${escapeHtml(userId)}</span>`,
-        ],
-        ["Email", escapeHtml(d.email || "—")],
-        ["Name", escapeHtml(displayName(d))],
-        [
-            "Role",
-            `<span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>`,
-        ],
-        ["Joined", escapeHtml(formatTimestamp(d.createdAt))],
-    ];
+    const name = displayName(d);
+    const status = userStatus(d);
+    const contact = d.phone || d.phoneNumber || d.contactNumber || "—";
+    const joined = formatDate(d.createdAt);
+    const updated = formatTimestamp(d.updatedAt || d.lastUpdatedAt);
+    const lastSeen = formatTimestamp(
+        d.lastLoginAt || d.lastSeenAt || d.lastActiveAt,
+    );
 
-    return `<dl class="incident-detail">
-    ${rows
-        .map(
-            ([label, inner]) =>
-                `<div class="incident-detail__row"><dt>${escapeHtml(label)}</dt><dd>${inner}</dd></div>`,
-        )
-        .join("")}
-  </dl>
+    return `<section class="user-profile" aria-label="User profile summary">
+    <div class="user-profile__hero">
+      <div class="user-profile__avatar" aria-hidden="true">${escapeHtml(userInitials(d))}</div>
+      <div class="user-profile__identity">
+        <h3>${escapeHtml(name)}</h3>
+        <p>${escapeHtml(d.email || "No email address")}</p>
+        <div class="user-profile__badges">
+          <span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>
+          <span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="user-profile__quick-grid" aria-label="Account summary">
+      <div class="user-profile__quick-item">
+        <span>Date joined</span>
+        <strong>${escapeHtml(joined)}</strong>
+      </div>
+      <div class="user-profile__quick-item">
+        <span>Last active</span>
+        <strong>${escapeHtml(lastSeen)}</strong>
+      </div>
+    </div>
+
+    <section class="user-profile__section">
+      <h4>Contact</h4>
+      <dl class="user-profile__details">
+        <div><dt>Email address</dt><dd>${escapeHtml(d.email || "—")}</dd></div>
+        <div><dt>Phone</dt><dd>${escapeHtml(contact)}</dd></div>
+      </dl>
+    </section>
+
+    <section class="user-profile__section">
+      <h4>System</h4>
+      <dl class="user-profile__details">
+        <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
+        <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
+        <div><dt>Status</dt><dd>${escapeHtml(humanizeStatus(status))}</dd></div>
+        <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
+      </dl>
+    </section>
+  </section>
   <section class="incident-actions incident-actions--user" aria-label="User actions">
-    <h3 class="incident-actions__title">Actions</h3>
-    <p class="incident-actions__hint">Edit profile fields or remove the Firestore document (sign-in account stays).</p>
+    <h3 class="incident-actions__title">Profile actions</h3>
+    <p class="incident-actions__hint">Edit profile fields, role, or account status. Delete only removes the Firestore profile document.</p>
     <div class="incident-actions__buttons">
       <button type="button" class="incident-action-btn" data-user-action="edit-profile">Edit</button>
       <button type="button" class="incident-action-btn incident-action-btn--danger" data-user-action="delete-profile">
@@ -96,40 +170,77 @@ function renderUserDetail(userId, d) {
 
 function renderUserEditForm(userId, d) {
     const cur = normalizeRole(d.role);
+    const curStatus = userStatus(d);
+    const name = displayName(d);
     const roleOptions = EDIT_ROLES.map((r) => {
         const sel = r === cur ? " selected" : "";
         return `<option value="${escapeAttr(r)}"${sel}>${escapeHtml(humanizeRole(r))}</option>`;
     }).join("");
+    const statusOptions = EDIT_STATUSES.map((s) => {
+        const sel = s === curStatus ? " selected" : "";
+        return `<option value="${escapeAttr(s)}"${sel}>${escapeHtml(humanizeStatus(s))}</option>`;
+    }).join("");
 
-    return `<form class="user-modal-form" id="user-edit-form" novalidate>
-    <div class="user-modal-form__readonly">
-      <span class="user-modal-form__readonly-label">User ID</span>
-      <span class="incident-detail__mono">${escapeHtml(userId)}</span>
-    </div>
-    <div class="user-modal-form__readonly">
-      <span class="user-modal-form__readonly-label">Email</span>
-      <span>${escapeHtml(d.email || "—")}</span>
-    </div>
-    <div class="user-modal-form__readonly">
-      <span class="user-modal-form__readonly-label">Joined</span>
-      <span>${escapeHtml(formatTimestamp(d.createdAt))}</span>
-    </div>
-    <div class="user-modal-form__field">
-      <label class="user-modal-form__label" for="user-edit-first">First name</label>
-      <input id="user-edit-first" name="firstName" class="user-modal-form__input" type="text" autocomplete="off" value="${escapeAttr(d.firstName || "")}" />
-    </div>
-    <div class="user-modal-form__field">
-      <label class="user-modal-form__label" for="user-edit-last">Last name</label>
-      <input id="user-edit-last" name="lastName" class="user-modal-form__input" type="text" autocomplete="off" value="${escapeAttr(d.lastName || "")}" />
-    </div>
-    <div class="user-modal-form__field">
-      <label class="user-modal-form__label" for="user-edit-role">Role</label>
-      <div class="user-modal-form__select-wrap">
-        <select id="user-edit-role" name="role" class="incidents-select" aria-label="User role">${roleOptions}</select>
+    return `<form class="user-modal-form user-modal-form--profile" id="user-edit-form" novalidate>
+    <section class="user-edit-card user-edit-card--hero">
+      <div class="user-profile__avatar" aria-hidden="true">${escapeHtml(userInitials(d))}</div>
+      <div class="user-profile__identity">
+        <h3>Edit profile</h3>
+        <p>${escapeHtml(name)} · ${escapeHtml(d.email || "No email address")}</p>
       </div>
-    </div>
+    </section>
+
+    <section class="user-edit-card">
+      <div class="user-edit-card__head">
+        <h4>Identity</h4>
+        <p>Update the display name shown across admin records.</p>
+      </div>
+      <div class="user-modal-form__grid">
+        <div class="user-modal-form__field">
+          <label class="user-modal-form__label" for="user-edit-first">First name</label>
+          <input id="user-edit-first" name="firstName" class="user-modal-form__input" type="text" autocomplete="off" value="${escapeAttr(d.firstName || "")}" />
+        </div>
+        <div class="user-modal-form__field">
+          <label class="user-modal-form__label" for="user-edit-last">Last name</label>
+          <input id="user-edit-last" name="lastName" class="user-modal-form__input" type="text" autocomplete="off" value="${escapeAttr(d.lastName || "")}" />
+        </div>
+      </div>
+    </section>
+
+    <section class="user-edit-card">
+      <div class="user-edit-card__head">
+        <h4>Access</h4>
+        <p>Control the account role and moderation status.</p>
+      </div>
+      <div class="user-modal-form__grid">
+        <div class="user-modal-form__field">
+          <label class="user-modal-form__label" for="user-edit-role">Role</label>
+          <div class="user-modal-form__select-wrap">
+            <select id="user-edit-role" name="role" class="incidents-select" aria-label="User role">${roleOptions}</select>
+          </div>
+        </div>
+        <div class="user-modal-form__field">
+          <label class="user-modal-form__label" for="user-edit-status">Status</label>
+          <div class="user-modal-form__select-wrap">
+            <select id="user-edit-status" name="status" class="incidents-select" aria-label="User status">${statusOptions}</select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="user-edit-card">
+      <div class="user-edit-card__head">
+        <h4>Reference</h4>
+        <p>Read-only account identifiers.</p>
+      </div>
+      <div class="user-edit-reference">
+        <div><span>User ID</span><strong class="incident-detail__mono">${escapeHtml(userId)}</strong></div>
+        <div><span>Email</span><strong>${escapeHtml(d.email || "—")}</strong></div>
+        <div><span>Joined</span><strong>${escapeHtml(formatTimestamp(d.createdAt))}</strong></div>
+      </div>
+    </section>
   </form>
-  <section class="incident-actions incident-actions--user" aria-label="Save user edits">
+  <section class="incident-actions incident-actions--user user-edit-actions" aria-label="Save user edits">
     <div class="incident-actions__buttons">
       <button type="button" class="incident-action-btn" data-user-action="cancel-edit">Cancel</button>
       <button type="submit" form="user-edit-form" class="incident-action-btn incident-action-btn--primary" data-user-action="save-profile">
@@ -142,40 +253,43 @@ function renderUserEditForm(userId, d) {
 
 function patchUsersTableRow(userId, d) {
     const row = document.querySelector(`tr[data-user-id="${CSS.escape(userId)}"]`);
-    if (!row || row.children.length < 4) return;
+    if (!row || row.children.length < 6) return;
     const email = d.email || "—";
     const name = displayName(d);
     const roleLabel = humanizeRole(d.role);
     const badge = roleBadgeClass(d.role);
     const joined = formatTimestamp(d.createdAt);
-    const c0 = row.children[0];
+    const status = userStatus(d);
     const c1 = row.children[1];
     const c2 = row.children[2];
     const c3 = row.children[3];
-    if (c0) {
-        c0.textContent = email;
-        c0.setAttribute("title", email);
-        c0.className = "incidents-table__desc";
-    }
+    const c4 = row.children[4];
+    const c5 = row.children[5];
     if (c1) c1.textContent = name;
-    if (c2)
-        c2.innerHTML = `<span class="${badge}">${escapeHtml(roleLabel)}</span>`;
-    if (c3) {
+    if (c2) {
+        c2.textContent = email;
+        c2.setAttribute("title", email);
+        c2.className = "incidents-table__desc";
+    }
+    if (c3)
+        c3.innerHTML = `<span class="${badge}">${escapeHtml(roleLabel)}</span>`;
+    if (c4) {
         const short =
             d.createdAt && typeof d.createdAt.toDate === "function"
                 ? (() => {
                       try {
-                          return d.createdAt.toDate().toLocaleString(undefined, {
+                          return d.createdAt.toDate().toLocaleDateString(undefined, {
                               dateStyle: "short",
-                              timeStyle: "short",
                           });
                       } catch {
                           return joined;
                       }
                   })()
                 : joined;
-        c3.textContent = short;
+        c4.textContent = short;
     }
+    if (c5)
+        c5.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>`;
 }
 
 export function initUserModal() {
@@ -282,10 +396,13 @@ export function initUserModal() {
             const fnEl = body.querySelector("#user-edit-first");
             const lnEl = body.querySelector("#user-edit-last");
             const roleEl = body.querySelector("#user-edit-role");
+            const statusEl = body.querySelector("#user-edit-status");
             const firstName = String(fnEl?.value ?? "").trim();
             const lastName = String(lnEl?.value ?? "").trim();
             let role = normalizeRole(roleEl?.value ?? "user");
             if (!EDIT_ROLES.includes(role)) role = "user";
+            let status = String(statusEl?.value ?? "active").toLowerCase();
+            if (!EDIT_STATUSES.includes(status)) status = "active";
 
             if (feedback) feedback.textContent = "Saving…";
             saveBtn && (saveBtn.disabled = true);
@@ -297,13 +414,15 @@ export function initUserModal() {
                 firstName,
                 lastName,
                 role,
+                status,
+                disabled: status === "inactive",
+                suspended: status === "suspended",
             };
 
             try {
                 await updateDoc(doc(db, "users", currentUserId), payload);
                 currentData = { ...currentData, ...payload };
-                if (titleEl)
-                    titleEl.textContent = `${currentData.email || currentUserId}`;
+                if (titleEl) titleEl.textContent = "Profile";
                 patchUsersTableRow(currentUserId, currentData);
                 toastSuccess("User updated");
                 if (feedback) feedback.textContent = "";
@@ -328,14 +447,14 @@ export function initUserModal() {
     });
 
     tbody.addEventListener("click", async (e) => {
-        const btn = e.target.closest(".incidents-action-btn");
+        const btn = e.target.closest(".users-more-btn");
         if (!btn) return;
         const tr = btn.closest("tr");
         const id = tr?.dataset?.userId;
         if (!id) return;
 
         currentUserId = id;
-        if (titleEl) titleEl.textContent = "User details";
+        if (titleEl) titleEl.textContent = "Profile";
         body.innerHTML = '<p class="incident-modal__loading">Loading user…</p>';
         openModal();
 
@@ -346,8 +465,7 @@ export function initUserModal() {
                 return;
             }
             currentData = snap.data();
-            if (titleEl)
-                titleEl.textContent = `${currentData.email || snap.id}`;
+            if (titleEl) titleEl.textContent = "Profile";
             body.innerHTML = renderUserDetail(snap.id, currentData);
             bindViewActions();
         } catch (err) {

@@ -80,10 +80,15 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles
       allow read: if isAuthenticated();
 
-      // Users can only create their own profile
-      allow create: if isOwner(userId) &&
+      // Users can create their own profile; staff can create Firestore-only profiles from dashboard.
+      allow create: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
-                    request.resource.data.email == request.auth.token.email;
+                    request.resource.data.email == request.auth.token.email) ||
+                   (isAdmin() &&
+                    request.resource.data.uid == userId &&
+                    request.resource.data.email is string &&
+                    request.resource.data.role in ['user', 'police', 'admin', 'moderator'] &&
+                    request.resource.data.status in ['active', 'inactive', 'suspended']);
 
       // Users update own profile (email unchanged). Staff may update others: uid must match doc id,
       // and only safe scalar fields may change (diff-based — avoids email== failures when email is missing/mismatched).
@@ -93,7 +98,7 @@ service cloud.firestore {
                    (canManageUserProfiles() &&
                     request.resource.data.uid == userId &&
                     request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['firstName', 'lastName', 'role', 'uid']));
+                      .hasOnly(['firstName', 'lastName', 'role', 'status', 'disabled', 'suspended', 'uid']));
 
       // Users can delete their own profile, admins can delete any
       allow delete: if isOwner(userId) || isAdmin();

@@ -156,23 +156,18 @@ function getAdaptiveHeatOptions() {
     const configuredOpacity = Number(settings?.mapSettings?.heatmap?.opacity);
     const zoom = mapInstance?.getZoom?.() || 13;
 
-    let zoomScale = 1;
-    if (zoom <= 10) zoomScale = 0.38;
-    else if (zoom <= 11) zoomScale = 0.5;
-    else if (zoom <= 12) zoomScale = 0.68;
-    else if (zoom >= 15) zoomScale = 1.08;
-
-    const radius = Math.max(10, Math.round(configuredRadius * zoomScale));
-    const blur = Math.max(6, Math.round(radius * 0.5));
+    const zoomScale = Math.min(1, Math.max(0.16, 2 ** (zoom - 13)));
+    const radius = Math.max(4, Math.round(configuredRadius * zoomScale));
+    const blur = Math.max(2, Math.round(radius * 0.35));
     const baseOpacity = Number.isFinite(configuredOpacity)
         ? configuredOpacity
         : 0.42;
-    const opacityScale = zoom <= 11 ? 0.42 : zoom <= 12 ? 0.62 : 1;
+    const opacityScale = zoom <= 10 ? 0.62 : zoom <= 11 ? 0.78 : 1;
 
     return {
         radius,
         blur,
-        minOpacity: Math.max(0.12, Math.min(0.56, baseOpacity * opacityScale)),
+        minOpacity: Math.max(0.1, Math.min(0.56, baseOpacity * opacityScale)),
     };
 }
 
