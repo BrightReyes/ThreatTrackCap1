@@ -127,6 +127,8 @@ const SEVERITY_CONFIG = {
 
 const DESCRIPTION_MIN_LENGTH = 10;
 const DESCRIPTION_MAX_LENGTH = 2000;
+const CONFIRM_REPORT_MESSAGE =
+  'By continuing, you declare that this report is true and accurate.\n\nFalse reporting may result in penalties, including account suspension and possible legal action under Philippine law.';
 
 const getSeverityFromType = (type) => {
   return INCIDENT_TYPES.find((incidentType) => incidentType.id === type)?.severity || 'medium';
@@ -151,6 +153,7 @@ const ReportIncidentScreen = ({ navigation }) => {
     message: '',
     type: 'info',
     buttons: [],
+    autoCloseDelay: 5000,
   });
 
   const selectedIncident = getIncidentByType(incidentType);
@@ -161,13 +164,14 @@ const ReportIncidentScreen = ({ navigation }) => {
     getLocationAutomatically();
   }, []);
 
-  const showAlert = (title, message, type = 'info', buttons = []) => {
+  const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000) => {
     setAlertConfig({
       visible: true,
       title,
       message,
       type,
       buttons,
+      autoCloseDelay,
     });
   };
 
@@ -276,20 +280,20 @@ const ReportIncidentScreen = ({ navigation }) => {
     }
   };
 
-  const handleSubmit = async () => {
+  const validateReportDetails = () => {
     if (!incidentType) {
       showAlert('Missing Information', 'Please select an incident type.', 'warning');
-      return;
+      return false;
     }
     if (!reportingAs) {
       showAlert('Missing Information', 'Please select who you are reporting as.', 'warning');
-      return;
+      return false;
     }
     const trimmedDescription = description.trim();
 
     if (!trimmedDescription) {
       showAlert('Missing Information', 'Please provide a description.', 'warning');
-      return;
+      return false;
     }
     if (trimmedDescription.length < DESCRIPTION_MIN_LENGTH) {
       showAlert(
@@ -297,7 +301,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         `Please enter at least ${DESCRIPTION_MIN_LENGTH} characters so the report can be submitted.`,
         'warning',
       );
-      return;
+      return false;
     }
     if (trimmedDescription.length > DESCRIPTION_MAX_LENGTH) {
       showAlert(
@@ -305,8 +309,37 @@ const ReportIncidentScreen = ({ navigation }) => {
         `Please keep the description under ${DESCRIPTION_MAX_LENGTH} characters.`,
         'warning',
       );
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = () => {
+    if (!validateReportDetails()) {
       return;
     }
+
+    showAlert(
+      'Confirm Report Submission',
+      CONFIRM_REPORT_MESSAGE,
+      'warning',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Continue',
+          onPress: handleConfirmedSubmit,
+        },
+      ],
+      0,
+    );
+  };
+
+  const handleConfirmedSubmit = async () => {
+    const trimmedDescription = description.trim();
 
     let reportLocation = location;
     if (!reportLocation) {
@@ -647,7 +680,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         type={alertConfig.type}
         buttons={alertConfig.buttons}
         onClose={hideAlert}
-        autoCloseDelay={5000}
+        autoCloseDelay={alertConfig.autoCloseDelay}
       />
     </>
   );

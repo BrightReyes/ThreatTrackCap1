@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
+
+const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 const generateMockNotifications = () => {
   return [
@@ -108,7 +110,7 @@ const NotificationsScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex:1 },
-  topNav: { backgroundColor:'#d32f2f', flexDirection:'row', justifyContent:'space-around', paddingTop:36, paddingBottom:12 },
+  topNav: { backgroundColor:'#d32f2f', flexDirection:'row', justifyContent:'space-around', paddingTop:HEADER_TOP_PADDING, paddingBottom:12 },
   navItem:{alignItems:'center', width:'25%'},
   navIcon:{color:'#fff', fontSize:18, marginBottom:4},
   navLabel:{color:'#fff', fontWeight:'700', fontSize:11},

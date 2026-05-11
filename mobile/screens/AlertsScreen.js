@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image, StatusBar } from 'react-native';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
 const NEARBY_RADIUS_KM = 5; // Alert for incidents within 5km
+const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 const AlertsScreen = ({ navigation }) => {
   const [alerts, setAlerts] = useState([]);
@@ -338,7 +339,7 @@ const styles = StyleSheet.create({
   // Header Styles
   headerNew: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: HEADER_TOP_PADDING,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
   },

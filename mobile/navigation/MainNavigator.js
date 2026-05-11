@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
 import HomeScreen from '../screens/HomeScreen';
+import SOSGatewayScreen from '../screens/SOSGatewayScreen';
 import ReportIncidentScreen from '../screens/ReportIncidentScreen';
 import SOSReportScreen from '../screens/SOSReportScreen';
 import StatusScreen from '../screens/StatusScreen';
@@ -16,10 +17,12 @@ const MainNavigator = ({ onLogout }) => {
   return (
     <>
       <Stack.Navigator
+        initialRouteName="SOSGateway"
         screenOptions={{
           headerShown: false,
         }}
       >
+        <Stack.Screen name="SOSGateway" component={SOSGatewayScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="ReportIncident" component={ReportIncidentScreen} />
         <Stack.Screen name="SOSReport" component={SOSReportScreen} />
