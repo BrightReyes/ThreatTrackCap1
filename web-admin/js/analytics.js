@@ -3,18 +3,212 @@ import {
     collection,
     getCountFromServer,
     getDocs,
-    limit,
-    orderBy,
-    query,
 } from "firebase/firestore";
-import { db } from "../../shared/firebase.js";
+import { auth, db } from "../../shared/firebase.js";
 
 const INCIDENT_LIMIT = 500;
 const OPEN_STATUSES = new Set(["pending", "under_review"]);
 const VERIFIED_STATUSES = new Set(["verified", "responding", "done"]);
 const RESPONDED_STATUSES = new Set(["responding", "done"]);
+const AI_SUMMARY_ENDPOINT =
+    "https://us-central1-threattrackcap1.cloudfunctions.net/generateAnalyticsSolutionSummary";
+const SOLUTION_LIMIT = 5;
+const MIN_RECOMMENDATION_REPORTS = 3;
+
+const TYPE_SOLUTION_RULES = {
+    robbery_holdup: [
+        {
+            actionId: "improve_lighting",
+            title: "Install or repair street lights",
+            reason: "Robbery and holdup reports need stronger visibility in the exact street segment.",
+            timeframe: "Plan within 7 days",
+        },
+        {
+            actionId: "install_cctv",
+            title: "Add CCTV covering sidewalks and escape routes",
+            reason: "Repeated robbery reports need deterrence and evidence capture.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "increase_patrol",
+            title: "Increase visible patrols during peak hours",
+            reason: "Patrol timing should match when reports are most concentrated.",
+            timeframe: "Start immediately",
+        },
+    ],
+    theft_snatching: [
+        {
+            actionId: "install_cctv",
+            title: "Add CCTV near pedestrian and commuter points",
+            reason: "Snatching often happens where people walk, wait, or transfer rides.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "public_warning_signage",
+            title: "Place anti-snatching warning signs",
+            reason: "Public reminders help residents secure phones, bags, and valuables.",
+            timeframe: "Plan within 7 days",
+        },
+        {
+            actionId: "increase_patrol",
+            title: "Assign foot or bike patrols during peak hours",
+            reason: "Visible patrols help deter repeat theft patterns.",
+            timeframe: "Start immediately",
+        },
+    ],
+    physical_assault_injury: [
+        {
+            actionId: "increase_patrol",
+            title: "Assign patrol visibility near the hotspot",
+            reason: "Assault patterns need fast responder presence and visible deterrence.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "install_cctv",
+            title: "Add CCTV near gathering points",
+            reason: "Video coverage helps review repeated confrontations and identify escalation points.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "improve_lighting",
+            title: "Improve lighting in alleys and corners",
+            reason: "Better visibility reduces hidden spaces where assaults can happen.",
+            timeframe: "Plan within 14 days",
+        },
+    ],
+    domestic_violence: [
+        {
+            actionId: "victim_support_referral",
+            title: "Refer to trained victim-support responders",
+            reason: "Domestic violence recommendations must protect privacy and victim safety.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "confidential_followup",
+            title: "Prioritize confidential safety checks",
+            reason: "Repeat reports may indicate ongoing risk inside a household or building.",
+            timeframe: "Start immediately",
+        },
+    ],
+    drug_related_activity: [
+        {
+            actionId: "authorized_police_review",
+            title: "Coordinate intelligence-led police review",
+            reason: "Drug-related hotspots need authorized review before enforcement action.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "increase_patrol",
+            title: "Increase patrol observation during peak hours",
+            reason: "Repeated reports should be monitored at the most active times.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "install_cctv",
+            title: "Add CCTV near hidden gathering areas",
+            reason: "Surveillance helps verify repeat activity around alleys, vacant lots, or low-visibility spaces.",
+            timeframe: "Plan within 14 days",
+        },
+    ],
+    public_disturbance: [
+        {
+            actionId: "coordinate_barangay",
+            title: "Coordinate barangay enforcement checks",
+            reason: "Disturbance patterns often need ordinance, curfew, or noise-rule follow-up.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "increase_patrol",
+            title: "Schedule patrols during the disturbance window",
+            reason: "Patrols should appear when repeated disturbance reports happen.",
+            timeframe: "Start immediately",
+        },
+    ],
+    vandalism_property_damage: [
+        {
+            actionId: "install_cctv",
+            title: "Add CCTV facing damaged property",
+            reason: "Recurring property damage needs evidence capture and deterrence.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "improve_lighting",
+            title: "Improve lighting around damaged areas",
+            reason: "Better visibility reduces repeat vandalism in dark corners or walls.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "cleanup_property_damage",
+            title: "Repair or clean visible damage quickly",
+            reason: "Fast cleanup can reduce repeat targeting of the same property.",
+            timeframe: "Plan within 7 days",
+        },
+    ],
+    traffic_accident: [
+        {
+            actionId: "traffic_safety_audit",
+            title: "Request a road safety inspection",
+            reason: "Repeated accidents should be checked for road design, signs, crossings, and visibility issues.",
+            timeframe: "Plan within 7 days",
+        },
+        {
+            actionId: "road_markings_signage",
+            title: "Add or repair signs, markings, and crossings",
+            reason: "Traffic hotspots need road-safety controls, not only surveillance.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "improve_lighting",
+            title: "Improve lighting at the road segment",
+            reason: "Lighting helps drivers and pedestrians see hazards earlier.",
+            timeframe: "Plan within 14 days",
+        },
+    ],
+    illegal_weapons: [
+        {
+            actionId: "authorized_police_review",
+            title: "Flag for authorized police review",
+            reason: "Weapon-related reports require cautious handling by authorized responders.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "increase_patrol",
+            title: "Increase responder caution and area visibility",
+            reason: "Weapon reports raise responder risk and should not be treated as routine patrol only.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "install_cctv",
+            title: "Review or add CCTV near the hotspot",
+            reason: "Camera evidence can support review without exposing residents.",
+            timeframe: "Plan within 7 days",
+        },
+    ],
+    suspicious_activity: [
+        {
+            actionId: "increase_patrol",
+            title: "Increase patrol observation",
+            reason: "Repeated suspicious activity can be an early warning pattern.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "review_evidence",
+            title: "Review report details and nearby CCTV",
+            reason: "Suspicious reports should be verified before escalation.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "improve_lighting",
+            title: "Improve lighting if reports mention dark areas",
+            reason: "Low-visibility areas often attract suspicious behavior.",
+            timeframe: "Plan within 14 days",
+        },
+    ],
+};
 
 let incidentRows = [];
+let aiSummaryRequestId = 0;
+const aiSummaryCache = new Map();
 
 function setText(id, value) {
     const el = document.getElementById(id);
@@ -25,6 +219,14 @@ function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text == null ? "" : String(text);
     return div.innerHTML;
+}
+
+function escapeAttr(text) {
+    return String(text ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
 function humanize(value) {
@@ -191,6 +393,10 @@ function renderTrend(rows) {
 function hotspotLabel(row) {
     const d = row.data || {};
     const explicit =
+        d.location?.street ||
+        d.street ||
+        d.location?.address ||
+        d.address ||
         d.barangay ||
         d.area ||
         d.district ||
@@ -422,6 +628,398 @@ function renderCrimeTypeSeverityBars(rows) {
         .join("");
 }
 
+function selectedRangeLabel() {
+    const el = document.getElementById("analytics-range");
+    if (!el) return "selected range";
+    return el.options?.[el.selectedIndex]?.textContent?.trim() || el.value;
+}
+
+function normalizeType(value) {
+    return String(value || "unknown").trim().toLowerCase();
+}
+
+function normalizeSeverity(value) {
+    const severity = String(value || "low").trim().toLowerCase();
+    if (severity === "high" || severity === "medium" || severity === "low") {
+        return severity;
+    }
+    return "low";
+}
+
+function createHotspotStats(area) {
+    return {
+        area,
+        totalReports: 0,
+        sosReports: 0,
+        severityBreakdown: { high: 0, medium: 0, low: 0 },
+        typeCounts: {},
+        hourCounts: Array.from({ length: 24 }, () => 0),
+        latestReportAt: null,
+    };
+}
+
+function buildHotspotStats(rows) {
+    const grouped = new Map();
+    rows.forEach((row) => {
+        const area = hotspotLabel(row);
+        const current = grouped.get(area) || createHotspotStats(area);
+        const type = normalizeType(row.data?.type);
+        const severity = normalizeSeverity(row.data?.severity);
+        const hour = getPhtHour(row.date);
+
+        current.totalReports += 1;
+        current.typeCounts[type] = (current.typeCounts[type] || 0) + 1;
+        current.severityBreakdown[severity] += 1;
+        if (row.data?.isSOSReport === true) current.sosReports += 1;
+        if (hour != null) current.hourCounts[hour] += 1;
+        if (
+            row.date &&
+            (!current.latestReportAt || row.date > current.latestReportAt)
+        ) {
+            current.latestReportAt = row.date;
+        }
+        grouped.set(area, current);
+    });
+
+    return [...grouped.values()].map(enrichHotspotStats);
+}
+
+function enrichHotspotStats(stats) {
+    const high = stats.severityBreakdown.high || 0;
+    const medium = stats.severityBreakdown.medium || 0;
+    const low = stats.severityBreakdown.low || 0;
+    const robbery = stats.typeCounts.robbery_holdup || 0;
+    const weapons = stats.typeCounts.illegal_weapons || 0;
+    const weightedScore = high * 3 + medium * 2 + low + stats.sosReports * 3;
+    const peakHours = getPeakHours(stats.hourCounts, stats.totalReports);
+    const priority = getHotspotPriority({
+        ...stats,
+        weightedScore,
+        robbery,
+        weapons,
+    });
+    const dominantTypes = getDominantTypes(stats.typeCounts);
+    const peakLabel = formatPeakLabel(peakHours);
+
+    return {
+        ...stats,
+        weightedScore,
+        priority,
+        dominantTypes,
+        peakHours,
+        peakLabel,
+        actions: getSolutionActions(dominantTypes, { ...stats, peakLabel }),
+    };
+}
+
+function getHotspotPriority(stats) {
+    if (
+        stats.weightedScore >= 12 ||
+        stats.totalReports >= 8 ||
+        stats.severityBreakdown.high >= 3 ||
+        stats.robbery >= 3 ||
+        stats.weapons >= 3
+    ) {
+        return "high";
+    }
+    if (
+        stats.weightedScore >= 6 ||
+        stats.totalReports >= 3 ||
+        stats.severityBreakdown.high >= 1
+    ) {
+        return "medium";
+    }
+    return "monitor";
+}
+
+function priorityRank(priority) {
+    if (priority === "high") return 3;
+    if (priority === "medium") return 2;
+    return 1;
+}
+
+function hotspotHasEnoughEvidence(stats) {
+    return (
+        stats.totalReports >= MIN_RECOMMENDATION_REPORTS ||
+        stats.severityBreakdown.high >= 2 ||
+        (stats.sosReports >= 1 && stats.totalReports >= 2)
+    );
+}
+
+function getDominantTypes(typeCounts) {
+    return Object.entries(typeCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([type]) => type);
+}
+
+function getPeakHours(hourCounts, totalReports) {
+    const max = Math.max(...hourCounts);
+    if (max <= 0) return [];
+    if (max === 1 && totalReports < 5) return [];
+    return hourCounts
+        .map((count, hour) => ({ count, hour }))
+        .filter((item) => item.count === max)
+        .slice(0, 4)
+        .map((item) => item.hour);
+}
+
+function formatPeakLabel(hours) {
+    if (!hours.length) return "No clear peak time yet";
+    return `Peak reports: ${hours.map(hourLabel).join(", ")}`;
+}
+
+function getSolutionActions(types, stats) {
+    const actions = new Map();
+    types.forEach((type) => {
+        const rules = TYPE_SOLUTION_RULES[type] || [];
+        rules.forEach((rule) => {
+            if (actions.has(rule.actionId)) return;
+            const reason =
+                rule.actionId === "increase_patrol" &&
+                stats.peakLabel !== "No clear peak time yet"
+                    ? `${rule.reason} ${stats.peakLabel}.`
+                    : rule.reason;
+            actions.set(rule.actionId, { ...rule, reason });
+        });
+    });
+
+    if (!actions.size) {
+        actions.set("monitor_verify", {
+            actionId: "monitor_verify",
+            title: "Monitor the area and verify new reports",
+            reason: "The hotspot does not yet show a specific crime pattern.",
+            timeframe: "Review weekly",
+        });
+    }
+
+    return [...actions.values()].slice(0, 6);
+}
+
+function buildSolutionRecommendations(rows) {
+    return buildHotspotStats(rows)
+        .filter(hotspotHasEnoughEvidence)
+        .sort((a, b) => {
+            const priorityDiff = priorityRank(b.priority) - priorityRank(a.priority);
+            if (priorityDiff) return priorityDiff;
+            return b.weightedScore - a.weightedScore;
+        })
+        .slice(0, SOLUTION_LIMIT)
+        .map((stats) => ({
+            ...stats,
+            evidence: buildEvidenceText(stats),
+            localSummary: buildLocalSummary(stats),
+        }));
+}
+
+function buildEvidenceText(stats) {
+    const parts = [
+        `${stats.totalReports} report${stats.totalReports === 1 ? "" : "s"}`,
+    ];
+    if (stats.severityBreakdown.high) {
+        parts.push(`${stats.severityBreakdown.high} high severity`);
+    }
+    if (stats.sosReports) {
+        parts.push(`${stats.sosReports} SOS`);
+    }
+    if (stats.peakLabel !== "No clear peak time yet") {
+        parts.push(stats.peakLabel.replace("Peak reports: ", "peak "));
+    }
+    return parts.join(", ");
+}
+
+function buildLocalSummary(stats) {
+    const pattern = stats.dominantTypes.length
+        ? humanize(stats.dominantTypes.join(", "))
+        : "Mixed Incident";
+    const actions = stats.actions
+        .map((action) => action.title)
+        .filter(Boolean)
+        .slice(0, 3);
+
+    return {
+        summary: `${stats.area} is a ${humanize(stats.priority)} priority hotspot driven by ${pattern}. Evidence: ${buildEvidenceText(stats)}.`,
+        suggestedSolution: actions.length
+            ? `Recommended focus: ${actions.join("; ")}.`
+            : "Recommended focus: continue monitoring and verify new reports.",
+        confidenceNote: "Rule-based preview from selected analytics range.",
+    };
+}
+
+function solutionPayload(solution) {
+    return {
+        area: solution.area,
+        priority: solution.priority,
+        dominantTypes: solution.dominantTypes,
+        totalReports: solution.totalReports,
+        weightedScore: solution.weightedScore,
+        peakHours: solution.peakHours,
+        peakLabel: solution.peakLabel,
+        evidence: solution.evidence,
+        typeCounts: solution.typeCounts,
+        severityBreakdown: solution.severityBreakdown,
+        actions: solution.actions,
+    };
+}
+
+function renderSolutions(rows) {
+    const el = document.getElementById("analytics-solutions");
+    if (!el) return;
+
+    const solutions = buildSolutionRecommendations(rows);
+    if (!solutions.length) {
+        el.innerHTML =
+            '<p class="analytics-empty">No hotspot has enough evidence for a recommended action in this range.</p>';
+        return;
+    }
+
+    el.innerHTML = solutions
+        .map((solution, index) => {
+            const local = solution.localSummary;
+            return `<article class="analytics-solution-card analytics-solution-card--${escapeAttr(solution.priority)}">
+                <div class="analytics-solution-card__top">
+                    <div>
+                        <span class="analytics-solution-card__priority">${escapeHtml(humanize(solution.priority))}</span>
+                        <h3>${escapeHtml(solution.area)}</h3>
+                        <p>${escapeHtml(humanize(solution.dominantTypes.join(", ") || "mixed incident"))}</p>
+                    </div>
+                    <strong>${solution.weightedScore}</strong>
+                </div>
+                <p class="analytics-solution-card__evidence">${escapeHtml(solution.evidence)}</p>
+                <div class="analytics-ai-summary" data-ai-summary-index="${index}">
+                    <div class="analytics-ai-summary__head">
+                        <span data-ai-summary-status>Rule-based preview</span>
+                    </div>
+                    <p data-ai-summary-text>${escapeHtml(local.summary)}</p>
+                    <p data-ai-solution-text>${escapeHtml(local.suggestedSolution)}</p>
+                    <em data-ai-confidence-text>${escapeHtml(local.confidenceNote)}</em>
+                </div>
+                <ol class="analytics-solution-actions">
+                    ${solution.actions
+                        .map(
+                            (action) => `<li>
+                                <strong>${escapeHtml(action.title)}</strong>
+                                <span>${escapeHtml(action.reason)}</span>
+                                <em>${escapeHtml(action.timeframe)}</em>
+                            </li>`,
+                        )
+                        .join("")}
+                </ol>
+            </article>`;
+        })
+        .join("");
+
+    requestAiSolutionSummaries(solutions).catch((err) => {
+        console.warn("[analytics] AI solution summary", err);
+        markAiSummaryUnavailable(err?.message);
+    });
+}
+
+async function requestAiSolutionSummaries(solutions) {
+    const requestId = ++aiSummaryRequestId;
+    const payload = {
+        range: selectedRangeLabel(),
+        generatedAt: new Date().toISOString(),
+        hotspots: solutions.map(solutionPayload),
+    };
+    const cacheKey = JSON.stringify({
+        range: payload.range,
+        hotspots: payload.hotspots,
+    });
+
+    if (aiSummaryCache.has(cacheKey)) {
+        updateAiSummaries(aiSummaryCache.get(cacheKey));
+        return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+        throw new Error("No signed-in admin user");
+    }
+
+    setAiSummaryStatus("Generating AI summary...");
+    const token = await user.getIdToken();
+    const response = await fetch(AI_SUMMARY_ENDPOINT, {
+        method: "POST",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        let detail = text;
+        try {
+            const parsed = JSON.parse(text);
+            detail = parsed?.error || parsed?.message || text;
+        } catch {}
+        throw new Error(
+            `AI summary request failed (${response.status})${detail ? `: ${detail}` : ""}`,
+        );
+    }
+
+    const data = await response.json();
+    if (requestId !== aiSummaryRequestId) return;
+    aiSummaryCache.set(cacheKey, data);
+    updateAiSummaries(data);
+}
+
+function setAiSummaryStatus(text) {
+    document.querySelectorAll("[data-ai-summary-status]").forEach((el) => {
+        el.textContent = text;
+    });
+}
+
+function updateAiSummaries(data) {
+    const summaries = Array.isArray(data?.summaries) ? data.summaries : [];
+    const sourceLabel =
+        data?.source === "openai"
+            ? "AI summary"
+            : "Rule-based summary";
+    const fallbackNote =
+        data?.warning ||
+        (data?.configured === false
+            ? "OpenAI key is not configured; showing rule-based recommendation."
+            : "");
+
+    summaries.forEach((summary, index) => {
+        const el = document.querySelector(
+            `[data-ai-summary-index="${index}"]`,
+        );
+        if (!el) return;
+        const statusEl = el.querySelector("[data-ai-summary-status]");
+        const summaryEl = el.querySelector("[data-ai-summary-text]");
+        const solutionEl = el.querySelector("[data-ai-solution-text]");
+        const confidenceEl = el.querySelector("[data-ai-confidence-text]");
+
+        if (statusEl) statusEl.textContent = sourceLabel;
+        if (summaryEl && summary.summary) {
+            summaryEl.textContent = summary.summary;
+        }
+        if (solutionEl && summary.suggestedSolution) {
+            solutionEl.textContent = summary.suggestedSolution;
+        }
+        if (confidenceEl && (fallbackNote || summary.confidenceNote)) {
+            confidenceEl.textContent = fallbackNote || summary.confidenceNote;
+        }
+    });
+}
+
+function markAiSummaryUnavailable(reason = "") {
+    const detail = String(reason || "").trim();
+    document.querySelectorAll("[data-ai-summary-status]").forEach((el) => {
+        el.textContent = "Rule-based summary";
+    });
+    document.querySelectorAll("[data-ai-confidence-text]").forEach((el) => {
+        el.textContent =
+            detail
+                ? `AI summary unavailable right now: ${detail}`
+                : "AI summary unavailable right now; showing rule-based recommendation.";
+    });
+}
+
 function renderAnalytics() {
     const rows = getSelectedRangeRows();
     const today = dayKey(new Date());
@@ -466,6 +1064,7 @@ function renderAnalytics() {
     renderHourlyChart(rows);
     renderReadiness(rows);
     renderHotspots(rows);
+    renderSolutions(rows);
 }
 
 async function loadAnalytics() {

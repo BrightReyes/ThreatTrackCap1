@@ -78,6 +78,10 @@ loginForm.addEventListener("submit", async (e) => {
         window.location.replace("dashboard.html");
     } catch (err) {
         const msg = err?.message ?? "Login failed";
+        console.warn("[login] sign-in failed", {
+            code: err?.code || "(no code)",
+            email,
+        });
         loginError.textContent = msg;
         toastError(msg);
 
