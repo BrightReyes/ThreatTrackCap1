@@ -14,6 +14,68 @@ applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
 
+function normalizeAdminRole(role) {
+    const value = String(role || "").trim().toLowerCase();
+    return value === "moderator" ? "admin" : value;
+}
+
+function isPoliceAdminRole(role) {
+    return normalizeAdminRole(role) === "police";
+}
+
+async function loadAdminProfile(user) {
+    if (!user?.uid) return null;
+    try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (!snap.exists()) return null;
+        return {
+            id: snap.id,
+            ...snap.data(),
+            role: normalizeAdminRole(snap.data()?.role),
+        };
+    } catch (err) {
+        console.warn("[admin-auth] profile load failed", err);
+        return null;
+    }
+}
+
+function applyRoleNavigation(profile) {
+    const nav = document.querySelector(".sidebar__nav");
+    if (!nav) return;
+
+    const operationHref = "operation.html";
+    let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
+    const canUseOperations = isPoliceAdminRole(profile?.role);
+
+    if (!canUseOperations) {
+        operationLink?.remove();
+        return;
+    }
+
+    if (!operationLink) {
+        operationLink = document.createElement("a");
+        operationLink.href = operationHref;
+        operationLink.className = "sidebar__link";
+        operationLink.innerHTML = `
+            <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
+            <span>Operation</span>
+        `;
+
+        const settingsLink = nav.querySelector('.sidebar__link[href="settings.html"]');
+        nav.insertBefore(operationLink, settingsLink || null);
+    }
+
+    const currentPage = window.location.pathname.split("/").pop();
+    if (currentPage === operationHref) {
+        nav.querySelectorAll(".sidebar__link--active").forEach((link) => {
+            link.classList.remove("sidebar__link--active");
+            link.removeAttribute("aria-current");
+        });
+        operationLink.classList.add("sidebar__link--active");
+        operationLink.setAttribute("aria-current", "page");
+    }
+}
+
 function startAdminClock() {
     const timeEl = document.getElementById("dashboard-clock-time");
     const dateEl = document.getElementById("dashboard-clock-date");
@@ -43,9 +105,9 @@ function startAdminClock() {
 
 /**
  * Shared admin layout: auth gate, user email, sign out, sidebar (# links only blocked).
- * @param {{ pageId: string; onReady?: (user: import('firebase/auth').User) => void }} options
+ * @param {{ pageId: string; requirePolice?: boolean; onReady?: (user: import('firebase/auth').User, profile?: object | null) => void }} options
  */
-export function initAdminPage({ pageId, onReady }) {
+export function initAdminPage({ pageId, requirePolice = false, onReady }) {
     const page = document.getElementById(pageId);
     const userEmail = document.getElementById("user-email");
     const btnSignout = document.getElementById("btn-signout");
@@ -118,6 +180,14 @@ export function initAdminPage({ pageId, onReady }) {
             userEmail.textContent = user.email ?? "";
             userEmail.title = user.email ?? "";
         }
+        const profile = await loadAdminProfile(user);
+        applyRoleNavigation(profile);
+
+        if (requirePolice && !isPoliceAdminRole(profile?.role)) {
+            toastError("Operation access is limited to police admins");
+            window.location.replace("dashboard.html");
+            return;
+        }
         // Apply cached system name immediately
         applyCachedSidebarSystemName();
         // Load latest from Firestore
@@ -128,7 +198,7 @@ export function initAdminPage({ pageId, onReady }) {
         void startInactivityTimer();
         startAdminClock();
         startAdminPriorityAlerts();
-        if (typeof onReady === "function") onReady(user);
+        if (typeof onReady === "function") onReady(user, profile);
     });
 
     function applyInitialSidebarState(collapsed) {

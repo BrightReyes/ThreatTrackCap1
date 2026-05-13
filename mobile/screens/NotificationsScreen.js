@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { collection, query, orderBy, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { db } from '../utils/firebase';
+import { collection, query, getDocs, updateDoc, doc, where } from 'firebase/firestore';
+import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
 const generateMockNotifications = () => {
@@ -13,6 +13,14 @@ const generateMockNotifications = () => {
     { id: 'n4', type: 'Theft Reported Nearby', body: 'Vehicle break-in reported at 5th Ave parking lot.', severity: 'high', read: false },
     { id: 'n5', type: 'Community Safety Meeting', body: 'Join us this Friday at 6 PM for a community safety discussion.', severity: 'low', read: true },
   ];
+};
+
+const getTimeValue = (value) => {
+  if (!value) return 0;
+  if (value.toDate) return value.toDate().getTime();
+  if (value.seconds) return value.seconds * 1000;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 };
 
 const NotificationsScreen = () => {
@@ -27,10 +35,19 @@ const NotificationsScreen = () => {
   const fetchNotifications = async () => {
     try {
       const notificationsRef = collection(db, 'notifications');
-      const q = query(notificationsRef, orderBy('timestamp', 'desc'));
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setNotifications(generateMockNotifications());
+        return;
+      }
+      const q = query(
+        notificationsRef,
+        where('userId', '==', currentUser.uid)
+      );
       const snapshot = await getDocs(q);
       const notifs = [];
       snapshot.forEach(docSnap => notifs.push({ id: docSnap.id, ...docSnap.data() }));
+      notifs.sort((a, b) => getTimeValue(b.sentAt || b.timestamp) - getTimeValue(a.sentAt || a.timestamp));
       if (notifs.length === 0) {
         setNotifications(generateMockNotifications());
       } else {
@@ -45,7 +62,12 @@ const NotificationsScreen = () => {
     // attempt to update remote docs if they exist
     try {
       const notifsRef = collection(db, 'notifications');
-      const q = query(notifsRef, orderBy('timestamp','desc'));
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const q = query(
+        notifsRef,
+        where('userId', '==', currentUser.uid)
+      );
       const snapshot = await getDocs(q);
       const updates = [];
       snapshot.forEach(s => {
