@@ -12,7 +12,7 @@ import { db } from "../../shared/firebase.js";
 import { toastError, toastSuccess } from "./alerts.js";
 
 const LIST_LIMIT = 200;
-const EDIT_ROLES_FOR_CREATE = ["user", "police", "admin"];
+const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police"];
 const EDIT_STATUSES_FOR_CREATE = ["active", "inactive", "suspended"];
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
@@ -64,7 +64,9 @@ function roleBadgeClass(role) {
 }
 
 function humanizeRole(role) {
-    return String(normalizeRole(role))
+    const normalized = normalizeRole(role);
+    if (normalized === "police") return "Police Admin";
+    return String(normalized)
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }

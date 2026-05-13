@@ -22,7 +22,7 @@ const ResponseAlertListener = () => {
         const unreadResponse = snapshot.docs
           .map((snap) => ({ id: snap.id, ...snap.data() }))
           .filter((item) => (
-            item.type === 'response_update' &&
+            isPopupNotification(item) &&
             !item.readAt &&
             !shownRef.current.has(item.id)
           ))
@@ -58,6 +58,7 @@ const ResponseAlertListener = () => {
 
   const responder = activeNotification?.responder || {};
   const response = activeNotification?.response || {};
+  const isPoliceUrgent = activeNotification?.type === 'police_urgent_report';
   const defaultMessage = `Help is on the way from ${responder.precinctName || 'Police Community Precinct 4 (Malinta)'}.`;
   const distance = Number.isFinite(Number(response.distanceKm))
     ? ` Distance: ${Number(response.distanceKm).toFixed(1)} km.`
@@ -67,13 +68,18 @@ const ResponseAlertListener = () => {
   return (
     <CustomAlert
       visible={!!activeNotification}
-      title={activeNotification?.title || 'Help is on the way'}
+      title={activeNotification?.title || (isPoliceUrgent ? 'Urgent police alert' : 'Help is on the way')}
       message={activeNotification?.body || `${defaultMessage}${distance}${eta}`}
       type="warning"
       buttons={[{ text: 'OK' }]}
       onClose={markRead}
     />
   );
+};
+
+const isPopupNotification = (item) => {
+  if (item?.type === 'response_update') return true;
+  return item?.type === 'police_urgent_report' && item?.severity === 'high';
 };
 
 const getTimeValue = (value) => {

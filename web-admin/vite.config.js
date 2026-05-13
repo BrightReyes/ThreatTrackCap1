@@ -26,6 +26,7 @@ export default defineConfig({
         login: path.resolve(__dirname, 'login.html'),
         dashboard: path.resolve(__dirname, 'dashboard.html'),
         incidents: path.resolve(__dirname, 'incidents.html'),
+        operation: path.resolve(__dirname, 'operation.html'),
         analytics: path.resolve(__dirname, 'analytics.html'),
         users: path.resolve(__dirname, 'users.html'),
         notifications: path.resolve(__dirname, 'notifications.html'),

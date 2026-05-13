@@ -3,7 +3,7 @@ import { db } from "../../shared/firebase.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 
-const EDIT_ROLES = ["user", "police", "admin"];
+const EDIT_ROLES = ["user", "admin", "police"];
 const EDIT_STATUSES = ["active", "inactive", "suspended"];
 
 function escapeHtml(text) {
@@ -86,7 +86,9 @@ function humanizeStatus(status) {
 }
 
 function humanizeRole(role) {
-    return String(normalizeRole(role))
+    const normalized = normalizeRole(role);
+    if (normalized === "police") return "Police Admin";
+    return String(normalized)
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }

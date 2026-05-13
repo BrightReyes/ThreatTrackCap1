@@ -26,10 +26,47 @@ service cloud.firestore {
              callerRole() in ['admin', 'moderator'];
     }
 
+    function isPoliceAdmin() {
+      return isAuthenticated() &&
+             callerRole() == 'police';
+    }
+
     // Staff (admin, moderator, police): can edit other users' Firestore profiles (not Auth).
     function canManageUserProfiles() {
       return isAuthenticated() &&
              callerRole() in ['admin', 'moderator', 'police'];
+    }
+
+    function isPoliceOperationalIncident() {
+      let data = request.resource.data;
+      return isPoliceAdmin() &&
+             isValidIncident() &&
+             data.source == 'police_admin' &&
+             data.createdFrom == 'admin_operation' &&
+             data.isAdminGenerated == true &&
+             data.createdBy == request.auth.uid &&
+             data.reportingAs == 'police_station' &&
+             data.status in ['under_review', 'verified'] &&
+             ((data.severity == 'high' &&
+               data.priority == 'high' &&
+               data.notificationAudience == 'active_app_users') ||
+              (data.severity in ['medium', 'low'] &&
+               data.priority == 'normal' &&
+               data.notificationAudience == 'none'));
+    }
+
+    function isPoliceUrgentNotification() {
+      let data = request.resource.data;
+      return isPoliceAdmin() &&
+             data.type == 'police_urgent_report' &&
+             data.severity == 'high' &&
+             data.priority == 'high' &&
+             data.source == 'police_admin' &&
+             data.createdBy == request.auth.uid &&
+             data.userId is string &&
+             data.incidentId is string &&
+             data.title is string &&
+             data.body is string;
     }
 
     function isValidIncident() {
@@ -112,7 +149,7 @@ service cloud.firestore {
       // Authenticated users can create incidents with valid data
       // Allow creation when the authenticated user is the reporter.
       // Relaxed checks: accept status values set by client/server and require reporterId match.
-      allow create: if (isAdmin()) ||
+      allow create: if (isAdmin() || isPoliceOperationalIncident()) ||
             (isAuthenticated() &&
               isValidIncident() &&
               hasNotExceededRateLimit() &&
@@ -165,7 +202,7 @@ service cloud.firestore {
       // Users can mark their own notifications as read. Admins/moderators can moderate notifications in dashboard.
       allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
       allow delete: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isPoliceUrgentNotification();
     }
 
     // === SETTINGS COLLECTION ===
