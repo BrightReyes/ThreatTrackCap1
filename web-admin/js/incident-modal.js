@@ -69,6 +69,10 @@ function formatIncidentCode(docId) {
     return `TR-${String(hash).padStart(4, "0")}`;
 }
 
+function isIncidentOpened(data = {}) {
+    return data.isOpened === true || data.opened === true || !!data.openedAt;
+}
+
 function updateStatusCell(incidentId, status) {
     const row = document.querySelector(`tr[data-incident-id="${incidentId}"]`);
     if (!row) return;
@@ -76,6 +80,17 @@ function updateStatusCell(incidentId, status) {
     const cell = row.children?.[4];
     if (!cell) return;
     cell.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanize(status))}</span>`;
+}
+
+function markRowOpened(incidentId) {
+    const row = document.querySelector(
+        `tr[data-incident-id="${CSS.escape(incidentId)}"]`,
+    );
+    if (!row) return;
+    row.classList.remove("incidents-table__row--unopened");
+    const code = row.querySelector(".incidents-code");
+    code?.classList.remove("incidents-code--unopened");
+    code?.setAttribute("title", "Opened incident");
 }
 
 function buildPhotosHtml(data) {
@@ -366,10 +381,29 @@ export function initIncidentModal() {
             }
             const d = snap.data();
             currentData = d;
+            if (!isIncidentOpened(d)) {
+                currentData = { ...currentData, isOpened: true };
+                markRowOpened(id);
+                window.dispatchEvent(
+                    new CustomEvent("incident:updated", {
+                        detail: {
+                            id,
+                            isOpened: true,
+                        },
+                    }),
+                );
+                updateDoc(ref, {
+                    isOpened: true,
+                    openedBy: auth.currentUser?.uid || null,
+                    openedAt: serverTimestamp(),
+                }).catch((err) => {
+                    console.warn("[incident-modal] mark opened", err);
+                });
+            }
             if (titleEl) {
                 titleEl.textContent = `Incident — ${humanize(d.type)}`;
             }
-            body.innerHTML = renderIncidentDetail(snap.id, d);
+            body.innerHTML = renderIncidentDetail(snap.id, currentData);
             bindActionHandlers();
         } catch (err) {
             console.error("[incident-modal] open by id", err);
