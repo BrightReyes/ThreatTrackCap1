@@ -87,6 +87,7 @@ function humanizeStatus(status) {
 
 function humanizeRole(role) {
     const normalized = normalizeRole(role);
+    if (normalized === "admin") return "Barangay Admin";
     if (normalized === "police") return "Police Admin";
     return String(normalized)
         .replace(/_/g, " ")

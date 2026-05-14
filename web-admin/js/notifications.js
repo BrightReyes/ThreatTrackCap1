@@ -45,7 +45,7 @@ initAdminPage({
       if (list) {
         const msg =
           err?.code === 'permission-denied'
-            ? 'Permission denied. Ensure Firestore rules allow admin read on notifications.'
+            ? 'Permission denied. Ensure Firestore rules allow Barangay or Police Admin read on notifications.'
             : err?.code === 'failed-precondition'
               ? 'Firestore index may be required. Check the browser console.'
               : err?.message || 'Something went wrong';

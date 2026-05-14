@@ -117,11 +117,11 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles
       allow read: if isAuthenticated();
 
-      // Users can create their own profile; staff can create Firestore-only profiles from dashboard.
+      // Users can create their own profile; staff can create profiles from dashboard.
       allow create: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
                     request.resource.data.email == request.auth.token.email) ||
-                   (isAdmin() &&
+                   (canManageUserProfiles() &&
                     request.resource.data.uid == userId &&
                     request.resource.data.email is string &&
                     request.resource.data.role in ['user', 'police', 'admin', 'moderator'] &&
@@ -196,27 +196,28 @@ service cloud.firestore {
 
     // === NOTIFICATIONS COLLECTION ===
     match /notifications/{notificationId} {
-      // Users can read their own notifications; admins/moderators can read all for the dashboard
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      // Users can read their own notifications; Barangay/Police admins can read all for the dashboard
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin() || isPoliceAdmin());
 
-      // Users can mark their own notifications as read. Admins/moderators can moderate notifications in dashboard.
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
-      allow delete: if isAdmin();
+      // Users can mark their own notifications as read. Barangay/Police admins can moderate notifications in dashboard.
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin() || isPoliceAdmin());
+      allow delete: if isAdmin() || isPoliceAdmin();
       allow create: if isAdmin() || isPoliceUrgentNotification();
     }
 
     // === SETTINGS COLLECTION ===
-    // Stores admin-controlled system configuration (read-only for non-admins).
+    // Stores admin-controlled system configuration.
+    // Barangay and police admins can manage settings.
     match /settings/{settingId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow write: if isAdmin() || isPoliceAdmin();
     }
 
     // === AUDIT LOGS COLLECTION ===
     // Client-side audit trail for admin panel actions.
     // Note: for tamper-proof audit trails, write via server/Cloud Functions instead.
     match /audit_logs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isPoliceAdmin();
       allow create: if isAuthenticated();
       allow update, delete: if false;
     }

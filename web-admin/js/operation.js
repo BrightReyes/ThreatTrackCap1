@@ -115,20 +115,22 @@ function updateSeverityPreview(type) {
     const submitText = document.getElementById("operation-submit-text");
 
     if (severityInput) {
-        severityInput.value = severity ? humanizeSeverity(severity) : "Select type";
+        severityInput.value = severity ? humanizeSeverity(severity) : "";
         severityInput.dataset.severity = severity;
     }
 
     if (severityPill) {
         severityPill.textContent = severity
             ? `${humanizeSeverity(severity)} severity`
-            : "Auto severity";
+            : "Select an incident type";
         severityPill.dataset.severity = severity || "none";
     }
 
     if (notificationHint) {
         notificationHint.textContent =
-            severity === "high"
+            !severity
+                ? "Severity will be assigned automatically from the selected incident type."
+                : severity === "high"
                 ? "High severity reports notify active app users."
                 : "Medium and low severity reports are added to incidents and heatmap only.";
     }

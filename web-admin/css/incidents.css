@@ -92,7 +92,7 @@
 }
 
 .incidents-table-wrap {
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .incidents-table {
@@ -163,7 +163,7 @@
 
 .incidents-table--users th:nth-child(4),
 .incidents-table--users td:nth-child(4) {
-    width: 120px;
+    width: 170px;
 }
 
 .incidents-table--users th:nth-child(5),
@@ -473,13 +473,15 @@
 }
 
 .incidents-badge--role-user {
-    background: #e0e7ff;
-    color: #3730a3;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
 }
 
 .incidents-badge--role-admin {
     background: #fee2e2;
     color: #991b1b;
+    border: 1px solid #fecaca;
 }
 
 .incidents-badge--role-moderator {
@@ -488,8 +490,9 @@
 }
 
 .incidents-badge--role-police {
-    background: #ecfdf5;
-    color: #047857;
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
 }
 
 .incidents-action-btn {
@@ -1242,8 +1245,79 @@
     padding-top: 0 !important;
 }
 
+#user-add-modal .user-edit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px 20px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-top: 1px solid #e2e8f0;
+}
+
+#user-add-modal .incident-actions__buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    order: 2;
+    margin-left: auto;
+}
+
+#user-add-modal .incident-actions__feedback {
+    order: 1;
+    flex: 1 1 15rem;
+    min-height: 1.25rem;
+    margin: 0;
+    color: #64748b;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+#user-add-modal .incident-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 8.75rem;
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 850;
+}
+
+#user-add-modal #user-add-cancel {
+    color: #334155;
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+
+#user-add-modal #user-add-cancel:hover:not(:disabled) {
+    color: #0f172a;
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+#user-add-modal #user-add-submit {
+    color: #ffffff;
+    background: #dc2626;
+    border-color: #dc2626;
+    box-shadow: 0 12px 24px rgba(220, 38, 38, 0.2);
+}
+
+#user-add-modal #user-add-submit:hover:not(:disabled) {
+    background: #b91c1c;
+    border-color: #b91c1c;
+    box-shadow: 0 14px 28px rgba(185, 28, 28, 0.22);
+}
+
 .user-add-form {
     gap: 16px;
+}
+
+#user-add-modal #user-add-password,
+#user-add-modal #user-add-confirm-password {
+    width: 100%;
 }
 
 .user-add-hero {
@@ -1523,6 +1597,21 @@
 }
 
 @media (max-width: 520px) {
+    #user-add-modal .user-edit-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    #user-add-modal .incident-actions__buttons {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    #user-add-modal .incident-action-btn {
+        flex: 1;
+        min-width: 0;
+    }
+
     .incident-detail__row {
         grid-template-columns: 1fr;
     }

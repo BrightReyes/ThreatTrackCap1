@@ -13,6 +13,27 @@ import { db } from "../../shared/firebase.js";
 
 const DASHBOARD_ACTIVITY_LIMIT = 1;
 
+function firstNameFromProfile(profile, user) {
+    const fromProfile = String(profile?.firstName || "").trim();
+    if (fromProfile) return fromProfile;
+
+    const displayFirst = String(user?.displayName || "")
+        .trim()
+        .split(/\s+/)[0];
+    if (displayFirst) return displayFirst;
+
+    const emailFirst = String(user?.email || "").split("@")[0].trim();
+    return emailFirst || "Admin";
+}
+
+function updateDashboardWelcome(user, profile) {
+    const title = document.querySelector(
+        "#page-dashboard .admin-dashboard__title",
+    );
+    if (!title) return;
+    title.textContent = `Welcome ${firstNameFromProfile(profile, user)}`;
+}
+
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text == null ? "" : String(text);
@@ -110,7 +131,8 @@ function startDashboardClock() {
 
 initAdminPage({
     pageId: "page-dashboard",
-    onReady() {
+    onReady(user, profile) {
+        updateDashboardWelcome(user, profile);
         initAdminCustomSelects(document.getElementById("page-dashboard"));
         startDashboardActivityListener();
         requestAnimationFrame(() => {

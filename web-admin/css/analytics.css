@@ -42,6 +42,10 @@
     overflow: visible;
 }
 
+.analytics-stats .stat-card__value {
+    text-align: center;
+}
+
 .analytics-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -172,7 +176,7 @@
 }
 
 .analytics-table-wrap {
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .analytics-table {

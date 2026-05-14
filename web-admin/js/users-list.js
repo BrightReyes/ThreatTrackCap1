@@ -8,12 +8,19 @@ import {
     serverTimestamp,
     setDoc,
 } from "firebase/firestore";
-import { db } from "../../shared/firebase.js";
+import { deleteApp, initializeApp } from "firebase/app";
+import {
+    createUserWithEmailAndPassword,
+    deleteUser,
+    getAuth,
+} from "firebase/auth";
+import primaryApp, { db } from "../../shared/firebase.js";
 import { toastError, toastSuccess } from "./alerts.js";
 
 const LIST_LIMIT = 200;
 const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police"];
 const EDIT_STATUSES_FOR_CREATE = ["active", "inactive", "suspended"];
+const MIN_PASSWORD_LENGTH = 6;
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
 let allDocs = [];
@@ -65,6 +72,7 @@ function roleBadgeClass(role) {
 
 function humanizeRole(role) {
     const normalized = normalizeRole(role);
+    if (normalized === "admin") return "Barangay Admin";
     if (normalized === "police") return "Police Admin";
     return String(normalized)
         .replace(/_/g, " ")
@@ -259,10 +267,16 @@ function bindToolbar() {
     roleEl?.addEventListener("change", rerender);
 }
 
-function generatedProfileId() {
-    if (globalThis.crypto?.randomUUID)
-        return `manual-${globalThis.crypto.randomUUID()}`;
-    return `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+function createSecondaryAuth() {
+    const suffix = `${Date.now()}${Math.random().toString(16).slice(2)}`;
+    const secondaryApp = initializeApp(
+        primaryApp.options,
+        `user-create-${suffix}`,
+    );
+    return {
+        app: secondaryApp,
+        auth: getAuth(secondaryApp),
+    };
 }
 
 function bindAddUserModal() {
@@ -311,15 +325,29 @@ function bindAddUserModal() {
         const status = String(
             form.elements.status?.value || "active",
         ).toLowerCase();
+        const password = String(form.elements.password?.value || "");
+        const confirmPassword = String(
+            form.elements.confirmPassword?.value || "",
+        );
 
         if (!email) {
             if (feedback) feedback.textContent = "Email address is required.";
             return;
         }
 
-        const uid = generatedProfileId();
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            if (feedback) {
+                feedback.textContent = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+            }
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            if (feedback) feedback.textContent = "Passwords do not match.";
+            return;
+        }
+
         const payload = {
-            uid,
             email,
             firstName,
             lastName,
@@ -332,22 +360,48 @@ function bindAddUserModal() {
             createdAt: serverTimestamp(),
             createdByAdmin: true,
         };
+        let createdAuthUser = null;
+        let secondaryApp = null;
 
-        if (feedback) feedback.textContent = "Creating profile...";
+        if (feedback) feedback.textContent = "Creating account...";
         if (submitBtn) submitBtn.disabled = true;
         if (cancelBtn) cancelBtn.disabled = true;
 
         try {
-            await setDoc(doc(db, "users", uid), payload);
-            toastSuccess("User profile added");
+            const secondary = createSecondaryAuth();
+            secondaryApp = secondary.app;
+            const credential = await createUserWithEmailAndPassword(
+                secondary.auth,
+                email,
+                password,
+            );
+            createdAuthUser = credential.user;
+            const uid = createdAuthUser.uid;
+
+            await setDoc(doc(db, "users", uid), { ...payload, uid });
+            toastSuccess("User account added");
             close();
             await loadUsersTable();
         } catch (err) {
             console.error("[users] add user", err);
-            const msg = err?.message || "Failed to add user profile";
+            if (createdAuthUser) {
+                try {
+                    await deleteUser(createdAuthUser);
+                } catch (deleteErr) {
+                    console.warn("[users] cleanup auth user failed", deleteErr);
+                }
+            }
+            const msg = err?.message || "Failed to add user account";
             if (feedback) feedback.textContent = msg;
             toastError(msg);
         } finally {
+            if (secondaryApp) {
+                try {
+                    await deleteApp(secondaryApp);
+                } catch (deleteErr) {
+                    console.warn("[users] cleanup secondary app failed", deleteErr);
+                }
+            }
             if (submitBtn) submitBtn.disabled = false;
             if (cancelBtn) cancelBtn.disabled = false;
         }

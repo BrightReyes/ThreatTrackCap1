@@ -23,6 +23,14 @@ function isPoliceAdminRole(role) {
     return normalizeAdminRole(role) === "police";
 }
 
+function humanizeAdminRole(role) {
+    const normalized = normalizeAdminRole(role);
+    if (normalized === "admin") return "Barangay Admin";
+    if (normalized === "police") return "Police Admin";
+    if (normalized === "user") return "User";
+    return "Admin";
+}
+
 async function loadAdminProfile(user) {
     if (!user?.uid) return null;
     try {
@@ -37,6 +45,12 @@ async function loadAdminProfile(user) {
         console.warn("[admin-auth] profile load failed", err);
         return null;
     }
+}
+
+function applySidebarRoleLabel(profile) {
+    const badge = document.querySelector(".sidebar__badge");
+    if (!badge) return;
+    badge.textContent = humanizeAdminRole(profile?.role);
 }
 
 function applyRoleNavigation(profile) {
@@ -61,8 +75,18 @@ function applyRoleNavigation(profile) {
             <span>Operation</span>
         `;
 
+        const analyticsLink = nav.querySelector(
+            '.sidebar__link[href="analytics.html"]',
+        );
         const settingsLink = nav.querySelector('.sidebar__link[href="settings.html"]');
-        nav.insertBefore(operationLink, settingsLink || null);
+        nav.insertBefore(operationLink, analyticsLink || settingsLink || null);
+    } else {
+        const analyticsLink = nav.querySelector(
+            '.sidebar__link[href="analytics.html"]',
+        );
+        if (analyticsLink && operationLink.nextElementSibling !== analyticsLink) {
+            nav.insertBefore(operationLink, analyticsLink);
+        }
     }
 
     const currentPage = window.location.pathname.split("/").pop();
@@ -181,6 +205,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
             userEmail.title = user.email ?? "";
         }
         const profile = await loadAdminProfile(user);
+        applySidebarRoleLabel(profile);
         applyRoleNavigation(profile);
 
         if (requirePolice && !isPoliceAdminRole(profile?.role)) {

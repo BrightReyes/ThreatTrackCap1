@@ -196,14 +196,10 @@
                     >
                         <section class="operation-panel">
                             <div class="operation-panel__head">
-                                <h3>Incident</h3>
-                                <span
-                                    id="operation-severity-pill"
-                                    class="operation-severity-pill"
-                                    data-severity="none"
-                                >
-                                    Auto severity
-                                </span>
+                                <div>
+                                    <h3>Incident</h3>
+                                    <p>Classify the station report and describe the event.</p>
+                                </div>
                             </div>
                             <div class="operation-grid">
                                 <div class="operation-field">
@@ -253,17 +249,34 @@
                                         </option>
                                     </select>
                                 </div>
-                                <div class="operation-field">
-                                    <label for="operation-severity"
-                                        >Severity</label
-                                    >
+                                <div
+                                    class="operation-severity-card"
+                                    aria-live="polite"
+                                >
                                     <input
                                         id="operation-severity"
-                                        class="operation-input"
-                                        type="text"
-                                        value="Select type"
+                                        class="operation-severity-input"
+                                        type="hidden"
+                                        value=""
                                         readonly
                                     />
+                                    <span
+                                        class="operation-severity-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >auto_awesome</span
+                                    >
+                                    <div class="operation-severity-card__body">
+                                        <span class="operation-severity-card__label"
+                                            >Severity</span
+                                        >
+                                        <span
+                                            id="operation-severity-pill"
+                                            class="operation-severity-pill"
+                                            data-severity="none"
+                                        >
+                                            Select an incident type
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <p
@@ -291,7 +304,10 @@
 
                         <section class="operation-panel">
                             <div class="operation-panel__head">
-                                <h3>Location</h3>
+                                <div>
+                                    <h3>Location</h3>
+                                    <p>Address is geocoded when the report is submitted.</p>
+                                </div>
                             </div>
                             <div class="operation-field">
                                 <label for="operation-address">Address</label>
