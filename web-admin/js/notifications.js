@@ -6,7 +6,6 @@ import { auth, db } from '../../shared/firebase.js';
 initAdminPage({
   pageId: 'page-notifications',
   async onReady() {
-    // Quick visibility into whether the app sees you as admin.
     const meta = document.getElementById('notifications-count');
     const debug = {
       uid: auth.currentUser?.uid ?? '(no auth user)',
@@ -31,16 +30,13 @@ initAdminPage({
       debug.role = '(admin-check failed)';
     }
 
-    if (meta) {
-      meta.textContent = `Loading… (uid: ${debug.uid}, role: ${debug.role}, project: ${debug.projectId})`;
-    }
+    if (meta) meta.textContent = 'Loading notifications...';
 
     loadNotificationsTable().catch((err) => {
-      console.error('[notifications]', err);
-      const meta = document.getElementById('notifications-count');
-      if (meta) {
-        meta.textContent = `Failed to load (uid: ${debug.uid}, role: ${debug.role}, project: ${debug.projectId})`;
-      }
+      console.error('[notifications]', { err, debug });
+      const countMeta = document.getElementById('notifications-count');
+      if (countMeta) countMeta.textContent = 'Failed to load';
+
       const list = document.getElementById('notifications-list');
       if (list) {
         const msg =
@@ -60,4 +56,3 @@ function escapeCell(text) {
   div.textContent = String(text);
   return div.innerHTML;
 }
-

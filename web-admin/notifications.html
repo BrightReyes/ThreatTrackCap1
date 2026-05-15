@@ -157,9 +157,42 @@
                     </div>
                 </header>
 
-                <main class="admin-dashboard__main incidents-main">
+                <main
+                    class="admin-dashboard__main incidents-main notifications-main"
+                >
                     <section
-                        class="incidents-panel"
+                        class="notifications-overview"
+                        aria-label="Notification overview"
+                    >
+                        <div class="notifications-overview__title">
+                            <span
+                                class="material-symbols-outlined"
+                                aria-hidden="true"
+                                >notifications_active</span
+                            >
+                            <div>
+                                <h2>Notification center</h2>
+                                <p>Recent alerts sent across ThreatTrack.</p>
+                            </div>
+                        </div>
+                        <div class="notifications-summary">
+                            <div class="notifications-summary__item">
+                                <span>Total</span>
+                                <strong id="notifications-total-stat">0</strong>
+                            </div>
+                            <div class="notifications-summary__item">
+                                <span>Unread</span>
+                                <strong id="notifications-unread-stat">0</strong>
+                            </div>
+                            <div class="notifications-summary__item">
+                                <span>Read</span>
+                                <strong id="notifications-read-stat">0</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section
+                        class="incidents-panel notifications-panel"
                         aria-label="Notification list"
                     >
                         <div class="incidents-panel__head">
@@ -177,13 +210,28 @@
                             class="notifications-toolbar"
                             aria-label="Bulk notification actions"
                         >
-                            <label class="notifications-select-all">
-                                <input
-                                    type="checkbox"
-                                    id="notifications-select-all"
-                                />
-                                <span>Select all</span>
-                            </label>
+                            <div class="notifications-toolbar__mode">
+                                <button
+                                    type="button"
+                                    id="notifications-select-mode"
+                                    class="notification-btn notification-btn--secondary"
+                                    aria-pressed="false"
+                                    aria-label="Toggle notification selection"
+                                >
+                                    <span
+                                        class="material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >checklist</span
+                                    >
+                                </button>
+                                <label class="notifications-select-all">
+                                    <input
+                                        type="checkbox"
+                                        id="notifications-select-all"
+                                    />
+                                    <span>Select all</span>
+                                </label>
+                            </div>
                             <div class="notifications-toolbar__actions">
                                 <button
                                     type="button"

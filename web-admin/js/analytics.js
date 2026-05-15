@@ -328,18 +328,6 @@ function renderBars(id, entries, options = {}) {
         .join("");
 }
 
-function getTrendKeys(range) {
-    const days = range === "7d" ? 7 : range === "90d" ? 14 : 30;
-    const keys = [];
-    const now = new Date();
-    for (let i = days - 1; i >= 0; i -= 1) {
-        const d = new Date(now);
-        d.setDate(now.getDate() - i);
-        keys.push(dayKey(d));
-    }
-    return keys;
-}
-
 function selectedRangeDayCount() {
     const range = document.getElementById("analytics-range")?.value || "30d";
     if (range === "7d") return 7;
@@ -354,6 +342,18 @@ function selectedRangeDayCount() {
         return Math.max(1, Math.ceil(span / (24 * 60 * 60 * 1000)) + 1);
     }
     return 30;
+}
+
+function getTrendKeys(range) {
+    const days = range === "7d" ? 7 : range === "90d" ? 14 : 30;
+    const keys = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i -= 1) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        keys.push(dayKey(d));
+    }
+    return keys;
 }
 
 function renderTrend(rows) {

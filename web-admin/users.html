@@ -158,10 +158,48 @@
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
-                    <div class="incidents-toolbar">
-                        <div class="incidents-toolbar__search">
+                    <section class="users-stats" aria-label="User summary">
+                        <article class="users-stat-card users-stat-card--total">
+                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">group</span>
+                            <div>
+                                <p class="users-stat-card__label">Total accounts</p>
+                                <strong id="users-stat-total">0</strong>
+                            </div>
+                        </article>
+                        <article class="users-stat-card users-stat-card--barangay">
+                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+                            <div>
+                                <p class="users-stat-card__label">Barangay Admin</p>
+                                <strong id="users-stat-admin">0</strong>
+                            </div>
+                        </article>
+                        <article class="users-stat-card users-stat-card--police">
+                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">local_police</span>
+                            <div>
+                                <p class="users-stat-card__label">Police Admin</p>
+                                <strong id="users-stat-police">0</strong>
+                            </div>
+                        </article>
+                        <article class="users-stat-card users-stat-card--users">
+                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">person</span>
+                            <div>
+                                <p class="users-stat-card__label">Users</p>
+                                <strong id="users-stat-users">0</strong>
+                            </div>
+                        </article>
+                    </section>
+
+                    <div class="incidents-toolbar users-toolbar">
+                        <div
+                            class="incidents-toolbar__search users-toolbar__search"
+                        >
                             <label class="visually-hidden" for="users-search"
                                 >Search users</label
+                            >
+                            <span
+                                class="users-toolbar__search-icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >search</span
                             >
                             <input
                                 id="users-search"
@@ -171,7 +209,9 @@
                                 autocomplete="off"
                             />
                         </div>
-                        <div class="incidents-toolbar__filters">
+                        <div
+                            class="incidents-toolbar__filters users-toolbar__filters"
+                        >
                             <select
                                 id="users-filter-role"
                                 class="incidents-select"

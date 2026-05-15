@@ -149,7 +149,7 @@ service cloud.firestore {
       // Authenticated users can create incidents with valid data
       // Allow creation when the authenticated user is the reporter.
       // Relaxed checks: accept status values set by client/server and require reporterId match.
-      allow create: if (isAdmin() || isPoliceOperationalIncident()) ||
+      allow create: if (isAdmin() || isPoliceAdmin() || isPoliceOperationalIncident()) ||
             (isAuthenticated() &&
               isValidIncident() &&
               hasNotExceededRateLimit() &&
@@ -165,8 +165,8 @@ service cloud.firestore {
       // after creation, even if validation has already moved it out of pending.
       allow update: if isValidIncidentPhotoUpdate();
 
-      // Admins can update or delete any incident (for moderation)
-      allow update, delete: if isAdmin();
+      // Barangay/Police admins can update or delete incidents for moderation and data tools.
+      allow update, delete: if isAdmin() || isPoliceAdmin();
 
       // Users can delete their own pending incidents
       allow delete: if isOwner(resource.data.reporterId) && resource.data.status == 'pending';
@@ -174,15 +174,15 @@ service cloud.firestore {
 
     // === INCIDENTS ARCHIVE COLLECTION ===
     match /incidents_archive/{incidentId} {
-      allow read: if isAdmin();
-      allow write: if isAdmin();
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow write: if isAdmin() || isPoliceAdmin();
     }
 
     // === PRECINCTS COLLECTION ===
     // Precincts are public safety information - always readable
     match /precincts/{precinctId} {
       allow read, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin() || isPoliceAdmin();
     }
 
     // === CRIME STATISTICS COLLECTION ===

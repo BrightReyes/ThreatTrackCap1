@@ -112,6 +112,8 @@ function updateSeverityPreview(type) {
     const severityInput = document.getElementById("operation-severity");
     const severityPill = document.getElementById("operation-severity-pill");
     const notificationHint = document.getElementById("operation-notification-hint");
+    const submit = document.getElementById("operation-submit");
+    const submitIcon = document.getElementById("operation-submit-icon");
     const submitText = document.getElementById("operation-submit-text");
 
     if (severityInput) {
@@ -137,6 +139,15 @@ function updateSeverityPreview(type) {
 
     if (submitText) {
         submitText.textContent = severity === "high" ? "Publish Alert" : "Add Report";
+    }
+
+    if (submit) {
+        submit.dataset.severity = severity || "none";
+    }
+
+    if (submitIcon) {
+        submitIcon.textContent =
+            severity === "high" ? "campaign" : severity ? "add_task" : "send";
     }
 }
 
@@ -369,7 +380,10 @@ function bindOperationForm() {
             return;
         }
 
-        if (submit) submit.disabled = true;
+        if (submit) {
+            submit.disabled = true;
+            submit.setAttribute("aria-busy", "true");
+        }
         const willNotify = result.data.severity === "high";
         setFeedback(
             willNotify
@@ -413,7 +427,10 @@ function bindOperationForm() {
             setFeedback(message, "error");
             toastError(message);
         } finally {
-            if (submit) submit.disabled = false;
+            if (submit) {
+                submit.disabled = false;
+                submit.removeAttribute("aria-busy");
+            }
         }
     });
 }

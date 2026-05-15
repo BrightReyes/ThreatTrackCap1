@@ -175,6 +175,29 @@ function filterDocs() {
     );
 }
 
+function updateUserStats() {
+    const totalEl = document.getElementById("users-stat-total");
+    const adminEl = document.getElementById("users-stat-admin");
+    const policeEl = document.getElementById("users-stat-police");
+    const usersEl = document.getElementById("users-stat-users");
+    const counts = allDocs.reduce(
+        (acc, docSnap) => {
+            const role = normalizeRole(docSnap.data().role);
+            acc.total += 1;
+            if (role === "admin") acc.admin += 1;
+            else if (role === "police") acc.police += 1;
+            else acc.users += 1;
+            return acc;
+        },
+        { total: 0, admin: 0, police: 0, users: 0 },
+    );
+
+    if (totalEl) totalEl.textContent = String(counts.total);
+    if (adminEl) adminEl.textContent = String(counts.admin);
+    if (policeEl) policeEl.textContent = String(counts.police);
+    if (usersEl) usersEl.textContent = String(counts.users);
+}
+
 function populateRoleSelect() {
     const roleSel = document.getElementById("users-filter-role");
     if (!roleSel) return;
@@ -465,5 +488,6 @@ export async function loadUsersTable() {
     bindToolbar();
     bindAddUserModal();
     populateRoleSelect();
+    updateUserStats();
     renderFilteredTable();
 }

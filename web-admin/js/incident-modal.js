@@ -1,6 +1,13 @@
-import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import {
+    deleteDoc,
+    doc,
+    getDoc,
+    serverTimestamp,
+    updateDoc,
+    writeBatch,
+} from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
-import { toastError, toastSuccess } from "./alerts.js";
+import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import {
     canRespondToIncident,
     formatDistanceKm,
@@ -213,8 +220,6 @@ function renderIncidentDetail(docId, d) {
   ${buildPriorityPanel(d)}
   ${buildResponsePanel(d)}
   <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
-    <h3 class="incident-actions__title">Actions</h3>
-    <p class="incident-actions__hint">Set status for this report.</p>
     <div class="incident-actions__buttons">
       ${
           canRespondToIncident(d)
@@ -239,6 +244,7 @@ export function initIncidentModal() {
     const tbody = document.getElementById("incidents-tbody");
     let currentIncidentId = null;
     let currentData = null;
+    let openMenu = null;
 
     if (!modal || !body || !tbody) return;
 
@@ -257,10 +263,39 @@ export function initIncidentModal() {
         document.body.style.overflow = "hidden";
     }
 
+    function closeRowMenu() {
+        if (!openMenu) return;
+        const button = openMenu
+            .closest(".incidents-row-actions")
+            ?.querySelector("[data-incident-menu-toggle]");
+        openMenu.hidden = true;
+        button?.setAttribute("aria-expanded", "false");
+        openMenu = null;
+    }
+
+    function toggleRowMenu(button) {
+        const menu = button
+            ?.closest(".incidents-row-actions")
+            ?.querySelector(".incidents-row-menu");
+        if (!menu) return;
+        if (openMenu && openMenu !== menu) closeRowMenu();
+        const nextOpen = menu.hidden;
+        menu.hidden = !nextOpen;
+        button.setAttribute("aria-expanded", String(nextOpen));
+        openMenu = nextOpen ? menu : null;
+    }
+
     closeBtn?.addEventListener("click", closeModal);
     backdrop?.addEventListener("click", closeModal);
     document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && !modal.hidden) closeModal();
+        if (e.key === "Escape") {
+            closeRowMenu();
+            if (!modal.hidden) closeModal();
+        }
+    });
+    document.addEventListener("click", (e) => {
+        if (!openMenu || e.target.closest(".incidents-row-actions")) return;
+        closeRowMenu();
     });
 
     function bindActionHandlers() {
@@ -411,13 +446,120 @@ export function initIncidentModal() {
         }
     }
 
+    async function archiveIncidentById(id) {
+        const ref = doc(db, "incidents", id);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+            throw new Error("This incident was not found.");
+        }
+
+        const batch = writeBatch(db);
+        batch.set(
+            doc(db, "incidents_archive", id),
+            {
+                ...snap.data(),
+                archivedAt: serverTimestamp(),
+                archivedBy: auth.currentUser?.uid || null,
+            },
+            { merge: true },
+        );
+        batch.delete(ref);
+        await batch.commit();
+    }
+
+    function removeRowFromTable(id) {
+        document
+            .querySelector(`tr[data-incident-id="${CSS.escape(id)}"]`)
+            ?.remove();
+        window.dispatchEvent(
+            new CustomEvent("incident:removed", {
+                detail: { id },
+            }),
+        );
+    }
+
+    async function handleRowOption(action, id, button) {
+        if (!action || !id) return;
+        closeRowMenu();
+
+        if (action === "archive") {
+            const ok = await confirmDanger({
+                title: "Archive incident?",
+                text: "This moves the incident out of the active incident list.",
+                confirmText: "Archive",
+            });
+            if (!ok) return;
+
+            button.disabled = true;
+            try {
+                await archiveIncidentById(id);
+                removeRowFromTable(id);
+                toastSuccess("Incident archived");
+            } catch (err) {
+                console.error("[incident-modal] archive", err);
+                toastError(err?.message || "Failed to archive incident");
+                button.disabled = false;
+            }
+            return;
+        }
+
+        if (action === "delete") {
+            const ok = await confirmDanger({
+                title: "Delete incident?",
+                text: "This permanently deletes the incident from the active list.",
+                confirmText: "Delete",
+            });
+            if (!ok) return;
+
+            button.disabled = true;
+            try {
+                await deleteDoc(doc(db, "incidents", id));
+                removeRowFromTable(id);
+                toastSuccess("Incident deleted");
+            } catch (err) {
+                console.error("[incident-modal] delete", err);
+                toastError(err?.message || "Failed to delete incident");
+                button.disabled = false;
+            }
+        }
+    }
+
     tbody.addEventListener("click", async (e) => {
-        const btn = e.target.closest(".incidents-action-btn");
-        if (!btn) return;
-        const tr = btn.closest("tr");
+        const toggle = e.target.closest("[data-incident-menu-toggle]");
+        if (toggle) {
+            e.stopPropagation();
+            toggleRowMenu(toggle);
+            return;
+        }
+
+        const option = e.target.closest("[data-incident-option]");
+        if (option) {
+            e.stopPropagation();
+            const tr = option.closest("tr");
+            await handleRowOption(
+                option.getAttribute("data-incident-option"),
+                tr?.dataset?.incidentId,
+                option,
+            );
+            return;
+        }
+
+        const tr = e.target.closest("tr[data-incident-id]");
         const id = tr?.dataset?.incidentId;
         if (!id) return;
 
+        await openIncidentById(id);
+    });
+
+    tbody.addEventListener("keydown", async (e) => {
+        if (e.target.closest("button")) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+
+        const tr = e.target.closest("tr[data-incident-id]");
+        const id = tr?.dataset?.incidentId;
+        if (!id) return;
+
+        e.preventDefault();
         await openIncidentById(id);
     });
 

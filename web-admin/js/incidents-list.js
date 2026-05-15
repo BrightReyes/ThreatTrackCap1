@@ -96,21 +96,28 @@ function buildRow(docSnap) {
   const statusLabel = humanize(d.status);
   const code = formatIncidentCode(id);
   const opened = isIncidentOpened(d);
-  const rowClass = opened ? '' : ' class="incidents-table__row--unopened"';
+  const rowClasses = ['incidents-table__row', 'incidents-table__row--clickable'];
+  if (!opened) rowClasses.push('incidents-table__row--unopened');
   const codeClass = opened
     ? 'incidents-code incidents-code--cell'
     : 'incidents-code incidents-code--cell incidents-code--unopened';
 
-  return `<tr data-incident-id="${escapeAttr(id)}"${rowClass}>
+  return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
     <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>
     <td>${escapeHtml(reported)}</td>
     <td>${escapeHtml(typeLabel)}</td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
     <td>
-      <button type="button" class="incidents-more-btn incidents-action-btn" title="View full report" aria-label="View full report">
-        <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
-      </button>
+      <div class="incidents-row-actions">
+        <button type="button" class="incidents-more-btn incidents-action-btn" title="More options" aria-label="More options" aria-expanded="false" data-incident-menu-toggle>
+          <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+        </button>
+        <div class="incidents-row-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-incident-option="archive">Archive</button>
+          <button type="button" role="menuitem" class="incidents-row-menu__danger" data-incident-option="delete">Delete</button>
+        </div>
+      </div>
     </td>
   </tr>`;
 }
@@ -168,6 +175,31 @@ function filterDocs() {
       docMatchesStatus(docSnap, status) &&
       docMatchesSeverity(docSnap, severity),
   );
+}
+
+function updateIncidentStats() {
+  const totalEl = document.getElementById('incidents-stat-total');
+  const highEl = document.getElementById('incidents-stat-high');
+  const pendingEl = document.getElementById('incidents-stat-pending');
+  const resolvedEl = document.getElementById('incidents-stat-resolved');
+  const counts = allDocs.reduce(
+    (acc, docSnap) => {
+      const d = docSnap.data();
+      const severity = norm(d.severity);
+      const status = norm(d.status);
+      acc.total += 1;
+      if (severity === 'high') acc.high += 1;
+      if (status === 'pending' || status === 'under_review') acc.pending += 1;
+      if (status === 'done' || status === 'verified') acc.resolved += 1;
+      return acc;
+    },
+    { total: 0, high: 0, pending: 0, resolved: 0 },
+  );
+
+  if (totalEl) totalEl.textContent = String(counts.total);
+  if (highEl) highEl.textContent = String(counts.high);
+  if (pendingEl) pendingEl.textContent = String(counts.pending);
+  if (resolvedEl) resolvedEl.textContent = String(counts.resolved);
 }
 
 function clampPage(page, totalPages) {
@@ -356,6 +388,17 @@ function bindIncidentUpdates() {
       }),
     };
 
+    updateIncidentStats();
+    populateFilterSelects();
+    renderFilteredTable();
+  });
+
+  window.addEventListener('incident:removed', (event) => {
+    const { id } = event.detail || {};
+    if (!id) return;
+
+    allDocs = allDocs.filter((docSnap) => docSnap.id !== id);
+    updateIncidentStats();
     populateFilterSelects();
     renderFilteredTable();
   });
@@ -382,5 +425,6 @@ export async function loadIncidentsTable() {
   bindToolbar();
   bindIncidentUpdates();
   populateFilterSelects();
+  updateIncidentStats();
   renderFilteredTable();
 }
