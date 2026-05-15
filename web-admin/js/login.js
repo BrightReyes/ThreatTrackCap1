@@ -1,4 +1,4 @@
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../../shared/firebase.js";
 import { handleLogin } from "../../shared/auth.js";
 import Swal from "sweetalert2";
@@ -9,6 +9,7 @@ const pageLogin = document.getElementById("page-login");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
 const loginSubmit = document.getElementById("login-submit");
+const forgotPassword = document.getElementById("forgot-password");
 
 const LOCK_KEY = "tt_admin_login_lock";
 
@@ -40,6 +41,28 @@ function setLockState(next) {
 
 function clearLock() {
     setLockState({ failed: 0, lockedUntil: 0 });
+}
+
+function getEmailValue() {
+    return document.getElementById("email")?.value.trim() || "";
+}
+
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
+function getLoginErrorMessage(err) {
+    const credentialErrorCodes = new Set([
+        "auth/user-not-found",
+        "auth/wrong-password",
+        "auth/invalid-credential",
+    ]);
+
+    if (credentialErrorCodes.has(err?.code)) {
+        return "Invalid email or password.";
+    }
+
+    return err?.message ?? "Login failed";
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -77,7 +100,7 @@ loginForm.addEventListener("submit", async (e) => {
         void logAudit("auth.login", { email });
         window.location.replace("dashboard.html");
     } catch (err) {
-        const msg = err?.message ?? "Login failed";
+        const msg = getLoginErrorMessage(err);
         console.warn("[login] sign-in failed", {
             code: err?.code || "(no code)",
             email,
@@ -110,5 +133,56 @@ loginForm.addEventListener("submit", async (e) => {
     } finally {
         loginSubmit.disabled = false;
         loginSubmit.textContent = "Login";
+    }
+});
+
+forgotPassword?.addEventListener("click", async () => {
+    loginError.textContent = "";
+
+    const currentEmail = getEmailValue();
+    const result = await Swal.fire({
+        title: "Reset password",
+        text: "Enter your admin email and we will send password reset instructions.",
+        input: "email",
+        inputValue: currentEmail,
+        inputPlaceholder: "sample@gmail.com",
+        confirmButtonText: "Send reset link",
+        showCancelButton: true,
+        confirmButtonColor: "#ef4444",
+        inputValidator: (value) => {
+            const email = String(value || "").trim();
+            if (!email) return "Email is required.";
+            if (!isValidEmail(email)) return "Enter a valid email address.";
+            return null;
+        },
+    });
+
+    if (!result.isConfirmed) return;
+
+    const email = String(result.value || "").trim();
+    forgotPassword.disabled = true;
+
+    try {
+        await sendPasswordResetEmail(auth, email);
+        await toastSuccess("Password reset email sent");
+        loginError.textContent =
+            "Password reset instructions were sent if this email has an account.";
+    } catch (err) {
+        console.warn("[login] password reset failed", {
+            code: err?.code || "(no code)",
+            email,
+        });
+
+        const msg =
+            err?.code === "auth/invalid-email"
+                ? "Enter a valid email address."
+                : err?.code === "auth/too-many-requests"
+                ? "Too many reset requests. Please try again later."
+                : "Failed to send password reset email.";
+
+        loginError.textContent = msg;
+        toastError(msg);
+    } finally {
+        forgotPassword.disabled = false;
     }
 });
