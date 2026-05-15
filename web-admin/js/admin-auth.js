@@ -13,6 +13,28 @@ import { startAdminPriorityAlerts } from "./admin-sos-alerts.js";
 applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
+const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+
+function applyCachedAdminRole() {
+    const role = normalizeAdminRole(localStorage.getItem(ADMIN_ROLE_CACHE_KEY));
+    document.documentElement.classList.toggle(
+        "admin-role-police",
+        role === "police",
+    );
+}
+
+function cacheAdminRole(role) {
+    const normalized = normalizeAdminRole(role);
+    if (normalized) {
+        localStorage.setItem(ADMIN_ROLE_CACHE_KEY, normalized);
+    } else {
+        localStorage.removeItem(ADMIN_ROLE_CACHE_KEY);
+    }
+    document.documentElement.classList.toggle(
+        "admin-role-police",
+        normalized === "police",
+    );
+}
 
 function normalizeAdminRole(role) {
     const value = String(role || "").trim().toLowerCase();
@@ -57,6 +79,8 @@ function applyRoleNavigation(profile) {
     const nav = document.querySelector(".sidebar__nav");
     if (!nav) return;
 
+    cacheAdminRole(profile?.role);
+
     const operationHref = "operation.html";
     let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
     const canUseOperations = isPoliceAdminRole(profile?.role);
@@ -69,7 +93,8 @@ function applyRoleNavigation(profile) {
     if (!operationLink) {
         operationLink = document.createElement("a");
         operationLink.href = operationHref;
-        operationLink.className = "sidebar__link";
+        operationLink.className = "sidebar__link sidebar__link--role-visible";
+        operationLink.dataset.roleNav = "police";
         operationLink.innerHTML = `
             <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
             <span>Operation</span>
@@ -88,6 +113,8 @@ function applyRoleNavigation(profile) {
             nav.insertBefore(operationLink, analyticsLink);
         }
     }
+
+    operationLink.classList.add("sidebar__link--role-visible");
 
     const currentPage = window.location.pathname.split("/").pop();
     if (currentPage === operationHref) {
@@ -185,6 +212,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
                 } catch {}
                 try {
                     await signOut(auth);
+                    cacheAdminRole(null);
                 } catch {}
                 toastError("Session timed out due to inactivity");
                 window.location.replace("login.html");
@@ -197,6 +225,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
 
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
+            cacheAdminRole(null);
             window.location.replace("login.html");
             return;
         }
@@ -293,6 +322,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         if (!ok) return;
         try {
             await signOut(auth);
+            cacheAdminRole(null);
             toastSuccess("Signed out");
             // eslint-disable-next-line no-void
             void logAudit("auth.logout", {});
@@ -310,3 +340,5 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         }
     });
 }
+
+applyCachedAdminRole();

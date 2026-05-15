@@ -137,8 +137,8 @@ service cloud.firestore {
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly(['firstName', 'lastName', 'role', 'status', 'disabled', 'suspended', 'uid']));
 
-      // Users can delete their own profile, admins can delete any
-      allow delete: if isOwner(userId) || isAdmin();
+      // Users can delete their own profile; staff can delete dashboard-managed profiles.
+      allow delete: if isOwner(userId) || canManageUserProfiles();
     }
 
     // === INCIDENTS COLLECTION ===

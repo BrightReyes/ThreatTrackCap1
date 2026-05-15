@@ -14,6 +14,9 @@
                     "sidebar-collapsed-initial",
                 );
             }
+            if (localStorage.getItem("tt_admin_role") === "police") {
+                document.documentElement.classList.add("admin-role-police");
+            }
         </script>
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />
@@ -73,6 +76,7 @@
                         <a
                             href="operation.html"
                             class="sidebar__link sidebar__link--active"
+                            data-role-nav="police"
                             aria-current="page"
                         >
                             <span

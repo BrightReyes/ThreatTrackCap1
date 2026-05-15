@@ -215,6 +215,11 @@ body {
         gap 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+html:not(.admin-role-police)
+    .sidebar__link[data-role-nav="police"]:not(.sidebar__link--role-visible) {
+    display: none;
+}
+
 .sidebar__link span:not(.sidebar__icon) {
     display: inline-block;
     max-width: 160px;

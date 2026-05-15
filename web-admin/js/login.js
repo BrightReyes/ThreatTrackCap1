@@ -70,6 +70,8 @@ onAuthStateChanged(auth, (user) => {
         window.location.replace("dashboard.html");
         return;
     }
+    localStorage.removeItem("tt_admin_role");
+    document.documentElement.classList.remove("admin-role-police");
     pageLogin.hidden = false;
 });
 
