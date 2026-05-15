@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Users</title>
+        <title>Admin | Users</title>
         <link
             href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
             rel="stylesheet"
@@ -160,28 +160,54 @@
                 <main class="admin-dashboard__main incidents-main">
                     <section class="users-stats" aria-label="User summary">
                         <article class="users-stat-card users-stat-card--total">
-                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">group</span>
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >group</span
+                            >
                             <div>
-                                <p class="users-stat-card__label">Total accounts</p>
+                                <p class="users-stat-card__label">
+                                    Total accounts
+                                </p>
                                 <strong id="users-stat-total">0</strong>
                             </div>
                         </article>
-                        <article class="users-stat-card users-stat-card--barangay">
-                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+                        <article
+                            class="users-stat-card users-stat-card--barangay"
+                        >
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >admin_panel_settings</span
+                            >
                             <div>
-                                <p class="users-stat-card__label">Barangay Admin</p>
+                                <p class="users-stat-card__label">
+                                    Barangay Admin
+                                </p>
                                 <strong id="users-stat-admin">0</strong>
                             </div>
                         </article>
-                        <article class="users-stat-card users-stat-card--police">
-                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">local_police</span>
+                        <article
+                            class="users-stat-card users-stat-card--police"
+                        >
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >local_police</span
+                            >
                             <div>
-                                <p class="users-stat-card__label">Police Admin</p>
+                                <p class="users-stat-card__label">
+                                    Police Admin
+                                </p>
                                 <strong id="users-stat-police">0</strong>
                             </div>
                         </article>
                         <article class="users-stat-card users-stat-card--users">
-                            <span class="users-stat-card__icon material-symbols-outlined" aria-hidden="true">person</span>
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >person</span
+                            >
                             <div>
                                 <p class="users-stat-card__label">Users</p>
                                 <strong id="users-stat-users">0</strong>
@@ -243,7 +269,9 @@
                         </div>
 
                         <div class="incidents-table-wrap">
-                            <table class="incidents-table incidents-table--users">
+                            <table
+                                class="incidents-table incidents-table--users"
+                            >
                                 <thead>
                                     <tr>
                                         <th scope="col">#</th>
@@ -252,7 +280,10 @@
                                         <th scope="col">Role</th>
                                         <th scope="col">Date</th>
                                         <th scope="col">Status</th>
-                                        <th scope="col" aria-label="Actions"></th>
+                                        <th
+                                            scope="col"
+                                            aria-label="Actions"
+                                        ></th>
                                     </tr>
                                 </thead>
                                 <tbody id="users-tbody">
@@ -425,8 +456,12 @@
                                         class="incidents-select"
                                     >
                                         <option value="user">User</option>
-                                        <option value="admin">Barangay Admin</option>
-                                        <option value="police">Police Admin</option>
+                                        <option value="admin">
+                                            Barangay Admin
+                                        </option>
+                                        <option value="police">
+                                            Police Admin
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="user-modal-form__field">
@@ -441,7 +476,9 @@
                                         class="incidents-select"
                                     >
                                         <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
+                                        <option value="inactive">
+                                            Inactive
+                                        </option>
                                         <option value="suspended">
                                             Suspended
                                         </option>

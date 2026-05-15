@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Incidents</title>
+        <title>Admin | Incidents</title>
         <link
             href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
             rel="stylesheet"
@@ -169,32 +169,67 @@
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
-                    <section class="incidents-stats" aria-label="Incident summary">
-                        <article class="incidents-stat-card incidents-stat-card--total">
-                            <span class="incidents-stat-card__icon material-symbols-outlined" aria-hidden="true">assignment</span>
+                    <section
+                        class="incidents-stats"
+                        aria-label="Incident summary"
+                    >
+                        <article
+                            class="incidents-stat-card incidents-stat-card--total"
+                        >
+                            <span
+                                class="incidents-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >assignment</span
+                            >
                             <div>
-                                <p class="incidents-stat-card__label">Total incidents</p>
+                                <p class="incidents-stat-card__label">
+                                    Total incidents
+                                </p>
                                 <strong id="incidents-stat-total">0</strong>
                             </div>
                         </article>
-                        <article class="incidents-stat-card incidents-stat-card--high">
-                            <span class="incidents-stat-card__icon material-symbols-outlined" aria-hidden="true">priority_high</span>
+                        <article
+                            class="incidents-stat-card incidents-stat-card--high"
+                        >
+                            <span
+                                class="incidents-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >priority_high</span
+                            >
                             <div>
-                                <p class="incidents-stat-card__label">High severity</p>
+                                <p class="incidents-stat-card__label">
+                                    High severity
+                                </p>
                                 <strong id="incidents-stat-high">0</strong>
                             </div>
                         </article>
-                        <article class="incidents-stat-card incidents-stat-card--pending">
-                            <span class="incidents-stat-card__icon material-symbols-outlined" aria-hidden="true">pending_actions</span>
+                        <article
+                            class="incidents-stat-card incidents-stat-card--pending"
+                        >
+                            <span
+                                class="incidents-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >pending_actions</span
+                            >
                             <div>
-                                <p class="incidents-stat-card__label">Pending review</p>
+                                <p class="incidents-stat-card__label">
+                                    Pending review
+                                </p>
                                 <strong id="incidents-stat-pending">0</strong>
                             </div>
                         </article>
-                        <article class="incidents-stat-card incidents-stat-card--resolved">
-                            <span class="incidents-stat-card__icon material-symbols-outlined" aria-hidden="true">task_alt</span>
+                        <article
+                            class="incidents-stat-card incidents-stat-card--resolved"
+                        >
+                            <span
+                                class="incidents-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >task_alt</span
+                            >
                             <div>
-                                <p class="incidents-stat-card__label">Resolved</p>
+                                <p class="incidents-stat-card__label">
+                                    Resolved
+                                </p>
                                 <strong id="incidents-stat-resolved">0</strong>
                             </div>
                         </article>
@@ -257,7 +292,10 @@
                                         <th scope="col">Type</th>
                                         <th scope="col">Severity</th>
                                         <th scope="col">Status</th>
-                                        <th scope="col" aria-label="Actions"></th>
+                                        <th
+                                            scope="col"
+                                            aria-label="Actions"
+                                        ></th>
                                     </tr>
                                 </thead>
                                 <tbody id="incidents-tbody">
