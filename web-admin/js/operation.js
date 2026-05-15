@@ -131,7 +131,7 @@ function updateSeverityPreview(type) {
     if (notificationHint) {
         notificationHint.textContent =
             !severity
-                ? "Severity will be assigned automatically from the selected incident type."
+                ? "Select an incident type to see notification behavior."
                 : severity === "high"
                 ? "High severity reports notify active app users."
                 : "Medium and low severity reports are added to incidents and heatmap only.";
@@ -147,7 +147,9 @@ function updateSeverityPreview(type) {
 
     if (submitIcon) {
         submitIcon.textContent =
-            severity === "high" ? "campaign" : severity ? "add_task" : "send";
+            severity === "high"
+                ? "notification_important"
+                : "assignment_add";
     }
 }
 

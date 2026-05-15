@@ -194,7 +194,7 @@
                         class="operation-form"
                         novalidate
                     >
-                        <section class="operation-panel">
+                        <section class="operation-panel operation-incident-panel">
                             <div class="operation-panel__head">
                                 <div>
                                     <h3>Incident</h3>
@@ -249,43 +249,7 @@
                                         </option>
                                     </select>
                                 </div>
-                                <div
-                                    class="operation-severity-card"
-                                    aria-live="polite"
-                                >
-                                    <input
-                                        id="operation-severity"
-                                        class="operation-severity-input"
-                                        type="hidden"
-                                        value=""
-                                        readonly
-                                    />
-                                    <span
-                                        class="operation-severity-card__icon material-symbols-outlined"
-                                        aria-hidden="true"
-                                        >auto_awesome</span
-                                    >
-                                    <div class="operation-severity-card__body">
-                                        <span class="operation-severity-card__label"
-                                            >Severity</span
-                                        >
-                                        <span
-                                            id="operation-severity-pill"
-                                            class="operation-severity-pill"
-                                            data-severity="none"
-                                        >
-                                            Select an incident type
-                                        </span>
-                                    </div>
-                                </div>
                             </div>
-                            <p
-                                id="operation-notification-hint"
-                                class="operation-hint"
-                            >
-                                Select an incident type to see notification
-                                behavior.
-                            </p>
                             <div class="operation-field">
                                 <label for="operation-description"
                                     >Description</label
@@ -302,7 +266,51 @@
                             </div>
                         </section>
 
-                        <section class="operation-panel">
+                        <section class="operation-panel operation-severity-panel">
+                            <div class="operation-panel__head">
+                                <div>
+                                    <h3>Severity</h3>
+                                </div>
+                            </div>
+                            <div
+                                class="operation-severity-card"
+                                aria-live="polite"
+                            >
+                                <input
+                                    id="operation-severity"
+                                    class="operation-severity-input"
+                                    type="hidden"
+                                    value=""
+                                    readonly
+                                />
+                                <span
+                                    class="operation-severity-card__icon material-symbols-outlined"
+                                    aria-hidden="true"
+                                    >auto_awesome</span
+                                >
+                                <div class="operation-severity-card__body">
+                                    <span class="operation-severity-card__label"
+                                        >Severity</span
+                                    >
+                                    <span
+                                        id="operation-severity-pill"
+                                        class="operation-severity-pill"
+                                        data-severity="none"
+                                    >
+                                        Select an incident type
+                                    </span>
+                                </div>
+                            </div>
+                            <p
+                                id="operation-notification-hint"
+                                class="operation-hint"
+                            >
+                                Select an incident type to see notification
+                                behavior.
+                            </p>
+                        </section>
+
+                        <section class="operation-panel operation-location-panel">
                             <div class="operation-panel__head">
                                 <div>
                                     <h3>Location</h3>
@@ -349,7 +357,7 @@
                                     id="operation-submit-icon"
                                     class="material-symbols-outlined"
                                     aria-hidden="true"
-                                    >send</span
+                                    >assignment_add</span
                                 >
                                 <span id="operation-submit-text"
                                     >Add Report</span
