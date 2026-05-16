@@ -609,7 +609,7 @@ Set the OpenAI key only on the server side:
 ```bash
 firebase functions:secrets:set OPENAI_API_KEY
 ```
-
+    
 Firebase Secret Manager requires the Firebase project to be on the Blaze
 pay-as-you-go plan. Without Blaze, the AI endpoint cannot securely store the
 OpenAI key and the admin panel will continue showing the rule-based fallback.

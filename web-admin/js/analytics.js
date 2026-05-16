@@ -4,16 +4,15 @@ import {
     getCountFromServer,
     getDocs,
 } from "firebase/firestore";
-import { auth, db } from "../../shared/firebase.js";
+import { db } from "../../shared/firebase.js";
 
 const INCIDENT_LIMIT = 500;
 const OPEN_STATUSES = new Set(["pending", "under_review"]);
 const VERIFIED_STATUSES = new Set(["verified", "responding", "done"]);
 const RESPONDED_STATUSES = new Set(["responding", "done"]);
-const AI_SUMMARY_ENDPOINT =
-    "https://us-central1-threattrackcap1.cloudfunctions.net/generateAnalyticsSolutionSummary";
 const SOLUTION_LIMIT = 5;
 const MIN_RECOMMENDATION_REPORTS = 3;
+const SOLUTION_PRIORITIES = ["all", "high", "medium", "low"];
 
 const TYPE_SOLUTION_RULES = {
     robbery_holdup: [
@@ -207,8 +206,7 @@ const TYPE_SOLUTION_RULES = {
 };
 
 let incidentRows = [];
-let aiSummaryRequestId = 0;
-const aiSummaryCache = new Map();
+let solutionPriorityFilter = "all";
 
 function setText(id, value) {
     const el = document.getElementById(id);
@@ -628,12 +626,6 @@ function renderCrimeTypeSeverityBars(rows) {
         .join("");
 }
 
-function selectedRangeLabel() {
-    const el = document.getElementById("analytics-range");
-    if (!el) return "selected range";
-    return el.options?.[el.selectedIndex]?.textContent?.trim() || el.value;
-}
-
 function normalizeType(value) {
     return String(value || "unknown").trim().toLowerCase();
 }
@@ -729,7 +721,7 @@ function getHotspotPriority(stats) {
     ) {
         return "medium";
     }
-    return "monitor";
+    return "low";
 }
 
 function priorityRank(priority) {
@@ -808,7 +800,6 @@ function buildSolutionRecommendations(rows) {
         .map((stats) => ({
             ...stats,
             evidence: buildEvidenceText(stats),
-            localSummary: buildLocalSummary(stats),
         }));
 }
 
@@ -828,40 +819,6 @@ function buildEvidenceText(stats) {
     return parts.join(", ");
 }
 
-function buildLocalSummary(stats) {
-    const pattern = stats.dominantTypes.length
-        ? humanize(stats.dominantTypes.join(", "))
-        : "Mixed Incident";
-    const actions = stats.actions
-        .map((action) => action.title)
-        .filter(Boolean)
-        .slice(0, 3);
-
-    return {
-        summary: `${stats.area} is a ${humanize(stats.priority)} priority hotspot driven by ${pattern}. Evidence: ${buildEvidenceText(stats)}.`,
-        suggestedSolution: actions.length
-            ? `Recommended focus: ${actions.join("; ")}.`
-            : "Recommended focus: continue monitoring and verify new reports.",
-        confidenceNote: "Rule-based preview from selected analytics range.",
-    };
-}
-
-function solutionPayload(solution) {
-    return {
-        area: solution.area,
-        priority: solution.priority,
-        dominantTypes: solution.dominantTypes,
-        totalReports: solution.totalReports,
-        weightedScore: solution.weightedScore,
-        peakHours: solution.peakHours,
-        peakLabel: solution.peakLabel,
-        evidence: solution.evidence,
-        typeCounts: solution.typeCounts,
-        severityBreakdown: solution.severityBreakdown,
-        actions: solution.actions,
-    };
-}
-
 function renderSolutions(rows) {
     const el = document.getElementById("analytics-solutions");
     if (!el) return;
@@ -873,150 +830,124 @@ function renderSolutions(rows) {
         return;
     }
 
-    el.innerHTML = solutions
-        .map((solution, index) => {
-            const local = solution.localSummary;
-            return `<article class="analytics-solution-card analytics-solution-card--${escapeAttr(solution.priority)}">
-                <div class="analytics-solution-card__top">
-                    <div>
-                        <span class="analytics-solution-card__priority">${escapeHtml(humanize(solution.priority))}</span>
-                        <h3>${escapeHtml(solution.area)}</h3>
-                        <p>${escapeHtml(humanize(solution.dominantTypes.join(", ") || "mixed incident"))}</p>
-                    </div>
-                    <strong>${solution.weightedScore}</strong>
-                </div>
-                <p class="analytics-solution-card__evidence">${escapeHtml(solution.evidence)}</p>
-                <div class="analytics-ai-summary" data-ai-summary-index="${index}">
-                    <div class="analytics-ai-summary__head">
-                        <span data-ai-summary-status>Rule-based preview</span>
-                    </div>
-                    <p data-ai-summary-text>${escapeHtml(local.summary)}</p>
-                    <p data-ai-solution-text>${escapeHtml(local.suggestedSolution)}</p>
-                    <em data-ai-confidence-text>${escapeHtml(local.confidenceNote)}</em>
-                </div>
-                <ol class="analytics-solution-actions">
-                    ${solution.actions
-                        .map(
-                            (action) => `<li>
-                                <strong>${escapeHtml(action.title)}</strong>
-                                <span>${escapeHtml(action.reason)}</span>
-                                <em>${escapeHtml(action.timeframe)}</em>
-                            </li>`,
-                        )
-                        .join("")}
-                </ol>
-            </article>`;
-        })
-        .join("");
+    if (!SOLUTION_PRIORITIES.includes(solutionPriorityFilter)) {
+        solutionPriorityFilter = "all";
+    }
 
-    requestAiSolutionSummaries(solutions).catch((err) => {
-        console.warn("[analytics] AI solution summary", err);
-        markAiSummaryUnavailable(err?.message);
-    });
+    const visible =
+        solutionPriorityFilter === "all"
+            ? solutions
+            : solutions.filter((item) => item.priority === solutionPriorityFilter);
+
+    el.innerHTML = `
+        ${renderSolutionControls(solutions)}
+        ${
+            visible.length
+                ? visible.map(renderSolutionCard).join("")
+                : '<p class="analytics-empty">No recommendations match this priority filter.</p>'
+        }
+    `;
+    bindSolutionControls(el);
 }
 
-async function requestAiSolutionSummaries(solutions) {
-    const requestId = ++aiSummaryRequestId;
-    const payload = {
-        range: selectedRangeLabel(),
-        generatedAt: new Date().toISOString(),
-        hotspots: solutions.map(solutionPayload),
-    };
-    const cacheKey = JSON.stringify({
-        range: payload.range,
-        hotspots: payload.hotspots,
-    });
+function priorityLabel(priority) {
+    if (priority === "high") return "High priority";
+    if (priority === "medium") return "Medium priority";
+    return "Low priority";
+}
 
-    if (aiSummaryCache.has(cacheKey)) {
-        updateAiSummaries(aiSummaryCache.get(cacheKey));
-        return;
-    }
+function priorityHint(priority) {
+    if (priority === "high") return "Act first";
+    if (priority === "medium") return "Plan next";
+    return "Monitor";
+}
 
-    const user = auth.currentUser;
-    if (!user) {
-        throw new Error("No signed-in admin user");
-    }
-
-    setAiSummaryStatus("Generating AI summary...");
-    const token = await user.getIdToken();
-    const response = await fetch(AI_SUMMARY_ENDPOINT, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
+function priorityCounts(solutions) {
+    return solutions.reduce(
+        (acc, item) => {
+            acc[item.priority] = (acc[item.priority] || 0) + 1;
+            acc.all += 1;
+            return acc;
         },
-        body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-        const text = await response.text().catch(() => "");
-        let detail = text;
-        try {
-            const parsed = JSON.parse(text);
-            detail = parsed?.error || parsed?.message || text;
-        } catch {}
-        throw new Error(
-            `AI summary request failed (${response.status})${detail ? `: ${detail}` : ""}`,
-        );
-    }
-
-    const data = await response.json();
-    if (requestId !== aiSummaryRequestId) return;
-    aiSummaryCache.set(cacheKey, data);
-    updateAiSummaries(data);
+        { all: 0, high: 0, medium: 0, low: 0 },
+    );
 }
 
-function setAiSummaryStatus(text) {
-    document.querySelectorAll("[data-ai-summary-status]").forEach((el) => {
-        el.textContent = text;
-    });
+function renderSolutionControls(solutions) {
+    const counts = priorityCounts(solutions);
+    const top = solutions[0];
+    return `<div class="analytics-solution-controls">
+        <div class="analytics-solution-controls__summary">
+            <span class="analytics-solution-controls__eyebrow">Priority actions</span>
+            <strong>${escapeHtml(top?.actions?.[0]?.title || "Review active hotspots")}</strong>
+            <em>${escapeHtml(top ? `${priorityLabel(top.priority)} - ${top.area}` : "No action selected")}</em>
+        </div>
+        <div class="analytics-solution-filter" aria-label="Filter recommendations by priority">
+            ${SOLUTION_PRIORITIES.map((priority) => {
+                const active = priority === solutionPriorityFilter ? " is-active" : "";
+                const label = priority === "all" ? "All" : priorityLabel(priority).replace(" priority", "");
+                return `<button type="button" class="analytics-solution-filter__btn analytics-solution-filter__btn--${escapeAttr(priority)}${active}" data-solution-priority="${escapeAttr(priority)}" aria-pressed="${active ? "true" : "false"}">
+                    <span>${escapeHtml(label)}</span>
+                    <strong>${counts[priority] || 0}</strong>
+                </button>`;
+            }).join("")}
+        </div>
+    </div>`;
 }
 
-function updateAiSummaries(data) {
-    const summaries = Array.isArray(data?.summaries) ? data.summaries : [];
-    const sourceLabel =
-        data?.source === "openai"
-            ? "AI summary"
-            : "Rule-based summary";
-    const fallbackNote =
-        data?.warning ||
-        (data?.configured === false
-            ? "OpenAI key is not configured; showing rule-based recommendation."
-            : "");
-
-    summaries.forEach((summary, index) => {
-        const el = document.querySelector(
-            `[data-ai-summary-index="${index}"]`,
-        );
-        if (!el) return;
-        const statusEl = el.querySelector("[data-ai-summary-status]");
-        const summaryEl = el.querySelector("[data-ai-summary-text]");
-        const solutionEl = el.querySelector("[data-ai-solution-text]");
-        const confidenceEl = el.querySelector("[data-ai-confidence-text]");
-
-        if (statusEl) statusEl.textContent = sourceLabel;
-        if (summaryEl && summary.summary) {
-            summaryEl.textContent = summary.summary;
-        }
-        if (solutionEl && summary.suggestedSolution) {
-            solutionEl.textContent = summary.suggestedSolution;
-        }
-        if (confidenceEl && (fallbackNote || summary.confidenceNote)) {
-            confidenceEl.textContent = fallbackNote || summary.confidenceNote;
-        }
-    });
+function renderSolutionCard(solution) {
+    const pattern = humanize(solution.dominantTypes.join(", ") || "mixed incident");
+    return `<article class="analytics-solution-card analytics-solution-card--${escapeAttr(solution.priority)}">
+        <div class="analytics-solution-card__top">
+            <div>
+                <span class="analytics-solution-card__priority">${escapeHtml(priorityLabel(solution.priority))}</span>
+                <h3>${escapeHtml(solution.area)}</h3>
+                <p>${escapeHtml(pattern)} - ${escapeHtml(priorityHint(solution.priority))}</p>
+            </div>
+            <div class="analytics-solution-score" aria-label="Weighted risk score">
+                <strong>${solution.weightedScore}</strong>
+                <span>score</span>
+            </div>
+        </div>
+        <div class="analytics-solution-action-strip">
+            <span>Top actions</span>
+            <strong>${escapeHtml(solution.actions.slice(0, 3).map((action) => action.title).join(" - "))}</strong>
+        </div>
+        <ol class="analytics-solution-actions">
+            ${solution.actions.map(renderSolutionAction).join("")}
+        </ol>
+        <details class="analytics-solution-details" ${solution.priority === "high" ? "open" : ""}>
+            <summary>Evidence and reason</summary>
+            <div class="analytics-solution-details__body">
+                <p class="analytics-solution-card__evidence">${escapeHtml(solution.evidence)}</p>
+                <dl>
+                    <div><dt>Reports</dt><dd>${solution.totalReports}</dd></div>
+                    <div><dt>High</dt><dd>${solution.severityBreakdown.high}</dd></div>
+                    <div><dt>Medium</dt><dd>${solution.severityBreakdown.medium}</dd></div>
+                    <div><dt>Low</dt><dd>${solution.severityBreakdown.low}</dd></div>
+                </dl>
+            </div>
+        </details>
+    </article>`;
 }
 
-function markAiSummaryUnavailable(reason = "") {
-    const detail = String(reason || "").trim();
-    document.querySelectorAll("[data-ai-summary-status]").forEach((el) => {
-        el.textContent = "Rule-based summary";
-    });
-    document.querySelectorAll("[data-ai-confidence-text]").forEach((el) => {
-        el.textContent =
-            detail
-                ? `AI summary unavailable right now: ${detail}`
-                : "AI summary unavailable right now; showing rule-based recommendation.";
+function renderSolutionAction(action, index) {
+    return `<li>
+        <i>${index + 1}</i>
+        <div>
+            <strong>${escapeHtml(action.title)}</strong>
+            <span>${escapeHtml(action.reason)}</span>
+            <em>${escapeHtml(action.timeframe)}</em>
+        </div>
+    </li>`;
+}
+
+function bindSolutionControls(container) {
+    container.querySelectorAll("[data-solution-priority]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            solutionPriorityFilter = btn.dataset.solutionPriority || "all";
+            renderSolutions(getSelectedRangeRows());
+        });
     });
 }
 
