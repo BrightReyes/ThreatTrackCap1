@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Users</title>
+        <title>Admin | Users</title>
         <link
             href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
             rel="stylesheet"
@@ -13,6 +13,9 @@
                 document.documentElement.classList.add(
                     "sidebar-collapsed-initial",
                 );
+            }
+            if (localStorage.getItem("tt_admin_role") === "police") {
+                document.documentElement.classList.add("admin-role-police");
             }
         </script>
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
@@ -66,6 +69,24 @@
                                 >warning</span
                             >
                             <span>Incidents</span>
+                        </a>
+                        <a
+                            href="operation.html"
+                            class="sidebar__link"
+                            data-role-nav="police"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >emergency_home</span
+                            >
+                            <span>Operation</span>
+                        </a>
+                        <a href="analytics.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >query_stats</span
+                            >
+                            <span>Analytics</span>
                         </a>
                         <a
                             href="users.html"
@@ -144,10 +165,74 @@
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
-                    <div class="incidents-toolbar">
-                        <div class="incidents-toolbar__search">
+                    <section class="users-stats" aria-label="User summary">
+                        <article class="users-stat-card users-stat-card--total">
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >group</span
+                            >
+                            <div>
+                                <p class="users-stat-card__label">
+                                    Total accounts
+                                </p>
+                                <strong id="users-stat-total">0</strong>
+                            </div>
+                        </article>
+                        <article
+                            class="users-stat-card users-stat-card--barangay"
+                        >
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >admin_panel_settings</span
+                            >
+                            <div>
+                                <p class="users-stat-card__label">
+                                    Barangay Admin
+                                </p>
+                                <strong id="users-stat-admin">0</strong>
+                            </div>
+                        </article>
+                        <article
+                            class="users-stat-card users-stat-card--police"
+                        >
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >local_police</span
+                            >
+                            <div>
+                                <p class="users-stat-card__label">
+                                    Police Admin
+                                </p>
+                                <strong id="users-stat-police">0</strong>
+                            </div>
+                        </article>
+                        <article class="users-stat-card users-stat-card--users">
+                            <span
+                                class="users-stat-card__icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >person</span
+                            >
+                            <div>
+                                <p class="users-stat-card__label">Users</p>
+                                <strong id="users-stat-users">0</strong>
+                            </div>
+                        </article>
+                    </section>
+
+                    <div class="incidents-toolbar users-toolbar">
+                        <div
+                            class="incidents-toolbar__search users-toolbar__search"
+                        >
                             <label class="visually-hidden" for="users-search"
                                 >Search users</label
+                            >
+                            <span
+                                class="users-toolbar__search-icon material-symbols-outlined"
+                                aria-hidden="true"
+                                >search</span
                             >
                             <input
                                 id="users-search"
@@ -157,7 +242,9 @@
                                 autocomplete="off"
                             />
                         </div>
-                        <div class="incidents-toolbar__filters">
+                        <div
+                            class="incidents-toolbar__filters users-toolbar__filters"
+                        >
                             <select
                                 id="users-filter-role"
                                 class="incidents-select"
@@ -165,6 +252,18 @@
                             >
                                 <option value="all">All roles</option>
                             </select>
+                            <button
+                                type="button"
+                                id="users-add-new"
+                                class="users-add-btn"
+                            >
+                                <span
+                                    class="material-symbols-outlined"
+                                    aria-hidden="true"
+                                    >person_add</span
+                                >
+                                Add new user
+                            </button>
                         </div>
                     </div>
 
@@ -177,19 +276,26 @@
                         </div>
 
                         <div class="incidents-table-wrap">
-                            <table class="incidents-table">
+                            <table
+                                class="incidents-table incidents-table--users"
+                            >
                                 <thead>
                                     <tr>
-                                        <th scope="col">Email</th>
+                                        <th scope="col">#</th>
                                         <th scope="col">Name</th>
+                                        <th scope="col">Email address</th>
                                         <th scope="col">Role</th>
-                                        <th scope="col">Joined</th>
-                                        <th scope="col">Actions</th>
+                                        <th scope="col">Date</th>
+                                        <th scope="col">Status</th>
+                                        <th
+                                            scope="col"
+                                            aria-label="Actions"
+                                        ></th>
                                     </tr>
                                 </thead>
                                 <tbody id="users-tbody">
                                     <tr class="incidents-table__empty">
-                                        <td colspan="5">Loading…</td>
+                                        <td colspan="7">Loading…</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -216,7 +322,7 @@
             <div class="incident-modal__panel">
                 <header class="incident-modal__header">
                     <h2 id="user-modal-title" class="incident-modal__title">
-                        User details
+                        Profile
                     </h2>
                     <button
                         type="button"
@@ -228,6 +334,243 @@
                     </button>
                 </header>
                 <div id="user-modal-body" class="incident-modal__body"></div>
+            </div>
+        </div>
+
+        <div
+            id="user-add-modal"
+            class="incident-modal"
+            hidden
+            role="dialog"
+            aria-modal="true"
+            aria-hidden="true"
+            aria-labelledby="user-add-modal-title"
+        >
+            <div
+                class="incident-modal__backdrop"
+                data-close-add-user-modal
+                tabindex="-1"
+            ></div>
+            <div class="incident-modal__panel">
+                <header class="incident-modal__header">
+                    <h2 id="user-add-modal-title" class="incident-modal__title">
+                        Add new user
+                    </h2>
+                    <button
+                        type="button"
+                        class="incident-modal__close"
+                        id="user-add-modal-close"
+                        aria-label="Close"
+                    >
+                        ×
+                    </button>
+                </header>
+                <div class="incident-modal__body">
+                    <form
+                        id="user-add-form"
+                        class="user-modal-form user-modal-form--profile user-add-form"
+                        novalidate
+                    >
+                        <section class="user-add-hero">
+                            <div class="user-add-hero__icon">
+                                <span
+                                    class="material-symbols-outlined"
+                                    aria-hidden="true"
+                                    >person_add</span
+                                >
+                            </div>
+                            <div>
+                                <h3>Create user profile</h3>
+                                <p>
+                                    Add a dashboard-visible profile record and
+                                    assign its starting access level.
+                                </p>
+                            </div>
+                        </section>
+
+                        <section class="user-edit-card">
+                            <div class="user-edit-card__head">
+                                <h4>Identity</h4>
+                                <p>
+                                    Basic profile details shown in the user
+                                    directory.
+                                </p>
+                            </div>
+                            <div class="user-modal-form__grid">
+                                <div class="user-modal-form__field">
+                                    <label
+                                        class="user-modal-form__label"
+                                        for="user-add-first"
+                                        >First name</label
+                                    >
+                                    <input
+                                        id="user-add-first"
+                                        name="firstName"
+                                        class="user-modal-form__input"
+                                        type="text"
+                                        autocomplete="off"
+                                    />
+                                </div>
+                                <div class="user-modal-form__field">
+                                    <label
+                                        class="user-modal-form__label"
+                                        for="user-add-last"
+                                        >Last name</label
+                                    >
+                                    <input
+                                        id="user-add-last"
+                                        name="lastName"
+                                        class="user-modal-form__input"
+                                        type="text"
+                                        autocomplete="off"
+                                    />
+                                </div>
+                            </div>
+                            <div
+                                class="user-modal-form__field user-modal-form__field--full"
+                            >
+                                <label
+                                    class="user-modal-form__label"
+                                    for="user-add-email"
+                                    >Email address</label
+                                >
+                                <input
+                                    id="user-add-email"
+                                    name="email"
+                                    class="user-modal-form__input"
+                                    type="email"
+                                    autocomplete="off"
+                                    required
+                                />
+                            </div>
+                        </section>
+
+                        <section class="user-edit-card">
+                            <div class="user-edit-card__head">
+                                <h4>Access</h4>
+                                <p>Set the starting role and status.</p>
+                            </div>
+                            <div class="user-modal-form__grid">
+                                <div class="user-modal-form__field">
+                                    <label
+                                        class="user-modal-form__label"
+                                        for="user-add-role"
+                                        >Role</label
+                                    >
+                                    <select
+                                        id="user-add-role"
+                                        name="role"
+                                        class="incidents-select"
+                                    >
+                                        <option value="user">User</option>
+                                        <option value="admin">
+                                            Barangay Admin
+                                        </option>
+                                        <option value="police">
+                                            Police Admin
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="user-modal-form__field">
+                                    <label
+                                        class="user-modal-form__label"
+                                        for="user-add-status"
+                                        >Status</label
+                                    >
+                                    <select
+                                        id="user-add-status"
+                                        name="status"
+                                        class="incidents-select"
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="inactive">
+                                            Inactive
+                                        </option>
+                                        <option value="suspended">
+                                            Suspended
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="user-edit-card">
+                            <div class="user-edit-card__head">
+                                <h4>Sign-in password</h4>
+                                <p>
+                                    Set the password this account will use to
+                                    log in.
+                                </p>
+                            </div>
+                            <div
+                                class="user-modal-form__field user-modal-form__field--full"
+                            >
+                                <label
+                                    class="user-modal-form__label"
+                                    for="user-add-password"
+                                    >Password</label
+                                >
+                                <input
+                                    id="user-add-password"
+                                    name="password"
+                                    class="user-modal-form__input"
+                                    type="password"
+                                    autocomplete="new-password"
+                                    minlength="6"
+                                    required
+                                />
+                            </div>
+                            <div
+                                class="user-modal-form__field user-modal-form__field--full"
+                            >
+                                <label
+                                    class="user-modal-form__label"
+                                    for="user-add-confirm-password"
+                                    >Confirm password</label
+                                >
+                                <input
+                                    id="user-add-confirm-password"
+                                    name="confirmPassword"
+                                    class="user-modal-form__input"
+                                    type="password"
+                                    autocomplete="new-password"
+                                    minlength="6"
+                                    required
+                                />
+                            </div>
+                        </section>
+                        <p class="user-add-note">
+                            This creates a Firebase Auth sign-in account and a
+                            matching user profile.
+                        </p>
+                    </form>
+                    <section
+                        class="incident-actions incident-actions--user user-edit-actions"
+                    >
+                        <div class="incident-actions__buttons">
+                            <button
+                                type="button"
+                                class="incident-action-btn"
+                                id="user-add-cancel"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="user-add-form"
+                                class="incident-action-btn incident-action-btn--primary"
+                                id="user-add-submit"
+                            >
+                                Add user
+                            </button>
+                        </div>
+                        <p
+                            id="user-add-feedback"
+                            class="incident-actions__feedback"
+                            aria-live="polite"
+                        ></p>
+                    </section>
+                </div>
             </div>
         </div>
 

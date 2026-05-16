@@ -8,11 +8,13 @@ import {
 import { db } from '../../shared/firebase.js';
 
 const LIST_LIMIT = 150;
+const PAGE_SIZE = 12;
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
 let allDocs = [];
 let toolbarBound = false;
 let searchDebounceTimer = null;
+let currentPage = 1;
 
 function escapeHtml(text) {
   if (text == null || text === '') return '';
@@ -50,12 +52,6 @@ function humanize(str) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function truncate(text, max) {
-  const s = text == null ? '' : String(text);
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
-}
-
 function statusBadgeClass(status) {
   const allowed = [
     'pending',
@@ -87,6 +83,10 @@ function formatIncidentCode(docId) {
   return `TR-${String(hash).padStart(4, '0')}`;
 }
 
+function isIncidentOpened(data = {}) {
+  return data.isOpened === true || data.opened === true || !!data.openedAt;
+}
+
 function buildRow(docSnap) {
   const id = docSnap.id;
   const d = docSnap.data();
@@ -94,18 +94,30 @@ function buildRow(docSnap) {
   const typeLabel = humanize(d.type);
   const sevLabel = humanize(d.severity);
   const statusLabel = humanize(d.status);
-  const desc = truncate(d.description, 120);
   const code = formatIncidentCode(id);
+  const opened = isIncidentOpened(d);
+  const rowClasses = ['incidents-table__row', 'incidents-table__row--clickable'];
+  if (!opened) rowClasses.push('incidents-table__row--unopened');
+  const codeClass = opened
+    ? 'incidents-code incidents-code--cell'
+    : 'incidents-code incidents-code--cell incidents-code--unopened';
 
-  return `<tr data-incident-id="${escapeAttr(id)}">
-    <td><span class="incidents-code incidents-code--cell" title="Incident code">${escapeHtml(code)}</span></td>
+  return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
+    <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>
     <td>${escapeHtml(reported)}</td>
     <td>${escapeHtml(typeLabel)}</td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
-    <td class="incidents-table__desc" title="${escapeAttr(d.description || '')}">${escapeHtml(desc)}</td>
     <td>
-      <button type="button" class="incidents-action-btn" title="View full report">View</button>
+      <div class="incidents-row-actions">
+        <button type="button" class="incidents-more-btn incidents-action-btn" title="More options" aria-label="More options" aria-expanded="false" data-incident-menu-toggle>
+          <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+        </button>
+        <div class="incidents-row-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-incident-option="archive">Archive</button>
+          <button type="button" role="menuitem" class="incidents-row-menu__danger" data-incident-option="delete">Delete</button>
+        </div>
+      </div>
     </td>
   </tr>`;
 }
@@ -163,6 +175,59 @@ function filterDocs() {
       docMatchesStatus(docSnap, status) &&
       docMatchesSeverity(docSnap, severity),
   );
+}
+
+function updateIncidentStats() {
+  const totalEl = document.getElementById('incidents-stat-total');
+  const highEl = document.getElementById('incidents-stat-high');
+  const pendingEl = document.getElementById('incidents-stat-pending');
+  const resolvedEl = document.getElementById('incidents-stat-resolved');
+  const counts = allDocs.reduce(
+    (acc, docSnap) => {
+      const d = docSnap.data();
+      const severity = norm(d.severity);
+      const status = norm(d.status);
+      acc.total += 1;
+      if (severity === 'high') acc.high += 1;
+      if (status === 'pending' || status === 'under_review') acc.pending += 1;
+      if (status === 'done' || status === 'verified') acc.resolved += 1;
+      return acc;
+    },
+    { total: 0, high: 0, pending: 0, resolved: 0 },
+  );
+
+  if (totalEl) totalEl.textContent = String(counts.total);
+  if (highEl) highEl.textContent = String(counts.high);
+  if (pendingEl) pendingEl.textContent = String(counts.pending);
+  if (resolvedEl) resolvedEl.textContent = String(counts.resolved);
+}
+
+function clampPage(page, totalPages) {
+  return Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+}
+
+function renderPagination(totalItems, totalPages) {
+  const pagination = document.getElementById('incidents-pagination');
+  if (!pagination) return;
+
+  if (totalItems <= PAGE_SIZE) {
+    pagination.hidden = true;
+    pagination.innerHTML = '';
+    return;
+  }
+
+  pagination.hidden = false;
+  const start = (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(start + PAGE_SIZE - 1, totalItems);
+
+  pagination.innerHTML = `
+    <p class="incidents-pagination__meta">Showing ${start}-${end} of ${totalItems}</p>
+    <div class="incidents-pagination__actions">
+      <button type="button" class="incidents-pagination__btn" data-page-action="prev"${currentPage === 1 ? ' disabled' : ''}>Previous</button>
+      <span class="incidents-pagination__page">Page ${currentPage} of ${totalPages}</span>
+      <button type="button" class="incidents-pagination__btn" data-page-action="next"${currentPage === totalPages ? ' disabled' : ''}>Next</button>
+    </div>
+  `;
 }
 
 function populateFilterSelects() {
@@ -227,35 +292,49 @@ function renderFilteredTable() {
   if (!tbody) return;
 
   const filtered = filterDocs();
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  currentPage = clampPage(currentPage, totalPages);
 
   if (!allDocs.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents yet.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="6">No incidents yet.</td></tr>';
     if (meta) meta.textContent = '0 incidents';
+    renderPagination(0, 1);
     return;
   }
 
   if (!filtered.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents match your search or filters.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="6">No incidents match your search or filters.</td></tr>';
     if (meta) {
       meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
     }
+    renderPagination(0, 1);
     return;
   }
 
-  const rows = filtered.map((docSnap) => buildRow(docSnap));
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageDocs = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+  const rows = pageDocs.map((docSnap) => buildRow(docSnap));
   tbody.innerHTML = rows.join('');
+  renderPagination(filtered.length, totalPages);
 
   if (meta) {
     const total = allDocs.length;
-    const shown = filtered.length;
+    const shown = pageDocs.length;
     const suffix =
-      shown < total ? ` (${shown} of ${total} shown)` : ` (${total} loaded)`;
+      filtered.length < total
+        ? ` (${filtered.length} of ${total} filtered)`
+        : ` (${total} loaded)`;
     meta.textContent =
       `${shown} incident${shown === 1 ? '' : 's'}${suffix}` +
       (total >= LIST_LIMIT ? ` — max ${LIST_LIMIT} loaded by date` : '');
   }
+}
+
+function resetPageAndRender() {
+  currentPage = 1;
+  renderFilteredTable();
 }
 
 function bindToolbar() {
@@ -266,7 +345,7 @@ function bindToolbar() {
   const statusEl = document.getElementById('incidents-filter-status');
   const sevEl = document.getElementById('incidents-filter-severity');
 
-  const rerender = () => renderFilteredTable();
+  const rerender = () => resetPageAndRender();
 
   searchEl?.addEventListener('input', () => {
     if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer);
@@ -276,6 +355,16 @@ function bindToolbar() {
 
   statusEl?.addEventListener('change', rerender);
   sevEl?.addEventListener('change', rerender);
+
+  document
+    .getElementById('incidents-pagination')
+    ?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-page-action]');
+      if (!btn || btn.disabled) return;
+      const action = btn.getAttribute('data-page-action');
+      currentPage += action === 'next' ? 1 : -1;
+      renderFilteredTable();
+    });
 }
 
 function bindIncidentUpdates() {
@@ -283,8 +372,8 @@ function bindIncidentUpdates() {
   window.__threatTrackIncidentUpdatesBound = true;
 
   window.addEventListener('incident:updated', (event) => {
-    const { id, status } = event.detail || {};
-    if (!id || !status) return;
+    const { id, status, isOpened } = event.detail || {};
+    if (!id) return;
 
     const incidentIndex = allDocs.findIndex((docSnap) => docSnap.id === id);
     if (incidentIndex === -1) return;
@@ -294,10 +383,22 @@ function bindIncidentUpdates() {
       id: currentDoc.id,
       data: () => ({
         ...currentDoc.data(),
-        status,
+        ...(status ? { status } : {}),
+        ...(isOpened === true ? { isOpened: true } : {}),
       }),
     };
 
+    updateIncidentStats();
+    populateFilterSelects();
+    renderFilteredTable();
+  });
+
+  window.addEventListener('incident:removed', (event) => {
+    const { id } = event.detail || {};
+    if (!id) return;
+
+    allDocs = allDocs.filter((docSnap) => docSnap.id !== id);
+    updateIncidentStats();
     populateFilterSelects();
     renderFilteredTable();
   });
@@ -309,7 +410,7 @@ export async function loadIncidentsTable() {
   if (!tbody) return;
 
   tbody.innerHTML =
-    '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
+    '<tr class="incidents-table__empty"><td colspan="6">Loading…</td></tr>';
   if (meta) meta.textContent = 'Loading…';
 
   const q = query(
@@ -324,5 +425,6 @@ export async function loadIncidentsTable() {
   bindToolbar();
   bindIncidentUpdates();
   populateFilterSelects();
+  updateIncidentStats();
   renderFilteredTable();
 }

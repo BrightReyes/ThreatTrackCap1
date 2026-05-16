@@ -13,6 +13,126 @@ import { startAdminPriorityAlerts } from "./admin-sos-alerts.js";
 applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
+const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+
+function applyCachedAdminRole() {
+    const role = normalizeAdminRole(localStorage.getItem(ADMIN_ROLE_CACHE_KEY));
+    document.documentElement.classList.toggle(
+        "admin-role-police",
+        role === "police",
+    );
+}
+
+function cacheAdminRole(role) {
+    const normalized = normalizeAdminRole(role);
+    if (normalized) {
+        localStorage.setItem(ADMIN_ROLE_CACHE_KEY, normalized);
+    } else {
+        localStorage.removeItem(ADMIN_ROLE_CACHE_KEY);
+    }
+    document.documentElement.classList.toggle(
+        "admin-role-police",
+        normalized === "police",
+    );
+}
+
+function normalizeAdminRole(role) {
+    const value = String(role || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
+        return "admin";
+    }
+    if (value === "police_admin") return "police";
+    return value;
+}
+
+function isPoliceAdminRole(role) {
+    return normalizeAdminRole(role) === "police";
+}
+
+function humanizeAdminRole(role) {
+    const normalized = normalizeAdminRole(role);
+    if (normalized === "admin") return "Barangay Admin";
+    if (normalized === "police") return "Police Admin";
+    if (normalized === "user") return "User";
+    return "Admin";
+}
+
+async function loadAdminProfile(user) {
+    if (!user?.uid) return null;
+    try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (!snap.exists()) return null;
+        return {
+            id: snap.id,
+            ...snap.data(),
+            role: normalizeAdminRole(snap.data()?.role),
+        };
+    } catch (err) {
+        console.warn("[admin-auth] profile load failed", err);
+        return null;
+    }
+}
+
+function applySidebarRoleLabel(profile) {
+    const badge = document.querySelector(".sidebar__badge");
+    if (!badge) return;
+    badge.textContent = humanizeAdminRole(profile?.role);
+}
+
+function applyRoleNavigation(profile) {
+    const nav = document.querySelector(".sidebar__nav");
+    if (!nav) return;
+
+    cacheAdminRole(profile?.role);
+
+    const operationHref = "operation.html";
+    let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
+    const canUseOperations = isPoliceAdminRole(profile?.role);
+
+    if (!canUseOperations) {
+        operationLink?.remove();
+        return;
+    }
+
+    if (!operationLink) {
+        operationLink = document.createElement("a");
+        operationLink.href = operationHref;
+        operationLink.className = "sidebar__link sidebar__link--role-visible";
+        operationLink.dataset.roleNav = "police";
+        operationLink.innerHTML = `
+            <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
+            <span>Operation</span>
+        `;
+
+        const analyticsLink = nav.querySelector(
+            '.sidebar__link[href="analytics.html"]',
+        );
+        const settingsLink = nav.querySelector('.sidebar__link[href="settings.html"]');
+        nav.insertBefore(operationLink, analyticsLink || settingsLink || null);
+    } else {
+        const analyticsLink = nav.querySelector(
+            '.sidebar__link[href="analytics.html"]',
+        );
+        if (analyticsLink && operationLink.nextElementSibling !== analyticsLink) {
+            nav.insertBefore(operationLink, analyticsLink);
+        }
+    }
+
+    operationLink.classList.add("sidebar__link--role-visible");
+
+    const currentPage = window.location.pathname.split("/").pop();
+    if (currentPage === operationHref) {
+        nav.querySelectorAll(".sidebar__link--active").forEach((link) => {
+            link.classList.remove("sidebar__link--active");
+            link.removeAttribute("aria-current");
+        });
+        operationLink.classList.add("sidebar__link--active");
+        operationLink.setAttribute("aria-current", "page");
+    }
+}
 
 function startAdminClock() {
     const timeEl = document.getElementById("dashboard-clock-time");
@@ -43,9 +163,9 @@ function startAdminClock() {
 
 /**
  * Shared admin layout: auth gate, user email, sign out, sidebar (# links only blocked).
- * @param {{ pageId: string; onReady?: (user: import('firebase/auth').User) => void }} options
+ * @param {{ pageId: string; requirePolice?: boolean; onReady?: (user: import('firebase/auth').User, profile?: object | null) => void }} options
  */
-export function initAdminPage({ pageId, onReady }) {
+export function initAdminPage({ pageId, requirePolice = false, onReady }) {
     const page = document.getElementById(pageId);
     const userEmail = document.getElementById("user-email");
     const btnSignout = document.getElementById("btn-signout");
@@ -99,6 +219,7 @@ export function initAdminPage({ pageId, onReady }) {
                 } catch {}
                 try {
                     await signOut(auth);
+                    cacheAdminRole(null);
                 } catch {}
                 toastError("Session timed out due to inactivity");
                 window.location.replace("login.html");
@@ -111,12 +232,22 @@ export function initAdminPage({ pageId, onReady }) {
 
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
+            cacheAdminRole(null);
             window.location.replace("login.html");
             return;
         }
         if (userEmail) {
             userEmail.textContent = user.email ?? "";
             userEmail.title = user.email ?? "";
+        }
+        const profile = await loadAdminProfile(user);
+        applySidebarRoleLabel(profile);
+        applyRoleNavigation(profile);
+
+        if (requirePolice && !isPoliceAdminRole(profile?.role)) {
+            toastError("Operation access is limited to police admins");
+            window.location.replace("dashboard.html");
+            return;
         }
         // Apply cached system name immediately
         applyCachedSidebarSystemName();
@@ -128,7 +259,7 @@ export function initAdminPage({ pageId, onReady }) {
         void startInactivityTimer();
         startAdminClock();
         startAdminPriorityAlerts();
-        if (typeof onReady === "function") onReady(user);
+        if (typeof onReady === "function") onReady(user, profile);
     });
 
     function applyInitialSidebarState(collapsed) {
@@ -198,6 +329,7 @@ export function initAdminPage({ pageId, onReady }) {
         if (!ok) return;
         try {
             await signOut(auth);
+            cacheAdminRole(null);
             toastSuccess("Signed out");
             // eslint-disable-next-line no-void
             void logAudit("auth.logout", {});
@@ -215,3 +347,5 @@ export function initAdminPage({ pageId, onReady }) {
         }
     });
 }
+
+applyCachedAdminRole();

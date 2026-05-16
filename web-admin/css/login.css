@@ -137,7 +137,8 @@ input:-webkit-autofill:active {
 /* Icon */
 .input-icon {
     margin-right: 10px;
-    font-size: 16px;
+    font-size: 20px;
+    line-height: 1;
     opacity: 0.7;
 }
 
@@ -204,14 +205,23 @@ input:-webkit-autofill:active {
 /* Forgot */
 .forgot-password {
     color: #ef4444; /* changed */
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
     font-size: 14px;
     text-align: center;
     text-decoration: none;
     margin-top: 6px;
 }
 
-.forgot-password:hover {
+.forgot-password:hover:not(:disabled) {
     text-decoration: underline;
+}
+
+.forgot-password:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .btn-loader {

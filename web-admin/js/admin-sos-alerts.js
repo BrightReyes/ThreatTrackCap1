@@ -17,6 +17,7 @@ import {
 
 const LISTEN_LIMIT = 30;
 const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
+const SHOWN_PREFIX = "threattrack:sos-alert-shown:";
 
 let listenerStarted = false;
 let alertOpen = false;
@@ -54,12 +55,30 @@ function dismissalKey(id, data = {}) {
     return `${DISMISS_PREFIX}${id}:${data.status || "new"}:${data.responseStatus || "none"}`;
 }
 
+function shownKey(id) {
+    return `${SHOWN_PREFIX}${id}`;
+}
+
 function isDismissed(id, data) {
     try {
         return localStorage.getItem(dismissalKey(id, data)) === "1";
     } catch {
         return false;
     }
+}
+
+function wasShown(id) {
+    try {
+        return localStorage.getItem(shownKey(id)) === "1";
+    } catch {
+        return false;
+    }
+}
+
+function markShown(id) {
+    try {
+        localStorage.setItem(shownKey(id), "1");
+    } catch {}
 }
 
 function dismiss(id, data) {
@@ -75,11 +94,20 @@ function closeActiveAlert() {
     alertOpen = false;
 }
 
-function showPriorityAlert(id, data) {
+function showPriorityAlert(id, data, options = {}) {
+    const isPreview = options.preview === true;
     if (alertOpen || !canRespondToIncident(data)) return;
-    if (shownThisSession.has(id) || isDismissed(id, data)) return;
+    if (data.isSOSReport !== true) return;
+    if (
+        !isPreview &&
+        (shownThisSession.has(id) || wasShown(id) || isDismissed(id, data))
+    )
+        return;
 
-    shownThisSession.add(id);
+    if (!isPreview) {
+        shownThisSession.add(id);
+        markShown(id);
+    }
     alertOpen = true;
 
     const typeLabel = getIncidentTypeLabel(data);
@@ -143,17 +171,29 @@ function showPriorityAlert(id, data) {
         const feedback = root.querySelector(".admin-priority-alert__feedback");
 
         if (action === "dismiss") {
-            dismiss(id, data);
+            if (!isPreview) dismiss(id, data);
             closeActiveAlert();
             return;
         }
 
         if (action === "view") {
+            if (isPreview) {
+                if (feedback)
+                    feedback.textContent =
+                        "Preview mode: this would open the full incident report.";
+                return;
+            }
             window.location.href = `incidents.html?incidentId=${encodeURIComponent(id)}`;
             return;
         }
 
         if (action === "respond") {
+            if (isPreview) {
+                if (feedback)
+                    feedback.textContent =
+                        "Preview mode: this would send a responder update.";
+                return;
+            }
             root.querySelectorAll("[data-priority-action]").forEach((el) => {
                 el.disabled = true;
             });
@@ -182,9 +222,38 @@ function showPriorityAlert(id, data) {
     activeAlert = root;
 }
 
+export function showSosAlertPreview() {
+    showPriorityAlert(
+        `preview-${Date.now()}`,
+        {
+            isSOSReport: true,
+            type: "robbery_holdup",
+            typeLabel: "Robbery / Hold-up",
+            severity: "high",
+            priority: "high",
+            status: "under_review",
+            timestamp: new Date(),
+            location: {
+                latitude: 14.6991,
+                longitude: 120.982,
+                address: "MacArthur Highway, Valenzuela City",
+            },
+        },
+        { preview: true },
+    );
+}
+
 export function startAdminPriorityAlerts() {
     if (listenerStarted) return;
     listenerStarted = true;
+    let initialSnapshotHandled = false;
+
+    window.ThreatTrackPreviewSOS = showSosAlertPreview;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sosPreview") === "1") {
+        window.setTimeout(showSosAlertPreview, 250);
+    }
 
     const q = query(
         collection(db, "incidents"),
@@ -195,13 +264,24 @@ export function startAdminPriorityAlerts() {
     onSnapshot(
         q,
         (snap) => {
-            const urgentDoc = snap.docs.find((docSnap) => {
-                const data = docSnap.data() || {};
-                return canRespondToIncident(data) && !isDismissed(docSnap.id, data);
+            if (!initialSnapshotHandled) {
+                initialSnapshotHandled = true;
+                return;
+            }
+
+            const newSosDoc = snap.docChanges().find((change) => {
+                if (change.type !== "added") return false;
+                const data = change.doc.data() || {};
+                return (
+                    data.isSOSReport === true &&
+                    canRespondToIncident(data) &&
+                    !wasShown(change.doc.id) &&
+                    !isDismissed(change.doc.id, data)
+                );
             });
 
-            if (urgentDoc) {
-                showPriorityAlert(urgentDoc.id, urgentDoc.data() || {});
+            if (newSosDoc) {
+                showPriorityAlert(newSosDoc.doc.id, newSosDoc.doc.data() || {});
             }
         },
         (error) => {

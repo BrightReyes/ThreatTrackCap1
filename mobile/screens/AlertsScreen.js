@@ -163,6 +163,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertIcon = (type) => {
     switch (type?.toLowerCase()) {
+      case 'police_urgent_report': return '!';
       case 'response_update': return '!';
       case 'crime': return '⚠️';
       case 'safety': return '✓';
@@ -175,6 +176,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertColor = (type) => {
     switch (type?.toLowerCase()) {
+      case 'police_urgent_report': return '#dc2626';
       case 'response_update': return '#dc2626';
       case 'crime': return '#dc2626';
       case 'safety': return '#10b981';
@@ -187,6 +189,7 @@ const AlertsScreen = ({ navigation }) => {
 
   const getAlertBgColor = (type) => {
     switch (type?.toLowerCase()) {
+      case 'police_urgent_report': return '#fee2e2';
       case 'response_update': return '#fee2e2';
       case 'crime': return '#fee2e2';
       case 'safety': return '#d1fae5';

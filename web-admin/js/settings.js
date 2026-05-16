@@ -60,6 +60,7 @@ initAdminPage({
     const USER_DOC = doc(db, 'users', user.uid);
 
     let isAdmin = false;
+    let canReadSettings = false;
     let autosave = false;
     let coveredBarangays = [];
     let incidentCategories = [];
@@ -126,6 +127,16 @@ initAdminPage({
       if (h === 'security') return 'security';
       if (h === 'data') return 'data';
       return 'general';
+    }
+
+    function normalizeRole(role) {
+      const value = String(role || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, '_');
+      if (['moderator', 'barangay', 'barangay_admin'].includes(value)) return 'admin';
+      if (value === 'police_admin') return 'police';
+      return value;
     }
 
     function humanizeAccountRole(role) {
@@ -1170,14 +1181,22 @@ initAdminPage({
 
       try {
         const roleSnap = await getDoc(USER_DOC);
-        const role = roleSnap.exists() ? roleSnap.data()?.role : null;
-        isAdmin = role === 'admin' || role === 'moderator';
+        const role = normalizeRole(roleSnap.exists() ? roleSnap.data()?.role : null);
+        isAdmin = role === 'admin' || role === 'police';
+        canReadSettings = isAdmin || role === 'police';
       } catch (err) {
         console.warn('[settings] role check failed', err);
         isAdmin = false;
+        canReadSettings = false;
       }
 
       setEditable(isAdmin);
+
+      if (!canReadSettings) {
+        setStatus('Access denied');
+        toastError('Settings access is limited to Barangay Admin and Police Admin accounts.');
+        return;
+      }
 
       try {
         const snap = await getDoc(SETTINGS_DOC);
@@ -1209,7 +1228,7 @@ initAdminPage({
             setStatus('Could not save defaults');
             if (err?.code === 'permission-denied') {
               toastError(
-                'Could not save default settings. Ensure users/{your uid} has role admin or moderator in Firestore, and rules allow admin writes to settings.',
+                'Could not save default settings. Ensure users/{your uid} has role admin or police in Firestore, and rules allow admin writes to settings.',
               );
             } else {
               toastError(err?.message || 'Failed to initialize settings');
@@ -1230,7 +1249,7 @@ initAdminPage({
         setStatus('Load failed');
         const msg =
           err?.code === 'permission-denied'
-            ? 'Permission denied loading settings. Sign in again, or confirm Firestore rules allow signed-in reads on settings/system (see firestore.rules in the project).'
+            ? 'Permission denied loading settings. Confirm your account role is Barangay Admin or Police Admin, then deploy the latest Firestore rules.'
             : err?.message || 'Failed to load settings';
         toastError(msg);
       }

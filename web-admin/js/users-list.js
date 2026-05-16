@@ -1,11 +1,31 @@
-import { collection, getDocs, limit, orderBy, query } from "firebase/firestore";
-import { db } from "../../shared/firebase.js";
+import {
+    collection,
+    doc,
+    getDocs,
+    limit,
+    orderBy,
+    query,
+    serverTimestamp,
+    setDoc,
+} from "firebase/firestore";
+import { deleteApp, initializeApp } from "firebase/app";
+import {
+    createUserWithEmailAndPassword,
+    deleteUser,
+    getAuth,
+} from "firebase/auth";
+import primaryApp, { db } from "../../shared/firebase.js";
+import { toastError, toastSuccess } from "./alerts.js";
 
 const LIST_LIMIT = 200;
+const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police"];
+const EDIT_STATUSES_FOR_CREATE = ["active", "inactive", "suspended"];
+const MIN_PASSWORD_LENGTH = 6;
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
 let allDocs = [];
 let toolbarBound = false;
+let addUserBound = false;
 let searchDebounceTimer = null;
 
 function escapeHtml(text) {
@@ -26,9 +46,8 @@ function formatJoined(data) {
     const ts = data.createdAt;
     if (ts && typeof ts.toDate === "function") {
         try {
-            return ts.toDate().toLocaleString(undefined, {
+            return ts.toDate().toLocaleDateString(undefined, {
                 dateStyle: "short",
-                timeStyle: "short",
             });
         } catch {
             return "—";
@@ -52,14 +71,45 @@ function roleBadgeClass(role) {
 }
 
 function humanizeRole(role) {
-    return String(normalizeRole(role))
+    const normalized = normalizeRole(role);
+    if (normalized === "admin") return "Barangay Admin";
+    if (normalized === "police") return "Police Admin";
+    return String(normalized)
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function userStatus(data) {
+    const raw = String(data.status || "").trim().toLowerCase();
+    if (raw) return raw;
+    if (data.disabled === true) return "inactive";
+    if (data.suspended === true) return "suspended";
+    return "active";
+}
+
+function statusBadgeClass(status) {
+    const s = String(status || "").toLowerCase();
+    if (s === "active") return "users-status users-status--active";
+    if (s === "suspended") return "users-status users-status--suspended";
+    return "users-status users-status--inactive";
+}
+
+function humanizeStatus(status) {
+    return String(status || "inactive")
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function normalizeRole(role) {
-    const value = String(role || "user").toLowerCase();
-    return value === "moderator" ? "admin" : value;
+    const value = String(role || "user")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
+        return "admin";
+    }
+    if (value === "police_admin") return "police";
+    return value;
 }
 
 function norm(s) {
@@ -68,21 +118,26 @@ function norm(s) {
         .trim();
 }
 
-function buildRow(docSnap) {
+function buildRow(docSnap, index) {
     const id = docSnap.id;
     const d = docSnap.data();
     const email = d.email || "—";
     const name = displayName(d);
     const roleLabel = humanizeRole(d.role);
     const joined = formatJoined(d);
+    const status = userStatus(d);
 
     return `<tr data-user-id="${escapeAttr(id)}">
+    <td class="users-table__index">${index + 1}</td>
+    <td class="users-table__name">${escapeHtml(name)}</td>
     <td class="incidents-table__desc" title="${escapeAttr(email)}">${escapeHtml(email)}</td>
-    <td>${escapeHtml(name)}</td>
     <td><span class="${roleBadgeClass(d.role)}">${escapeHtml(roleLabel)}</span></td>
     <td>${escapeHtml(joined)}</td>
+    <td><span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span></td>
     <td>
-      <button type="button" class="incidents-action-btn" title="View user profile">View</button>
+      <button type="button" class="users-more-btn" title="View profile" aria-label="View profile for ${escapeAttr(name)}">
+        <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
+      </button>
     </td>
   </tr>`;
 }
@@ -127,6 +182,29 @@ function filterDocs() {
     );
 }
 
+function updateUserStats() {
+    const totalEl = document.getElementById("users-stat-total");
+    const adminEl = document.getElementById("users-stat-admin");
+    const policeEl = document.getElementById("users-stat-police");
+    const usersEl = document.getElementById("users-stat-users");
+    const counts = allDocs.reduce(
+        (acc, docSnap) => {
+            const role = normalizeRole(docSnap.data().role);
+            acc.total += 1;
+            if (role === "admin") acc.admin += 1;
+            else if (role === "police") acc.police += 1;
+            else acc.users += 1;
+            return acc;
+        },
+        { total: 0, admin: 0, police: 0, users: 0 },
+    );
+
+    if (totalEl) totalEl.textContent = String(counts.total);
+    if (adminEl) adminEl.textContent = String(counts.admin);
+    if (policeEl) policeEl.textContent = String(counts.police);
+    if (usersEl) usersEl.textContent = String(counts.users);
+}
+
 function populateRoleSelect() {
     const roleSel = document.getElementById("users-filter-role");
     if (!roleSel) return;
@@ -168,32 +246,26 @@ function renderFilteredTable() {
     if (!tbody) return;
 
     const filtered = filterDocs();
-    console.log("allDocs length:", allDocs.length);
-    console.log("filtered length:", filtered.length);
-    console.log(
-        "filtered docs:",
-        filtered.map((doc) => doc.id),
-    );
 
     if (!allDocs.length) {
         tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="5">No users yet.</td></tr>';
+            '<tr class="incidents-table__empty"><td colspan="7">No users yet.</td></tr>';
         if (meta) meta.textContent = "0 users";
         return;
     }
 
     if (!filtered.length) {
         tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="5">No users match your search or filter.</td></tr>';
+            '<tr class="incidents-table__empty"><td colspan="7">No users match your search or filter.</td></tr>';
         if (meta) {
             meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
         }
         return;
     }
 
-    tbody.innerHTML = filtered.map((docSnap) => buildRow(docSnap)).join("");
-
-    console.log("tbody children after render:", tbody.children.length);
+    tbody.innerHTML = filtered
+        .map((docSnap, index) => buildRow(docSnap, index))
+        .join("");
 
     if (meta) {
         const total = allDocs.length;
@@ -225,6 +297,147 @@ function bindToolbar() {
     roleEl?.addEventListener("change", rerender);
 }
 
+function createSecondaryAuth() {
+    const suffix = `${Date.now()}${Math.random().toString(16).slice(2)}`;
+    const secondaryApp = initializeApp(
+        primaryApp.options,
+        `user-create-${suffix}`,
+    );
+    return {
+        app: secondaryApp,
+        auth: getAuth(secondaryApp),
+    };
+}
+
+function bindAddUserModal() {
+    if (addUserBound) return;
+    addUserBound = true;
+
+    const openBtn = document.getElementById("users-add-new");
+    const modal = document.getElementById("user-add-modal");
+    const form = document.getElementById("user-add-form");
+    const closeBtn = document.getElementById("user-add-modal-close");
+    const cancelBtn = document.getElementById("user-add-cancel");
+    const submitBtn = document.getElementById("user-add-submit");
+    const feedback = document.getElementById("user-add-feedback");
+    const backdrop = modal?.querySelector("[data-close-add-user-modal]");
+
+    if (!openBtn || !modal || !form) return;
+
+    const close = () => {
+        modal.hidden = true;
+        modal.setAttribute("aria-hidden", "true");
+        form.reset();
+        if (feedback) feedback.textContent = "";
+        document.body.style.overflow = "";
+    };
+
+    const open = () => {
+        modal.hidden = false;
+        modal.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+        form.querySelector("#user-add-first")?.focus();
+    };
+
+    openBtn.addEventListener("click", open);
+    closeBtn?.addEventListener("click", close);
+    cancelBtn?.addEventListener("click", close);
+    backdrop?.addEventListener("click", close);
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const firstName = String(form.elements.firstName?.value || "").trim();
+        const lastName = String(form.elements.lastName?.value || "").trim();
+        const email = String(form.elements.email?.value || "")
+            .trim()
+            .toLowerCase();
+        const role = normalizeRole(form.elements.role?.value || "user");
+        const status = String(
+            form.elements.status?.value || "active",
+        ).toLowerCase();
+        const password = String(form.elements.password?.value || "");
+        const confirmPassword = String(
+            form.elements.confirmPassword?.value || "",
+        );
+
+        if (!email) {
+            if (feedback) feedback.textContent = "Email address is required.";
+            return;
+        }
+
+        if (password.length < MIN_PASSWORD_LENGTH) {
+            if (feedback) {
+                feedback.textContent = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+            }
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            if (feedback) feedback.textContent = "Passwords do not match.";
+            return;
+        }
+
+        const payload = {
+            email,
+            firstName,
+            lastName,
+            role: EDIT_ROLES_FOR_CREATE.includes(role) ? role : "user",
+            status: EDIT_STATUSES_FOR_CREATE.includes(status)
+                ? status
+                : "active",
+            disabled: status === "inactive",
+            suspended: status === "suspended",
+            createdAt: serverTimestamp(),
+            createdByAdmin: true,
+        };
+        let createdAuthUser = null;
+        let secondaryApp = null;
+
+        if (feedback) feedback.textContent = "Creating account...";
+        if (submitBtn) submitBtn.disabled = true;
+        if (cancelBtn) cancelBtn.disabled = true;
+
+        try {
+            const secondary = createSecondaryAuth();
+            secondaryApp = secondary.app;
+            const credential = await createUserWithEmailAndPassword(
+                secondary.auth,
+                email,
+                password,
+            );
+            createdAuthUser = credential.user;
+            const uid = createdAuthUser.uid;
+
+            await setDoc(doc(db, "users", uid), { ...payload, uid });
+            toastSuccess("User account added");
+            close();
+            await loadUsersTable();
+        } catch (err) {
+            console.error("[users] add user", err);
+            if (createdAuthUser) {
+                try {
+                    await deleteUser(createdAuthUser);
+                } catch (deleteErr) {
+                    console.warn("[users] cleanup auth user failed", deleteErr);
+                }
+            }
+            const msg = err?.message || "Failed to add user account";
+            if (feedback) feedback.textContent = msg;
+            toastError(msg);
+        } finally {
+            if (secondaryApp) {
+                try {
+                    await deleteApp(secondaryApp);
+                } catch (deleteErr) {
+                    console.warn("[users] cleanup secondary app failed", deleteErr);
+                }
+            }
+            if (submitBtn) submitBtn.disabled = false;
+            if (cancelBtn) cancelBtn.disabled = false;
+        }
+    });
+}
+
 async function fetchUsersQuery() {
     const byId = query(
         collection(db, "users"),
@@ -233,7 +446,6 @@ async function fetchUsersQuery() {
     );
     try {
         const snap = await getDocs(byId);
-        console.log("Loaded by __name__:", snap.size);
         return snap;
     } catch (e) {
         if (e?.code !== "failed-precondition") throw e;
@@ -246,7 +458,6 @@ async function fetchUsersQuery() {
     );
     try {
         const snap = await getDocs(byCreated);
-        console.log("Loaded by createdAt:", snap.size);
         return snap;
     } catch (e) {
         if (e?.code !== "failed-precondition") throw e;
@@ -259,7 +470,6 @@ async function fetchUsersQuery() {
     );
     try {
         const snap = await getDocs(byEmail);
-        console.log("Loaded by email:", snap.size);
         return snap;
     } catch (e2) {
         if (e2?.code !== "failed-precondition") throw e2;
@@ -268,7 +478,6 @@ async function fetchUsersQuery() {
     const snap = await getDocs(
         query(collection(db, "users"), limit(LIST_LIMIT)),
     );
-    console.log("Loaded without order:", snap.size);
     return snap;
 }
 
@@ -278,18 +487,14 @@ export async function loadUsersTable() {
     if (!tbody) return;
 
     tbody.innerHTML =
-        '<tr class="incidents-table__empty"><td colspan="5">Loading…</td></tr>';
+        '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
     if (meta) meta.textContent = "Loading…";
 
     const snap = await fetchUsersQuery();
     allDocs = snap.docs;
-    console.log(
-        "Loaded users:",
-        allDocs.length,
-        allDocs.map((doc) => ({ id: doc.id, data: doc.data() })),
-    );
-
     bindToolbar();
+    bindAddUserModal();
     populateRoleSelect();
+    updateUserStats();
     renderFilteredTable();
 }

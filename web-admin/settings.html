@@ -14,6 +14,9 @@
                     "sidebar-collapsed-initial",
                 );
             }
+            if (localStorage.getItem("tt_admin_role") === "police") {
+                document.documentElement.classList.add("admin-role-police");
+            }
         </script>
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />
@@ -67,6 +70,24 @@
                                 >warning</span
                             >
                             <span>Incidents</span>
+                        </a>
+                        <a
+                            href="operation.html"
+                            class="sidebar__link"
+                            data-role-nav="police"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >emergency_home</span
+                            >
+                            <span>Operation</span>
+                        </a>
+                        <a href="analytics.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >query_stats</span
+                            >
+                            <span>Analytics</span>
                         </a>
                         <a href="users.html" class="sidebar__link">
                             <span
@@ -231,7 +252,8 @@
                                         hidden
                                     >
                                         Read-only mode. Only admins and
-                                        moderators can change system settings.
+                                        Barangay and Police Admins can change
+                                        system settings.
                                     </div>
 
                                     <div class="settings-stack">
