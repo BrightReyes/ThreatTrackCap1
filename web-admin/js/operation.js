@@ -69,8 +69,15 @@ function setLocationResult(message, state = "") {
 }
 
 function normalizeRole(role) {
-    const value = String(role || "user").toLowerCase();
-    return value === "moderator" ? "admin" : value;
+    const value = String(role || "user")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
+        return "admin";
+    }
+    if (value === "police_admin") return "police";
+    return value;
 }
 
 function isEligibleAppUser(docSnap) {
