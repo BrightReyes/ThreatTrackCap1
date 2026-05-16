@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     borderColor: '#dc2626',
   },
   typeButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   severityNoteText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     color: '#666',
     textAlign: 'center',
@@ -467,9 +467,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: '#666',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   bottomSpacing: {
     height: 10,

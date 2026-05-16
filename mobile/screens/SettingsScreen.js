@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   settingDesc: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
   },
   settingArrow: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   profileEmail: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
   },
   profileArrow: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     tintColor: '#ffffff',
   },
   navBottomLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '700',
   },

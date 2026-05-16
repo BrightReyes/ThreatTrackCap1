@@ -15,6 +15,10 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
+    function userDoc(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+
     function callerRole() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? callerUserDoc().data.role
@@ -32,9 +36,20 @@ service cloud.firestore {
              callerRole() in ['admin', 'moderator', 'police'];
     }
 
+    function hasActiveReporterProfile() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             userDoc(request.auth.uid).data.accountStatus == 'active' &&
+             userDoc(request.auth.uid).data.falseReportAcknowledged == true;
+    }
+
+    function canSubmitReports() {
+      return hasActiveReporterProfile();
+    }
+
     function isValidIncident() {
       let data = request.resource.data;
-      return data.keys().hasAll(['type', 'severity', 'location', 'description', 'timestamp']) &&
+      return data.keys().hasAll(['type', 'severity', 'location', 'description', 'timestamp', 'reportedAt']) &&
              data.type in [
                'theft_snatching',
                'robbery_holdup',
@@ -51,6 +66,8 @@ service cloud.firestore {
              data.description is string &&
              data.description.size() >= 10 &&
              data.description.size() <= 2000 &&
+             data.timestamp is timestamp &&
+             data.reportedAt is timestamp &&
              data.location.latitude is number &&
              data.location.longitude is number &&
              data.location.latitude >= -90 &&
@@ -83,17 +100,60 @@ service cloud.firestore {
       // Users can only create their own profile
       allow create: if isOwner(userId) &&
                     request.resource.data.uid == userId &&
-                    request.resource.data.email == request.auth.token.email;
+                    request.resource.data.email == request.auth.token.email &&
+                    request.resource.data.role == 'user' &&
+                    request.resource.data.accountStatus == 'active' &&
+                    request.resource.data.emailVerified == request.auth.token.email_verified &&
+                    request.resource.data.falseReportAcknowledged == true &&
+                    request.resource.data.phoneNumber is string &&
+                    request.resource.data.phoneNumber.size() >= 10 &&
+                    request.resource.data.barangay is string &&
+                    request.resource.data.barangay.size() >= 2 &&
+                    request.resource.data.address is string &&
+                    request.resource.data.address.size() >= 8;
 
       // Users update own profile (email unchanged). Staff may update others: uid must match doc id,
       // and only safe scalar fields may change (diff-based — avoids email== failures when email is missing/mismatched).
       allow update: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
-                    request.resource.data.email == resource.data.email) ||
+                    request.resource.data.email == resource.data.email &&
+                    (!request.resource.data.keys().hasAny(['emailVerified']) ||
+                      request.resource.data.emailVerified == request.auth.token.email_verified) &&
+                    request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly([
+                        'firstName',
+                        'middleName',
+                        'lastName',
+                        'phoneNumber',
+                        'barangay',
+                        'sex',
+                        'age',
+                        'address',
+                        'emailVerified',
+                        'lastLoginAt',
+                        'lastVerificationCheckAt',
+                        'falseReportAcknowledged',
+                        'falseReportAcknowledgedAt'
+                      ])) ||
                    (canManageUserProfiles() &&
                     request.resource.data.uid == userId &&
                     request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['firstName', 'lastName', 'role', 'uid']));
+                      .hasOnly([
+                        'firstName',
+                        'middleName',
+                        'lastName',
+                        'phoneNumber',
+                        'barangay',
+                        'sex',
+                        'age',
+                        'address',
+                        'role',
+                        'uid',
+                        'accountStatus',
+                        'trustScore',
+                        'falseReportCount',
+                        'adminNotes'
+                      ]));
 
       // Users can delete their own profile, admins can delete any
       allow delete: if isOwner(userId) || isAdmin();
@@ -109,7 +169,9 @@ service cloud.firestore {
       // Relaxed checks: accept status values set by client/server and require reporterId match.
       allow create: if (isAdmin()) ||
             (isAuthenticated() &&
+              canSubmitReports() &&
               isValidIncident() &&
+              request.resource.data.reportedAt == request.time &&
               hasNotExceededRateLimit() &&
               request.resource.data.reporterId == request.auth.uid);
 
@@ -117,6 +179,8 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.reporterId) &&
                     resource.data.status == 'pending' &&
                     request.resource.data.reporterId == resource.data.reporterId &&
+                    request.resource.data.status == resource.data.status &&
+                    request.resource.data.reportedAt == resource.data.reportedAt &&
                     isValidIncident();
 
       // Users can attach the uploaded evidence photo URL to their own incident

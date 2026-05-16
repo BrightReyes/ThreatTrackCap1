@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#dc2626',
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#9ca3af',
   },
@@ -437,13 +437,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
   },
   notificationBody: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
-    lineHeight: 16,
+    lineHeight: 20,
     marginLeft: 42,
   },
 
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     tintColor: '#ffffff',
   },
   navBottomLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '700',
   },

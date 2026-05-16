@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
+import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,12 +30,12 @@ const CAMERA_ICON = require('../assets/icons/camera.png');
 const GEAR_ICON = require('../assets/icons/gear.png');
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
-// Valenzuela City boundaries and center
+// Valenzuela City center and viewport based on OSM boundary relation 307470.
 const VALENZUELA_CENTER = {
-  latitude: 14.6991,
-  longitude: 120.9820,
-  latitudeDelta: 0.05, // Approximately 5.5km north-south
-  longitudeDelta: 0.05, // Approximately 5.5km east-west
+  latitude: 14.7136,
+  longitude: 120.9752,
+  latitudeDelta: 0.12,
+  longitudeDelta: 0.13,
 };
 
 const DEFAULT_HEATMAP_DAYS = 7;
@@ -69,6 +70,75 @@ const PRECINCT_CONTACTS = [
   { label: 'Mobile Hotline', number: '0998-598-7868', tel: '09985987868' },
 ];
 
+const normalizePrecinctForMap = (precinct) => {
+  const latitude = Number(precinct?.location?.latitude);
+  const longitude = Number(precinct?.location?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    ...precinct,
+    location: {
+      ...precinct.location,
+      latitude,
+      longitude,
+    },
+  };
+};
+
+const normalizePrecinctKeyPart = (value) => (
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+);
+
+const getPrecinctMergeKeys = (precinct) => {
+  const keys = [
+    precinct?.code && `code:${normalizePrecinctKeyPart(precinct.code)}`,
+    precinct?.id && `id:${normalizePrecinctKeyPart(precinct.id)}`,
+    precinct?.name && `name:${normalizePrecinctKeyPart(precinct.name)}`,
+    precinct?.sourceId && `source:${normalizePrecinctKeyPart(precinct.sourceId)}`,
+  ].filter(Boolean);
+
+  return keys.length > 0 ? keys : ['id:unknown'];
+};
+
+const setMergedPrecinct = (precinctsByKey, precinctKeyAliases, precinct) => {
+  const mergeKeys = getPrecinctMergeKeys(precinct);
+  const existingPrimaryKey = mergeKeys
+    .map((key) => precinctKeyAliases.get(key))
+    .find(Boolean);
+  const primaryKey = existingPrimaryKey || mergeKeys[0];
+
+  precinctsByKey.set(primaryKey, precinct);
+  mergeKeys.forEach((key) => precinctKeyAliases.set(key, primaryKey));
+};
+
+const getMapPrecincts = (firestorePrecincts = []) => {
+  const precinctsByKey = new Map();
+  const precinctKeyAliases = new Map();
+
+  VALENZUELA_POLICE_PRECINCTS.forEach((precinct) => {
+    setMergedPrecinct(precinctsByKey, precinctKeyAliases, precinct);
+  });
+
+  firestorePrecincts
+    .map(normalizePrecinctForMap)
+    .filter(Boolean)
+    .forEach((precinct) => {
+      setMergedPrecinct(precinctsByKey, precinctKeyAliases, {
+        ...precinct,
+        source: precinct.source || 'Firestore',
+      });
+    });
+
+  return Array.from(precinctsByKey.values());
+};
+
 const SEVERITY_ORDER = {
   high: 0,
   medium: 1,
@@ -101,102 +171,76 @@ const getHeatmapMarkerPoints = (points) => {
     .slice(0, MAX_HEATMAP_MARKERS);
 };
 
-// Valenzuela City approximate boundaries
+// Valenzuela City bounds from OSM boundary relation 307470.
 const VALENZUELA_BOUNDS = {
-  northEast: { latitude: 14.7500, longitude: 121.0200 },
-  southWest: { latitude: 14.6500, longitude: 120.9500 },
+  northEast: { latitude: 14.7585, longitude: 121.0247 },
+  southWest: { latitude: 14.6686, longitude: 120.9256 },
 };
 
-// Valenzuela City boundary polygon coordinates (approximate outline)
+// Simplified Valenzuela City boundary polygon from OSM relation 307470.
 const VALENZUELA_BOUNDARY = [
-  { latitude: 14.7480, longitude: 120.9650 }, // North - Marulas/Malinta area
-  { latitude: 14.7450, longitude: 120.9850 }, // Northeast - Punturin area
-  { latitude: 14.7400, longitude: 121.0150 }, // East - Lingunan/Canumay area
-  { latitude: 14.7200, longitude: 121.0180 }, // East - Paso de Blas area
-  { latitude: 14.6950, longitude: 121.0100 }, // Southeast - Ugong area
-  { latitude: 14.6700, longitude: 121.0050 }, // Southeast - Gen. T. de Leon area
-  { latitude: 14.6550, longitude: 120.9900 }, // South - Marulas area
-  { latitude: 14.6520, longitude: 120.9700 }, // Southwest - Karuhatan area
-  { latitude: 14.6600, longitude: 120.9550 }, // Southwest - Polo area
-  { latitude: 14.6750, longitude: 120.9520 }, // West - Baritan/Bignay area
-  { latitude: 14.7000, longitude: 120.9500 }, // West - Malinta area
-  { latitude: 14.7250, longitude: 120.9530 }, // Northwest - Meycauayan border
-  { latitude: 14.7400, longitude: 120.9600 }, // Northwest - Malinta area
+  { latitude: 14.7199238, longitude: 120.9595390 },
+  { latitude: 14.7198627, longitude: 120.9626954 },
+  { latitude: 14.7214998, longitude: 120.9631697 },
+  { latitude: 14.7240004, longitude: 120.9678352 },
+  { latitude: 14.7219855, longitude: 120.9699383 },
+  { latitude: 14.7241847, longitude: 120.9726704 },
+  { latitude: 14.7249460, longitude: 120.9757667 },
+  { latitude: 14.7257627, longitude: 120.9755775 },
+  { latitude: 14.7241913, longitude: 120.9777744 },
+  { latitude: 14.7256761, longitude: 120.9832024 },
+  { latitude: 14.7356309, longitude: 120.9778053 },
+  { latitude: 14.7359804, longitude: 120.9810471 },
+  { latitude: 14.7407873, longitude: 120.9815152 },
+  { latitude: 14.7460613, longitude: 120.9847552 },
+  { latitude: 14.7507821, longitude: 120.9858093 },
+  { latitude: 14.7535728, longitude: 120.9891238 },
+  { latitude: 14.7572354, longitude: 120.9890091 },
+  { latitude: 14.7563539, longitude: 120.9947747 },
+  { latitude: 14.7569171, longitude: 120.9968660 },
+  { latitude: 14.7583971, longitude: 120.9977900 },
+  { latitude: 14.7561006, longitude: 120.9982151 },
+  { latitude: 14.7534132, longitude: 121.0009133 },
+  { latitude: 14.7488391, longitude: 121.0028856 },
+  { latitude: 14.7459224, longitude: 121.0067655 },
+  { latitude: 14.7144576, longitude: 121.0004642 },
+  { latitude: 14.7087550, longitude: 121.0161294 },
+  { latitude: 14.7004239, longitude: 121.0180124 },
+  { latitude: 14.6938891, longitude: 121.0244795 },
+  { latitude: 14.6911428, longitude: 121.0238923 },
+  { latitude: 14.6904010, longitude: 121.0214365 },
+  { latitude: 14.6920903, longitude: 121.0181582 },
+  { latitude: 14.6920089, longitude: 121.0151422 },
+  { latitude: 14.6898689, longitude: 121.0130231 },
+  { latitude: 14.6847643, longitude: 121.0138837 },
+  { latitude: 14.6823280, longitude: 121.0119213 },
+  { latitude: 14.6864310, longitude: 121.0062421 },
+  { latitude: 14.6869794, longitude: 121.0028764 },
+  { latitude: 14.6841972, longitude: 120.9994412 },
+  { latitude: 14.6788132, longitude: 120.9984466 },
+  { latitude: 14.6785866, longitude: 120.9973024 },
+  { latitude: 14.6756887, longitude: 120.9965121 },
+  { latitude: 14.6688141, longitude: 120.9865698 },
+  { latitude: 14.6708899, longitude: 120.9833824 },
+  { latitude: 14.6710897, longitude: 120.9800252 },
+  { latitude: 14.6747976, longitude: 120.9785673 },
+  { latitude: 14.6752678, longitude: 120.9744964 },
+  { latitude: 14.6782153, longitude: 120.9738097 },
+  { latitude: 14.6791702, longitude: 120.9685740 },
+  { latitude: 14.6749959, longitude: 120.9648511 },
+  { latitude: 14.6825185, longitude: 120.9644397 },
+  { latitude: 14.6864835, longitude: 120.9610180 },
+  { latitude: 14.6962110, longitude: 120.9561885 },
+  { latitude: 14.6942028, longitude: 120.9524492 },
+  { latitude: 14.7217088, longitude: 120.9309270 },
+  { latitude: 14.7297406, longitude: 120.9257944 },
+  { latitude: 14.7365862, longitude: 120.9266896 },
+  { latitude: 14.7333934, longitude: 120.9345981 },
+  { latitude: 14.7370977, longitude: 120.9367599 },
+  { latitude: 14.7374023, longitude: 120.9414571 },
+  { latitude: 14.7337942, longitude: 120.9442251 },
+  { latitude: 14.7340427, longitude: 120.9495509 },
 ];
-
-// Mock data generators for demo when Firestore is empty
-const generateMockIncidents = () => {
-  const types = Object.keys(INCIDENT_TYPE_LABELS);
-  const severities = ['high', 'medium', 'low'];
-  const baseLocation = { latitude: 14.6991, longitude: 120.9820 }; // Valenzuela City
-  
-  return Array.from({ length: 15 }, (_, i) => ({
-    id: `mock-incident-${i}`,
-    type: types[Math.floor(Math.random() * types.length)],
-    severity: severities[Math.floor(Math.random() * severities.length)],
-    description: `Sample incident #${i + 1} - Demo data for testing`,
-    location: {
-      latitude: baseLocation.latitude + (Math.random() - 0.5) * 0.04, // Keep within Valenzuela
-      longitude: baseLocation.longitude + (Math.random() - 0.5) * 0.04,
-    },
-    timestamp: { toDate: () => new Date(Date.now() - Math.random() * 86400000 * 7) },
-    status: 'verified',
-  }));
-};
-
-const generateMockPrecincts = () => {
-  return [
-    {
-      id: 'precinct-1',
-      name: 'Police Community Precinct 2',
-      address: 'Gen. T. de Leon, Valenzuela, 1442 Metro Manila',
-      location: { latitude: 14.6700, longitude: 121.0050 },
-      isActive: true,
-    },
-    {
-      id: 'precinct-2', 
-      name: 'Police Community Precinct 4 (Malinta)',
-      address: 'Governor I. Santiago Rd., Malinta, Valenzuela, Metro Manila',
-      location: { latitude: 14.7100, longitude: 120.9600 },
-      isActive: true,
-    },
-    {
-      id: 'precinct-3',
-      name: 'Police Community Precinct 7',
-      address: 'Maysan Rd., Valenzuela, 1440 Metro Manila',
-      location: { latitude: 14.7200, longitude: 120.9700 },
-      isActive: true,
-    },
-    {
-      id: 'substation-1',
-      name: 'Sub-Station 7 Bignay Police',
-      address: 'Phase 2B, Block 1 Lot 1, Northville 1, Brgy. Bignay, Valenzuela',
-      location: { latitude: 14.6750, longitude: 120.9520 },
-      isActive: true,
-    },
-    {
-      id: 'clearance-section',
-      name: 'Valenzuela City Police Clearance Section',
-      address: 'Near MacArthur Highway, Brgy. Karuhatan, Valenzuela',
-      location: { latitude: 14.6850, longitude: 120.9750 },
-      isActive: true,
-    },
-    {
-      id: 'community-relations',
-      name: 'Police Community Relations Division (Valenzuela)',
-      address: 'Maysan Rd., Valenzuela',
-      location: { latitude: 14.7250, longitude: 120.9700 },
-      isActive: true,
-    },
-    {
-      id: 'environmental-unit',
-      name: 'Environmental Police Unit Valenzuela',
-      address: 'Valenzuela City Action Center, MacArthur Hwy, Valenzuela',
-      location: { latitude: 14.6991, longitude: 120.9820 },
-      isActive: true,
-    },
-  ];
-};
 
 const HomeScreen = ({ navigation }) => {
   // State management
@@ -283,6 +327,8 @@ const HomeScreen = ({ navigation }) => {
   useEffect(() => {
     if (userLocation && precincts.length > 0) {
       findNearestPrecinct();
+    } else if (precincts.length === 0) {
+      setNearestPrecinct(null);
     }
   }, [userLocation, precincts]);
 
@@ -387,50 +433,18 @@ const HomeScreen = ({ navigation }) => {
           else if (data.severity === 'low') lowCount++;
         });
 
-        // If no data from Firestore, use mock data for demo
-        if (incidentData.length === 0) {
-          console.log('No Firestore data found - using mock data');
-          const mockIncidents = generateMockIncidents();
-          setIncidents(mockIncidents);
-          
-          // Count mock data by severity
-          mockIncidents.forEach(inc => {
-            if (inc.severity === 'high') highCount++;
-            else if (inc.severity === 'medium') mediumCount++;
-            else if (inc.severity === 'low') lowCount++;
-          });
-        } else {
-          setIncidents(incidentData);
-        }
+        setIncidents(incidentData);
         
         setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
       }, (error) => {
         console.error('Error fetching incidents with real-time listener:', error);
-        // Fallback to mock data on error
-        const mockIncidents = generateMockIncidents();
-        setIncidents(mockIncidents);
-        
-        let highCount = 0, mediumCount = 0, lowCount = 0;
-        mockIncidents.forEach(inc => {
-          if (inc.severity === 'high') highCount++;
-          else if (inc.severity === 'medium') mediumCount++;
-          else if (inc.severity === 'low') lowCount++;
-        });
-        setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
+        setIncidents([]);
+        setRiskStats({ high: 0, medium: 0, low: 0 });
       });
     } catch (error) {
       console.error('Error setting up incidents listener:', error);
-      // Fallback to mock data on error
-      const mockIncidents = generateMockIncidents();
-      setIncidents(mockIncidents);
-      
-      let highCount = 0, mediumCount = 0, lowCount = 0;
-      mockIncidents.forEach(inc => {
-        if (inc.severity === 'high') highCount++;
-        else if (inc.severity === 'medium') mediumCount++;
-        else if (inc.severity === 'low') lowCount++;
-      });
-      setRiskStats({ high: highCount, medium: mediumCount, low: lowCount });
+      setIncidents([]);
+      setRiskStats({ high: 0, medium: 0, low: 0 });
     }
   };
 
@@ -445,17 +459,14 @@ const HomeScreen = ({ navigation }) => {
         precinctData.push({ id: doc.id, ...doc.data() });
       });
 
-      // If no data from Firestore, use mock data
-      if (precinctData.length === 0) {
-        console.log('No precinct data found - using mock data');
-        setPrecincts(generateMockPrecincts());
-      } else {
-        setPrecincts(precinctData);
+      const mapPrecincts = getMapPrecincts(precinctData);
+      setPrecincts(mapPrecincts);
+      if (mapPrecincts.length === 0) {
+        setNearestPrecinct(null);
       }
     } catch (error) {
       console.error('Error fetching precincts:', error);
-      // Fallback to mock data
-      setPrecincts(generateMockPrecincts());
+      setPrecincts(VALENZUELA_POLICE_PRECINCTS);
     }
   };
 
@@ -874,14 +885,14 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.modalListBody}>
               <View style={styles.modalListTopLine}>
-                <Text style={styles.modalListTitle} numberOfLines={1}>{precinct.name}</Text>
+                <Text style={styles.modalListTitle} numberOfLines={2}>{precinct.name}</Text>
                 {nearestPrecinct?.id === precinct.id ? (
                   <View style={styles.nearestBadge}>
                     <Text style={styles.nearestBadgeText}>Nearest</Text>
                   </View>
                 ) : null}
               </View>
-              <Text style={styles.modalListSubtext} numberOfLines={2}>{precinct.address || 'Address unavailable'}</Text>
+              <Text style={styles.modalListSubtext} numberOfLines={3}>{precinct.address || 'Address unavailable'}</Text>
               <View style={styles.modalListMetaRow}>
                 <Text style={styles.modalDistanceText}>
                   {precinct.distance !== null ? formatDistance(precinct.distance) : 'Distance unavailable'}
@@ -911,14 +922,14 @@ const HomeScreen = ({ navigation }) => {
         </View>
         <View style={styles.modalListBody}>
           <View style={styles.modalListTopLine}>
-            <Text style={styles.modalListTitle} numberOfLines={1}>{formatIncidentType(incident)}</Text>
+            <Text style={styles.modalListTitle} numberOfLines={2}>{formatIncidentType(incident)}</Text>
             <View style={[styles.severityBadge, { borderColor: severityColor }]}>
               <Text style={[styles.severityBadgeText, { color: severityColor }]}>
                 {getSeverityLabel(incident.severity)}
               </Text>
             </View>
           </View>
-          <Text style={styles.modalListSubtext} numberOfLines={1}>
+          <Text style={styles.modalListSubtext} numberOfLines={2}>
             {incident.location?.address || 'Location not specified'}
           </Text>
           <Text style={styles.modalIncidentTime}>{formatTimeAgo(incident.timestamp)}</Text>
@@ -1242,7 +1253,7 @@ const HomeScreen = ({ navigation }) => {
                     source={require('../assets/icons/police-station.png')}
                     style={styles.precinctLocationIcon}
                   />
-                  <Text style={styles.precinctAddress} numberOfLines={1}>
+                  <Text style={styles.precinctAddress} numberOfLines={2}>
                     {nearestPrecinct.address} • {formatDistance(nearestPrecinct.distance)}
                   </Text>
                 </View>
@@ -1285,7 +1296,7 @@ const HomeScreen = ({ navigation }) => {
                   <Text style={styles.incidentTitle}>
                     {formatIncidentType(incident)}
                   </Text>
-                  <Text style={styles.incidentDetails} numberOfLines={1}>
+                  <Text style={styles.incidentDetails} numberOfLines={2}>
                     {incident.location?.address || 'Location not specified'}
                   </Text>
                   <Text style={styles.incidentTime}>{formatTimeAgo(incident.timestamp)}</Text>
@@ -1555,9 +1566,9 @@ const styles = StyleSheet.create({
     top: -5,
     right: -4,
     backgroundColor: '#dc2626',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    borderRadius: 14,
+    minWidth: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -1565,7 +1576,7 @@ const styles = StyleSheet.create({
   },
   redBadgeText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '800',
   },
   
@@ -1585,7 +1596,7 @@ const styles = StyleSheet.create({
   },
   locationButtonText: {
     color: '#6a8eef',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   
@@ -1665,7 +1676,7 @@ const styles = StyleSheet.create({
   },
   heatmapLoadingText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     marginLeft: 8,
   },
@@ -1793,7 +1804,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   quickCardLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#374151',
     textAlign: 'center',
     fontWeight: '700',
@@ -1835,7 +1846,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   riskLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#8b95a8',
     fontWeight: '600',
   },
@@ -1859,7 +1870,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   viewAllText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#dc2626',
     fontWeight: '700',
   },
@@ -1911,7 +1922,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   locationIcon: {
-    fontSize: 13,
+    fontSize: 14,
     marginRight: 5,
     display: 'none',
   },
@@ -1922,7 +1933,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   precinctAddress: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     flex: 1,
     fontWeight: '500',
@@ -1974,13 +1985,13 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   incidentDetails: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     marginBottom: 3,
     fontWeight: '500',
   },
   incidentTime: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#9ca3af',
     fontWeight: '500',
   },
@@ -2033,7 +2044,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   homeModalEyebrow: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
     color: '#dc2626',
     letterSpacing: 1.4,
@@ -2047,7 +2058,7 @@ const styles = StyleSheet.create({
   },
   homeModalSubtitle: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '700',
     lineHeight: 19,
@@ -2102,7 +2113,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   homeModalHeroText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     lineHeight: 19,
     fontWeight: '600',
@@ -2121,7 +2132,7 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   callLineLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#991b1b',
     fontWeight: '900',
     letterSpacing: 0.6,
@@ -2141,7 +2152,7 @@ const styles = StyleSheet.create({
   },
   callLineActionText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
   precinctFeatureCard: {
@@ -2167,7 +2178,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   precinctFeatureAddress: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 19,
@@ -2182,7 +2193,7 @@ const styles = StyleSheet.create({
   },
   precinctFeatureMetaText: {
     color: '#dc2626',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
   homeModalActionRow: {
@@ -2225,12 +2236,12 @@ const styles = StyleSheet.create({
   },
   modalListCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#f3f4f6',
     borderRadius: 18,
-    padding: 13,
+    padding: 15,
     marginBottom: 10,
     shadowColor: '#111827',
     shadowOffset: { width: 0, height: 5 },
@@ -2239,8 +2250,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   modalListIconWrap: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2268,9 +2279,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   modalListSubtext: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
-    lineHeight: 17,
+    lineHeight: 20,
     fontWeight: '600',
   },
   modalListMetaRow: {
@@ -2281,7 +2292,7 @@ const styles = StyleSheet.create({
   },
   modalDistanceText: {
     color: '#dc2626',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
   },
   modalRouteButton: {
@@ -2292,18 +2303,18 @@ const styles = StyleSheet.create({
   },
   modalRouteButtonText: {
     color: '#dc2626',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
   },
   nearestBadge: {
     backgroundColor: '#dc2626',
     borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
   },
   nearestBadgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '900',
   },
   incidentModalIcon: {
@@ -2320,17 +2331,17 @@ const styles = StyleSheet.create({
   severityBadge: {
     borderWidth: 1.5,
     borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: '#ffffff',
   },
   severityBadgeText: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: '900',
   },
   modalIncidentTime: {
     marginTop: 5,
-    fontSize: 11,
+    fontSize: 14,
     color: '#9ca3af',
     fontWeight: '800',
   },
@@ -2361,7 +2372,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   incidentDetailSeverityText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
   },
   incidentDetailDescription: {
@@ -2376,7 +2387,7 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   incidentDetailLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#dc2626',
     fontWeight: '900',
     letterSpacing: 1,
@@ -2455,7 +2466,7 @@ const styles = StyleSheet.create({
     tintColor: '#ffffff',
   },
   navBottomLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '700',
   },

@@ -12,7 +12,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from '../utils/firebase';
+import { db, storage } from '../utils/firebase';
+import { getReportEligibility } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
@@ -179,6 +180,16 @@ const ReportIncidentScreen = ({ navigation }) => {
     setAlertConfig({ ...alertConfig, visible: false });
   };
 
+  const showReportEligibilityAlert = (eligibility) => {
+    showAlert(
+      eligibility.title || 'Reporting Unavailable',
+      eligibility.message || 'Your account cannot submit reports right now.',
+      'warning',
+      [],
+      5000,
+    );
+  };
+
   const getLocationAutomatically = async () => {
     try {
       const currentLocation = await getCurrentLocation();
@@ -341,37 +352,50 @@ const ReportIncidentScreen = ({ navigation }) => {
   const handleConfirmedSubmit = async () => {
     const trimmedDescription = description.trim();
 
+    setLoading(true);
+
+    let eligibility;
+    try {
+      eligibility = await getReportEligibility();
+    } catch (error) {
+      console.error('Error checking report eligibility:', error);
+      showAlert('Error', 'Unable to check your account. Please try again.', 'error');
+      setLoading(false);
+      return;
+    }
+
+    if (!eligibility.allowed) {
+      showReportEligibilityAlert(eligibility);
+      setLoading(false);
+      return;
+    }
+
     let reportLocation = location;
     if (!reportLocation) {
       try {
         reportLocation = await getCurrentLocation();
         if (!reportLocation) {
           showAlert('Missing Information', 'Location is required. Please enable location services.', 'warning');
+          setLoading(false);
           return;
         }
         setLocation(reportLocation);
       } catch (error) {
         console.error('Error getting location:', error);
         showAlert('Error', 'Unable to get your location. Please try again.', 'error');
+        setLoading(false);
         return;
       }
     }
 
     if (!reportLocation.latitude || !reportLocation.longitude) {
       showAlert('Error', 'Unable to determine location. Please check your location settings.', 'error');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-
     try {
-      const currentUser = auth.currentUser;
-
-      if (!currentUser) {
-        showAlert('Error', 'You must be logged in to report an incident.', 'error');
-        setLoading(false);
-        return;
-      }
+      const currentUser = eligibility.user;
 
       let locationAddress = 'Valenzuela City, Philippines';
       try {
@@ -396,8 +420,11 @@ const ReportIncidentScreen = ({ navigation }) => {
         },
         status: 'under_review',
         timestamp: serverTimestamp(),
+        reportedAt: serverTimestamp(),
         clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
+        reporterEmailVerified: currentUser.emailVerified === true,
+        reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
       };
 
       const docRef = await addDoc(collection(db, 'incidents'), incidentData);
@@ -733,9 +760,9 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     color: '#fff1f2',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 20,
     marginTop: 5,
     marginBottom: 12,
   },
@@ -785,7 +812,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   stepNumber: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
     color: '#6b7280',
   },
@@ -802,7 +829,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
   },
   stepLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#7f1d1d',
     textAlign: 'center',
@@ -822,7 +849,7 @@ const styles = StyleSheet.create({
   },
   stepSubtitle: {
     color: '#6b7280',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     lineHeight: 19,
     marginBottom: 16,
@@ -834,13 +861,13 @@ const styles = StyleSheet.create({
   },
   incidentTypeButton: {
     width: '48.5%',
-    minHeight: 84,
+    minHeight: 126,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 14,
-    padding: 9,
-    marginBottom: 8,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.07,
@@ -853,9 +880,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7f7',
   },
   incidentIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
@@ -871,7 +898,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   incidentTypeLabel: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
     color: '#111827',
     marginBottom: 3,
@@ -881,9 +908,9 @@ const styles = StyleSheet.create({
   },
   incidentTypeDescription: {
     color: '#6b7280',
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 12,
+    lineHeight: 20,
   },
   reportingAsContainer: {
     flexDirection: 'row',
@@ -937,9 +964,9 @@ const styles = StyleSheet.create({
   },
   reportingAsDescription: {
     color: '#6b7280',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   summaryPanel: {
     backgroundColor: '#ffffff',
@@ -954,7 +981,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: '#991b1b',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -973,7 +1000,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   summarySeverityText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
@@ -984,7 +1011,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     color: '#111827',
-    fontSize: 14,
+    fontSize: 16,
     minHeight: 132,
     textAlignVertical: 'top',
     marginBottom: 24,
@@ -1011,7 +1038,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoActionText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '900',
     color: '#dc2626',
   },
@@ -1054,7 +1081,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   infoText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#7f1d1d',
     fontWeight: '700',
     lineHeight: 20,

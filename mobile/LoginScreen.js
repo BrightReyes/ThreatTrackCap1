@@ -108,7 +108,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
               <Text style={styles.inputIcon}>✉️</Text>
               <TextInput
                 style={styles.input}
-                placeholder="sample@.com"
+                placeholder="sample@example.com"
                 placeholderTextColor="#9ca3af"
                 value={email}
                 onChangeText={setEmail}
@@ -143,7 +143,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
 
             {/* Forgot Password */}
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forget Password?</Text>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
 
             {/* Login Button */}
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     color: '#991b1b',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   loginButton: {
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   dividerText: {
     color: '#991b1b',
     paddingHorizontal: 16,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
   },
   signupContainer: {

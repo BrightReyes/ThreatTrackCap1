@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   holdHint: {
     marginTop: 18,
     color: '#991b1b',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
   },
   bottomSpacer: {

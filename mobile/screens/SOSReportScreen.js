@@ -10,14 +10,10 @@ import {
   View,
 } from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../utils/firebase';
+import { db } from '../utils/firebase';
+import { getReportEligibility } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
-
-const DEFAULT_LOCATION = {
-  latitude: 14.6991,
-  longitude: 120.9820,
-};
 
 const INCIDENT_TYPES = [
   {
@@ -126,31 +122,42 @@ const getSeverityFromType = (type) => {
   return getIncidentByType(type)?.severity || 'medium';
 };
 
+const isValidReportLocation = (location) => {
+  return Boolean(
+    location &&
+    Number.isFinite(Number(location.latitude)) &&
+    Number.isFinite(Number(location.longitude))
+  );
+};
+
 const SOSReportScreen = ({ navigation, route }) => {
   const passedLocation = route?.params?.userLocation;
+  const hasPassedLocation = isValidReportLocation(passedLocation);
 
   const [incidentType, setIncidentType] = useState('');
   const [reportingAs, setReportingAs] = useState('witness');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
-  const [currentLocation, setCurrentLocation] = useState(passedLocation || null);
+  const [currentLocation, setCurrentLocation] = useState(hasPassedLocation ? passedLocation : null);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
     message: '',
     type: 'info',
     buttons: [],
+    autoCloseDelay: 5000,
   });
 
   const selectedIncident = getIncidentByType(incidentType);
   const selectedSeverity = getSeverityFromType(incidentType);
   const severityStyle = SEVERITY_CONFIG[selectedSeverity];
+  const locationReady = isValidReportLocation(currentLocation);
 
   useEffect(() => {
     const initializeLocation = async () => {
       try {
-        if (!passedLocation) {
+        if (!hasPassedLocation) {
           await getLocationAutomatically();
         }
       } finally {
@@ -161,13 +168,14 @@ const SOSReportScreen = ({ navigation, route }) => {
     initializeLocation();
   }, []);
 
-  const showAlert = (title, message, type = 'info', buttons = []) => {
+  const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000) => {
     setAlertConfig({
       visible: true,
       title,
       message,
       type,
       buttons,
+      autoCloseDelay,
     });
   };
 
@@ -175,14 +183,30 @@ const SOSReportScreen = ({ navigation, route }) => {
     setAlertConfig({ ...alertConfig, visible: false });
   };
 
+  const showReportEligibilityAlert = (eligibility) => {
+    showAlert(
+      eligibility.title || 'Reporting Unavailable',
+      eligibility.message || 'Your account cannot submit reports right now.',
+      'warning',
+      [],
+      5000,
+    );
+  };
+
   const getLocationAutomatically = async () => {
     try {
       const location = await getCurrentLocation();
-      setCurrentLocation(location || DEFAULT_LOCATION);
+      setCurrentLocation(isValidReportLocation(location) ? location : null);
     } catch (error) {
       console.error('Error getting location:', error);
-      setCurrentLocation(DEFAULT_LOCATION);
+      setCurrentLocation(null);
     }
+  };
+
+  const retryLocationLock = async () => {
+    setLocationLoading(true);
+    await getLocationAutomatically();
+    setLocationLoading(false);
   };
 
   const handleIncidentTypeChange = (type) => {
@@ -200,23 +224,28 @@ const SOSReportScreen = ({ navigation, route }) => {
       return;
     }
 
-    const reportLocation = currentLocation || DEFAULT_LOCATION;
+    const reportLocation = currentLocation;
 
-    if (!reportLocation.latitude || !reportLocation.longitude) {
-      showAlert('Error', 'Unable to determine location. Please check your location settings.', 'error');
+    if (!isValidReportLocation(reportLocation)) {
+      showAlert(
+        'Location Required',
+        'Unable to confirm your current location. Please enable location services and try again before sending an SOS report.',
+        'error'
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const currentUser = auth.currentUser;
+      const eligibility = await getReportEligibility();
 
-      if (!currentUser) {
-        showAlert('Error', 'You must be logged in to report an incident.', 'error');
-        setLoading(false);
+      if (!eligibility.allowed) {
+        showReportEligibilityAlert(eligibility);
         return;
       }
+
+      const currentUser = eligibility.user;
 
       let locationAddress = 'Valenzuela City, Philippines';
       try {
@@ -244,8 +273,11 @@ const SOSReportScreen = ({ navigation, route }) => {
         },
         status: 'under_review',
         timestamp: serverTimestamp(),
+        reportedAt: serverTimestamp(),
         clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
+        reporterEmailVerified: currentUser.emailVerified === true,
+        reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
         isSOSReport: true,
       };
 
@@ -287,7 +319,7 @@ const SOSReportScreen = ({ navigation, route }) => {
           <View style={styles.statusStrip}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>
-              {locationLoading ? 'Locking location...' : 'Location ready'}
+              {locationLoading ? 'Locking location...' : locationReady ? 'Location ready' : 'Location unavailable'}
             </Text>
           </View>
         </View>
@@ -343,11 +375,11 @@ const SOSReportScreen = ({ navigation, route }) => {
                           styles.incidentTypeLabel,
                           isSelected && styles.incidentTypeLabelSelected,
                         ]}
-                        numberOfLines={1}
+                        numberOfLines={2}
                       >
                         {type.label}
                       </Text>
-                      <Text style={styles.incidentTypeDescription} numberOfLines={1}>
+                      <Text style={styles.incidentTypeDescription} numberOfLines={2}>
                         {type.description}
                       </Text>
                     </View>
@@ -402,6 +434,22 @@ const SOSReportScreen = ({ navigation, route }) => {
               </Text>
             </View>
 
+            {!locationLoading && !locationReady && (
+              <View style={styles.locationWarningBox}>
+                <Text style={styles.locationWarningTitle}>Location is required</Text>
+                <Text style={styles.locationWarningText}>
+                  Enable location services before sending an SOS report so responders receive your real position.
+                </Text>
+                <TouchableOpacity
+                  style={styles.locationRetryButton}
+                  onPress={retryLocationLock}
+                  disabled={loading}
+                >
+                  <Text style={styles.locationRetryText}>Retry Location</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.bottomSpacing} />
           </View>
         </ScrollView>
@@ -410,10 +458,10 @@ const SOSReportScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (loading || locationLoading) && styles.submitButtonDisabled,
+              (loading || locationLoading || !locationReady) && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={loading || locationLoading}
+            disabled={loading || locationLoading || !locationReady}
           >
             {loading ? (
               <>
@@ -434,7 +482,7 @@ const SOSReportScreen = ({ navigation, route }) => {
         type={alertConfig.type}
         buttons={alertConfig.buttons}
         onClose={hideAlert}
-        autoCloseDelay={5000}
+        autoCloseDelay={alertConfig.autoCloseDelay}
       />
     </>
   );
@@ -499,9 +547,9 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     color: '#fff1f2',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 20,
     marginTop: 5,
     marginBottom: 12,
   },
@@ -525,7 +573,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
   },
   scrollView: {
@@ -551,7 +599,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   summaryLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#991b1b',
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -570,7 +618,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   summarySeverityText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '900',
   },
   sectionTitle: {
@@ -587,15 +635,15 @@ const styles = StyleSheet.create({
   },
   incidentTypeButton: {
     width: '48.5%',
-    minHeight: 66,
+    minHeight: 98,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
     borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   incidentTypeButtonSelected: {
     backgroundColor: '#fef2f2',
@@ -607,8 +655,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   incidentIconBadge: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     backgroundColor: '#f9fafb',
     alignItems: 'center',
@@ -625,7 +673,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   incidentTypeLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#111827',
     fontWeight: '900',
     marginBottom: 3,
@@ -634,7 +682,7 @@ const styles = StyleSheet.create({
     color: '#991b1b',
   },
   incidentTypeDescription: {
-    fontSize: 10,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '600',
   },
@@ -657,7 +705,7 @@ const styles = StyleSheet.create({
     borderColor: '#dc2626',
   },
   reportingButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#374151',
   },
@@ -666,14 +714,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   descriptionInput: {
-    minHeight: 76,
+    minHeight: 96,
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
     borderRadius: 16,
     backgroundColor: '#ffffff',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 13,
+    fontSize: 14,
     color: '#111827',
     fontWeight: '600',
     marginBottom: 12,
@@ -687,9 +735,42 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: '#6b7280',
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 18,
+    lineHeight: 20,
+  },
+  locationWarningBox: {
+    backgroundColor: '#fff7f7',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 12,
+  },
+  locationWarningTitle: {
+    color: '#991b1b',
+    fontSize: 14,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  locationWarningText: {
+    color: '#7f1d1d',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  locationRetryButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    marginTop: 10,
+  },
+  locationRetryText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
   },
   bottomSpacing: {
     height: 96,

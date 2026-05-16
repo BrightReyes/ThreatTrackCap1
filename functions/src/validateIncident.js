@@ -30,7 +30,7 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
       hasValidType: validateType(incident.type),
       hasValidSeverity: validateSeverity(incident.severity),
       hasValidDescription: validateDescription(incident.description),
-      isNotSpam: await checkSpamScore(db, incident),
+      isNotSpam: await checkSpamScore(db, incident, incidentId),
     };
 
     // Calculate verification score (0-100)
@@ -68,6 +68,7 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
     }
 
     await incidentRef.update(updatePayload);
+    await updateReporterStats(db, incident.reporterId);
 
     console.log(`Incident ${incidentId} validated. Score: ${verificationScore}, Status: ${status}`);
 
@@ -165,14 +166,18 @@ function validateDescription(description) {
 /**
  * Check for spam patterns
  */
-async function checkSpamScore(db, incident) {
+async function checkSpamScore(db, incident, incidentId) {
   try {
+    const oneHourAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+    const tenMinutesAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 10 * 60 * 1000);
+
     // Check if user has submitted multiple incidents in short time
     if (incident.reporterId) {
       const recentIncidents = await db.collection("incidents")
-        .where("reporterId", "==", incident.reporterId)
-        .where("reportedAt", ">", new Date(Date.now() - 60 * 60 * 1000)) // Last hour
-        .get();
+          .where("reporterId", "==", incident.reporterId)
+          .where("reportedAt", ">", oneHourAgo) // Last hour
+          .orderBy("reportedAt", "desc")
+          .get();
 
       // More than 5 reports in 1 hour is suspicious
       if (recentIncidents.size > 5) {
@@ -181,15 +186,23 @@ async function checkSpamScore(db, incident) {
       }
     }
 
-    // Check for duplicate locations (same location within 50 meters and 10 minutes)
-    const recentNearby = await db.collection("incidents")
-      .where("location.latitude", ">=", incident.location.latitude - 0.0005)
-      .where("location.latitude", "<=", incident.location.latitude + 0.0005)
-      .where("reportedAt", ">", new Date(Date.now() - 10 * 60 * 1000)) // Last 10 minutes
-      .get();
+    if (!validateLocation(incident.location)) {
+      return true;
+    }
 
-    const duplicates = recentNearby.docs.filter((doc) => {
+    // Check for duplicate locations (same location within 50 meters and 10 minutes)
+    const recentReports = await db.collection("incidents")
+        .where("reportedAt", ">", tenMinutesAgo) // Last 10 minutes
+        .orderBy("reportedAt", "desc")
+        .limit(100)
+        .get();
+
+    const duplicates = recentReports.docs.filter((doc) => {
+      if (doc.id === incidentId) return false;
+
       const data = doc.data();
+      if (!validateLocation(data.location)) return false;
+
       const latDiff = Math.abs(data.location.latitude - incident.location.latitude);
       const lonDiff = Math.abs(data.location.longitude - incident.location.longitude);
       return latDiff < 0.0005 && lonDiff < 0.0005; // ~50 meters
@@ -204,6 +217,22 @@ async function checkSpamScore(db, incident) {
   } catch (error) {
     console.error("Error checking spam score:", error);
     return true; // Default to not spam if check fails
+  }
+}
+
+/**
+ * Keep lightweight reporter metadata for moderation and future trust scoring.
+ */
+async function updateReporterStats(db, reporterId) {
+  if (!reporterId) return;
+
+  try {
+    await db.collection("users").doc(reporterId).set({
+      reportCount: admin.firestore.FieldValue.increment(1),
+      lastReportAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (error) {
+    console.error(`Error updating reporter stats for ${reporterId}:`, error);
   }
 }
 

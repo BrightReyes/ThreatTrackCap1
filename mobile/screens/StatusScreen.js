@@ -517,7 +517,7 @@ const StatusScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.detailsInfoCard}>
                   <Text style={styles.detailsInfoLabel}>Report ID</Text>
-                  <Text style={styles.detailsInfoValue} numberOfLines={1}>
+                  <Text style={styles.detailsInfoValue} numberOfLines={2}>
                     {selectedIncident.id?.slice(0, 8) || 'Pending'}
                   </Text>
                 </View>
@@ -634,7 +634,7 @@ const StatusScreen = ({ navigation }) => {
                         <Text style={styles.incidentTypeIconText}>{getIncidentIcon(incident.type)}</Text>
                       </View>
                       <View style={styles.incidentTitleBlock}>
-                        <Text style={styles.incidentTitle} numberOfLines={1}>{formatIncidentType(incident)}</Text>
+                        <Text style={styles.incidentTitle} numberOfLines={2}>{formatIncidentType(incident)}</Text>
                         <Text style={styles.incidentTime}>Submitted {formatTimestamp(incident.timestamp || incident.clientTimestamp)}</Text>
                       </View>
                       <View style={[styles.statusPill, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
@@ -644,10 +644,10 @@ const StatusScreen = ({ navigation }) => {
 
                     {renderTrackingSteps(displayStatus, true)}
 
-                    <Text style={styles.incidentBody} numberOfLines={2}>{incident.description}</Text>
+                    <Text style={styles.incidentBody} numberOfLines={3}>{incident.description}</Text>
 
                     <View style={styles.incidentRowBottom}>
-                      <Text style={styles.incidentLocation} numberOfLines={1}>{getLocationDisplay(incident.location)}</Text>
+                      <Text style={styles.incidentLocation} numberOfLines={2}>{getLocationDisplay(incident.location)}</Text>
                       <Text style={styles.detailsLink}>Details</Text>
                     </View>
                   </TouchableOpacity>
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '700',
     lineHeight: 19,
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '700',
     textAlign: 'center',
@@ -824,10 +824,10 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   assuranceBannerText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '600',
-    lineHeight: 17,
+    lineHeight: 20,
   },
 
   // Content Area
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   incidentTime: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#9ca3af',
     fontWeight: '700',
   },
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   statusPillText: {
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '900',
   },
   trackingCompact: {
@@ -899,8 +899,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 16,
     marginBottom: 14,
   },
   trackingStepWrap: {
@@ -909,9 +909,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   trackingDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f3f4f6',
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   },
   trackingDotText: {
     color: '#9ca3af',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '900',
   },
   trackingDotTextActive: {
@@ -938,15 +938,17 @@ const styles = StyleSheet.create({
   trackingLabel: {
     marginTop: 6,
     color: '#9ca3af',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '800',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   trackingLabelActive: {
     color: '#991b1b',
   },
   trackingLine: {
     position: 'absolute',
-    top: 13,
+    top: 16,
     left: '58%',
     right: '-42%',
     height: 2,
@@ -957,7 +959,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
   },
   incidentBody: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#374151',
     marginBottom: 10,
     lineHeight: 19,
@@ -968,7 +970,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   incidentLocation: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
     flex: 1,
     fontWeight: '600',
@@ -977,7 +979,7 @@ const styles = StyleSheet.create({
   detailsLink: {
     color: '#dc2626',
     fontWeight: '900',
-    fontSize: 13,
+    fontSize: 14,
   },
   detailsBackdrop: {
     flex: 1,
@@ -1019,7 +1021,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailsEyebrow: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#dc2626',
     fontWeight: '900',
     letterSpacing: 1.3,
@@ -1032,7 +1034,7 @@ const styles = StyleSheet.create({
   },
   detailsSubtitle: {
     marginTop: 5,
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '700',
   },
@@ -1072,7 +1074,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   detailsStatusIconText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
   detailsStatusCopy: {
@@ -1085,10 +1087,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   detailsStatusMessage: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6b7280',
     fontWeight: '600',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   responderCard: {
     backgroundColor: '#fff7f7',
@@ -1127,7 +1129,7 @@ const styles = StyleSheet.create({
   },
   responderEyebrow: {
     color: '#dc2626',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1.1,
     marginBottom: 4,
@@ -1140,7 +1142,7 @@ const styles = StyleSheet.create({
   },
   responderMessage: {
     color: '#374151',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
     marginBottom: 12,
@@ -1156,11 +1158,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fee2e2',
     borderRadius: 14,
-    padding: 10,
+    padding: 12,
   },
   responderMetaLabel: {
     color: '#991b1b',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.7,
@@ -1168,14 +1170,14 @@ const styles = StyleSheet.create({
   },
   responderMetaValue: {
     color: '#111827',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
   },
   responderAddress: {
     color: '#7f1d1d',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 16,
+    lineHeight: 20,
   },
   detailsGrid: {
     flexDirection: 'row',
@@ -1191,7 +1193,7 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
   },
   detailsInfoLabel: {
-    fontSize: 10,
+    fontSize: 14,
     color: '#991b1b',
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -1212,7 +1214,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   detailsSectionLabel: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#dc2626',
     fontWeight: '900',
     textTransform: 'uppercase',
@@ -1220,7 +1222,7 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   detailsSectionText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#374151',
     fontWeight: '700',
     lineHeight: 19,
@@ -1240,10 +1242,10 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   assuranceText: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#7f1d1d',
     fontWeight: '700',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   // Empty State
@@ -1328,7 +1330,7 @@ const styles = StyleSheet.create({
     tintColor: '#ffffff',
   },
   navBottomLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#ffffff',
     fontWeight: '700',
   },

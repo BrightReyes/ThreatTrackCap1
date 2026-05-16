@@ -95,7 +95,7 @@ const NotificationsScreen = () => {
                 <Text style={styles.notifTitle}>{n.type}</Text>
                 {n.severity === 'high' && <View style={styles.warningIcon}><Text style={styles.warningText}>!</Text></View>}
               </View>
-              <Text style={styles.notifBody} numberOfLines={2}>{n.body}</Text>
+              <Text style={styles.notifBody} numberOfLines={3}>{n.body}</Text>
             </View>
           ))}
         </View>
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   topNav: { backgroundColor:'#d32f2f', flexDirection:'row', justifyContent:'space-around', paddingTop:HEADER_TOP_PADDING, paddingBottom:12 },
   navItem:{alignItems:'center', width:'25%'},
   navIcon:{color:'#fff', fontSize:18, marginBottom:4},
-  navLabel:{color:'#fff', fontWeight:'700', fontSize:11},
+  navLabel:{color:'#fff', fontWeight:'700', fontSize: 14, lineHeight: 18},
   scrollView: { flex:1 },
   headerAlt: { paddingHorizontal:20, paddingTop:18, paddingBottom:8 },
   headerTitleAlt: { fontSize:22, fontWeight:'900', color:'#111827' },
@@ -125,14 +125,14 @@ const styles = StyleSheet.create({
   markAll: { marginLeft:'auto' },
   markAllText: { color:'#6b7280', fontWeight:'700' },
   content: { paddingHorizontal:20, paddingTop:10 },
-  notifCard: { backgroundColor:'#fff', borderRadius:12, padding:12, marginBottom:12 },
+  notifCard: { backgroundColor:'#fff', borderRadius:12, padding:14, marginBottom:12 },
   notifUnread: { borderLeftWidth:4, borderLeftColor:'#dc2626' },
   notifRead: { opacity:0.9 },
   notifRowTop: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:6 },
   notifTitle: { fontSize:16, fontWeight:'900', color:'#111827' },
   warningIcon: { backgroundColor:'#fff3f3', paddingHorizontal:6, paddingVertical:2, borderRadius:8 },
   warningText: { color:'#b91c1c', fontWeight:'900' },
-  notifBody: { color:'#6b7280' },
+  notifBody: { color:'#6b7280', fontSize: 14, lineHeight: 20, fontWeight: '600' },
 });
 
 export default NotificationsScreen;

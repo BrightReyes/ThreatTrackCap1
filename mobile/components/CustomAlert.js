@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   headerEyebrow: {
     color: '#fee2e2',
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1.2,
     textTransform: 'uppercase',

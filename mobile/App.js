@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   errorHint: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#888888',
     fontStyle: 'italic',
   },
