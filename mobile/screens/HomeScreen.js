@@ -17,7 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import MapView, { Marker, Polygon, Heatmap, Circle } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
-import { db } from '../utils/firebase';
+import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
@@ -254,8 +254,10 @@ const HomeScreen = ({ navigation }) => {
   const [heatmapData, setHeatmapData] = useState(null);
   const [heatmapLoading, setHeatmapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const mapRef = useRef(null);
   const unsubscribeRef = useRef(null);
+  const notificationsUnsubscribeRef = useRef(null);
   const heatmapRequestIdRef = useRef(0);
   const heatmapEndpointUnavailableRef = useRef(false);
   const rotationValue = useRef(new Animated.Value(0)).current;
@@ -319,6 +321,42 @@ const HomeScreen = ({ navigation }) => {
     return () => {
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
+      }
+      if (notificationsUnsubscribeRef.current) {
+        notificationsUnsubscribeRef.current();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser?.uid) {
+      setUnreadNotifications(0);
+      return undefined;
+    }
+
+    const notificationsRef = collection(db, 'notifications');
+    const q = query(notificationsRef, where('userId', '==', currentUser.uid));
+
+    notificationsUnsubscribeRef.current = onSnapshot(
+      q,
+      (snapshot) => {
+        const unread = snapshot.docs.filter((snap) => {
+          const data = snap.data();
+          return !data.read && !data.readAt;
+        }).length;
+        setUnreadNotifications(unread);
+      },
+      (error) => {
+        console.error('Error loading notification badge:', error);
+        setUnreadNotifications(0);
+      }
+    );
+
+    return () => {
+      if (notificationsUnsubscribeRef.current) {
+        notificationsUnsubscribeRef.current();
+        notificationsUnsubscribeRef.current = null;
       }
     };
   }, []);
@@ -1079,9 +1117,11 @@ const HomeScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.navigate('Alerts')} style={styles.headerIconButton}>
             <View style={styles.notificationBellWrapper}>
               <Image source={BELL_ICON} style={styles.headerActionIcon} />
-              {riskStats.high > 0 && (
+              {unreadNotifications > 0 && (
                 <View style={styles.redBadge}>
-                  <Text style={styles.redBadgeText}>{riskStats.high}</Text>
+                  <Text style={styles.redBadgeText}>
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Text>
                 </View>
               )}
             </View>

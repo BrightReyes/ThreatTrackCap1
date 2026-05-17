@@ -14,6 +14,7 @@ const AlertsScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [filterTab, setFilterTab] = useState('all');
+  const [selectedNotification, setSelectedNotification] = useState(null);
 
   // Sample notifications matching the image design
   const [notifications, setNotifications] = useState([
@@ -119,6 +120,31 @@ const AlertsScreen = ({ navigation }) => {
     setTimeout(() => {
       setRefreshing(false);
     }, 500);
+  };
+
+  const markNotificationRead = async (item) => {
+    if (!item || item.read || item.readAt || typeof item.id !== 'string') return;
+
+    setNotifications(prev => prev.map(notification => (
+      notification.id === item.id
+        ? { ...notification, read: true, readAt: notification.readAt || new Date().toISOString() }
+        : notification
+    )));
+
+    try {
+      await updateDoc(doc(db, 'notifications', item.id), {
+        read: true,
+        readAt: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error marking notification read:', error);
+      showAlert('Error', 'This notification could not be marked as read.', 'error');
+    }
+  };
+
+  const openNotification = async (item) => {
+    setSelectedNotification(item);
+    await markNotificationRead(item);
   };
 
   const markAllRead = async () => {
@@ -243,6 +269,7 @@ const AlertsScreen = ({ navigation }) => {
               filteredAlerts.map((alert, index) => (
                 <TouchableOpacity
                   key={alert.id || index}
+                  onPress={() => openNotification(alert)}
                   style={[
                     styles.notificationCard,
                     { 
@@ -314,6 +341,25 @@ const AlertsScreen = ({ navigation }) => {
         buttons={alertConfig.buttons}
         onClose={hideAlert}
         autoCloseDelay={5000}
+      />
+      <CustomAlert
+        visible={!!selectedNotification}
+        title={selectedNotification?.title || selectedNotification?.type || 'Notification'}
+        message={buildNotificationDetails(selectedNotification)}
+        type={selectedNotification?.priority === 'high' || selectedNotification?.severity === 'high' ? 'warning' : 'info'}
+        buttons={[
+          ...(shouldLinkNotificationToReports(selectedNotification)
+            ? [{
+                text: 'View Reports',
+                onPress: () => {
+                  setSelectedNotification(null);
+                  navigation.navigate('Status');
+                },
+              }]
+            : []),
+          { text: 'Close', onPress: () => setSelectedNotification(null) },
+        ]}
+        onClose={() => setSelectedNotification(null)}
       />
     </>
   );
@@ -572,6 +618,49 @@ const getTimeValue = (value) => {
   if (value.seconds) return value.seconds * 1000;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+};
+
+const formatNotificationTime = (value) => {
+  if (!value) return 'Time unavailable';
+  const date = value.toDate
+    ? value.toDate()
+    : value.seconds
+      ? new Date(value.seconds * 1000)
+      : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return 'Time unavailable';
+
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
+const buildNotificationDetails = (item) => {
+  if (!item) return '';
+
+  const lines = [
+    item.body || item.description || 'No message provided.',
+    '',
+    `Type: ${String(item.type || 'notification').replace(/_/g, ' ')}`,
+    `Priority: ${item.priority || item.severity || 'normal'}`,
+    `Time: ${formatNotificationTime(item.sentAt || item.timestamp)}`,
+  ];
+
+  if (item.location?.address) {
+    lines.push(`Location: ${item.location.address}`);
+  }
+
+  if (shouldLinkNotificationToReports(item)) {
+    lines.push('', 'This notification is linked to a report.');
+  }
+
+  return lines.join('\n');
+};
+
+const shouldLinkNotificationToReports = (item) => {
+  if (!item?.incidentId) return false;
+  return item.source !== 'police_admin' && item.type !== 'police_operation_report';
 };
 
 export default AlertsScreen;

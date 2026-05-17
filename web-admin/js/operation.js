@@ -140,8 +140,8 @@ function updateSeverityPreview(type) {
             !severity
                 ? "Select an incident type to see notification behavior."
                 : severity === "high"
-                ? "High severity reports notify active app users."
-                : "Medium and low severity reports are added to incidents and heatmap only.";
+                ? "High severity reports are sent as high priority notifications."
+                : "This report will be sent to active users in Notifications.";
     }
 
     if (submitText) {
@@ -278,8 +278,8 @@ async function publishOperationReport(data) {
     }
 
     const incidentRef = doc(collection(db, "incidents"));
-    const shouldNotifyUsers = data.severity === "high";
-    const usersToNotify = shouldNotifyUsers ? await getEligibleUsers() : [];
+    const isHighPriority = data.severity === "high";
+    const usersToNotify = await getEligibleUsers();
     const createdAtIso = new Date().toISOString();
     const location = {
         latitude: data.latitude,
@@ -290,7 +290,7 @@ async function publishOperationReport(data) {
         type: data.type,
         typeLabel: data.typeLabel,
         severity: data.severity,
-        priority: shouldNotifyUsers ? "high" : "normal",
+        priority: isHighPriority ? "high" : "normal",
         reportingAs: "police_station",
         description: data.description,
         location,
@@ -303,7 +303,7 @@ async function publishOperationReport(data) {
         isAdminGenerated: true,
         createdBy: currentUser.uid,
         createdByEmail: currentUser.email || null,
-        notificationAudience: shouldNotifyUsers ? "active_app_users" : "none",
+        notificationAudience: "active_app_users",
     };
 
     const batch = writeBatch(db);
@@ -314,11 +314,11 @@ async function publishOperationReport(data) {
         batch.set(notificationRef, {
             userId: userDoc.id,
             incidentId: incidentRef.id,
-            title: "Urgent police alert",
+            title: isHighPriority ? "High priority police report" : "Police report added",
             body: buildNotificationBody(data),
-            type: "police_urgent_report",
+            type: "police_operation_report",
             severity: data.severity,
-            priority: "high",
+            priority: isHighPriority ? "high" : "normal",
             read: false,
             readAt: null,
             sentAt: serverTimestamp(),
@@ -393,11 +393,8 @@ function bindOperationForm() {
             submit.disabled = true;
             submit.setAttribute("aria-busy", "true");
         }
-        const willNotify = result.data.severity === "high";
         setFeedback(
-            willNotify
-                ? "Resolving address, then creating notifications..."
-                : "Resolving address, then adding report to heatmap...",
+            "Resolving address, then creating notifications...",
         );
         setLocationResult("Resolving address...");
 
@@ -421,13 +418,13 @@ function bindOperationForm() {
             );
             setFeedback(
                 published.notificationsCreated > 0
-                    ? `Published. ${published.notificationsCreated} user notification${published.notificationsCreated === 1 ? "" : "s"} created.`
-                    : "Report added. No user notification was sent because severity is not high.",
+                    ? `Report added. ${published.notificationsCreated} user notification${published.notificationsCreated === 1 ? "" : "s"} created.`
+                    : "Report added. No active users were available to notify.",
                 "success",
             );
             toastSuccess(
                 published.notificationsCreated > 0
-                    ? "Urgent report published"
+                    ? "Report added and users notified"
                     : "Report added",
             );
         } catch (err) {

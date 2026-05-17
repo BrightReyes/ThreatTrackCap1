@@ -56,6 +56,29 @@ function formatJoined(data) {
     return "—";
 }
 
+function formatDateTime(ts) {
+    if (ts && typeof ts.toDate === "function") {
+        try {
+            return ts.toDate().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+            });
+        } catch {
+            return "—";
+        }
+    }
+    if (typeof ts === "string" && ts) {
+        const parsed = new Date(ts);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+            });
+        }
+    }
+    return "—";
+}
+
 function displayName(d) {
     const fn = (d.firstName || "").trim();
     const ln = (d.lastName || "").trim();
@@ -196,7 +219,7 @@ function updateUserStats() {
             else acc.users += 1;
             return acc;
         },
-        { total: 0, admin: 0, police: 0, users: 0 },
+        { total: 0, admin: 0, police: 0, users: 0, pending: 0 },
     );
 
     if (totalEl) totalEl.textContent = String(counts.total);
@@ -278,6 +301,193 @@ function renderFilteredTable() {
             `${shown} user${shown === 1 ? "" : "s"}${suffix}` +
             (total >= LIST_LIMIT ? ` — max ${LIST_LIMIT} loaded` : "");
     }
+}
+
+function verificationStatus(data) {
+    return String(data.status || "pending").toLowerCase();
+}
+
+function getVerificationUser(id) {
+    return verificationUsers.get(id) || null;
+}
+
+function buildVerificationCard(docSnap) {
+    const id = docSnap.id;
+    const data = docSnap.data();
+    const user = getVerificationUser(id);
+    const name = user ? displayName(user) : "Unmatched user";
+    const email = data.email || user?.email || "—";
+    const phone = user?.phoneNumber || "—";
+    const barangay = user?.barangay || "—";
+    const submitted = formatDateTime(data.submittedAt);
+    const status = humanizeStatus(verificationStatus(data));
+    const idImageUrl = data.idImageUrl || "";
+    const selfieImageUrl = data.selfieImageUrl || "";
+
+    return `<article class="users-verification-card" data-verification-user-id="${escapeAttr(id)}">
+    <div class="users-verification-card__main">
+      <div class="users-verification-card__top">
+        <div>
+          <h3 class="users-verification-card__name">${escapeHtml(name)}</h3>
+          <p class="users-verification-card__email">${escapeHtml(email)}</p>
+        </div>
+        <span class="users-status users-status--pending">${escapeHtml(status)}</span>
+      </div>
+      <div class="users-verification-card__grid">
+        <div class="users-verification-field">
+          <span>ID type</span>
+          <strong title="${escapeAttr(data.idType || "—")}">${escapeHtml(data.idType || "—")}</strong>
+        </div>
+        <div class="users-verification-field">
+          <span>Barangay</span>
+          <strong title="${escapeAttr(barangay)}">${escapeHtml(barangay)}</strong>
+        </div>
+        <div class="users-verification-field">
+          <span>Phone</span>
+          <strong title="${escapeAttr(phone)}">${escapeHtml(phone)}</strong>
+        </div>
+        <div class="users-verification-field">
+          <span>Submitted</span>
+          <strong title="${escapeAttr(submitted)}">${escapeHtml(submitted)}</strong>
+        </div>
+        <div class="users-verification-field">
+          <span>User ID</span>
+          <strong title="${escapeAttr(id)}">${escapeHtml(id)}</strong>
+        </div>
+        <div class="users-verification-field">
+          <span>Consent</span>
+          <strong>${data.consentAccepted === true ? "Accepted" : "Missing"}</strong>
+        </div>
+      </div>
+      <div class="users-verification-card__links">
+        ${
+            idImageUrl
+                ? `<a class="users-verification-link" href="${escapeAttr(idImageUrl)}" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-outlined" aria-hidden="true">badge</span>
+            View valid ID
+          </a>`
+                : ""
+        }
+        ${
+            selfieImageUrl
+                ? `<a class="users-verification-link" href="${escapeAttr(selfieImageUrl)}" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-outlined" aria-hidden="true">face</span>
+            View selfie
+          </a>`
+                : ""
+        }
+      </div>
+    </div>
+    <div class="users-verification-card__actions">
+      <button type="button" class="users-verification-btn users-verification-btn--approve" data-verification-action="approve" data-user-id="${escapeAttr(id)}">
+        <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+        Approve
+      </button>
+      <button type="button" class="users-verification-btn users-verification-btn--reject" data-verification-action="reject" data-user-id="${escapeAttr(id)}">
+        <span class="material-symbols-outlined" aria-hidden="true">cancel</span>
+        Reject
+      </button>
+    </div>
+  </article>`;
+}
+
+function renderVerificationList() {
+    const list = document.getElementById("users-verification-list");
+    const meta = document.getElementById("users-verification-count");
+    if (!list) return;
+
+    if (verificationLoadError) {
+        if (meta) meta.textContent = "Verification queue unavailable";
+        list.innerHTML = `<div class="users-verification-empty">${escapeHtml(
+            verificationLoadError,
+        )}</div>`;
+        return;
+    }
+
+    const pending = verificationDocs.filter((docSnap) => {
+        const status = verificationStatus(docSnap.data());
+        const user = getVerificationUser(docSnap.id);
+        return (
+            status === "pending" ||
+            userStatus(user || {}) === "pending_verification"
+        );
+    });
+
+    if (meta) {
+        meta.textContent = `${pending.length} account${pending.length === 1 ? "" : "s"} waiting`;
+    }
+
+    if (!pending.length) {
+        list.innerHTML =
+            '<div class="users-verification-empty">No accounts are waiting for verification.</div>';
+        return;
+    }
+
+    list.innerHTML = pending
+        .map((docSnap) => buildVerificationCard(docSnap))
+        .join("");
+}
+
+async function setVerificationDecision(userId, decision) {
+    const isApprove = decision === "approve";
+    const reason = isApprove
+        ? ""
+        : window.prompt(
+              "Reason for rejection:",
+              "ID photo is unclear or does not match the profile.",
+          );
+
+    if (!isApprove && reason === null) return;
+
+    const buttons = [
+        ...document.querySelectorAll(
+            `[data-user-id="${CSS.escape(userId)}"][data-verification-action]`,
+        ),
+    ];
+    buttons.forEach((btn) => {
+        btn.disabled = true;
+    });
+
+    try {
+        await updateDoc(doc(db, "userVerifications", userId), {
+            status: isApprove ? "approved" : "rejected",
+            reviewedAt: serverTimestamp(),
+            rejectionReason: reason || "",
+        });
+
+        await updateDoc(doc(db, "users", userId), {
+            accountStatus: isApprove ? "active" : "rejected",
+            verificationStatus: isApprove ? "approved" : "rejected",
+            verificationReviewedAt: serverTimestamp(),
+            rejectionReason: reason || "",
+            status: isApprove ? "active" : "inactive",
+        });
+
+        toastSuccess(isApprove ? "Account approved" : "Verification rejected");
+        await loadUsersTable();
+    } catch (err) {
+        console.error("[users] verification decision", err);
+        toastError(err?.message || "Failed to update verification");
+        buttons.forEach((btn) => {
+            btn.disabled = false;
+        });
+    }
+}
+
+function bindVerificationActions() {
+    if (verificationActionsBound) return;
+    verificationActionsBound = true;
+
+    document.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-verification-action]");
+        if (!btn) return;
+
+        const userId = btn.dataset.userId;
+        const action = btn.dataset.verificationAction;
+        if (!userId || !["approve", "reject"].includes(action)) return;
+
+        setVerificationDecision(userId, action);
+    });
 }
 
 function bindToolbar() {
@@ -479,6 +689,45 @@ async function fetchUsersQuery() {
         query(collection(db, "users"), limit(LIST_LIMIT)),
     );
     return snap;
+}
+
+async function fetchVerificationDocs() {
+    verificationLoadError = null;
+    let snap;
+
+    try {
+        snap = await getDocs(
+            query(collection(db, "userVerifications"), limit(LIST_LIMIT)),
+        );
+    } catch (err) {
+        console.warn("[users] unable to load verification queue", err);
+        verificationDocs = [];
+        verificationUsers = new Map();
+        verificationLoadError =
+            err?.code === "permission-denied"
+                ? "Missing permission to read verification requests. Deploy the updated Firestore rules, then refresh this page."
+                : err?.message || "Unable to load verification requests.";
+        return;
+    }
+
+    verificationDocs = snap.docs;
+
+    const userEntries = await Promise.all(
+        verificationDocs.map(async (docSnap) => {
+            const existing = allDocs.find((userDoc) => userDoc.id === docSnap.id);
+            if (existing) return [docSnap.id, existing.data()];
+
+            try {
+                const userSnap = await getDoc(doc(db, "users", docSnap.id));
+                return [docSnap.id, userSnap.exists() ? userSnap.data() : null];
+            } catch (err) {
+                console.warn("[users] unable to fetch verification user", err);
+                return [docSnap.id, null];
+            }
+        }),
+    );
+
+    verificationUsers = new Map(userEntries);
 }
 
 export async function loadUsersTable() {

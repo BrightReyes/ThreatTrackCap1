@@ -210,7 +210,9 @@ service cloud.firestore {
                         'lastLoginAt',
                         'lastVerificationCheckAt',
                         'falseReportAcknowledged',
-                        'falseReportAcknowledgedAt'
+                        'falseReportAcknowledgedAt',
+                        'notificationPreferences',
+                        'notificationPreferencesUpdatedAt'
                       ])) ||
                    (canManageUserProfiles() &&
                     request.resource.data.uid == userId &&

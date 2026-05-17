@@ -6,6 +6,31 @@ import CustomAlert from './CustomAlert';
 const ResponseAlertListener = () => {
   const shownRef = useRef(new Set());
   const [activeNotification, setActiveNotification] = useState(null);
+  const [preferences, setPreferences] = useState({
+    pushNotifications: true,
+    highPriority: true,
+    locationAlerts: true,
+  });
+
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return undefined;
+
+    return onSnapshot(
+      doc(db, 'users', currentUser.uid),
+      (snapshot) => {
+        const prefs = snapshot.data()?.notificationPreferences || {};
+        setPreferences({
+          pushNotifications: prefs.pushNotifications !== false,
+          highPriority: prefs.highPriority !== false,
+          locationAlerts: prefs.locationAlerts !== false,
+        });
+      },
+      (error) => {
+        console.error('Error loading notification preferences:', error);
+      }
+    );
+  }, []);
 
   useEffect(() => {
     const currentUser = auth.currentUser;
@@ -23,6 +48,7 @@ const ResponseAlertListener = () => {
           .map((snap) => ({ id: snap.id, ...snap.data() }))
           .filter((item) => (
             isPopupNotification(item) &&
+            isAllowedByPreferences(item, preferences) &&
             !item.readAt &&
             !shownRef.current.has(item.id)
           ))
@@ -39,7 +65,7 @@ const ResponseAlertListener = () => {
     );
 
     return unsubscribe;
-  }, [activeNotification]);
+  }, [activeNotification, preferences]);
 
   const markRead = async () => {
     const current = activeNotification;
@@ -82,6 +108,20 @@ const ResponseAlertListener = () => {
 const isPopupNotification = (item) => {
   if (item?.type === 'response_update') return true;
   return item?.type === 'police_urgent_report' && item?.severity === 'high';
+};
+
+const isAllowedByPreferences = (item, preferences) => {
+  if (preferences.pushNotifications === false) return false;
+
+  const isHighPriority =
+    item?.priority === 'high' ||
+    item?.severity === 'high' ||
+    item?.type === 'police_urgent_report';
+
+  if (isHighPriority && preferences.highPriority === false) return false;
+  if (item?.type === 'police_urgent_report' && preferences.locationAlerts === false) return false;
+
+  return true;
 };
 
 const getTimeValue = (value) => {
