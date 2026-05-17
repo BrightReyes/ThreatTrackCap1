@@ -8,7 +8,9 @@ import {
   TextInput,
   ActivityIndicator,
   Image,
+  StatusBar,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -127,6 +129,7 @@ const SEVERITY_CONFIG = {
 
 const DESCRIPTION_MIN_LENGTH = 10;
 const DESCRIPTION_MAX_LENGTH = 2000;
+const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 
 const getSeverityFromType = (type) => {
   return INCIDENT_TYPES.find((incidentType) => incidentType.id === type)?.severity || 'medium';
@@ -134,6 +137,30 @@ const getSeverityFromType = (type) => {
 
 const getIncidentByType = (type) => {
   return INCIDENT_TYPES.find((incidentType) => incidentType.id === type);
+};
+
+const getIncidentIconName = (type) => {
+  const icons = {
+    robbery_holdup: 'alert-circle-outline',
+    physical_assault_injury: 'medkit-outline',
+    domestic_violence: 'home-outline',
+    traffic_accident: 'car-outline',
+    illegal_weapons: 'shield-outline',
+    theft_snatching: 'bag-handle-outline',
+    drug_related_activity: 'flame-outline',
+    public_disturbance: 'megaphone-outline',
+    suspicious_activity: 'eye-outline',
+    vandalism_property_damage: 'construct-outline',
+  };
+  return icons[type] || 'alert-outline';
+};
+
+const getReportingIconName = (role) => {
+  const icons = {
+    victim: 'person-circle-outline',
+    witness: 'eye-outline',
+  };
+  return icons[role] || 'help-circle-outline';
 };
 
 const ReportIncidentScreen = ({ navigation }) => {
@@ -154,6 +181,7 @@ const ReportIncidentScreen = ({ navigation }) => {
   });
 
   const selectedIncident = getIncidentByType(incidentType);
+  const selectedReportingOption = REPORTING_OPTIONS.find((option) => option.id === reportingAs);
   const selectedSeverity = getSeverityFromType(incidentType);
   const severityStyle = SEVERITY_CONFIG[selectedSeverity];
 
@@ -408,13 +436,11 @@ const ReportIncidentScreen = ({ navigation }) => {
     <>
       <View style={styles.container}>
         <View style={styles.headerContainer}>
-          <View style={styles.headerTopRow}>
-            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.closeButtonText}>x</Text>
-            </TouchableOpacity>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerEyebrow}>Community report</Text>
+            <Text style={styles.headerTitle}>Report Incident</Text>
+            <Text style={styles.headerSubtitle}>Classify the event, confirm your role, and submit details for review.</Text>
           </View>
-          <Text style={styles.headerTitle}>Report Incident</Text>
-          <Text style={styles.headerSubtitle}>Classify the event, confirm your role, and submit details for review.</Text>
           <View style={styles.progressContainer}>
             <View style={styles.stepsRow}>
               {[1, 2, 3].map((step) => (
@@ -455,7 +481,15 @@ const ReportIncidentScreen = ({ navigation }) => {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {currentStep === 1 && (
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Select incident category</Text>
+              <View style={styles.stepHeading}>
+                <View style={styles.stepHeadingIcon}>
+                  <Ionicons name="layers-outline" size={18} color="#dc2626" />
+                </View>
+                <View style={styles.stepHeadingCopy}>
+                  <Text style={styles.stepHeadingTitle}>Select incident category</Text>
+                  <Text style={styles.stepHeadingSubtitle}>Choose the option that best matches what happened.</Text>
+                </View>
+              </View>
 
               <View style={styles.incidentTypeGrid}>
                 {INCIDENT_TYPES.map((type) => {
@@ -477,20 +511,44 @@ const ReportIncidentScreen = ({ navigation }) => {
                           isSelected && styles.incidentIconBadgeSelected,
                         ]}
                       >
-                        <Text style={styles.incidentTypeIcon}>{type.icon}</Text>
+                        <Ionicons
+                          name={getIncidentIconName(type.id)}
+                          size={22}
+                          color={isSelected ? '#ffffff' : '#b91c1c'}
+                        />
                       </View>
-                      <Text
+                      {isSelected && (
+                        <View style={styles.incidentSelectedCheck}>
+                          <Ionicons name="checkmark" size={13} color="#ffffff" />
+                        </View>
+                      )}
+                      <View style={styles.incidentTypeCopy}>
+                        <Text
+                          style={[
+                            styles.incidentTypeLabel,
+                            isSelected && styles.incidentTypeLabelSelected,
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {type.label}
+                        </Text>
+                        <Text style={styles.incidentTypeDescription} numberOfLines={2}>
+                          {type.description}
+                        </Text>
+                      </View>
+                      <View
                         style={[
-                          styles.incidentTypeLabel,
-                          isSelected && styles.incidentTypeLabelSelected,
+                          styles.incidentSeverityMini,
+                          {
+                            backgroundColor: SEVERITY_CONFIG[type.severity].backgroundColor,
+                            borderColor: SEVERITY_CONFIG[type.severity].borderColor,
+                          },
                         ]}
-                        numberOfLines={2}
                       >
-                        {type.label}
-                      </Text>
-                      <Text style={styles.incidentTypeDescription} numberOfLines={2}>
-                        {type.description}
-                      </Text>
+                        <Text style={[styles.incidentSeverityMiniText, { color: SEVERITY_CONFIG[type.severity].color }]}>
+                          {SEVERITY_CONFIG[type.severity].label}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
@@ -500,8 +558,15 @@ const ReportIncidentScreen = ({ navigation }) => {
 
           {currentStep === 2 && (
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>Who is reporting?</Text>
-              <Text style={styles.stepSubtitle}>This helps responders interpret the details while keeping your account protected.</Text>
+              <View style={styles.stepHeading}>
+                <View style={styles.stepHeadingIcon}>
+                  <Ionicons name="id-card-outline" size={18} color="#dc2626" />
+                </View>
+                <View style={styles.stepHeadingCopy}>
+                  <Text style={styles.stepHeadingTitle}>Who is reporting?</Text>
+                  <Text style={styles.stepHeadingSubtitle}>This helps responders interpret the details while keeping your account protected.</Text>
+                </View>
+              </View>
 
               <View style={styles.reportingAsContainer}>
                 {REPORTING_OPTIONS.map((option) => {
@@ -517,21 +582,32 @@ const ReportIncidentScreen = ({ navigation }) => {
                       onPress={() => setReportingAs(option.id)}
                       activeOpacity={0.86}
                     >
-                      <View
-                        style={[
-                          styles.reportingIconBadge,
-                          isSelected && styles.reportingIconBadgeSelected,
-                        ]}
-                      >
-                        <Text style={styles.reportingIconText}>{option.icon}</Text>
+                      <View style={styles.reportingCardHeader}>
+                        <View
+                          style={[
+                            styles.reportingIconBadge,
+                            isSelected && styles.reportingIconBadgeSelected,
+                          ]}
+                        >
+                          <Ionicons
+                            name={getReportingIconName(option.id)}
+                            size={25}
+                            color={isSelected ? '#ffffff' : '#b91c1c'}
+                          />
+                        </View>
+                        <View style={styles.reportingTitleBlock}>
+                          <Text
+                            style={[
+                              styles.reportingAsLabel,
+                              isSelected && styles.reportingAsLabelSelected,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </View>
                       </View>
-                      <Text
-                        style={[
-                          styles.reportingAsLabel,
-                          isSelected && styles.reportingAsLabelSelected,
-                        ]}
-                      >
-                        {option.label}
+                      <Text style={styles.reportingAsTag}>
+                        {option.id === 'victim' ? 'Directly affected' : 'Observed incident'}
                       </Text>
                       <Text style={styles.reportingAsDescription}>{option.description}</Text>
                     </TouchableOpacity>
@@ -543,10 +619,32 @@ const ReportIncidentScreen = ({ navigation }) => {
 
           {currentStep === 3 && (
             <View style={styles.stepContent}>
+              <View style={styles.stepHeading}>
+                <View style={styles.stepHeadingIcon}>
+                  <Ionicons name="document-text-outline" size={18} color="#dc2626" />
+                </View>
+                <View style={styles.stepHeadingCopy}>
+                  <Text style={styles.stepHeadingTitle}>Details and evidence</Text>
+                  <Text style={styles.stepHeadingSubtitle}>Add useful context and attach a photo if you have one.</Text>
+                </View>
+              </View>
+
               <View style={styles.summaryPanel}>
-                <View>
-                  <Text style={styles.summaryLabel}>Selected incident</Text>
-                  <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Incident'}</Text>
+                <View style={styles.summaryMain}>
+                  <View style={[styles.summaryIconBadge, { backgroundColor: severityStyle.backgroundColor }]}>
+                    <Ionicons
+                      name={getIncidentIconName(selectedIncident?.id)}
+                      size={22}
+                      color={severityStyle.color}
+                    />
+                  </View>
+                  <View style={styles.summaryCopy}>
+                    <Text style={styles.summaryLabel}>Selected incident</Text>
+                    <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Incident'}</Text>
+                    <Text style={styles.summaryMeta}>
+                      Reporting as {selectedReportingOption?.label || 'Reporter'}
+                    </Text>
+                  </View>
                 </View>
                 <View
                   style={[
@@ -563,39 +661,66 @@ const ReportIncidentScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              <Text style={styles.stepTitle}>Describe what happened</Text>
-              <TextInput
-                style={styles.descriptionInput}
-                placeholder="Include what happened, who was involved, and visible risks..."
-                placeholderTextColor="#9ca3af"
-                value={description}
-                onChangeText={setDescription}
-                maxLength={DESCRIPTION_MAX_LENGTH}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-              />
+              <View style={styles.detailCard}>
+                <View style={styles.fieldHeader}>
+                  <View>
+                    <Text style={styles.fieldTitle}>Describe what happened</Text>
+                    <Text style={styles.fieldHint}>What, where, who, and any visible risk.</Text>
+                  </View>
+                  <Text style={styles.characterCount}>
+                    {description.length}/{DESCRIPTION_MAX_LENGTH}
+                  </Text>
+                </View>
+                <TextInput
+                  style={styles.descriptionInput}
+                  placeholder="Example: A person snatched a bag near the main road and ran toward..."
+                  placeholderTextColor="#9ca3af"
+                  value={description}
+                  onChangeText={setDescription}
+                  maxLength={DESCRIPTION_MAX_LENGTH}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                />
+              </View>
 
-              <Text style={styles.photoTitle}>Evidence photo</Text>
+              <View style={styles.evidenceHeader}>
+                <View>
+                  <Text style={styles.photoTitle}>Evidence photo</Text>
+                  <Text style={styles.photoSubtitle}>Optional, but helpful for verification.</Text>
+                </View>
+                <View style={styles.optionalPill}>
+                  <Text style={styles.optionalPillText}>Optional</Text>
+                </View>
+              </View>
               {image ? (
                 <View style={styles.imageContainer}>
                   <Image source={{ uri: image }} style={styles.previewImage} />
                   <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
-                    <Text style={styles.removeImageText}>x</Text>
+                    <Ionicons name="close" size={19} color="#ffffff" />
                   </TouchableOpacity>
+                  <View style={styles.imageAttachedPill}>
+                    <Ionicons name="image-outline" size={14} color="#ffffff" />
+                    <Text style={styles.imageAttachedText}>Photo attached</Text>
+                  </View>
                 </View>
               ) : (
                 <View style={styles.photoButtonsContainer}>
                   <TouchableOpacity style={styles.photoActionButton} onPress={takePhoto}>
+                    <Ionicons name="camera-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Take Photo</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.photoActionButton} onPress={pickImage}>
+                    <Ionicons name="image-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Choose Photo</Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               <View style={styles.infoBox}>
+                <View style={styles.infoIconBadge}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#991b1b" />
+                </View>
                 <Text style={styles.infoText}>
                   Reports are sent with your location and selected severity. Your identity is protected from public views.
                 </Text>
@@ -659,52 +784,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   headerContainer: {
-    backgroundColor: '#dc2626',
-    paddingTop: 42,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#dc2626',
+    backgroundColor: '#b91c1c',
+    paddingTop: HEADER_TOP_PADDING,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
     elevation: 10,
   },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+  headerTitleBlock: {
+    marginBottom: 14,
+  },
+  headerEyebrow: {
+    color: '#fee2e2',
+    fontSize: 12,
+    fontWeight: '800',
     marginBottom: 6,
   },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '800',
-    marginTop: -2,
-  },
   headerTitle: {
-    fontSize: 25,
+    fontSize: 28,
     fontWeight: '900',
     color: '#ffffff',
   },
   headerSubtitle: {
     color: '#fff1f2',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    lineHeight: 17,
-    marginTop: 5,
-    marginBottom: 12,
+    lineHeight: 19,
+    marginTop: 7,
   },
   scrollView: {
     flex: 1,
@@ -715,8 +826,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
-    borderRadius: 16,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
     shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.12,
@@ -781,6 +892,47 @@ const styles = StyleSheet.create({
   sectionHeadingRow: {
     marginBottom: 12,
   },
+  stepHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  stepHeadingIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#fef2f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginRight: 12,
+  },
+  stepHeadingCopy: {
+    flex: 1,
+  },
+  stepHeadingTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  stepHeadingSubtitle: {
+    color: '#6b7280',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
   stepTitle: {
     fontSize: 18,
     fontWeight: '900',
@@ -798,21 +950,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    rowGap: 12,
   },
   incidentTypeButton: {
     width: '48.5%',
-    minHeight: 84,
+    minHeight: 154,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 14,
-    padding: 9,
-    marginBottom: 8,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 0,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 9,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    position: 'relative',
+    justifyContent: 'space-between',
   },
   incidentTypeButtonSelected: {
     borderColor: '#dc2626',
@@ -820,37 +975,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7f7',
   },
   incidentIconBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: '#f3f4f6',
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 11,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#fecaca',
   },
   incidentIconBadgeSelected: {
     backgroundColor: '#dc2626',
     borderColor: '#dc2626',
   },
-  incidentTypeIcon: {
-    fontSize: 16,
+  incidentSelectedCheck: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  incidentTypeCopy: {
+    flex: 1,
   },
   incidentTypeLabel: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 3,
+    marginBottom: 6,
+    lineHeight: 17,
   },
   incidentTypeLabelSelected: {
     color: '#991b1b',
   },
   incidentTypeDescription: {
     color: '#6b7280',
-    fontSize: 9,
+    fontSize: 11.5,
     fontWeight: '600',
-    lineHeight: 12,
+    lineHeight: 16,
+  },
+  incidentSeverityMini: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    marginTop: 12,
+  },
+  incidentSeverityMiniText: {
+    fontSize: 9,
+    fontWeight: '900',
   },
   reportingAsContainer: {
     flexDirection: 'row',
@@ -862,106 +1043,219 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 18,
-    padding: 18,
-    minHeight: 168,
+    padding: 16,
+    minHeight: 172,
     shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
     elevation: 4,
+    position: 'relative',
   },
   reportingAsButtonSelected: {
     borderColor: '#dc2626',
     borderWidth: 2,
     backgroundColor: '#fff7f7',
   },
+  reportingCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingRight: 18,
+  },
   reportingIconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#f3f4f6',
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#fecaca',
   },
   reportingIconBadgeSelected: {
     backgroundColor: '#dc2626',
     borderColor: '#dc2626',
   },
-  reportingIconText: {
-    fontSize: 22,
+  reportingTitleBlock: {
+    flex: 1,
+    marginLeft: 12,
+    height: 52,
+    justifyContent: 'center',
   },
   reportingAsLabel: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 8,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   reportingAsLabelSelected: {
     color: '#991b1b',
   },
+  reportingAsTag: {
+    alignSelf: 'stretch',
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    fontSize: 10,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   reportingAsDescription: {
     color: '#6b7280',
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
+    fontSize: 11.5,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   summaryPanel: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 20,
+    padding: 14,
     borderWidth: 1,
     borderColor: '#fee2e2',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  summaryMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  summaryIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  summaryCopy: {
+    flex: 1,
   },
   summaryLabel: {
     color: '#991b1b',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0.8,
+    letterSpacing: 0,
     textTransform: 'uppercase',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   summaryTitle: {
     color: '#111827',
     fontSize: 15,
     fontWeight: '900',
-    maxWidth: 220,
+    lineHeight: 19,
+  },
+  summaryMeta: {
+    color: '#6b7280',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 3,
   },
   summarySeverityPill: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   summarySeverityText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
-  descriptionInput: {
+  detailCard: {
     backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginBottom: 18,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+  fieldHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 10,
+  },
+  fieldTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  fieldHint: {
+    color: '#6b7280',
+    fontSize: 11.5,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  characterCount: {
+    color: '#9ca3af',
+    fontSize: 10,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  descriptionInput: {
+    backgroundColor: '#f9fafb',
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
     borderRadius: 16,
     padding: 16,
     color: '#111827',
     fontSize: 14,
-    minHeight: 132,
+    minHeight: 150,
     textAlignVertical: 'top',
-    marginBottom: 24,
     fontWeight: '600',
+    lineHeight: 20,
+  },
+  evidenceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
   },
   photoTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 12,
+    marginBottom: 4,
+  },
+  photoSubtitle: {
+    color: '#6b7280',
+    fontSize: 11.5,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  optionalPill: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  optionalPillText: {
+    color: '#6b7280',
+    fontSize: 10,
+    fontWeight: '900',
   },
   photoButtonsContainer: {
     flexDirection: 'row',
@@ -973,9 +1267,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#dc2626',
-    borderRadius: 14,
-    paddingVertical: 17,
+    borderRadius: 16,
+    paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
   },
   photoActionText: {
     fontSize: 13,
@@ -984,16 +1280,16 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#fee2e2',
+    backgroundColor: '#111827',
   },
   previewImage: {
     width: '100%',
     height: 240,
-    borderRadius: 16,
   },
   removeImageButton: {
     position: 'absolute',
@@ -1006,21 +1302,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removeImageText: {
+  imageAttachedPill: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(17, 24, 39, 0.82)',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  imageAttachedText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 11,
     fontWeight: '900',
-    marginTop: -2,
   },
   infoBox: {
     backgroundColor: '#fff7f7',
     borderWidth: 1,
     borderColor: '#fecaca',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 15,
     marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+  },
+  infoIconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoText: {
+    flex: 1,
     fontSize: 13,
     color: '#7f1d1d',
     fontWeight: '700',

@@ -129,6 +129,7 @@
         #fbfdff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
+    overflow: visible;
 }
 
 .analytics-trend__item {
@@ -144,12 +145,49 @@
     width: 100%;
     min-height: 6px;
     border-radius: 8px 8px 0 0;
+    --trend-shadow: rgba(100, 116, 139, 0.14);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
+        linear-gradient(180deg, #94a3b8, #64748b);
+    position: relative;
+    box-shadow:
+        0 8px 16px var(--trend-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    cursor: help;
+    outline: none;
+    transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        filter 0.16s ease;
+}
+
+.analytics-trend__bar[data-level="low"] {
+    --trend-shadow: rgba(34, 197, 94, 0.18);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.26), transparent 45%),
+        linear-gradient(180deg, #22c55e, #15803d);
+}
+
+.analytics-trend__bar[data-level="medium"] {
+    --trend-shadow: rgba(234, 179, 8, 0.22);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 45%),
+        linear-gradient(180deg, #facc15, #ca8a04);
+}
+
+.analytics-trend__bar[data-level="high"] {
+    --trend-shadow: rgba(220, 38, 38, 0.22);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
         linear-gradient(180deg, #ef4444, #991b1b);
-    position: relative;
+}
+
+.analytics-trend__bar:is(:hover, :focus-visible) {
+    z-index: 5;
+    transform: translateY(-2px);
+    filter: saturate(1.08);
     box-shadow:
-        0 8px 16px rgba(220, 38, 38, 0.14),
+        0 12px 22px var(--trend-shadow),
         inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
@@ -162,6 +200,38 @@
     color: #64748b;
     font-size: 0.68rem;
     font-weight: 700;
+}
+
+.analytics-trend__bar::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 28px);
+    z-index: 10;
+    width: max-content;
+    max-width: 240px;
+    padding: 10px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+    font-size: 0.73rem;
+    font-weight: 650;
+    line-height: 1.45;
+    opacity: 0;
+    pointer-events: none;
+    text-align: left;
+    transform: translate(-50%, 4px);
+    transition:
+        opacity 0.14s ease,
+        transform 0.14s ease;
+    white-space: pre-line;
+}
+
+.analytics-trend__bar:is(:hover, :focus-visible)::before {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 .analytics-trend__label {
@@ -341,6 +411,7 @@
     border-radius: 50%;
     display: grid;
     place-items: center;
+    position: relative;
     background:
         radial-gradient(circle, #ffffff 0 53%, transparent 54%),
         conic-gradient(
@@ -350,6 +421,52 @@
             #16a34a calc((var(--high) + var(--medium)) * 1%) 100%
         );
     box-shadow: inset 0 0 0 1px #e5e7eb;
+    cursor: help;
+    outline: none;
+    transition:
+        filter 0.16s ease,
+        transform 0.16s ease,
+        box-shadow 0.16s ease;
+}
+
+.analytics-donut__ring:is(:hover, :focus-visible) {
+    filter: saturate(1.06);
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 0 0 1px #e5e7eb,
+        0 18px 36px rgba(15, 23, 42, 0.14);
+}
+
+.analytics-donut__ring::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 12px);
+    z-index: 10;
+    width: max-content;
+    max-width: 240px;
+    padding: 10px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+    font-size: 0.73rem;
+    font-weight: 650;
+    line-height: 1.45;
+    opacity: 0;
+    pointer-events: none;
+    text-align: left;
+    transform: translate(-50%, 4px);
+    transition:
+        opacity 0.14s ease,
+        transform 0.14s ease;
+    white-space: pre-line;
+}
+
+.analytics-donut__ring:is(:hover, :focus-visible)::before {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 #analytics-severity-chart .analytics-donut__ring {

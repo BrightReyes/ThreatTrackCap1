@@ -354,6 +354,49 @@ function getTrendKeys(range) {
     return keys;
 }
 
+function createTrendDayStats(key) {
+    return {
+        key,
+        count: 0,
+        severityBreakdown: { high: 0, medium: 0, low: 0 },
+        typeCounts: {},
+    };
+}
+
+function trendVolumeLevel(count) {
+    if (count <= 0) return "none";
+    if (count <= 2) return "low";
+    if (count <= 5) return "medium";
+    return "high";
+}
+
+function trendVolumeLabel(level) {
+    const labels = {
+        none: "No reports",
+        low: "Low volume",
+        medium: "Medium volume",
+        high: "High volume",
+    };
+    return labels[level] || labels.none;
+}
+
+function topTrendCrimeType(typeCounts) {
+    const [type, count] =
+        Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0] || [];
+    if (!type || !count) return "None";
+    return `${humanize(type)} (${count})`;
+}
+
+function trendTooltip(stats) {
+    const level = trendVolumeLabel(trendVolumeLevel(stats.count));
+    return [
+        shortDayLabel(stats.key),
+        `${stats.count} report${stats.count === 1 ? "" : "s"} - ${level}`,
+        `Severity: ${stats.severityBreakdown.high} high, ${stats.severityBreakdown.medium} medium, ${stats.severityBreakdown.low} low`,
+        `Top type: ${topTrendCrimeType(stats.typeCounts)}`,
+    ].join("\n");
+}
+
 function renderTrend(rows) {
     const el = document.getElementById("analytics-trend-chart");
     if (!el) return;
@@ -363,20 +406,29 @@ function renderTrend(rows) {
         range === "all"
             ? getTrendKeys("30d")
             : getTrendKeys(range);
-    const counts = new Map(keys.map((key) => [key, 0]));
+    const days = new Map(keys.map((key) => [key, createTrendDayStats(key)]));
     rows.forEach((row) => {
         if (!row.date) return;
         const key = dayKey(row.date);
-        if (counts.has(key)) counts.set(key, counts.get(key) + 1);
+        const current = days.get(key);
+        if (!current) return;
+        const severity = normalizeSeverity(row.data?.severity);
+        const type = normalizeType(row.data?.type);
+        current.count += 1;
+        current.severityBreakdown[severity] += 1;
+        current.typeCounts[type] = (current.typeCounts[type] || 0) + 1;
     });
 
-    const values = [...counts.entries()];
-    const max = Math.max(...values.map(([, count]) => count), 1);
+    const values = [...days.values()];
+    const max = Math.max(...values.map((stats) => stats.count), 1);
     el.innerHTML = values
-        .map(([key, count]) => {
+        .map((stats) => {
+            const { key, count } = stats;
             const height = Math.max(4, Math.round((count / max) * 100));
+            const level = trendVolumeLevel(count);
+            const tooltip = trendTooltip(stats);
             return `<div class="analytics-trend__item">
-                <div class="analytics-trend__bar" data-value="${count}" style="height:${height}%"></div>
+                <div class="analytics-trend__bar" data-value="${count}" data-level="${level}" data-tooltip="${escapeAttr(tooltip)}" title="${escapeAttr(tooltip)}" tabindex="0" aria-label="${escapeAttr(tooltip)}" style="height:${height}%"></div>
                 <span class="analytics-trend__label">${escapeHtml(shortDayLabel(key))}</span>
             </div>`;
         })
@@ -525,6 +577,16 @@ function severityWeight(severity) {
     return 1;
 }
 
+function severityDonutTooltip({ total, high, medium, low, highPct, mediumPct, lowPct, score }) {
+    return [
+        `${total} total report${total === 1 ? "" : "s"}`,
+        `High: ${high} (${highPct}%)`,
+        `Medium: ${medium} (${mediumPct}%)`,
+        `Low: ${low} (${lowPct}%)`,
+        `Risk points: ${score}`,
+    ].join("\n");
+}
+
 function renderSeverityDonut(rows) {
     const el = document.getElementById("analytics-severity-chart");
     if (!el) return;
@@ -552,19 +614,29 @@ function renderSeverityDonut(rows) {
         (sum, row) => sum + severityWeight(row.data?.severity),
         0,
     );
+    const tooltip = severityDonutTooltip({
+        total,
+        high,
+        medium,
+        low,
+        highPct,
+        mediumPct,
+        lowPct,
+        score,
+    });
 
     el.innerHTML = `
-        <div class="analytics-donut__ring" style="--high:${highPct};--medium:${mediumPct};--low:${lowPct};">
+        <div class="analytics-donut__ring" data-tooltip="${escapeAttr(tooltip)}" title="${escapeAttr(tooltip)}" tabindex="0" aria-label="${escapeAttr(tooltip)}" style="--high:${highPct};--medium:${mediumPct};--low:${lowPct};">
             <div>
                 <strong>${total}</strong>
                 <span>reports</span>
             </div>
         </div>
         <div class="analytics-donut__legend">
-            <span><i style="background:#dc2626"></i> High ${high}</span>
-            <span><i style="background:#f59e0b"></i> Medium ${medium}</span>
-            <span><i style="background:#16a34a"></i> Low ${low}</span>
-            <span><i style="background:#0f172a"></i> Risk points ${score}</span>
+            <span title="High severity: ${high} report${high === 1 ? "" : "s"} (${highPct}%)"><i style="background:#dc2626"></i> High ${high}</span>
+            <span title="Medium severity: ${medium} report${medium === 1 ? "" : "s"} (${mediumPct}%)"><i style="background:#f59e0b"></i> Medium ${medium}</span>
+            <span title="Low severity: ${low} report${low === 1 ? "" : "s"} (${lowPct}%)"><i style="background:#16a34a"></i> Low ${low}</span>
+            <span title="Weighted risk score from severity: high x3, medium x2, low x1"><i style="background:#0f172a"></i> Risk points ${score}</span>
         </div>
     `;
 }

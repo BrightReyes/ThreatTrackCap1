@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
-import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
 const NEARBY_RADIUS_KM = 5; // Alert for incidents within 5km
+const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 const AlertsScreen = ({ navigation }) => {
   const [alerts, setAlerts] = useState([]);
@@ -138,17 +139,6 @@ const AlertsScreen = ({ navigation }) => {
     }
   };
 
-  const handleSOSPress = async () => {
-    try {
-      const location = await getCurrentLocation();
-      navigation.navigate('SOSReport', { userLocation: location });
-    } catch (error) {
-      console.error('Error getting location for SOS:', error);
-      // Navigate anyway without location, SOS screen will handle it
-      navigation.navigate('SOSReport');
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.container}>
@@ -205,6 +195,21 @@ const AlertsScreen = ({ navigation }) => {
   return (
     <>
       <View style={styles.container}>
+        <View style={styles.headerNew}>
+          <TouchableOpacity
+            style={styles.headerBackButton}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={24} color="#111827" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleBlock}>
+            <Text style={styles.headerNewTitle}>Notifications</Text>
+            <Text style={styles.headerSubtitle}>{unreadCount} unread update{unreadCount === 1 ? '' : 's'}</Text>
+          </View>
+          <View style={styles.headerRightSpacer} />
+        </View>
+
         <ScrollView 
           style={styles.scrollView} 
           showsVerticalScrollIndicator={false}
@@ -212,11 +217,6 @@ const AlertsScreen = ({ navigation }) => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#dc2626" />
           }
         >
-          {/* Header */}
-          <View style={styles.headerNew}>
-            <Text style={styles.headerNewTitle}>NOTIFICATIONS NEW</Text>
-          </View>
-
           {/* Filter Tabs */}
           <View style={styles.tabsContainer}>
             <TouchableOpacity 
@@ -280,28 +280,6 @@ const AlertsScreen = ({ navigation }) => {
           {/* Bottom Spacer */}
           <View style={styles.bottomSpacer} />
         </ScrollView>
-
-        {/* Bottom Navigation Bar */}
-        <View style={styles.bottomNavBarContainer}>
-          <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-            <View style={styles.sosGlowRing} />
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Custom Alert Modal */}
@@ -340,21 +318,49 @@ const styles = StyleSheet.create({
 
   // Header Styles
   headerNew: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 18,
+    paddingTop: HEADER_TOP_PADDING,
+    paddingBottom: 14,
     backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  headerBackButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  headerTitleBlock: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  headerRightSpacer: {
+    width: 42,
   },
   headerNewTitle: {
     fontSize: 24,
     fontWeight: '900',
     color: '#111827',
-    letterSpacing: 1.2,
+    letterSpacing: 0,
+  },
+  headerSubtitle: {
+    marginTop: 3,
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   // Tabs
   tabsContainer: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -472,96 +478,7 @@ const styles = StyleSheet.create({
 
   // Bottom Spacer
   bottomSpacer: {
-    height: 120,
-  },
-
-  // Bottom Navigation Bar Container
-  bottomNavBarContainer: {
-    position: 'relative',
-    backgroundColor: '#991b1b',
-  },
-
-  // Bottom Navigation Bar
-  bottomNavBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    backgroundColor: '#991b1b',
-    borderTopWidth: 1,
-    borderTopColor: '#b91c1c',
-    paddingBottom: 15,
-    paddingTop: 13,
-    paddingHorizontal: 20,
-  },
-
-  navBottomItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 0,
-    paddingHorizontal: 14,
-  },
-  navBottomIcon: {
-    fontSize: 32,
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  navBottomIconImage: {
-    width: 32,
-    height: 32,
-    marginBottom: 4,
-    tintColor: '#ffffff',
-  },
-  navBottomLabel: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  sosButtonBottom: {
-    position: 'absolute',
-    top: -58,
-    left: '50%',
-    marginLeft: -56,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.68,
-    shadowRadius: 28,
-    elevation: 35,
-  },
-  sosGlowRing: {
-    position: 'absolute',
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    backgroundColor: '#ffe4e6',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  sosButtonInner: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: '#ff1238',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  sosTextBottom: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 3,
+    height: 28,
   },
 });
 

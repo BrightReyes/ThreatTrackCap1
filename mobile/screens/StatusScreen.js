@@ -10,12 +10,15 @@ import {
   Image,
   Modal,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
+const { width } = Dimensions.get('window');
 
 const INCIDENT_TYPE_LABELS = {
   theft_snatching: 'Theft / Snatching',
@@ -309,10 +312,10 @@ const StatusScreen = ({ navigation }) => {
     return date.toLocaleString();
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIconName = (status) => {
     const meta = getStatusMeta(status);
-    if (status === 'responding') return 'SOS';
-    return meta.step >= 3 ? 'OK' : meta.step === 2 ? '...' : '1';
+    if (status === 'responding') return 'radio-outline';
+    return meta.step >= 3 ? 'checkmark-circle-outline' : meta.step === 2 ? 'time-outline' : 'document-text-outline';
   };
 
   const getDisplayStatus = (incident) => {
@@ -326,7 +329,21 @@ const StatusScreen = ({ navigation }) => {
     return incident?.status;
   };
 
-  const getIncidentIcon = (type) => {
+  const getIncidentIconName = (type) => {
+    const icons = {
+      theft_snatching: 'bag-handle-outline',
+      robbery_holdup: 'alert-circle-outline',
+      physical_assault_injury: 'medkit-outline',
+      domestic_violence: 'home-outline',
+      drug_related_activity: 'flame-outline',
+      public_disturbance: 'megaphone-outline',
+      vandalism_property_damage: 'construct-outline',
+      traffic_accident: 'car-outline',
+      illegal_weapons: 'shield-outline',
+      suspicious_activity: 'eye-outline',
+    };
+    return icons[type?.toLowerCase()] || 'alert-outline';
+
     switch (type?.toLowerCase()) {
       case 'theft_snatching': return '👜';
       case 'robbery_holdup': return '🚨';
@@ -338,7 +355,7 @@ const StatusScreen = ({ navigation }) => {
       case 'traffic_accident': return '🚗';
       case 'illegal_weapons': return '🔒';
       case 'suspicious_activity': return '👁️';
-      default: return '!';
+      default: return 'alert-outline';
     }
   };
 
@@ -454,7 +471,7 @@ const StatusScreen = ({ navigation }) => {
             <View style={styles.detailsHandle} />
             <View style={styles.detailsHeader}>
               <View style={styles.detailsTitleBlock}>
-                <Text style={styles.detailsEyebrow}>REPORT TRACKING</Text>
+                <Text style={styles.detailsEyebrow}>Report tracking</Text>
                 <Text style={styles.detailsTitle}>{formatIncidentType(selectedIncident)}</Text>
                 <Text style={styles.detailsSubtitle}>Submitted {formatTimestamp(selectedIncident.timestamp || selectedIncident.clientTimestamp)}</Text>
               </View>
@@ -466,7 +483,7 @@ const StatusScreen = ({ navigation }) => {
             <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.detailsStatusPanel}>
                 <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
-                  <Text style={[styles.detailsStatusIconText, { color: meta.color }]}>{getStatusIcon(displayStatus)}</Text>
+                  <Ionicons name={getStatusIconName(displayStatus)} size={25} color={meta.color} />
                 </View>
                 <View style={styles.detailsStatusCopy}>
                   <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
@@ -582,7 +599,7 @@ const StatusScreen = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.headerNew}>
-            <Text style={styles.headerNewTitle}>REPORT STATUS</Text>
+            <Text style={styles.headerNewTitle}>Report status</Text>
             <Text style={styles.headerSubtitle}>Track your submitted reports and review response progress.</Text>
           </View>
 
@@ -604,7 +621,7 @@ const StatusScreen = ({ navigation }) => {
 
           <View style={styles.assuranceBanner}>
             <View style={styles.assuranceBannerIcon}>
-              <Text style={styles.assuranceBannerIconText}>i</Text>
+              <Ionicons name="information-circle-outline" size={22} color="#ffffff" />
             </View>
             <View style={styles.assuranceBannerCopy}>
               <Text style={styles.assuranceBannerTitle}>Your reports stay trackable</Text>
@@ -631,7 +648,7 @@ const StatusScreen = ({ navigation }) => {
                   >
                     <View style={styles.incidentRowTop}>
                       <View style={[styles.incidentTypeIconWrap, { backgroundColor: getSeverityBackground(incident.severity) }]}>
-                        <Text style={styles.incidentTypeIconText}>{getIncidentIcon(incident.type)}</Text>
+                        <Ionicons name={getIncidentIconName(incident.type)} size={23} color={severityColor} />
                       </View>
                       <View style={styles.incidentTitleBlock}>
                         <Text style={styles.incidentTitle} numberOfLines={1}>{formatIncidentType(incident)}</Text>
@@ -656,7 +673,7 @@ const StatusScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIcon}>
-                  <Text style={styles.emptyIconText}>!</Text>
+                  <Ionicons name="document-text-outline" size={30} color="#dc2626" />
                 </View>
                 <Text style={styles.emptyEmoji}>📋</Text>
                 <Text style={styles.emptyTitle}>No Reports Yet</Text>
@@ -675,12 +692,16 @@ const StatusScreen = ({ navigation }) => {
         <View style={styles.bottomNavBarContainer}>
           <View style={styles.bottomNavBar}>
             <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
-              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Home</Text>
+              <View style={styles.navBottomIconWrap}>
+                <Ionicons name="home-outline" size={22} color="#64748b" />
+              </View>
+              <Text style={styles.navBottomLabelMuted}>Home</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
-              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
+              <View style={[styles.navBottomIconWrap, styles.navBottomIconWrapActive]}>
+                <Ionicons name="document-text" size={22} color="#b91c1c" />
+              </View>
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
           </View>
@@ -688,6 +709,7 @@ const StatusScreen = ({ navigation }) => {
           <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
             <View style={styles.sosGlowRing} />
             <View style={styles.sosButtonInner}>
+              <Ionicons name="warning" size={24} color="#ffffff" />
               <Text style={styles.sosTextBottom}>SOS</Text>
             </View>
           </TouchableOpacity>
@@ -743,7 +765,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     color: '#111827',
-    letterSpacing: 1.2,
+    letterSpacing: 0,
   },
   headerSubtitle: {
     marginTop: 6,
@@ -1288,96 +1310,112 @@ const styles = StyleSheet.create({
 
   // Bottom Spacer
   bottomSpacer: {
-    height: 120,
+    height: 124,
   },
 
   // Bottom Navigation Bar Container
   bottomNavBarContainer: {
     position: 'relative',
-    backgroundColor: '#991b1b',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 14,
+    backgroundColor: 'transparent',
   },
 
   // Bottom Navigation Bar
   bottomNavBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    backgroundColor: '#991b1b',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#b91c1c',
-    paddingBottom: 15,
-    paddingTop: 13,
-    paddingHorizontal: 20,
+    borderTopColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 26,
+    paddingBottom: 12,
+    paddingTop: 12,
+    paddingHorizontal: 30,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    elevation: 18,
   },
 
   navBottomItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 0,
-    paddingHorizontal: 14,
+    minWidth: 72,
   },
-  navBottomIcon: {
-    fontSize: 32,
-    color: '#ffffff',
-    marginBottom: 4,
+  navBottomIconWrap: {
+    width: 42,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+    backgroundColor: '#f1f5f9',
   },
-  navBottomIconImage: {
-    width: 32,
-    height: 32,
-    marginBottom: 4,
-    tintColor: '#ffffff',
+  navBottomIconWrapActive: {
+    backgroundColor: '#fee2e2',
   },
   navBottomLabel: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '700',
+    fontSize: 12,
+    color: '#b91c1c',
+    fontWeight: '900',
+  },
+  navBottomLabelMuted: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '800',
   },
   sosButtonBottom: {
     position: 'absolute',
-    top: -58,
-    left: '50%',
-    marginLeft: -56,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
+    top: -34,
+    left: (width - 86) / 2,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.68,
-    shadowRadius: 28,
-    elevation: 35,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    elevation: 24,
   },
   sosGlowRing: {
     position: 'absolute',
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    backgroundColor: '#ffe4e6',
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: '#fee2e2',
     borderWidth: 2,
     borderColor: '#ffffff',
   },
   sosButtonInner: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: '#ff1238',
-    borderWidth: 4,
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: '#dc2626',
+    borderWidth: 3,
     borderColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#ff1238',
+    shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
   },
   sosTextBottom: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 3,
+    letterSpacing: 1.4,
+    marginTop: 2,
   },
 });
 
