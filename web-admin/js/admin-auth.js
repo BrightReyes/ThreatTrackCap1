@@ -14,6 +14,21 @@ applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
 const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+const ADMIN_SESSION_STORAGE_PREFIXES = ["tt_hotspot_ai_plan:"];
+
+function clearAdminSessionCaches() {
+    try {
+        Object.keys(sessionStorage)
+            .filter((key) =>
+                ADMIN_SESSION_STORAGE_PREFIXES.some((prefix) =>
+                    key.startsWith(prefix),
+                ),
+            )
+            .forEach((key) => sessionStorage.removeItem(key));
+    } catch (err) {
+        console.warn("[admin-auth] session cache clear failed", err);
+    }
+}
 
 function applyCachedAdminRole() {
     const role = normalizeAdminRole(localStorage.getItem(ADMIN_ROLE_CACHE_KEY));
@@ -220,6 +235,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
                 try {
                     await signOut(auth);
                     cacheAdminRole(null);
+                    clearAdminSessionCaches();
                 } catch {}
                 toastError("Session timed out due to inactivity");
                 window.location.replace("login.html");
@@ -233,6 +249,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
             cacheAdminRole(null);
+            clearAdminSessionCaches();
             window.location.replace("login.html");
             return;
         }
@@ -330,6 +347,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         try {
             await signOut(auth);
             cacheAdminRole(null);
+            clearAdminSessionCaches();
             toastSuccess("Signed out");
             // eslint-disable-next-line no-void
             void logAudit("auth.logout", {});

@@ -15,6 +15,7 @@ const MIN_RECOMMENDATION_REPORTS = 3;
 const SOLUTION_PRIORITIES = ["all", "high", "medium", "low"];
 const GEMINI_DEMO_KEY_STORAGE = "tt_gemini_demo_key";
 const GEMINI_DEMO_MODEL = "gemini-flash-latest";
+const HOTSPOT_AI_SESSION_PREFIX = "tt_hotspot_ai_plan:";
 const HOTSPOT_AI_SCHEMA = {
     type: "object",
     required: [
@@ -55,7 +56,56 @@ const HOTSPOT_AI_SCHEMA = {
         confidenceNote: { type: "string" },
     },
 };
-
+const STATUS_WORKLOAD_CONFIG = {
+    pending: {
+        label: "Pending",
+        hint: "Awaiting first review",
+        tone: "pending",
+        icon: "pending_actions",
+    },
+    under_review: {
+        label: "Under Review",
+        hint: "Being assessed",
+        tone: "review",
+        icon: "rate_review",
+    },
+    verified: {
+        label: "Verified",
+        hint: "Validated reports",
+        tone: "verified",
+        icon: "verified",
+    },
+    responding: {
+        label: "Responding",
+        hint: "Responder action active",
+        tone: "responding",
+        icon: "emergency_share",
+    },
+    done: {
+        label: "Done",
+        hint: "Closed response",
+        tone: "done",
+        icon: "task_alt",
+    },
+    archived: {
+        label: "Archived",
+        hint: "Stored for records",
+        tone: "muted",
+        icon: "inventory_2",
+    },
+    rejected: {
+        label: "Rejected",
+        hint: "Not actionable",
+        tone: "muted",
+        icon: "block",
+    },
+    unknown: {
+        label: "Unknown",
+        hint: "Missing status",
+        tone: "muted",
+        icon: "help",
+    },
+};
 const TYPE_SOLUTION_RULES = {
     robbery_holdup: [
         {
@@ -444,6 +494,7 @@ const AI_OPERATIONAL_REFERENCE = {
 let incidentRows = [];
 let solutionPriorityFilter = "all";
 let latestSolutionById = new Map();
+let currentAdminSessionId = "";
 
 function setText(id, value) {
     const el = document.getElementById(id);
@@ -559,6 +610,77 @@ function renderBars(id, entries, options = {}) {
                 </span>
                 <span class="analytics-bar__value">${count}</span>
             </div>`;
+        })
+        .join("");
+}
+
+function hashString(value) {
+    let hash = 0;
+    const text = String(value || "");
+    for (let i = 0; i < text.length; i += 1) {
+        hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+    return hash.toString(36);
+}
+
+function getStatusWorkloadConfig(status) {
+    return STATUS_WORKLOAD_CONFIG[status] || {
+        label: humanize(status),
+        hint: "Custom status",
+        tone: "muted",
+        icon: "label",
+    };
+}
+
+function renderStatusWorkload(rows) {
+    const el = document.getElementById("analytics-status-chart");
+    if (!el) return;
+
+    const entries = countBy(rows, (row) =>
+        String(row.data?.status || "unknown").toLowerCase(),
+    );
+    if (!entries.length) {
+        el.innerHTML = '<p class="analytics-empty">No data in this range.</p>';
+        return;
+    }
+
+    const statusOrder = new Map(
+        ["pending", "under_review", "verified", "responding", "done"].map(
+            (status, index) => [status, index],
+        ),
+    );
+    const total = rows.length || 1;
+    const max = Math.max(...entries.map(([, count]) => count), 1);
+    const sorted = [...entries].sort((a, b) => {
+        const aOrder = statusOrder.get(a[0]) ?? 99;
+        const bOrder = statusOrder.get(b[0]) ?? 99;
+        return aOrder === bOrder ? b[1] - a[1] : aOrder - bOrder;
+    });
+
+    el.innerHTML = sorted
+        .map(([status, count]) => {
+            const config = getStatusWorkloadConfig(status);
+            const pct = Math.round((count / total) * 100);
+            const barPct = Math.max(4, Math.round((count / max) * 100));
+            const tooltip = `${config.label}: ${count} report${count === 1 ? "" : "s"} (${pct}% of selected range)`;
+            return `<article class="analytics-status-card analytics-status-card--${escapeAttr(config.tone)}" title="${escapeAttr(tooltip)}">
+                <div class="analytics-status-card__icon" aria-hidden="true">
+                    <span class="material-symbols-outlined">${escapeHtml(config.icon)}</span>
+                </div>
+                <div class="analytics-status-card__main">
+                    <div class="analytics-status-card__top">
+                        <span>${escapeHtml(config.label)}</span>
+                        <strong>${count}</strong>
+                    </div>
+                    <div class="analytics-status-card__track" aria-hidden="true">
+                        <span style="width:${barPct}%"></span>
+                    </div>
+                    <div class="analytics-status-card__meta">
+                        <em>${escapeHtml(config.hint)}</em>
+                        <b>${pct}%</b>
+                    </div>
+                </div>
+            </article>`;
         })
         .join("");
 }
@@ -1269,7 +1391,7 @@ function renderSolutionControls(solutions) {
     const top = solutions[0];
     return `<div class="analytics-solution-controls">
         <div class="analytics-solution-controls__summary">
-            <span class="analytics-solution-controls__eyebrow">Priority actions</span>
+            <span class="analytics-solution-controls__eyebrow">Decision support queue</span>
             <strong>${escapeHtml(top?.actions?.[0]?.title || "Review active hotspots")}</strong>
             <em>${escapeHtml(top ? `${priorityLabel(top.priority)} - ${top.area}` : "No action selected")}</em>
         </div>
@@ -1292,6 +1414,10 @@ function renderSolutionCard(solution) {
         reason: "The system needs more evidence before recommending a stronger action.",
         timeframe: "Review weekly",
     };
+    const dominantPattern = (solution.dominantTypes || [])
+        .map(humanize)
+        .join(", ");
+    const cachedAiPlan = getCachedHotspotAiPlan(solution);
     return `<article class="analytics-solution-card analytics-solution-card--${escapeAttr(solution.priority)}">
         <div class="analytics-solution-card__top">
             <div>
@@ -1299,6 +1425,17 @@ function renderSolutionCard(solution) {
                 <h3>${escapeHtml(solution.area)}</h3>
                 <p>${escapeHtml(priorityHint(solution.priority))}</p>
             </div>
+            <div class="analytics-solution-card__score">
+                <strong>${escapeHtml(String(solution.weightedScore || 0))}</strong>
+                <span>Score</span>
+            </div>
+        </div>
+        <div class="analytics-solution-metrics" aria-label="Hotspot evidence metrics">
+            ${renderSolutionMetric("assignment", "Reports", solution.totalReports || 0)}
+            ${renderSolutionMetric("priority_high", "High severity", solution.severityBreakdown?.high || 0)}
+            ${renderSolutionMetric("sos", "SOS", solution.sosReports || 0)}
+            ${renderSolutionMetric("schedule", "Peak", solution.peakLabel || "No clear peak time yet")}
+            ${renderSolutionMetric("query_stats", "Pattern", dominantPattern || "Mixed / unclear")}
         </div>
         <div class="analytics-solution-top-action">
             <span>Top action</span>
@@ -1321,9 +1458,23 @@ function renderSolutionCard(solution) {
                     <span>Generate Action Plan</span>
                 </button>
             </div>
-            <div id="analytics-ai-hotspot-${escapeAttr(solution.aiId)}" class="analytics-hotspot-ai-output" role="status"></div>
+            <div id="analytics-ai-hotspot-${escapeAttr(solution.aiId)}" class="analytics-hotspot-ai-output" role="status">
+                ${cachedAiPlan
+                    ? renderHotspotAiPlan(cachedAiPlan.summary, cachedAiPlan.usage, true)
+                    : renderHotspotAiPlaceholder(solution)}
+            </div>
         </div>
     </article>`;
+}
+
+function renderSolutionMetric(icon, label, value) {
+    return `<div class="analytics-solution-metric">
+        <span class="material-symbols-outlined" aria-hidden="true">${escapeHtml(icon)}</span>
+        <div>
+            <strong>${escapeHtml(String(value))}</strong>
+            <em>${escapeHtml(label)}</em>
+        </div>
+    </div>`;
 }
 
 function bindSolutionControls(container) {
@@ -1357,6 +1508,55 @@ function riskClass(value) {
     return "medium";
 }
 
+function hotspotAiSessionKey(solution) {
+    if (!currentAdminSessionId || !solution) return "";
+    const signature = {
+        range: currentAnalyticsRange(),
+        area: solution.area,
+        priority: solution.priority,
+        totalReports: solution.totalReports,
+        weightedScore: solution.weightedScore,
+        evidence: solution.evidence,
+        severityBreakdown: solution.severityBreakdown,
+        typeCounts: solution.typeCounts,
+        sosReports: solution.sosReports,
+        peakLabel: solution.peakLabel,
+        latestReportAt: solution.latestReportAt?.getTime?.() || "",
+    };
+    return `${HOTSPOT_AI_SESSION_PREFIX}${currentAdminSessionId}:${hashString(JSON.stringify(signature))}`;
+}
+
+function getCachedHotspotAiPlan(solution) {
+    const key = hotspotAiSessionKey(solution);
+    if (!key) return null;
+    try {
+        const cached = JSON.parse(sessionStorage.getItem(key) || "null");
+        if (!cached?.summary) return null;
+        return cached;
+    } catch (error) {
+        console.warn("[analytics] invalid cached AI plan", error);
+        sessionStorage.removeItem(key);
+        return null;
+    }
+}
+
+function cacheHotspotAiPlan(solution, result) {
+    const key = hotspotAiSessionKey(solution);
+    if (!key || !result?.summary) return;
+    try {
+        sessionStorage.setItem(
+            key,
+            JSON.stringify({
+                summary: result.summary,
+                usage: result.usage || null,
+                savedAt: new Date().toISOString(),
+            }),
+        );
+    } catch (error) {
+        console.warn("[analytics] AI session cache failed", error);
+    }
+}
+
 async function handleGenerateHotspotAi(aiId, button) {
     const solution = latestSolutionById.get(String(aiId));
     const output = document.getElementById(`analytics-ai-hotspot-${aiId}`);
@@ -1374,6 +1574,7 @@ async function handleGenerateHotspotAi(aiId, button) {
 
     try {
         const result = await generateHotspotAiPlan(solution, key);
+        cacheHotspotAiPlan(solution, result);
         output.innerHTML = renderHotspotAiPlan(result.summary, result.usage);
     } catch (error) {
         console.error("[analytics] hotspot Gemini plan", error);
@@ -1607,7 +1808,7 @@ function buildHotspotDataReading(solution) {
     return notes;
 }
 
-function renderHotspotAiPlan(summary, usage) {
+function renderHotspotAiPlan(summary, usage, fromSession = false) {
     const risk = riskClass(summary?.riskLevel);
     const actions = Array.isArray(summary?.priorityActions)
         ? summary.priorityActions
@@ -1618,57 +1819,94 @@ function renderHotspotAiPlan(summary, usage) {
 
     return `<div class="analytics-hotspot-ai-plan analytics-hotspot-ai-plan--${escapeAttr(risk)}">
         <div class="analytics-hotspot-ai-plan__top">
-            <div>
-                <span>Generated decision support</span>
-                <h4>${escapeHtml(summary?.hotspotTitle || "Hotspot action plan")}</h4>
+            <div class="analytics-hotspot-ai-plan__identity">
+                <i class="material-symbols-outlined" aria-hidden="true">auto_awesome</i>
+                <div>
+                    <em>Generated decision support</em>
+                    <h4>${escapeHtml(summary?.hotspotTitle || "Hotspot action plan")}</h4>
+                </div>
             </div>
-            <strong>${escapeHtml(risk)}</strong>
-        </div>
-        <div class="analytics-hotspot-ai-overview">
-            <div>
-                <span>Risk Summary</span>
-                <p>${escapeHtml(summary?.riskSummary || "")}</p>
-            </div>
-            <div>
-                <span>Observed Pattern</span>
-                <p>${escapeHtml(summary?.crimePattern || "")}</p>
+            <div class="analytics-hotspot-ai-plan__status">
+                <span>${escapeHtml(risk)}</span>
+                <em>${fromSession ? "Restored from this session" : "Admin review needed"}</em>
             </div>
         </div>
-        <div class="analytics-hotspot-ai-solution">
-            <span>Recommended Strategy</span>
-            <p>${escapeHtml(summary?.tailoredSolution || "")}</p>
+        <div class="analytics-hotspot-ai-brief">
+            ${renderHotspotAiBrief("Risk Summary", summary?.riskSummary, "shield")}
+            ${renderHotspotAiBrief("Observed Pattern", summary?.crimePattern, "hub")}
+        </div>
+        <div class="analytics-hotspot-ai-strategy">
+            <div>
+                <i class="material-symbols-outlined" aria-hidden="true">conversion_path</i>
+                <strong>Recommended Strategy</strong>
+            </div>
+            <p>${escapeHtml(summary?.tailoredSolution || "No tailored strategy returned.")}</p>
         </div>
         ${
             actions.length
                 ? `<div class="analytics-hotspot-ai-action-list">
                     <div class="analytics-hotspot-ai-action-list__header">
-                        <span>Priority Actions</span>
-                        <strong>${actions.length}</strong>
+                        <div>
+                            <span>Execution Steps</span>
+                            <strong>Start with the first item, then continue in order.</strong>
+                        </div>
+                        <em>${actions.length} actions</em>
                     </div>
                     <ol class="analytics-hotspot-ai-actions">${actions.map(renderHotspotAiAction).join("")}</ol>
                 </div>`
                 : ""
         }
-        <div class="analytics-ai-advisory">
-            <span>Public advisory draft</span>
-            <p>${escapeHtml(summary?.publicAdvisoryDraft || "No public advisory drafted.")}</p>
+        <div class="analytics-hotspot-ai-review">
+            <section class="analytics-ai-advisory">
+                <i class="material-symbols-outlined" aria-hidden="true">campaign</i>
+                <div>
+                    <strong>Public advisory draft</strong>
+                    <p>${escapeHtml(summary?.publicAdvisoryDraft || "No public advisory drafted.")}</p>
+                </div>
+            </section>
+            <section class="analytics-hotspot-ai-plan__notes">
+                <div>
+                    <strong>Admin notes</strong>
+                    <p>${escapeHtml(summary?.adminNotes || "Review the evidence before using this plan.")}</p>
+                </div>
+                <div>
+                    <strong>Confidence</strong>
+                    <p>${escapeHtml(summary?.confidenceNote || "Confidence note was not returned.")}</p>
+                </div>
+                <em>${escapeHtml(tokenText)}</em>
+            </section>
         </div>
-        <div class="analytics-hotspot-ai-plan__notes">
-            <p><strong>Admin notes:</strong> ${escapeHtml(summary?.adminNotes || "")}</p>
-            <p><strong>Confidence:</strong> ${escapeHtml(summary?.confidenceNote || "")}</p>
-            <em>${escapeHtml(tokenText)}</em>
+    </div>`;
+}
+
+function renderHotspotAiBrief(label, value, icon) {
+    return `<section class="analytics-hotspot-ai-brief__item">
+        <i class="material-symbols-outlined" aria-hidden="true">${escapeHtml(icon)}</i>
+        <div>
+            <strong>${escapeHtml(label)}</strong>
+            <p>${escapeHtml(value || "No detail returned.")}</p>
+        </div>
+    </section>`;
+}
+
+function renderHotspotAiPlaceholder(solution) {
+    return `<div class="analytics-hotspot-ai-placeholder">
+        <i class="material-symbols-outlined" aria-hidden="true">data_exploration</i>
+        <div>
+            <strong>Ready to generate a decision brief</strong>
+            <p>Creates a risk summary, pattern reading, recommended strategy, execution steps, public advisory draft, and admin review notes for ${escapeHtml(solution.area)}.</p>
         </div>
     </div>`;
 }
 
 function renderHotspotAiAction(action, index) {
-    return `<li>
-        <i>${index + 1}</i>
+    return `<li class="analytics-hotspot-ai-action">
+        <b>${index + 1}</b>
         <div>
             <strong>${escapeHtml(action?.action || "Review hotspot")}</strong>
             <span>${escapeHtml(action?.why || "")}</span>
-            <p>${escapeHtml(action?.implementation || "")}</p>
-            <em>${escapeHtml(action?.timeframe || "")}</em>
+            <p><i class="material-symbols-outlined" aria-hidden="true">rule_settings</i>${escapeHtml(action?.implementation || "Assign responsible staff and verify the latest report details.")}</p>
+            <em><i class="material-symbols-outlined" aria-hidden="true">schedule</i>${escapeHtml(action?.timeframe || "Review as soon as possible")}</em>
         </div>
     </li>`;
 }
@@ -1728,11 +1966,7 @@ function renderAnalytics() {
     renderTrend(rows);
     renderCrimeTypeSeverityBars(rows);
     renderSeverityDonut(rows);
-    renderBars(
-        "analytics-status-chart",
-        countBy(rows, (row) => String(row.data?.status || "unknown").toLowerCase()),
-        { color: "#0f766e" },
-    );
+    renderStatusWorkload(rows);
     renderHourlyChart(rows);
     renderReadiness(rows);
     renderHotspots(rows);
@@ -1798,7 +2032,8 @@ document.getElementById("analytics-range")?.addEventListener("change", () => {
 
 initAdminPage({
     pageId: "page-analytics",
-    onReady() {
+    onReady(user) {
+        currentAdminSessionId = user?.uid || "";
         loadAnalytics().catch((err) =>
             console.error("[analytics] load", err),
         );

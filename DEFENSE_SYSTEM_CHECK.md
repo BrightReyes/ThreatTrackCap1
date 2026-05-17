@@ -1,316 +1,181 @@
-# ThreatTrack Defense Priority Fix List
+# ThreatTrack Defense System Check
 
 Date checked: May 17, 2026  
-Scope: mobile user app, web admin dashboard, AI analytics/recommendations, Firebase rules, Cloud Functions, deployment config, and defense-demo readiness.
+Scope: mobile user app, web admin dashboard, admin AI analytics, Firebase rules, Cloud Functions, storage rules, dependency audit, and defense-demo readiness.
+
+## Readiness Summary
+
+ThreatTrack is demo-capable, but it is not yet safe to present as production-ready. The recent map, responder precinct, FIFO alert modal, readable user-side UI, and real-time done-status fixes are no longer open items. The remaining defense risks are security, deployment readiness, AI wiring, tests, and notification/account consistency.
+
+Recommended defense framing:
+
+> ThreatTrack is a capstone prototype for incident reporting, SOS escalation, crime mapping, admin moderation, responder selection, and AI-assisted recommendations. Before real deployment, the system must harden admin authorization, Firestore privacy rules, AI secret handling, Cloud Functions deployment, dependency security, and automated tests.
 
 ## Priority Legend
 
 | Priority | Meaning | Defense impact |
 | --- | --- | --- |
-| P0 - Critical | Must fix before defense | Panel may question security, correctness, or deployment readiness. |
+| P0 - Critical | Must fix before defense if possible | Panel may question security, correctness, or deploy readiness. |
 | P1 - High | Strongly recommended before defense | Feature works, but has visible lapses or weak explanation. |
-| P2 - Medium | Improve if time allows | Helps polish, maintainability, and confidence. |
-| P3 - Low | After defense | Cleanup, refactor, or future production hardening. |
-
-## Overall Readiness
-
-ThreatTrack is demo-capable, but not yet ready to present as a secure production-like public safety system. The main lapses are:
-
-- Admin pages are shown to any signed-in Firebase user before role validation.
-- Firestore role rules may allow too much profile and role editing.
-- AI recommendation work is partially implemented: a safer server-side Gemini callable exists, but the analytics UI still has a browser/localStorage Gemini-key demo path.
-- Mobile notifications still use mock fallback data if that screen is used.
-- Cloud Functions lint currently fails and can block deployment.
-- No project tests were found for functions, rules, or core workflows.
-
-Recommended defense framing:
-
-> ThreatTrack is a capstone prototype for incident reporting, SOS reporting, crime mapping, admin moderation, and responder notification. Before real-world deployment, the system must tighten role access, remove demo fallbacks, add tests, and harden privacy rules.
+| P2 - Medium | Polish if time allows | Improves maintainability and panel confidence. |
+| P3 - Low | After defense | Cleanup or future hardening. |
 
 ## Checks Run
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| `npm --prefix web-admin run build` | Passed | Web admin production build completed successfully. Vite still warns that the Firebase chunk is larger than 500 kB. |
-| `npm --prefix functions run lint` | Failed | 2019 lint errors. Mostly CRLF line endings, trailing spaces, missing JSDoc, and Google ESLint style issues. `functions/index.js` also has unused imports and a missing trailing comma. This can block deploy because `firebase.json` runs lint in `predeploy`. |
-| `npm --prefix functions test -- --runInBand` | Failed | Jest found 0 project tests across 13 function files. |
-| Test file scan excluding `node_modules` | Failed coverage expectation | No local `*.test.js` or `*.spec.js` files found outside dependency folders. |
-| User-side fixed-item scan | Passed with one remaining P1 issue | SOS default-location fallback, Home map mock incidents/precincts, tiny active mobile fonts, and login wording typo are no longer found. `NotificationsScreen.js` still uses mock notification fallback data. |
-| AI syntax check | Passed | `node --check` passed for `functions/index.js`, `functions/src/generateAdminAISummary.js`, `functions/src/generateAnalyticsSolutionSummary.js`, and `web-admin/js/analytics.js`. |
-| AI safety/wiring scan | Needs changes | `functions/src/generateAdminAISummary.js` uses a Firebase secret and role check, but `web-admin/js/analytics.js` still prompts for a Gemini key, stores it in `localStorage`, and calls Gemini directly from the browser. |
+| `npm --prefix web-admin run build` | Passed | Admin production build succeeds. Vite still warns that the Firebase chunk is larger than 500 kB. |
+| `npm --prefix functions run lint` | Failed | 2913 ESLint errors. Most are CRLF line endings, trailing spaces, missing JSDoc, and Google style issues. This blocks deploy because `firebase.json` runs lint in `predeploy`. |
+| `npm --prefix functions test -- --runInBand` | Failed | Jest found 0 tests across the functions project. |
+| `node --check` on Cloud Functions and key admin scripts | Passed | Syntax check passed for `functions/index.js`, all `functions/src/*.js`, `web-admin/js/analytics.js`, `admin-auth.js`, `admin-response.js`, and `admin-sos-alerts.js`. |
+| Test scan | Failed coverage expectation | No local `*.test.js` or `*.spec.js` files found outside `node_modules`. |
+| `npm --prefix web-admin audit --audit-level=moderate` | Failed | 6 vulnerabilities: 1 critical, 1 high, 4 moderate. Includes `protobufjs`, `rollup`, `esbuild`, and `postcss`. |
+| `npm --prefix mobile audit --audit-level=moderate` | Failed | 7 vulnerabilities: 2 high, 5 moderate. Includes `protobufjs`, `fast-xml-builder`, and Expo/PostCSS chain. |
+| `npm --prefix functions audit --audit-level=moderate` | Failed | 11 vulnerabilities: 2 high, 1 moderate, 8 low. Includes `protobufjs`, `fast-xml-builder`, and `firebase-admin` dependency chain. |
+| Mobile build/test check | Not available | `mobile/package.json` has start/android/ios/web scripts only; no test or CI build script is defined. |
 
-## P0 Critical Fixes
+## Removed From Open Priority List
 
-These are the highest priority before facing the panel.
+These were rechecked and should not stay as active defense blockers:
 
-| Area | Side | Lapse | Required change | Files |
+| Fixed area | Current state |
+| --- | --- |
+| Fixed responder assignment | Admin now chooses from nearest precinct options instead of always using Malinta. |
+| SOS modal auto-disappearing / overlapping | Priority modal uses a queue and stays until admin action. |
+| Done button not updating user side | `done` now writes completed response fields, and the user status screen prioritizes terminal statuses. |
+| User map precinct/boundary alignment | User map and admin map now use the same detailed Valenzuela boundary style. |
+| User-side tiny map/UI text issue | Active user map/report text was improved; no remaining P0 found in that area during this pass. |
+
+## P0 - What Needs To Be Done Right Now
+
+| Order | Side | Flaw | Required change | Main files |
 | --- | --- | --- | --- | --- |
-| Admin access control | Admin | Any authenticated Firebase user can be redirected to admin pages before role checking. | Check `users/{uid}.role` before showing any admin page. Allow only `admin` or approved staff roles. | `web-admin/js/admin-auth.js`, `web-admin/js/login.js` |
-| Role escalation | Admin / Backend | `police` staff can manage user profiles, and staff updates may include `role`. | Split profile editing from role management. Only admins should change roles. | `firestore.rules`, `web-admin/js/user-modal.js` |
-| Public incident reads | Shared | `incidents` has `allow read: if true`, exposing descriptions and coordinates. | Restrict detailed reads or create public sanitized incident summaries for map use. | `firestore.rules`, mobile map/admin queries |
-| User PII exposure | Shared | Any authenticated user can read all `users` documents. | Limit user reads to self and admin/staff. | `firestore.rules` |
-| AI browser key path | Admin / AI | Analytics can call Gemini directly from the browser and store the key in `localStorage`. | Remove browser Gemini calls and route AI generation through the Cloud Function with Firebase auth and secrets. | `web-admin/js/analytics.js`, `functions/src/generateAdminAISummary.js` |
-| Functions deploy blocker | Shared | Functions lint fails, and deploy runs lint as predeploy. | Fix line endings/style or adjust ESLint rules, then rerun lint until it passes. | `functions/.eslintrc.js`, `functions/src/*.js`, `firebase.json` |
+| 1 | Admin | Admin pages still allow any signed-in Firebase user to reach the dashboard flow. Role is loaded, but normal admin pages are not blocked unless `requirePolice` is set. | Add a general admin role gate. Only `admin`, `moderator`, `barangay_admin`, or `police` roles should see admin pages. Redirect or sign out others. | `web-admin/js/admin-auth.js`, `web-admin/js/login.js` |
+| 2 | Shared | Firestore exposes sensitive data too broadly. Any authenticated user can read all `users`; anyone can read all `incidents`; notifications are publicly readable. | Restrict reads to owner/staff, create sanitized public map summaries, and restrict notification reads to owner/admin. | `firestore.rules` |
+| 3 | Shared/Admin | Role escalation is still possible through rules and admin UI. Police/staff can manage roles and profile trust fields. | Split profile editing from role management. Only true admin should change `role`, `trustScore`, `falseReportCount`, and staff flags. | `firestore.rules`, `web-admin/js/user-modal.js`, `web-admin/js/users-list.js` |
+| 4 | AI/Admin | Analytics still asks for a Gemini key in the browser, stores it in `localStorage`, and calls Gemini directly. | Remove browser Gemini key flow. Call the server-side `generateAdminAISummary` callable using Firebase auth and Functions secrets. | `web-admin/js/analytics.js`, `functions/src/generateAdminAISummary.js` |
+| 5 | Backend | Functions deployment is blocked by lint because `firebase.json` runs lint before deploy. | Fix line endings/style or adjust ESLint config, then rerun lint until it passes. | `functions/.eslintrc.js`, `functions/src/*.js`, `functions/index.js`, `firebase.json` |
+| 6 | Shared | Dependency audit has high/critical findings in web, mobile, and functions. | Run safe `npm audit fix` where possible, then review breaking upgrades separately. Rebuild after upgrades. | `web-admin/package-lock.json`, `mobile/package-lock.json`, `functions/package-lock.json` |
+| 7 | Backend | Rate limiting is a placeholder: `hasNotExceededRateLimit()` always returns `true`. | Enforce report limits through Cloud Functions or server-owned counters. Add emulator tests. | `firestore.rules`, report submission functions |
+| 8 | Backend | `aggregateHeatmapData` reuses a committed Firestore batch after every 500 writes. This can fail on larger datasets. | Create a new `db.batch()` after each commit; also batch cleanup deletes in chunks. | `functions/src/aggregateHeatmapData.js` |
 
 ## Admin Side Fixes
 
-### P0 - Admin Authentication and Authorization
+### P0 - Admin Access Control
 
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Add role gate to `initAdminPage`. | Prevents normal users from entering admin screens. | After `onAuthStateChanged`, fetch `users/{uid}` and verify role before `page.hidden = false`. |
-| Add role check after admin login. | Prevents a regular user from being redirected to `dashboard.html`. | In `web-admin/js/login.js`, call a helper like `getAdminProfile(user.uid)` before redirect. |
-| Add unauthorized handling. | Gives clean behavior during demo. | Redirect to `login.html` or show "Unauthorized admin access" message. |
-| Remove admin debug text from UI. | Prevents panel seeing UID/project debug info. | Clean `web-admin/js/notifications.js` debug status output. |
-
-Relevant files:
-
-- `web-admin/js/admin-auth.js`
-- `web-admin/js/login.js`
-- `web-admin/js/notifications.js`
-- `shared/auth.js`
+| `initAdminPage` loads a user profile but does not block non-admin roles on normal admin pages. | A normal mobile user can be signed in and redirected into `dashboard.html`. | Add `isAllowedAdminRole(profile.role)` before `page.hidden = false`. |
+| `login.js` redirects any existing signed-in user to the dashboard. | A regular account can enter the admin shell after login. | After auth, load `users/{uid}` and redirect only if role is approved. |
+| Unauthorized handling is missing. | Defense demo may expose a blank/partial admin state. | Show "Unauthorized admin access" and sign out or redirect to login. |
 
 ### P0 - User and Role Management
 
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Prevent non-admin role changes. | Avoids privilege escalation. | In rules, only `isAdmin()` can update `role`. |
-| Separate police permissions. | Police should not manage account roles or trust fields. | Create separate rule helpers: `canEditProfileFields()` and `canManageRoles()`. |
-| Replace profile deletion with account status control. | Deleting only Firestore profile leaves Firebase Auth account active. | Prefer setting `accountStatus: suspended` or `disabled`. |
-| Remove development logs. | Console logs weaken defense polish. | Clean `console.log` in `web-admin/js/users-list.js`. |
+| `canManageUserProfiles()` includes police roles and allows `role` updates. | Police/staff should not be able to promote accounts. | Only `isAdmin()` should update roles and trust/account moderation fields. |
+| Admin UI exposes role editing to all dashboard staff. | The UI can encourage unsafe role changes even before rules are fixed. | Hide role controls unless the current staff role is true admin. |
+| Deleting a profile only deletes Firestore, not Firebase Auth. | The login account can still exist without a profile. | Prefer `accountStatus: suspended` and keep deletion as a super-admin/server action. |
 
-Relevant files:
+### P0 - AI Recommendations
 
-- `firestore.rules`
-- `web-admin/js/users-list.js`
-- `web-admin/js/user-modal.js`
-
-### P1 - Incident Moderation
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Add moderation notes or rejection reason. | Panel may ask how false reports are reviewed. | Require admin note when status is `rejected`, `spam`, or `done`. |
-| Move status transitions server-side later. | Client-side status updates are easier to manipulate if rules fail. | Future callable function: `moderateIncident`. |
-| Explain short incident codes. | Current `TR-0000` style hash can collide. | Use full document ID internally and short code only for display. |
+| `web-admin/js/analytics.js` has `GEMINI_DEMO_KEY_STORAGE`, `window.prompt`, and direct `generativelanguage.googleapis.com` calls. | API keys in browser/localStorage are not defensible. | Remove this path and call the Firebase callable. |
+| Two AI paths exist: Gemini callable and OpenAI HTTP summary. | Duplicate AI paths are hard to explain to panelists. | Choose one official AI flow for defense; document or remove the unused path. |
+| AI output has no explicit human-review state. | Panel may ask whether AI recommendations are automatically acted on. | Label as "AI-generated draft", require admin review, and audit accept/dismiss actions. |
+| AI feature depends on a secret and deployable functions. | It will fail if `GEMINI_API_KEY` is not configured or functions cannot deploy. | Configure secret, fix lint, deploy, and test no-data and hotspot cases. |
 
-Relevant files:
+### P1 - Admin Notifications, Audit, and Data Tools
 
-- `web-admin/js/incident-modal.js`
-- `web-admin/js/admin-response.js`
-- `web-admin/js/admin-sos-alerts.js`
-
-### P1 - Admin Settings, Audit, and Data Tools
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Restrict audit log creation. | Current rules allow any authenticated user to create audit logs. | Make audit creation admin-only or Cloud Functions-only. |
-| Add stronger confirmation for cleanup/import tools. | Prevents accidental data loss during demo. | Require typed confirmation and audit log for destructive data tools. |
-| Make audit logs tamper-resistant later. | Client-created logs are not fully trustworthy. | Write audit logs through Cloud Functions. |
-
-Relevant files:
-
-- `web-admin/js/settings.js`
-- `web-admin/js/audit.js`
-- `firestore.rules`
-
-### P0 - Admin AI Recommendations
-
-| Fix | Why it matters | Suggested implementation |
-| --- | --- | --- |
-| Remove the browser Gemini demo key flow. | API keys in prompts/localStorage are not defensible for a security-sensitive admin system. | Delete `GEMINI_DEMO_KEY_STORAGE`, `window.prompt`, and direct `generativelanguage.googleapis.com` calls from `web-admin/js/analytics.js`. |
-| Wire analytics UI to the server callable. | The safer implementation already uses `GEMINI_API_KEY` as a Firebase Functions secret and checks admin role. | Import Firebase Functions in the admin app and call `generateAdminAISummary` instead of browser `fetch` to Gemini. |
-| Add AI output review state in the UI. | Panel may ask who approves AI recommendations before action. | Display summaries as "AI-generated draft", show reviewer/status, and require admin review before using as an operational recommendation. |
-| Verify AI secret/deploy readiness. | The feature will fail in production if the secret is not configured or Functions cannot deploy. | Set `GEMINI_API_KEY`, deploy functions after lint passes, then test one no-data and one hotspot summary. |
-
-Relevant files:
-
-- `web-admin/js/analytics.js`
-- `web-admin/analytics.html`
-- `functions/src/generateAdminAISummary.js`
-- `functions/index.js`
-- `firestore.rules`
-
-### P1 - AI Accuracy and Auditability
-
-| Fix | Why it matters | Suggested implementation |
-| --- | --- | --- |
-| Remove or consolidate duplicate AI paths. | There are two AI summary functions: Gemini callable and OpenAI HTTP endpoint. Duplicate paths are hard to explain during defense. | Keep one official AI path for the panel demo and mark the other as future/unused or remove it. |
-| Add AI tests. | AI output is generated JSON and should not break the admin page when malformed or empty. | Add tests for no-data summary, thin-data summary, role rejection, JSON parsing, and sanitized payload shape. |
-| Avoid exact private details in AI input. | Public safety AI should not receive reporter identity, full descriptions, or profile data. | Keep only aggregate counts, area labels, type/severity breakdowns, peak hours, and rule-based actions. |
-| Store review/audit actions. | AI recommendations should be traceable and human-approved. | Add accepted/dismissed/completed review actions and audit logs for each summary. |
-
-### P2 - Admin UI Polish
-
-| Fix | Why it matters | Suggested implementation |
-| --- | --- | --- |
-| Normalize joined date display. | User profiles store ISO strings but admin formatter expects Firestore Timestamp. | Accept both ISO string and Firestore Timestamp. |
-| Remove debug status messages. | Keeps defense UI professional. | Remove "Loading... uid/role/project" text. |
-| Document admin roles. | Panel may ask role differences. | Add small internal notes: admin, moderator, police, user. |
+| Notifications can be created, updated, or deleted by any authenticated user under current rules. | A normal user could tamper with dashboard/user notification documents. | Owner can mark own notification read only; staff/cloud functions create operational notifications. |
+| Audit logs can be created by any authenticated user. | Client-created audit logs are not tamper-proof. | Restrict to staff or Cloud Functions; add server-side audit writer later. |
+| Admin account creation happens from the browser using secondary Firebase Auth. | Account/role creation is sensitive and should be server-controlled. | Move staff account creation to a callable Cloud Function or strict admin-only workflow. |
+| Data cleanup/import/export tools need stronger guardrails. | Accidental destructive actions can hurt the demo database. | Require typed confirmation and audit every destructive action. |
 
 ## User Side Fixes
 
-Current scan found no remaining user-side P0 items from the previously listed SOS and Home map issues.
+No current user-side P0 was found in the already-fixed map/responding/done-status areas. The remaining user-side work is P1 because it affects reliability, privacy, and defense polish.
 
-### P1 - Mobile Authentication and Session
+### P1 - Mobile Authentication
 
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Use Firebase auth state listener in `App.js`. | Current local `isAuthenticated` state can desync after restart. | Add `onAuthStateChanged(auth, ...)` and a loading screen. |
-| Call Firebase `signOut`. | Current logout only resets local UI state. | Use `signOut(auth)` before returning to login. |
-| Implement forgot password. | Button exists but does not work. | Use `sendPasswordResetEmail(auth, email)`. |
-| Remove PII logs. | Signup logs print personal user data. | Remove logs or enable only in dev builds. |
+| `App.js` uses local `isAuthenticated` state instead of Firebase auth state. | App restart/session restore can desync from Firebase Auth. | Use `onAuthStateChanged(auth, ...)` with a loading screen. |
+| Logout only resets local UI state. | Firebase user remains signed in in persistence. | Call `signOut(auth)` before returning to login. |
+| Mobile forgot password button has no handler. | User recovery flow is visibly incomplete. | Add `sendPasswordResetEmail(auth, email)` with user feedback. |
+| Signup logs personal data in console. | PII logs weaken privacy defense. | Remove signup/auth console logs or guard them behind dev-only logging. |
 
-Relevant files:
+### P1 - Reporting and Evidence
 
-- `mobile/App.js`
-- `mobile/LoginScreen.js`
-- `mobile/SignUpScreen.js`
-- `mobile/utils/auth.js`
-
-### P1 - Incident Reporting
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Add real report rate limiting. | Prevents repeated false/spam reports. | Enforce with Cloud Functions or server-controlled counters. |
-| Align email verification with photo upload. | Unverified users can submit reports but may fail photo upload. | Decide one policy: require verified email for reports or allow photo upload without verification. |
-| Show photo upload failure clearly. | User may think evidence was uploaded when it was not. | After failed upload, show "report saved, photo failed" message. |
-| Test `serverTimestamp()` rule behavior. | Firestore rule checks `reportedAt == request.time`. | Add emulator test for incident create. |
+| Unverified users can submit reports, but Storage only allows verified users to upload incident photos. | Report can save while photo silently fails. | Choose one policy: require verification before report, or allow photo upload for active unverified reporters. Show clear photo failure message. |
+| Client-side report rate limiting is not enforced. | Users can spam reports. | Add server-side counters/callable validation. |
+| Report timestamps mix ISO strings and Firestore timestamps. | Admin sorting and rules become harder to reason about. | Prefer `serverTimestamp()` for trusted backend fields. |
 
-Relevant files:
+### P1 - Notifications and Settings
 
-- `mobile/screens/ReportIncidentScreen.js`
-- `mobile/screens/SOSReportScreen.js`
-- `mobile/utils/auth.js`
-- `firestore.rules`
-- `storage.rules`
-
-### P1 - Notifications and Preferences
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Persist notification settings. | Settings toggles are local only. | Save under `users/{uid}.alertPreferences`. |
-| Save push notification token. | Cloud Function expects `fcmToken`, but app does not consistently store it. | Add Expo/FCM registration and save token. |
-| Remove or fix unused `NotificationsScreen.js`. | It queries all notifications and uses mock data. | Delete if unused or filter by current user. |
-| Implement or remove Anonymous Mode. | Toggle exists but does not change report behavior. | Either add `isAnonymous` support or remove the toggle before defense. |
+| Settings toggles are local only. | Push, high-priority, location alerts, and anonymous mode do not persist. | Save preferences to `users/{uid}.alertPreferences` and load them on screen open. |
+| Push token is never registered or saved. | `sendNearbyIncidentAlert` expects `fcmToken`, so real push delivery may not happen. | Add Expo/FCM registration and save token to the user profile. |
+| Anonymous Mode toggle does not affect report data. | It looks functional but does nothing. | Implement `isAnonymous` behavior or remove the toggle before defense. |
+| `NotificationsScreen.js` is unused and still has mock fallback data. | Repo inspection can reveal demo placeholders. | Remove the unused screen or convert it to the same real notification logic as `AlertsScreen`. |
 
-Relevant files:
+### P2 - Mobile Polish
 
-- `mobile/screens/SettingsScreen.js`
-- `mobile/screens/AlertsScreen.js`
-- `mobile/screens/NotificationsScreen.js`
-- `mobile/components/ResponseAlertListener.js`
-- `functions/src/sendNearbyIncidentAlert.js`
-
-### P2 - Mobile UI and Text Polish
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Remove duplicate/old screens and backup files if not used. | Reduces panel confusion if repo is inspected. | Archive or delete stale backups after confirming. |
+| Some files contain mojibake/encoding artifacts in icons and text. | Looks unprofessional if viewed or rendered. | Replace corrupted emoji/text with icons or clean ASCII labels. |
+| No mobile test/build script exists. | Harder to prove mobile readiness. | Add a minimal smoke check script and document Expo run steps. |
+| Hardcoded Cloud Function URL appears in the mobile map. | Environment changes require source edits. | Move function base URL to config/env. |
 
-Relevant files:
+## Shared Backend and Rules Fixes
 
-- `mobile/LoginScreen.js`
-- `mobile/screens/*.backup.js`
-- `mobile/screens/HomeScreen.old.js`
+### P0 - Firestore and Storage Security
 
-## Shared Firebase and Backend Fixes
-
-These affect both admin and user sides.
-
-### P0 - Security Rules
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Restrict detailed incident reads. | Incident descriptions and exact locations are sensitive. | Use admin-only details and public map summary collection. |
-| Restrict user profile reads. | Protects name, phone, address, barangay, and status fields. | Users read own profile; staff read only if role allows. |
-| Restrict profile picture writes. | Current rule allows any authenticated user to write any profile path. | Use path `profile-pictures/{userId}/{fileName}` and require owner. |
-| Restrict notification owner updates. | Owners should only mark read, not edit content. | Allow only `read`, `readAt` changes for user-owned notifications. |
-| Replace placeholder rate limit. | Current `hasNotExceededRateLimit()` returns `true`. | Enforce through Cloud Functions or server-side counters. |
+| `users` read is open to all authenticated users. | Names, phones, address, barangay, age, status, and role can leak. | User reads self; staff reads only if role-approved. |
+| `incidents` read is public. | Exact locations and descriptions are sensitive. | Restrict detailed incidents; create sanitized public/heatmap summaries. |
+| `notifications` read is public and writes are too broad. | Notification content and response status can be exposed or modified. | Owner reads own; staff reads admin views; users only update `read/readAt`. |
+| `profile-pictures/{allPaths=**}` lets any authenticated user write any profile path. | Users can overwrite other users' profile images. | Use `profile-pictures/{userId}/{fileName}` and require `request.auth.uid == userId`. |
+| Public HTTP functions have open CORS and no auth/app-check. | External callers can query risk/heatmap endpoints. | Add auth/App Check or document them as public sanitized endpoints only. |
 
-Relevant files:
+### P0 - Deployment and Dependencies
 
-- `firestore.rules`
-- `storage.rules`
-
-### P0 - Cloud Functions Deploy Readiness
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Fix lint failures. | Firebase deploy can fail at predeploy. | Normalize LF line endings, remove trailing spaces, fix JSDoc/indent, or tune ESLint rules. |
-| Add tests. | Panel can ask how correctness is proven. | Add Jest tests for validation and rules emulator tests for access control. |
-| Recreate Firestore batch after commit. | `aggregateHeatmapData` can fail with many grid cells. | Create a new `db.batch()` after every commit. |
-| Protect public HTTP endpoints. | Risk/heatmap endpoints are public/open CORS. | Add Auth/App Check or document as public read-only prototype endpoints. |
+| Functions lint fails and predeploy runs lint. | Cloud Functions deployment can fail during defense prep. | Fix lint or adjust rules intentionally. |
+| Web/mobile/functions audits fail. | Panel may ask about dependency security. | Apply safe fixes, review breaking fixes separately, and rebuild. |
+| No automated security/rules tests exist. | Rules regressions can go unnoticed. | Add Firestore emulator tests for admin/user/profile/incident/notification access. |
 
-Relevant files:
+### P1 - Data Consistency
 
-- `functions/src/validateIncident.js`
-- `functions/src/aggregateHeatmapData.js`
-- `functions/src/getHeatmapData.js`
-- `functions/src/calculateRiskLevel.js`
-- `functions/src/findNearestPrecinct.js`
-- `functions/src/sendNearbyIncidentAlert.js`
-
-### P1 - Data Model Consistency
-
-| Fix | Why it matters | Suggested implementation |
+| Flaw | Why it matters | Required change |
 | --- | --- | --- |
-| Normalize timestamp types. | Some code expects Firestore Timestamp while signup stores ISO strings. | Use `serverTimestamp()` for trusted Firestore timestamps. |
-| Centralize incident statuses. | Status values are spread across files. | Document or export one list: `pending`, `under_review`, `verified`, `responding`, `done`, `rejected`, `spam`, `error`. |
-| Normalize notification read state. | Code uses both `read` and `readAt`. | Prefer `readAt` as source of truth. |
-| Add real seed data docs. | Helps panel demo reliability. | Create Valenzuela seed instructions and identify seed records as demo data. |
-
-Relevant files:
-
-- `DATABASE_SCHEMA.md`
-- `firestore.indexes.json`
-- `mobile/utils/auth.js`
-- `web-admin/js/notifications-list.js`
-- `functions/generateTestData.js`
-
-### P1 - Project Configuration
-
-| Fix | Why it matters | Suggested implementation |
-| --- | --- | --- |
-| Add root scripts. | Makes checks easy before defense. | Add `build:web`, `lint:functions`, `test:functions`, `check:defense`. |
-| Choose canonical app config. | Root `app.json` and `mobile/app.json` differ. | Use `mobile/app.json` as canonical if mobile is the app. |
-| Clean duplicate Android folders. | Root `android/` and `mobile/android/` differ. | Keep one active Android project and document it. |
-| Centralize Firebase config. | Same config is duplicated. | Share config or document why web and mobile differ. |
-
-Relevant files:
-
-- `package.json`
-- `app.json`
-- `mobile/app.json`
-- `android/`
-- `mobile/android/`
-- `shared/firebase.js`
-- `mobile/utils/firebase.js`
-
-## What Needs To Be Done Right Now
-
-1. Remove browser Gemini-key storage/direct Gemini calls and wire analytics to `generateAdminAISummary`.
-2. Add admin role gate in `web-admin/js/admin-auth.js` and `web-admin/js/login.js`.
-3. Fix Firestore role escalation and PII read rules in `firestore.rules`.
-4. Fix Functions lint so deployment is not blocked.
-5. Configure/test `GEMINI_API_KEY` through Firebase Functions secrets, then test AI no-data and hotspot flows.
-6. Add minimum tests for rules, incident creation, admin auth, and AI summary generation.
-7. Align notification preferences, FCM token handling, and settings persistence.
-8. Remove debug logs, dead screens, and remaining mock notification fallback.
-9. Clean duplicate app/Android configuration and add root scripts.
+| Incident statuses are spread across many files. | Inconsistent status handling causes UI/backend bugs. | Centralize allowed statuses and response statuses. |
+| Notification read state uses both `read` and `readAt`. | Queries and UI can disagree. | Use `readAt` as source of truth; keep `read` as derived/legacy only. |
+| Root `app.json` and `mobile/app.json` describe different apps. | Defense/deployment instructions can be confusing. | Keep one canonical Expo config or document which file is active. |
+| Root `android/` and `mobile/android/` both exist. | Build ownership is unclear. | Keep/document the active Android project. |
 
 ## Defense Day Go/No-Go Checklist
 
 | Checklist item | Required state |
 | --- | --- |
-| Admin login | Normal users cannot open dashboard, incidents, users, notifications, or settings pages. |
-| User signup/login | User can create account, log in, log out, and recover password. |
-| Normal report | User can submit a real report with location and see it in status screen. |
-| SOS report | SOS requires confirmed location and appears as high-priority for admin. |
-| Admin moderation | Admin can verify, reject, mark done, and respond with proper audit trail. |
-| User response alert | User receives "help is on the way" notification after admin response. |
-| Map | Shows real seeded/live data, or clearly labeled demo data. |
-| AI recommendations | AI runs through server-side Firebase Functions secrets, shows as admin-reviewed draft, and never asks for an API key in the browser. |
-| Firestore rules | Users cannot read all profiles, change roles, or edit other users' data. |
-| Functions deploy | `npm --prefix functions run lint` passes. |
-| Tests | At least core security and incident workflow tests pass. |
-| Demo explanation | Team can clearly say which data is live, seeded, or simulated. |
+| Admin login | Normal users cannot open dashboard, incidents, users, notifications, settings, analytics, or operation pages. |
+| Admin roles | Only true admins can change roles; police can only do operational police work. |
+| User privacy | Users cannot read all profiles, all notifications, or detailed private incident data. |
+| Report flow | User can submit a report with location; invalid/spam submissions are rate-limited server-side or clearly documented as prototype limitation. |
+| SOS flow | SOS requires confirmed location, appears in FIFO admin modal, and admin chooses responder precinct manually. |
+| Response flow | Admin-selected precinct response updates user side in real time. |
+| Done flow | Mark Done changes user status from responding to completed in real time. |
+| Map | User and admin maps show aligned Valenzuela boundary and precinct data. |
+| AI | AI recommendations run server-side through secrets, not browser API keys. |
+| Functions | `npm --prefix functions run lint` passes before deploy. |
+| Tests | At least rules/auth/report/AI smoke tests pass. |
+| Dependencies | High/critical audit items are fixed or documented with a clear mitigation. |
+| Demo explanation | Team can state which data is live, seeded, or simulated. |
