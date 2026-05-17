@@ -58,7 +58,7 @@ Use these existing files as the base:
 
 ## Recommended First Version
 
-Build version 1 as an admin-only "Generate AI Summary" button on the dashboard.
+Build version 1 as an admin-only "Generate AI Summary" button on the admin analytics page.
 
 Version 1 should:
 
@@ -71,6 +71,51 @@ Version 1 should:
 7. Store each generated result for audit and cost control.
 
 Avoid automatic public alerts in version 1. Let admins review and send advisories manually.
+
+## Selected Implementation for This Repo
+
+The selected provider is Google Gemini through the REST `generateContent` endpoint.
+
+For the defense/local demo version, the admin analytics page uses **per-hotspot Gemini tailoring**:
+
+```text
+Top Hotspot card
+  -> rule-based evidence/actions are calculated from analytics
+  -> admin clicks "Generate Action Plan"
+  -> Gemini receives only that hotspot's aggregated counts and rule actions
+  -> Gemini returns a summarized, tailored prevention/action plan for that street or area
+```
+
+This means a hotspot like `Orosco` with 14 reports will get its own tailored AI plan, instead of a generic whole-city summary.
+
+Implemented files:
+
+| File | Purpose |
+| --- | --- |
+| `functions/src/generateAdminAISummary.js` | Callable Cloud Function that aggregates incident analytics, calls Gemini, validates JSON, and stores the draft summary. |
+| `functions/index.js` | Exports `generateAdminAISummary`. |
+| `web-admin/analytics.html` | Labels the recommendation section as rule-based actions plus per-hotspot Gemini summary. |
+| `web-admin/js/analytics.js` | Adds `Generate Action Plan` on each hotspot card and calls Gemini locally for the selected hotspot. |
+| `web-admin/css/analytics.css` | Styles the AI tailoring controls and per-hotspot AI plan. |
+| `firestore.rules` | Allows admin/staff reads for stored AI summaries while keeping writes server-side. |
+
+For local defense demo only, the browser prompts for the Gemini API key once and keeps it in `localStorage`. This avoids needing Firebase Blaze while still showing a real Gemini response.
+
+For production or deployed use, do not call Gemini directly from the browser. Set the Gemini key as a Firebase Functions secret:
+
+```bash
+firebase functions:secrets:set GEMINI_API_KEY
+```
+
+Then deploy the functions and hosting/admin app as usual:
+
+```bash
+firebase deploy --only functions
+npm --prefix web-admin run build
+firebase deploy --only hosting
+```
+
+Important: never place the Gemini API key in `web-admin`, `.env` files committed to Git, or any client-side JavaScript.
 
 ## AI Provider Choices and Affordable Options
 
@@ -323,11 +368,12 @@ Data:
 
 For a capstone/demo budget, choose one:
 
-- Cheapest: Gemini `gemini-2.5-flash-lite`
-- Balanced and easy structured output: OpenAI affordable mini model
+- Selected for this repo: Gemini `gemini-flash-latest` through REST
+- Cheapest production option: Gemini `gemini-2.5-flash-lite`
+- Alternative with strong structured output: OpenAI affordable mini model
 - Very cheap experimental: Groq `llama-3.1-8b-instant`
 
-The rest of this guide uses OpenAI-style pseudocode because the JavaScript SDK and structured output flow are straightforward. You can swap the provider behind a small adapter.
+The current local implementation uses Gemini REST directly. Some lower examples remain provider-agnostic or OpenAI-style pseudocode so you can compare alternatives later.
 
 ### Step 2: Add the server secret
 
@@ -336,20 +382,20 @@ Never put the AI API key in `web-admin`.
 Use Firebase Functions secrets:
 
 ```bash
-firebase functions:secrets:set OPENAI_API_KEY
+firebase functions:secrets:set GEMINI_API_KEY
 ```
 
 For other providers:
 
 ```bash
-firebase functions:secrets:set GEMINI_API_KEY
+firebase functions:secrets:set OPENAI_API_KEY
 firebase functions:secrets:set GROQ_API_KEY
 firebase functions:secrets:set ANTHROPIC_API_KEY
 ```
 
 ### Step 3: Install the provider SDK in Cloud Functions
 
-From `functions/`, install only the SDK you choose.
+From `functions/`, install only the SDK you choose. The current local Gemini demo uses `fetch`, so it does not need a new SDK.
 
 OpenAI example:
 
@@ -802,6 +848,72 @@ Bad recommendation categories:
 - Do not tell civilians to confront suspicious people.
 - Do not claim that a street is definitely dangerous based only on reports.
 - Do not automatically dispatch emergency services without human confirmation.
+
+## Expanded Rule-Based Knowledge Layer
+
+The current local implementation uses a hybrid approach:
+
+```text
+analytics data
+  -> deterministic hotspot scoring
+  -> crime-type rule base
+  -> situational rule base
+  -> Gemini structured JSON summary
+  -> admin review
+```
+
+The AI does not invent the base recommendation from nothing. It receives a hidden operational reference that includes:
+
+- Crime-type playbooks for robbery, theft, assault, domestic violence, drug-related activity, disturbance, vandalism, traffic accidents, illegal weapons, and suspicious activity.
+- Situational rules for high-severity clusters, SOS reports, repeat hotspots, peak-hour patterns, mixed crime patterns, and street-level safety audits.
+- Safety boundaries that prevent public shaming, vigilante action, direct civilian confrontation, or exposure of private people.
+- Accuracy guidance telling the model to rely on the aggregated analytics and avoid facts not present in the payload.
+
+Examples of added rule approaches:
+
+- Robbery or holdup: escape-route review, lighting, CCTV, visible patrols, nearby store or transport-point coordination.
+- Theft or snatching: commuter-flow review, anti-snatching reminders, foot or bike patrols, business quick-reporting coordination.
+- Assault: responder-route checks, CCTV near gathering points, barangay conflict mediation where appropriate.
+- Domestic violence: VAW desk or social welfare coordination, confidential follow-up, safe reporting pathways, no public hotspot warning.
+- Drug-related reports: authorized police review, observation logs, official reporting channels, no civilian confrontation.
+- Traffic accidents: road safety audit, signage and crossing repair, lighting, speed-control review, traffic visibility during peak accident hours.
+- Illegal weapons: authorized review, responder safety note, evidence preservation, controlled information sharing.
+
+For the admin card, only the top action, reason, evidence summary, and generated AI plan are shown. The larger rule base stays as AI context so the UI remains clean.
+
+## How to Make the AI Smarter and More Accurate
+
+Use better data before using a bigger model. The AI can only be as accurate as the hotspot evidence passed to it.
+
+1. Normalize locations.
+   Save `street`, `barangay`, `city`, and `gridKey` for every report. This lets the AI recommend for a real street or heatmap cell instead of a vague coordinate.
+
+2. Improve incident timestamps.
+   Save normalized `hourOfDay`, `dayOfWeek`, and timezone-adjusted report time. This makes peak-hour recommendations more reliable.
+
+3. Deduplicate repeated reports.
+   If five users report the same event, tag it as one incident with multiple confirmations. This prevents the AI from overestimating risk.
+
+4. Track verification status.
+   Pass counts for pending, verified, responding, and done reports. Give verified reports more weight than unverified reports.
+
+5. Add outcome feedback.
+   Let admins mark an AI suggestion as `accepted`, `edited`, `dismissed`, or `completed`. Later prompts can include which actions worked for similar hotspots.
+
+6. Add local SOP context.
+   Store approved barangay, police, or city response guidelines and retrieve the relevant sections for the hotspot. This is called retrieval augmented generation, or RAG.
+
+7. Keep the rule base updated.
+   Add new rules after each defense test or real admin review. The model becomes more useful when the rule base reflects local operations.
+
+8. Lower randomness for safety.
+   Keep Gemini `temperature` low, such as `0.1` to `0.2`, so outputs are consistent and easier to defend.
+
+9. Require structured JSON.
+   Continue using a response schema so the UI receives predictable fields like `riskSummary`, `tailoredSolution`, and `priorityActions`.
+
+10. Evaluate with sample hotspots.
+    Test known cases like `Orosco` with 14 reports. Check whether the AI mentions the correct crime types, severity, SOS count, peak hour, and rule-based actions.
 
 ## Security and Privacy Requirements
 

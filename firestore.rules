@@ -296,6 +296,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // === AI SUGGESTION SUMMARIES COLLECTION ===
+    // Gemini-generated admin drafts. Created by Cloud Functions with Admin SDK.
+    match /ai_suggestion_summaries/{summaryId} {
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow create, update, delete: if false;
+    }
+
     // === NOTIFICATIONS COLLECTION ===
     match /notifications/{notificationId} {
       // Dashboard notifications are intentionally readable without role checks.

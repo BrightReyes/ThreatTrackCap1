@@ -13,6 +13,48 @@ const RESPONDED_STATUSES = new Set(["responding", "done"]);
 const SOLUTION_LIMIT = 5;
 const MIN_RECOMMENDATION_REPORTS = 3;
 const SOLUTION_PRIORITIES = ["all", "high", "medium", "low"];
+const GEMINI_DEMO_KEY_STORAGE = "tt_gemini_demo_key";
+const GEMINI_DEMO_MODEL = "gemini-flash-latest";
+const HOTSPOT_AI_SCHEMA = {
+    type: "object",
+    required: [
+        "hotspotTitle",
+        "riskLevel",
+        "riskSummary",
+        "crimePattern",
+        "tailoredSolution",
+        "priorityActions",
+        "publicAdvisoryDraft",
+        "adminNotes",
+        "confidenceNote",
+    ],
+    properties: {
+        hotspotTitle: { type: "string" },
+        riskLevel: {
+            type: "string",
+            enum: ["low", "medium", "high", "critical"],
+        },
+        riskSummary: { type: "string" },
+        crimePattern: { type: "string" },
+        tailoredSolution: { type: "string" },
+        priorityActions: {
+            type: "array",
+            items: {
+                type: "object",
+                required: ["action", "why", "implementation", "timeframe"],
+                properties: {
+                    action: { type: "string" },
+                    why: { type: "string" },
+                    implementation: { type: "string" },
+                    timeframe: { type: "string" },
+                },
+            },
+        },
+        publicAdvisoryDraft: { type: "string" },
+        adminNotes: { type: "string" },
+        confidenceNote: { type: "string" },
+    },
+};
 
 const TYPE_SOLUTION_RULES = {
     robbery_holdup: [
@@ -34,6 +76,18 @@ const TYPE_SOLUTION_RULES = {
             reason: "Patrol timing should match when reports are most concentrated.",
             timeframe: "Start immediately",
         },
+        {
+            actionId: "escape_route_review",
+            title: "Map escape routes and blind spots",
+            reason: "Robbery patterns often depend on quick exits, dark corners, and uncovered side streets.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "business_transport_coordination",
+            title: "Coordinate with nearby stores and transport points",
+            reason: "Nearby establishments and terminals can help verify repeat routes and report incidents faster.",
+            timeframe: "Start within 7 days",
+        },
     ],
     theft_snatching: [
         {
@@ -53,6 +107,18 @@ const TYPE_SOLUTION_RULES = {
             title: "Assign foot or bike patrols during peak hours",
             reason: "Visible patrols help deter repeat theft patterns.",
             timeframe: "Start immediately",
+        },
+        {
+            actionId: "commuter_flow_review",
+            title: "Review pedestrian and commuter flow",
+            reason: "Snatching risk increases around crowded waiting, loading, and crossing points.",
+            timeframe: "Plan within 7 days",
+        },
+        {
+            actionId: "business_coordination",
+            title: "Coordinate quick reporting with nearby businesses",
+            reason: "Store owners and guards can help report repeat theft attempts while evidence is still fresh.",
+            timeframe: "Start within 7 days",
         },
     ],
     physical_assault_injury: [
@@ -74,6 +140,18 @@ const TYPE_SOLUTION_RULES = {
             reason: "Better visibility reduces hidden spaces where assaults can happen.",
             timeframe: "Plan within 14 days",
         },
+        {
+            actionId: "conflict_mediation_referral",
+            title: "Coordinate barangay conflict mediation where appropriate",
+            reason: "Repeat assault reports may involve recurring disputes that need trained local mediation.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "responder_route_check",
+            title: "Check fastest responder route to the area",
+            reason: "Violence-related hotspots need clear routing for faster response during escalation.",
+            timeframe: "Start immediately",
+        },
     ],
     domestic_violence: [
         {
@@ -86,6 +164,18 @@ const TYPE_SOLUTION_RULES = {
             actionId: "confidential_followup",
             title: "Prioritize confidential safety checks",
             reason: "Repeat reports may indicate ongoing risk inside a household or building.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "vaw_desk_coordination",
+            title: "Coordinate with the VAW desk or social welfare office",
+            reason: "Domestic violence patterns need trained case handling instead of public hotspot response.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "safe_reporting_pathway",
+            title: "Keep a safe confidential reporting pathway",
+            reason: "Victims need a private way to ask for help without alerting the aggressor.",
             timeframe: "Start immediately",
         },
     ],
@@ -108,6 +198,18 @@ const TYPE_SOLUTION_RULES = {
             reason: "Surveillance helps verify repeat activity around alleys, vacant lots, or low-visibility spaces.",
             timeframe: "Plan within 14 days",
         },
+        {
+            actionId: "observation_log",
+            title: "Create an authorized observation log",
+            reason: "Drug-related reports need verified time, place, and pattern notes before any action.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "community_reporting_channel",
+            title: "Promote official community reporting channels",
+            reason: "Residents should report through safe official channels, not confront suspected activity.",
+            timeframe: "Start within 7 days",
+        },
     ],
     public_disturbance: [
         {
@@ -121,6 +223,18 @@ const TYPE_SOLUTION_RULES = {
             title: "Schedule patrols during the disturbance window",
             reason: "Patrols should appear when repeated disturbance reports happen.",
             timeframe: "Start immediately",
+        },
+        {
+            actionId: "establishment_coordination",
+            title: "Coordinate with nearby establishments or venues",
+            reason: "Disturbance clusters often connect to gathering points that can be managed through local coordination.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "warning_notice_first",
+            title: "Use warning notices before escalation when appropriate",
+            reason: "Lower-severity disturbance patterns may be reduced through visible reminders and ordinance notices.",
+            timeframe: "Plan within 7 days",
         },
     ],
     vandalism_property_damage: [
@@ -142,6 +256,18 @@ const TYPE_SOLUTION_RULES = {
             reason: "Fast cleanup can reduce repeat targeting of the same property.",
             timeframe: "Plan within 7 days",
         },
+        {
+            actionId: "property_owner_coordination",
+            title: "Coordinate with affected property owners",
+            reason: "Owners can adjust access control, lighting, and camera angles around repeatedly damaged areas.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "night_check_schedule",
+            title: "Schedule checks during likely vandalism hours",
+            reason: "Repeat property damage often happens when streets or facilities are less supervised.",
+            timeframe: "Start within 7 days",
+        },
     ],
     traffic_accident: [
         {
@@ -161,6 +287,18 @@ const TYPE_SOLUTION_RULES = {
             title: "Improve lighting at the road segment",
             reason: "Lighting helps drivers and pedestrians see hazards earlier.",
             timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "speed_control_review",
+            title: "Review speed-control measures",
+            reason: "Repeated crashes may require humps, reflectors, lane guidance, or traffic calming review.",
+            timeframe: "Plan within 14 days",
+        },
+        {
+            actionId: "traffic_visibility_assignment",
+            title: "Assign traffic visibility during peak accident hours",
+            reason: "Responder or traffic presence should match the time pattern of repeated road incidents.",
+            timeframe: "Start within 7 days",
         },
     ],
     illegal_weapons: [
@@ -182,6 +320,18 @@ const TYPE_SOLUTION_RULES = {
             reason: "Camera evidence can support review without exposing residents.",
             timeframe: "Plan within 7 days",
         },
+        {
+            actionId: "responder_safety_bulletin",
+            title: "Issue an internal responder safety note",
+            reason: "Weapon-related hotspots require cautious responder coordination and controlled information sharing.",
+            timeframe: "Start immediately",
+        },
+        {
+            actionId: "evidence_preservation",
+            title: "Preserve evidence channels for review",
+            reason: "Reports, CCTV clips, and witness notes should be handled carefully for authorized review.",
+            timeframe: "Start immediately",
+        },
     ],
     suspicious_activity: [
         {
@@ -202,11 +352,98 @@ const TYPE_SOLUTION_RULES = {
             reason: "Low-visibility areas often attract suspicious behavior.",
             timeframe: "Plan within 14 days",
         },
+        {
+            actionId: "watch_team_monitoring",
+            title: "Ask barangay watch teams to monitor repeat times",
+            reason: "Repeated suspicious reports need pattern confirmation before stronger escalation.",
+            timeframe: "Start within 7 days",
+        },
+        {
+            actionId: "convert_pattern_if_confirmed",
+            title: "Reclassify if later reports confirm a specific crime pattern",
+            reason: "The recommendation should become more specific once evidence confirms the activity type.",
+            timeframe: "Review weekly",
+        },
+    ],
+};
+
+const SITUATIONAL_SOLUTION_RULES = {
+    highSeverityCluster: {
+        actionId: "priority_case_review",
+        title: "Open a priority case review for the hotspot",
+        reason: "Several high-severity reports mean the area needs immediate admin and responder review.",
+        timeframe: "Start immediately",
+    },
+    sosCluster: {
+        actionId: "sos_triage_review",
+        title: "Triage SOS reports before routine actions",
+        reason: "SOS reports should be checked first because they may represent urgent or active safety risks.",
+        timeframe: "Start immediately",
+    },
+    repeatHotspot: {
+        actionId: "hotspot_case_file",
+        title: "Create a hotspot case file",
+        reason: "Repeated reports in the same street need a single case view for patterns, follow-ups, and outcomes.",
+        timeframe: "Start within 7 days",
+    },
+    peakWindow: {
+        actionId: "timeboxed_patrol_plan",
+        title: "Create a time-boxed patrol and review plan",
+        reason: "The response should focus on the hours when reports are most concentrated.",
+        timeframe: "Start immediately",
+    },
+    noPeakWindow: {
+        actionId: "collect_time_details",
+        title: "Improve report time details before setting a fixed schedule",
+        reason: "The current data does not show a reliable peak hour yet.",
+        timeframe: "Review weekly",
+    },
+    mixedCrimePattern: {
+        actionId: "multi_agency_action_plan",
+        title: "Combine police, barangay, and community partner actions",
+        reason: "Mixed crime patterns need coordinated actions instead of a single generic recommendation.",
+        timeframe: "Start within 7 days",
+    },
+    preventionAudit: {
+        actionId: "cpted_safety_audit",
+        title: "Run a street-level safety audit",
+        reason: "Check lighting, blind spots, CCTV gaps, pedestrian paths, escape routes, and nearby gathering points.",
+        timeframe: "Plan within 14 days",
+    },
+};
+
+const AI_OPERATIONAL_REFERENCE = {
+    decisionRules: [
+        "Match recommendations to the hotspot's dominant crime type, severity, SOS count, and peak hours.",
+        "High severity and SOS reports should be treated as urgent triage signals, not routine monitoring.",
+        "Use peak hours for patrol timing only when the data shows a clear time pattern.",
+        "If the hotspot has many reports but no clear peak time, recommend verification and rotating checks instead of guessing.",
+        "For repeat street-level hotspots, recommend a case file so actions and outcomes can be tracked.",
+        "When two crime types dominate the same street, combine the shared controls and avoid duplicate actions.",
+        "For robbery and theft, emphasize lighting, CCTV coverage, escape-route review, and visible patrols.",
+        "For domestic violence, avoid public warnings and focus on confidential support through trained responders.",
+        "For traffic accidents, prioritize road design, signage, crossings, visibility, and traffic control.",
+        "For suspicious activity, verify patterns before escalating to enforcement-heavy actions.",
+    ],
+    safetyBoundaries: [
+        "Do not identify reporters, victims, suspects, households, or private descriptions.",
+        "Do not tell civilians to confront people or conduct enforcement.",
+        "Do not claim the street is certainly dangerous; use cautious reported-data wording.",
+        "Treat the output as an admin-reviewed draft, not an automatic dispatch order.",
+        "Suggest only actions that admins, police, barangay teams, or trained partners can review.",
+    ],
+    accuracyGuidance: [
+        "Prefer specific actions tied to evidence over broad statements.",
+        "Mention uncertainty when report count is low, severity is mixed, or peak hours are unclear.",
+        "Use the evidence summary and rule actions as the primary source of truth.",
+        "Separate immediate actions, planning actions, and monitoring actions.",
+        "Avoid adding facts not present in the aggregated analytics payload.",
     ],
 };
 
 let incidentRows = [];
 let solutionPriorityFilter = "all";
+let latestSolutionById = new Map();
 
 function setText(id, value) {
     const el = document.getElementById(id);
@@ -700,7 +937,13 @@ function enrichHotspotStats(stats) {
         dominantTypes,
         peakHours,
         peakLabel,
-        actions: getSolutionActions(dominantTypes, { ...stats, peakLabel }),
+        actions: getSolutionActions(dominantTypes, {
+            ...stats,
+            weightedScore,
+            priority,
+            peakHours,
+            peakLabel,
+        }),
     };
 }
 
@@ -766,14 +1009,11 @@ function getSolutionActions(types, stats) {
     types.forEach((type) => {
         const rules = TYPE_SOLUTION_RULES[type] || [];
         rules.forEach((rule) => {
-            if (actions.has(rule.actionId)) return;
-            const reason =
-                rule.actionId === "increase_patrol" &&
-                stats.peakLabel !== "No clear peak time yet"
-                    ? `${rule.reason} ${stats.peakLabel}.`
-                    : rule.reason;
-            actions.set(rule.actionId, { ...rule, reason });
+            addRuleAction(actions, rule, stats, "crime-type");
         });
+    });
+    getSituationalActions(types, stats).forEach((rule) => {
+        addRuleAction(actions, rule, stats, "situational");
     });
 
     if (!actions.size) {
@@ -782,10 +1022,81 @@ function getSolutionActions(types, stats) {
             title: "Monitor the area and verify new reports",
             reason: "The hotspot does not yet show a specific crime pattern.",
             timeframe: "Review weekly",
+            source: "fallback",
         });
     }
 
     return [...actions.values()].slice(0, 6);
+}
+
+function addRuleAction(actions, rule, stats, source) {
+    if (!rule?.actionId || actions.has(rule.actionId)) return;
+    actions.set(rule.actionId, {
+        ...rule,
+        reason: buildRuleReason(rule, stats),
+        source,
+    });
+}
+
+function buildRuleReason(rule, stats) {
+    const reason = rule.reason || "";
+    const peakAwareActions = new Set([
+        "increase_patrol",
+        "timeboxed_patrol_plan",
+        "traffic_visibility_assignment",
+        "night_check_schedule",
+    ]);
+    if (
+        peakAwareActions.has(rule.actionId) &&
+        stats.peakLabel &&
+        stats.peakLabel !== "No clear peak time yet"
+    ) {
+        return `${reason} ${stats.peakLabel}.`;
+    }
+    return reason;
+}
+
+function getSituationalActions(types, stats) {
+    const high = stats.severityBreakdown?.high || 0;
+    const sos = stats.sosReports || 0;
+    const total = stats.totalReports || 0;
+    const hasPeak =
+        stats.peakLabel && stats.peakLabel !== "No clear peak time yet";
+    const actions = [];
+
+    if (high >= 3 || stats.priority === "high") {
+        actions.push(SITUATIONAL_SOLUTION_RULES.highSeverityCluster);
+    }
+    if (sos > 0) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.sosCluster);
+    }
+    if (total >= 8) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.repeatHotspot);
+    }
+    if (hasPeak) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.peakWindow);
+    } else if (total >= 5) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.noPeakWindow);
+    }
+    if (types.length > 1) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.mixedCrimePattern);
+    }
+    if (types.some(needsStreetSafetyAudit)) {
+        actions.push(SITUATIONAL_SOLUTION_RULES.preventionAudit);
+    }
+
+    return actions;
+}
+
+function needsStreetSafetyAudit(type) {
+    return [
+        "robbery_holdup",
+        "theft_snatching",
+        "physical_assault_injury",
+        "public_disturbance",
+        "vandalism_property_damage",
+        "suspicious_activity",
+    ].includes(type);
 }
 
 function buildSolutionRecommendations(rows) {
@@ -823,7 +1134,15 @@ function renderSolutions(rows) {
     const el = document.getElementById("analytics-solutions");
     if (!el) return;
 
-    const solutions = buildSolutionRecommendations(rows);
+    const solutions = buildSolutionRecommendations(rows).map(
+        (solution, index) => ({
+            ...solution,
+            aiId: String(index),
+        }),
+    );
+    latestSolutionById = new Map(
+        solutions.map((solution) => [solution.aiId, solution]),
+    );
     if (!solutions.length) {
         el.innerHTML =
             '<p class="analytics-empty">No hotspot has enough evidence for a recommended action in this range.</p>';
@@ -896,50 +1215,43 @@ function renderSolutionControls(solutions) {
 }
 
 function renderSolutionCard(solution) {
-    const pattern = humanize(solution.dominantTypes.join(", ") || "mixed incident");
+    const topAction = solution.actions[0] || {
+        title: "Monitor and verify this hotspot",
+        reason: "The system needs more evidence before recommending a stronger action.",
+        timeframe: "Review weekly",
+    };
     return `<article class="analytics-solution-card analytics-solution-card--${escapeAttr(solution.priority)}">
         <div class="analytics-solution-card__top">
             <div>
                 <span class="analytics-solution-card__priority">${escapeHtml(priorityLabel(solution.priority))}</span>
                 <h3>${escapeHtml(solution.area)}</h3>
-                <p>${escapeHtml(pattern)} - ${escapeHtml(priorityHint(solution.priority))}</p>
-            </div>
-            <div class="analytics-solution-score" aria-label="Weighted risk score">
-                <strong>${solution.weightedScore}</strong>
-                <span>score</span>
+                <p>${escapeHtml(priorityHint(solution.priority))}</p>
             </div>
         </div>
-        <div class="analytics-solution-action-strip">
-            <span>Top actions</span>
-            <strong>${escapeHtml(solution.actions.slice(0, 3).map((action) => action.title).join(" - "))}</strong>
+        <div class="analytics-solution-top-action">
+            <span>Top action</span>
+            <strong>${escapeHtml(topAction.title)}</strong>
+            <p>${escapeHtml(topAction.reason)}</p>
+            <em>${escapeHtml(topAction.timeframe)}</em>
         </div>
-        <ol class="analytics-solution-actions">
-            ${solution.actions.map(renderSolutionAction).join("")}
-        </ol>
-        <details class="analytics-solution-details" ${solution.priority === "high" ? "open" : ""}>
-            <summary>Evidence and reason</summary>
-            <div class="analytics-solution-details__body">
-                <p class="analytics-solution-card__evidence">${escapeHtml(solution.evidence)}</p>
-                <dl>
-                    <div><dt>Reports</dt><dd>${solution.totalReports}</dd></div>
-                    <div><dt>High</dt><dd>${solution.severityBreakdown.high}</dd></div>
-                    <div><dt>Medium</dt><dd>${solution.severityBreakdown.medium}</dd></div>
-                    <div><dt>Low</dt><dd>${solution.severityBreakdown.low}</dd></div>
-                </dl>
+        <div class="analytics-solution-evidence-summary">
+            <span>Evidence summary</span>
+            <strong>${escapeHtml(solution.evidence)}</strong>
+        </div>
+        <div class="analytics-solution-ai">
+            <div class="analytics-solution-ai__header">
+                <div>
+                    <strong>Decision Support Summary</strong>
+                    <span>Gemini converts the hotspot evidence into an admin-ready action plan.</span>
+                </div>
+                <button type="button" class="analytics-ai-generate analytics-ai-generate--small" data-ai-hotspot="${escapeAttr(solution.aiId)}">
+                    <span class="material-symbols-outlined" aria-hidden="true">psychology</span>
+                    <span>Generate Action Plan</span>
+                </button>
             </div>
-        </details>
+            <div id="analytics-ai-hotspot-${escapeAttr(solution.aiId)}" class="analytics-hotspot-ai-output" role="status"></div>
+        </div>
     </article>`;
-}
-
-function renderSolutionAction(action, index) {
-    return `<li>
-        <i>${index + 1}</i>
-        <div>
-            <strong>${escapeHtml(action.title)}</strong>
-            <span>${escapeHtml(action.reason)}</span>
-            <em>${escapeHtml(action.timeframe)}</em>
-        </div>
-    </li>`;
 }
 
 function bindSolutionControls(container) {
@@ -949,6 +1261,363 @@ function bindSolutionControls(container) {
             renderSolutions(getSelectedRangeRows());
         });
     });
+    container.querySelectorAll("[data-ai-hotspot]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            handleGenerateHotspotAi(btn.dataset.aiHotspot, btn);
+        });
+    });
+}
+
+function currentAnalyticsRange() {
+    return document.getElementById("analytics-range")?.value || "30d";
+}
+
+function rangeLabel(range) {
+    if (range === "7d") return "last 7 days";
+    if (range === "90d") return "last 90 days";
+    if (range === "all") return "all loaded data";
+    return "last 30 days";
+}
+
+function riskClass(value) {
+    const risk = String(value || "medium").toLowerCase();
+    if (["low", "medium", "high", "critical"].includes(risk)) return risk;
+    return "medium";
+}
+
+async function handleGenerateHotspotAi(aiId, button) {
+    const solution = latestSolutionById.get(String(aiId));
+    const output = document.getElementById(`analytics-ai-hotspot-${aiId}`);
+    if (!solution || !output) return;
+
+    const key = getGeminiDemoKey();
+    if (!key) {
+        output.innerHTML =
+            '<p class="analytics-ai-error">No Gemini key provided for local demo.</p>';
+        return;
+    }
+
+    setHotspotAiButtonLoading(button, true);
+    output.innerHTML = renderHotspotAiLoading(solution);
+
+    try {
+        const result = await generateHotspotAiPlan(solution, key);
+        output.innerHTML = renderHotspotAiPlan(result.summary, result.usage);
+    } catch (error) {
+        console.error("[analytics] hotspot Gemini plan", error);
+        localStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
+        output.innerHTML = `<div class="analytics-ai-error" role="alert">
+            <strong>AI tailoring failed</strong>
+            <p>${escapeHtml(error?.message || "Gemini could not tailor this hotspot plan.")}</p>
+        </div>`;
+    } finally {
+        setHotspotAiButtonLoading(button, false);
+    }
+}
+
+function setHotspotAiButtonLoading(button, isLoading) {
+    if (!button) return;
+    button.disabled = isLoading;
+    button.innerHTML = isLoading
+        ? '<span class="material-symbols-outlined" aria-hidden="true">progress_activity</span><span>Generating...</span>'
+        : '<span class="material-symbols-outlined" aria-hidden="true">psychology</span><span>Generate Action Plan</span>';
+}
+
+function getGeminiDemoKey() {
+    const cached = localStorage.getItem(GEMINI_DEMO_KEY_STORAGE);
+    if (cached) return cached;
+
+    const message = [
+        "Local demo mode: paste the Gemini API key.",
+        "",
+        "The key will be remembered in this browser for the local demo.",
+        "It is not written to the repository.",
+    ].join("\n");
+    const key = window.prompt(message);
+    const trimmed = String(key || "").trim();
+    if (!trimmed) return "";
+    localStorage.setItem(GEMINI_DEMO_KEY_STORAGE, trimmed);
+    return trimmed;
+}
+
+async function generateHotspotAiPlan(solution, key) {
+    const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_DEMO_MODEL}:generateContent`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-goog-api-key": key,
+            },
+            body: JSON.stringify({
+                contents: [
+                    {
+                        parts: [
+                            {
+                                text: buildHotspotGeminiPrompt(solution),
+                            },
+                        ],
+                    },
+                ],
+                generationConfig: {
+                    temperature: 0.15,
+                    maxOutputTokens: 4096,
+                    responseMimeType: "application/json",
+                    responseSchema: HOTSPOT_AI_SCHEMA,
+                },
+            }),
+        },
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(
+            data?.error?.message ||
+                `Gemini request failed with HTTP ${response.status}`,
+        );
+    }
+
+    const text = (data.candidates?.[0]?.content?.parts || [])
+        .map((part) => part.text || "")
+        .join("")
+        .trim();
+    if (!text) throw new Error("Gemini returned an empty response.");
+
+    return {
+        summary: parseGeminiJson(text),
+        usage: data.usageMetadata || null,
+    };
+}
+
+function parseGeminiJson(text) {
+    const cleaned = stripJsonFence(text);
+    try {
+        return JSON.parse(cleaned);
+    } catch (error) {
+        const extracted = extractJsonObject(cleaned);
+        if (extracted && extracted !== cleaned) {
+            try {
+                return JSON.parse(extracted);
+            } catch (innerError) {
+                void innerError;
+            }
+        }
+        console.warn("[analytics] invalid Gemini JSON", {
+            error,
+            preview: cleaned.slice(0, 600),
+        });
+        throw new Error(
+            "Gemini returned incomplete JSON. Please click Generate Action Plan again.",
+        );
+    }
+}
+
+function stripJsonFence(text) {
+    const raw = String(text || "").trim();
+    const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(raw);
+    return fenced ? fenced[1].trim() : raw;
+}
+
+function extractJsonObject(text) {
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+        return text.slice(start, end + 1);
+    }
+    return "";
+}
+
+function buildHotspotGeminiPrompt(solution) {
+    const payload = {
+        city: "Valenzuela City",
+        timeRange: rangeLabel(currentAnalyticsRange()),
+        hotspot: {
+            area: solution.area,
+            priority: solution.priority,
+            dominantCrimeTypes: solution.dominantTypes,
+            totalReports: solution.totalReports,
+            weightedScore: solution.weightedScore,
+            severityBreakdown: solution.severityBreakdown,
+            typeCounts: solution.typeCounts,
+            sosReports: solution.sosReports,
+            peakHours: solution.peakHours.map(hourLabel),
+            evidence: solution.evidence,
+        },
+        ruleBasedRecommendations: solution.actions.map((action) => ({
+            action: action.title,
+            reason: action.reason,
+            timeframe: action.timeframe,
+            basis: action.source || "rule",
+        })),
+        operationalReference: buildHotspotOperationalReference(solution),
+    };
+
+    return [
+        "You are the AI assistant for ThreatTrack admin analytics.",
+        "Create a tailored prevention and response plan for ONE hotspot only.",
+        "Do not summarize the whole city or other hotspots.",
+        "Use the analytics evidence and the rule-based recommendations as your basis.",
+        "Use the rule-based actions as the starting checklist, then combine them into a practical operational plan.",
+        "Use the operationalReference as the knowledge base for choosing safer and more accurate actions.",
+        "Explain the practical approach without exposing internal rule IDs or sounding like raw rule output.",
+        "For high-priority hotspots, return 4 to 5 concrete priorityActions when the evidence supports it.",
+        "Keep each JSON string concise to avoid truncated output.",
+        "Make the plan specific to the street or area label in the payload.",
+        "Use cautious wording such as 'reported data suggests'.",
+        "Do not identify private people, reporters, victims, or suspects.",
+        "Do not recommend vigilante action, public shaming, or panic messaging.",
+        "Focus on actions an admin, police team, barangay, or community partners can review.",
+        "Return only JSON matching the schema.",
+        "",
+        JSON.stringify(payload),
+    ].join("\n");
+}
+
+function buildHotspotOperationalReference(solution) {
+    const dominantTypes = Array.isArray(solution.dominantTypes)
+        ? solution.dominantTypes
+        : [];
+    const situationalGuidance = getSituationalActions(dominantTypes, solution).map(
+        (rule) => ({
+            approach: rule.title,
+            reason: buildRuleReason(rule, solution),
+            timeframe: rule.timeframe,
+        }),
+    );
+    const typePlaybook = dominantTypes.map((type) => ({
+        crimeType: humanize(type),
+        approaches: (TYPE_SOLUTION_RULES[type] || []).map((rule) => ({
+            action: rule.title,
+            reason: buildRuleReason(rule, solution),
+            timeframe: rule.timeframe,
+        })),
+    }));
+
+    return {
+        decisionRules: AI_OPERATIONAL_REFERENCE.decisionRules,
+        safetyBoundaries: AI_OPERATIONAL_REFERENCE.safetyBoundaries,
+        accuracyGuidance: AI_OPERATIONAL_REFERENCE.accuracyGuidance,
+        situationalGuidance,
+        typePlaybook,
+        dataReading: buildHotspotDataReading(solution),
+    };
+}
+
+function buildHotspotDataReading(solution) {
+    const high = solution.severityBreakdown?.high || 0;
+    const medium = solution.severityBreakdown?.medium || 0;
+    const low = solution.severityBreakdown?.low || 0;
+    const peak =
+        solution.peakLabel && solution.peakLabel !== "No clear peak time yet"
+            ? solution.peakLabel
+            : "No reliable peak hour yet";
+    const dominant = (solution.dominantTypes || []).map(humanize).join(", ");
+    const notes = [
+        `${solution.totalReports || 0} reports in this hotspot during the selected range.`,
+        `Severity mix: ${high} high, ${medium} medium, ${low} low.`,
+        `${solution.sosReports || 0} SOS reports.`,
+        `${peak}.`,
+    ];
+
+    if (dominant) {
+        notes.push(`Dominant reported pattern: ${dominant}.`);
+    }
+    if ((solution.totalReports || 0) >= 8) {
+        notes.push("Repeat hotspot: recommend tracking actions and outcomes in one case file.");
+    }
+    if (high >= 3 || (solution.sosReports || 0) > 0) {
+        notes.push("Urgency signal: prioritize triage before routine prevention work.");
+    }
+    if (!solution.peakHours?.length && (solution.totalReports || 0) >= 5) {
+        notes.push("Timing uncertainty: avoid claiming an exact high-risk hour until data improves.");
+    }
+
+    return notes;
+}
+
+function renderHotspotAiPlan(summary, usage) {
+    const risk = riskClass(summary?.riskLevel);
+    const actions = Array.isArray(summary?.priorityActions)
+        ? summary.priorityActions
+        : [];
+    const tokenText = usage?.totalTokenCount
+        ? `${usage.totalTokenCount} tokens`
+        : "local Gemini demo";
+
+    return `<div class="analytics-hotspot-ai-plan analytics-hotspot-ai-plan--${escapeAttr(risk)}">
+        <div class="analytics-hotspot-ai-plan__top">
+            <div>
+                <span>Generated decision support</span>
+                <h4>${escapeHtml(summary?.hotspotTitle || "Hotspot action plan")}</h4>
+            </div>
+            <strong>${escapeHtml(risk)}</strong>
+        </div>
+        <div class="analytics-hotspot-ai-overview">
+            <div>
+                <span>Risk Summary</span>
+                <p>${escapeHtml(summary?.riskSummary || "")}</p>
+            </div>
+            <div>
+                <span>Observed Pattern</span>
+                <p>${escapeHtml(summary?.crimePattern || "")}</p>
+            </div>
+        </div>
+        <div class="analytics-hotspot-ai-solution">
+            <span>Recommended Strategy</span>
+            <p>${escapeHtml(summary?.tailoredSolution || "")}</p>
+        </div>
+        ${
+            actions.length
+                ? `<div class="analytics-hotspot-ai-action-list">
+                    <div class="analytics-hotspot-ai-action-list__header">
+                        <span>Priority Actions</span>
+                        <strong>${actions.length}</strong>
+                    </div>
+                    <ol class="analytics-hotspot-ai-actions">${actions.map(renderHotspotAiAction).join("")}</ol>
+                </div>`
+                : ""
+        }
+        <div class="analytics-ai-advisory">
+            <span>Public advisory draft</span>
+            <p>${escapeHtml(summary?.publicAdvisoryDraft || "No public advisory drafted.")}</p>
+        </div>
+        <div class="analytics-hotspot-ai-plan__notes">
+            <p><strong>Admin notes:</strong> ${escapeHtml(summary?.adminNotes || "")}</p>
+            <p><strong>Confidence:</strong> ${escapeHtml(summary?.confidenceNote || "")}</p>
+            <em>${escapeHtml(tokenText)}</em>
+        </div>
+    </div>`;
+}
+
+function renderHotspotAiAction(action, index) {
+    return `<li>
+        <i>${index + 1}</i>
+        <div>
+            <strong>${escapeHtml(action?.action || "Review hotspot")}</strong>
+            <span>${escapeHtml(action?.why || "")}</span>
+            <p>${escapeHtml(action?.implementation || "")}</p>
+            <em>${escapeHtml(action?.timeframe || "")}</em>
+        </div>
+    </li>`;
+}
+
+function renderHotspotAiLoading(solution) {
+    return `<div class="analytics-hotspot-ai-loading" role="status" aria-live="polite">
+        <div class="analytics-hotspot-ai-loading__visual" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="analytics-hotspot-ai-loading__content">
+            <strong>Generating action plan for ${escapeHtml(solution.area)}</strong>
+            <p>Gemini is reviewing the hotspot evidence, crime mix, severity, peak hours, and rule-based actions.</p>
+            <ol>
+                <li>Reading hotspot analytics</li>
+                <li>Matching prevention priorities</li>
+                <li>Preparing admin-ready recommendations</li>
+            </ol>
+        </div>
+    </div>`;
 }
 
 function renderAnalytics() {
@@ -1051,9 +1720,9 @@ async function loadAnalytics() {
     }
 }
 
-document
-    .getElementById("analytics-range")
-    ?.addEventListener("change", renderAnalytics);
+document.getElementById("analytics-range")?.addEventListener("change", () => {
+    renderAnalytics();
+});
 
 initAdminPage({
     pageId: "page-analytics",

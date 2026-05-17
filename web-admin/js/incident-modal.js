@@ -11,6 +11,7 @@ import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import {
     canRespondToIncident,
     formatDistanceKm,
+    getResponderOptionsForIncident,
     getIncidentTypeLabel,
     hasResponderAssigned,
     respondToIncident,
@@ -146,11 +147,14 @@ function buildResponsePanel(d) {
     const response = d.response || {};
     const responder = d.responder || response.responder || {};
     const distanceText = formatDistanceKm(response.distanceKm);
-    const etaText = response.etaMinutes ? `${response.etaMinutes} min ETA` : "ETA unavailable";
+    const etaText = formatEtaMinutes(
+        response.etaMinutes,
+        response.trafficLevel || responder.trafficLevel,
+    );
 
     return `<section class="incident-response-card">
     <p class="incident-response-card__eyebrow">Responder update sent</p>
-    <h3>${escapeHtml(responder.precinctName || "Malinta Precinct")}</h3>
+    <h3>${escapeHtml(getPrecinctDisplayName(responder) || "Assigned responder")}</h3>
     <p>${escapeHtml(response.message || "Help is on the way to the reporter.")}</p>
     <div class="incident-response-card__meta">
       <span>${escapeHtml(distanceText)}</span>
@@ -160,7 +164,161 @@ function buildResponsePanel(d) {
   </section>`;
 }
 
-function renderIncidentDetail(docId, d) {
+function getPrecinctDisplayName(option = {}) {
+    return option.precinctName || option.name || option.shortName || "";
+}
+
+function formatEtaMinutes(etaMinutes, trafficLevel = null) {
+    const n = Number(etaMinutes);
+    if (!Number.isFinite(n)) return "ETA unavailable";
+    const trafficText = trafficLevel ? `, ${trafficLevel}` : "";
+    return `${Math.round(n)} min ETA${trafficText}`;
+}
+
+function buildResponderOptionsPanel(options = []) {
+    const cards = options.length
+        ? options
+              .map(
+                  (option, index) => `<button type="button" class="incident-responder-option" data-responder-id="${escapeAttr(option.precinctId)}">
+        <span class="incident-responder-option__rank">${index === 0 ? "Nearest" : `Option ${index + 1}`}</span>
+        <strong>${escapeHtml(getPrecinctDisplayName(option))}</strong>
+        <span>${escapeHtml(option.address || "Valenzuela City")}</span>
+        <span class="incident-responder-option__meta">
+          ${escapeHtml(formatDistanceKm(option.distanceKm))} • ${escapeHtml(formatEtaMinutes(option.etaMinutes))}
+        </span>
+      </button>`,
+              )
+              .join("")
+        : `<div class="incident-responder-picker__empty">
+        No active precinct options with coordinates are available for this report. Check the incident location and precinct records before responding.
+      </div>`;
+
+    return `<section class="incident-responder-picker" aria-label="Choose responder precinct">
+    <div class="incident-responder-picker__header">
+      <h3>Choose responder precinct</h3>
+      <p>Nearest options are sorted by distance. The alert is sent only after an admin chooses one.</p>
+    </div>
+    <div class="incident-responder-picker__list">${cards}</div>
+  </section>`;
+}
+
+function buildResponderSelect(options = null) {
+    if (options === null) {
+        return `<label class="incident-responder-select">
+      <span class="incident-responder-select__label">Responder precinct</span>
+      <div class="incident-responder-select__wrap">
+        <select id="incident-responder-select" disabled>
+          <option>Loading nearest precincts...</option>
+        </select>
+      </div>
+      <small>Choices use the same precinct list as the map locator.</small>
+    </label>`;
+    }
+
+    if (!options.length) {
+        return `<label class="incident-responder-select">
+      <span class="incident-responder-select__label">Responder precinct</span>
+      <div class="incident-responder-select__wrap">
+        <select id="incident-responder-select" disabled>
+          <option>No precinct options available</option>
+        </select>
+      </div>
+      <small>Check the incident location and precinct records before responding.</small>
+    </label>`;
+    }
+
+    const optionHtml = [
+        '<option value="">Choose precinct...</option>',
+        ...options.map((option, index) => {
+            const prefix = index === 0 ? "Nearest" : `Option ${index + 1}`;
+            const distance = formatDistanceKm(option.distanceKm);
+            const eta = formatEtaMinutes(option.etaMinutes, option.trafficLevel);
+            return `<option value="${escapeAttr(option.precinctId)}">${escapeHtml(`${prefix}: ${getPrecinctDisplayName(option)} - ${distance} / ${eta}`)}</option>`;
+        }),
+    ].join("");
+
+    return `<label class="incident-responder-select">
+      <span class="incident-responder-select__label">Responder precinct</span>
+      <div class="incident-responder-select__wrap">
+        <select id="incident-responder-select">${optionHtml}</select>
+      </div>
+      <small>Sorted nearest first. ETA includes dispatch, route, traffic, and delay buffers.</small>
+    </label>`;
+}
+
+function buildStatusUpdatePayload(nextStatus) {
+    const moderatedBy = auth.currentUser?.uid || null;
+    const firestore = {
+        status: nextStatus,
+        moderatedBy,
+        moderatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+    const local = {
+        status: nextStatus,
+        moderatedBy,
+        moderatedAt: null,
+        updatedAt: null,
+    };
+
+    if (nextStatus === "done") {
+        Object.assign(firestore, {
+            responseStatus: "completed",
+            completedBy: moderatedBy,
+            completedAt: serverTimestamp(),
+            "response.status": "completed",
+            "response.completedAt": serverTimestamp(),
+            "response.updatedAt": serverTimestamp(),
+        });
+        Object.assign(local, {
+            responseStatus: "completed",
+            completedBy: moderatedBy,
+            completedAt: null,
+            response: {
+                ...(local.response || {}),
+                status: "completed",
+                completedAt: null,
+                updatedAt: null,
+            },
+        });
+    }
+
+    if (nextStatus === "rejected") {
+        Object.assign(firestore, {
+            responseStatus: "rejected",
+            "response.status": "rejected",
+            "response.updatedAt": serverTimestamp(),
+        });
+        Object.assign(local, {
+            responseStatus: "rejected",
+            response: {
+                ...(local.response || {}),
+                status: "rejected",
+                updatedAt: null,
+            },
+        });
+    }
+
+    return {firestore, local};
+}
+
+function needsTerminalResponseSync(data = {}, nextStatus = "") {
+    if (nextStatus === "done") {
+        return (
+            data.responseStatus !== "completed" ||
+            data.response?.status !== "completed"
+        );
+    }
+    if (nextStatus === "rejected") {
+        return (
+            data.responseStatus === "help_on_the_way" ||
+            data.response?.status === "help_on_the_way"
+        );
+    }
+    return false;
+}
+
+function renderIncidentDetail(docId, d, responderOptions = null) {
     const loc = d.location || {};
     const lat =
         loc.latitude != null && !Number.isNaN(Number(loc.latitude))
@@ -220,6 +378,7 @@ function renderIncidentDetail(docId, d) {
   ${buildPriorityPanel(d)}
   ${buildResponsePanel(d)}
   <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
+    ${canRespondToIncident(d) ? buildResponderSelect(responderOptions) : ""}
     <div class="incident-actions__buttons">
       ${
           canRespondToIncident(d)
@@ -228,7 +387,7 @@ function renderIncidentDetail(docId, d) {
       }
       <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
       <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
-      <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">Done</button>
+      <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">${actionStatus === "done" ? "Completed" : "Mark Done"}</button>
       <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">Reject</button>
     </div>
     <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
@@ -244,6 +403,7 @@ export function initIncidentModal() {
     const tbody = document.getElementById("incidents-tbody");
     let currentIncidentId = null;
     let currentData = null;
+    let currentResponderOptions = [];
     let openMenu = null;
 
     if (!modal || !body || !tbody) return;
@@ -255,6 +415,7 @@ export function initIncidentModal() {
         document.body.style.overflow = "";
         currentIncidentId = null;
         currentData = null;
+        currentResponderOptions = [];
     }
 
     function openModal() {
@@ -302,70 +463,52 @@ export function initIncidentModal() {
         const feedback = document.getElementById("incident-actions-feedback");
         body.querySelector("[data-action-respond]")?.addEventListener("click", async () => {
             if (!currentIncidentId || !currentData) return;
-
-            if (feedback) feedback.textContent = "Sending responder update...";
-            body.querySelectorAll("[data-action-status], [data-action-respond]").forEach(
-                (b) => (b.disabled = true),
+            const selectedId = document.getElementById("incident-responder-select")?.value;
+            const selectedResponder = currentResponderOptions.find(
+                (option) => option.precinctId === selectedId,
             );
 
-            try {
-                const responseUpdate = await respondToIncident(
-                    currentIncidentId,
-                    currentData,
-                );
-                currentData = {
-                    ...currentData,
-                    ...responseUpdate,
-                };
-                body.innerHTML = renderIncidentDetail(currentIncidentId, currentData);
-                bindActionHandlers();
-                updateStatusCell(currentIncidentId, "responding");
-                toastSuccess("Responder alert sent to user");
-                window.dispatchEvent(
-                    new CustomEvent("incident:updated", {
-                        detail: {
-                            id: currentIncidentId,
-                            status: "responding",
-                        },
-                    }),
-                );
-            } catch (err) {
-                console.error("[incident-modal] respond", err);
-                if (feedback)
-                    feedback.textContent =
-                        err?.message || "Failed to send responder update.";
-                toastError(err?.message || "Failed to send responder update");
-                body.querySelectorAll("[data-action-status], [data-action-respond]").forEach(
-                    (b) => (b.disabled = false),
-                );
+            if (!selectedResponder) {
+                if (feedback) {
+                    feedback.textContent = "Choose a responder precinct before sending the alert.";
+                }
+                toastError("Choose a responder precinct first.");
+                return;
             }
+
+            sendResponderUpdate(selectedResponder);
         });
 
         body.querySelectorAll("[data-action-status]").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!currentIncidentId || !currentData) return;
                 const nextStatus = btn.getAttribute("data-action-status");
-                if (!nextStatus || currentData.status === nextStatus) return;
+                if (!nextStatus) return;
+                const needsSync = needsTerminalResponseSync(currentData, nextStatus);
+                if (currentData.status === nextStatus && !needsSync) return;
 
                 const previous = currentData.status;
-                if (feedback) feedback.textContent = "Updating status...";
+                if (feedback) {
+                    feedback.textContent = needsSync
+                        ? "Syncing user-facing status..."
+                        : "Updating status...";
+                }
                 body.querySelectorAll("[data-action-status]").forEach(
                     (b) => (b.disabled = true),
                 );
                 try {
-                    await updateDoc(doc(db, "incidents", currentIncidentId), {
-                        status: nextStatus,
-                        moderatedBy: auth.currentUser?.uid || null,
-                        moderatedAt: serverTimestamp(),
-                    });
+                    const statusUpdate = buildStatusUpdatePayload(nextStatus);
+                    await updateDoc(
+                        doc(db, "incidents", currentIncidentId),
+                        statusUpdate.firestore,
+                    );
                     currentData = {
                         ...currentData,
-                        status: nextStatus,
-                        moderatedBy:
-                            auth.currentUser?.uid ||
-                            currentData.moderatedBy ||
-                            null,
-                        moderatedAt: null,
+                        ...statusUpdate.local,
+                        response: {
+                            ...(currentData.response || {}),
+                            ...(statusUpdate.local.response || {}),
+                        },
                     };
                     body.innerHTML = renderIncidentDetail(
                         currentIncidentId,
@@ -399,6 +542,97 @@ export function initIncidentModal() {
         });
     }
 
+    function syncResponderActionState() {
+        const select = document.getElementById("incident-responder-select");
+        const respondButton = body.querySelector("[data-action-respond]");
+        const selectedResponder = currentResponderOptions.find(
+            (option) => option.precinctId === select?.value,
+        );
+
+        if (respondButton) {
+            respondButton.disabled = !selectedResponder;
+        }
+
+        const feedback = document.getElementById("incident-actions-feedback");
+        if (feedback && selectedResponder) {
+            feedback.textContent = `${getPrecinctDisplayName(selectedResponder)} selected. Click Respond to send the alert.`;
+        }
+    }
+
+    async function loadResponderOptions() {
+        if (!currentIncidentId || !currentData || !canRespondToIncident(currentData)) {
+            return;
+        }
+        const respondButton = body.querySelector("[data-action-respond]");
+        if (respondButton) respondButton.disabled = true;
+
+        try {
+            currentResponderOptions = await getResponderOptionsForIncident(currentData);
+            const select = body.querySelector(".incident-responder-select");
+            if (select) {
+                select.outerHTML = buildResponderSelect(currentResponderOptions);
+            }
+            document
+                .getElementById("incident-responder-select")
+                ?.addEventListener("change", syncResponderActionState);
+            syncResponderActionState();
+        } catch (err) {
+            console.error("[incident-modal] load responders", err);
+            currentResponderOptions = [];
+            const select = body.querySelector(".incident-responder-select");
+            if (select) {
+                select.outerHTML = buildResponderSelect([]);
+            }
+        } finally {
+            syncResponderActionState();
+        }
+    }
+
+    async function sendResponderUpdate(selectedResponder) {
+        if (!currentIncidentId || !currentData) return;
+        const feedback = document.getElementById("incident-actions-feedback");
+        if (feedback) {
+            feedback.textContent = `Sending responder alert for ${getPrecinctDisplayName(selectedResponder)}...`;
+        }
+        body.querySelectorAll(
+            "[data-action-status], [data-action-respond], #incident-responder-select",
+        ).forEach((b) => (b.disabled = true));
+
+        try {
+            const responseUpdate = await respondToIncident(
+                currentIncidentId,
+                currentData,
+                selectedResponder,
+            );
+            currentData = {
+                ...currentData,
+                ...responseUpdate,
+            };
+            body.innerHTML = renderIncidentDetail(currentIncidentId, currentData);
+            bindActionHandlers();
+            updateStatusCell(currentIncidentId, "responding");
+            toastSuccess("Responder alert sent to user");
+            window.dispatchEvent(
+                new CustomEvent("incident:updated", {
+                    detail: {
+                        id: currentIncidentId,
+                        status: "responding",
+                    },
+                }),
+            );
+        } catch (err) {
+            console.error("[incident-modal] respond", err);
+            if (feedback) {
+                feedback.textContent =
+                    err?.message || "Failed to send responder update.";
+            }
+            toastError(err?.message || "Failed to send responder update");
+            body.querySelectorAll(
+                "[data-action-status], [data-action-respond], #incident-responder-select",
+            ).forEach((b) => (b.disabled = false));
+        }
+    }
+
     async function openIncidentById(id) {
         if (!id) return;
         currentIncidentId = id;
@@ -416,6 +650,7 @@ export function initIncidentModal() {
             }
             const d = snap.data();
             currentData = d;
+            currentResponderOptions = [];
             if (!isIncidentOpened(d)) {
                 currentData = { ...currentData, isOpened: true };
                 markRowOpened(id);
@@ -440,6 +675,7 @@ export function initIncidentModal() {
             }
             body.innerHTML = renderIncidentDetail(snap.id, currentData);
             bindActionHandlers();
+            loadResponderOptions();
         } catch (err) {
             console.error("[incident-modal] open by id", err);
             body.innerHTML = `<p class="incident-modal__error">${escapeHtml(err?.message || "Failed to load incident")}</p>`;

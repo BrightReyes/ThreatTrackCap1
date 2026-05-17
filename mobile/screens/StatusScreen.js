@@ -124,6 +124,7 @@ const STATUS_META = {
 };
 
 const TRACKING_STEPS = ['Submitted', 'Review', 'Responder'];
+const TERMINAL_STATUSES = ['done', 'rejected', 'spam'];
 
 const getStatusMeta = (status) => {
   return STATUS_META[status] || STATUS_META.pending;
@@ -212,7 +213,7 @@ const StatusScreen = ({ navigation }) => {
     });
 
     const verified = fetchedIncidents.filter(i => ['verified', 'done'].includes(i.status)).length;
-    const responding = fetchedIncidents.filter(i => i.status === 'responding' || i.responseStatus === 'help_on_the_way').length;
+    const responding = fetchedIncidents.filter(i => !TERMINAL_STATUSES.includes(i.status) && (i.status === 'responding' || i.responseStatus === 'help_on_the_way')).length;
     const under_review = fetchedIncidents.filter(i => ['under_review', 'pending', 'submitted', 'open'].includes(i.status)).length + responding;
     const rejected = fetchedIncidents.filter(i => ['rejected', 'error', 'spam'].includes(i.status)).length;
 
@@ -316,6 +317,9 @@ const StatusScreen = ({ navigation }) => {
   };
 
   const getDisplayStatus = (incident) => {
+    if (TERMINAL_STATUSES.includes(incident?.status)) {
+      return incident.status;
+    }
     if (
       incident?.status === 'responding' ||
       incident?.responseStatus === 'help_on_the_way' ||
@@ -434,9 +438,10 @@ const StatusScreen = ({ navigation }) => {
     const severityColor = getSeverityColor(selectedIncident.severity);
     const response = selectedIncident.response || {};
     const responder = selectedIncident.responder || response.responder || {};
-    const hasResponse = displayStatus === 'responding' ||
+    const hasResponse = displayStatus === 'responding' && (
       selectedIncident.responseStatus === 'help_on_the_way' ||
-      response.status === 'help_on_the_way';
+      response.status === 'help_on_the_way'
+    );
     const distanceText = Number.isFinite(Number(response.distanceKm))
       ? `${Number(response.distanceKm).toFixed(1)} km away`
       : 'Distance unavailable';
@@ -485,12 +490,12 @@ const StatusScreen = ({ navigation }) => {
                     <View style={styles.responderTitleBlock}>
                       <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
                       <Text style={styles.responderTitle}>
-                        {responder.precinctName || 'Police Community Precinct 4 (Malinta)'}
+                        {responder.precinctName || 'Assigned responder'}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.responderMessage}>
-                    {response.message || 'A responder has acknowledged your report and is moving from Malinta Precinct.'}
+                    {response.message || 'A responder has acknowledged your report and is being assigned from the nearest available station.'}
                   </Text>
                   <View style={styles.responderMetaRow}>
                     <View style={styles.responderMetaPill}>
@@ -503,7 +508,7 @@ const StatusScreen = ({ navigation }) => {
                     </View>
                   </View>
                   <Text style={styles.responderAddress}>
-                    {responder.address || 'Governor I. Santiago Rd., Malinta, Valenzuela'}
+                    {responder.address || 'Valenzuela City'}
                   </Text>
                 </View>
               )}
@@ -547,9 +552,11 @@ const StatusScreen = ({ navigation }) => {
               <View style={styles.assuranceCard}>
                 <Text style={styles.assuranceTitle}>What happens next</Text>
                 <Text style={styles.assuranceText}>
-                  {hasResponse
-                    ? 'Stay near a safe, visible area if possible. The response details above update from the admin side.'
-                    : 'Your report is saved with your submitted location. Responder assignment will appear here once the admin acknowledges the report.'}
+                  {displayStatus === 'done'
+                    ? 'This report has been completed by the admin team. The status updates here automatically when the admin changes it.'
+                    : hasResponse
+                      ? 'Stay near a safe, visible area if possible. The response details above update from the admin side.'
+                      : 'Your report is saved with your submitted location. Responder assignment will appear here once the admin acknowledges the report.'}
                 </Text>
               </View>
             </ScrollView>

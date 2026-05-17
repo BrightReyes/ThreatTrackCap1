@@ -59,7 +59,9 @@ const ResponseAlertListener = () => {
   const responder = activeNotification?.responder || {};
   const response = activeNotification?.response || {};
   const isPoliceUrgent = activeNotification?.type === 'police_urgent_report';
-  const defaultMessage = `Help is on the way from ${responder.precinctName || 'Police Community Precinct 4 (Malinta)'}.`;
+  const defaultMessage = responder.precinctName
+    ? `Help is on the way from ${responder.precinctName}.`
+    : 'Help request acknowledged. The admin desk is assigning the nearest available responder.';
   const distance = Number.isFinite(Number(response.distanceKm))
     ? ` Distance: ${Number(response.distanceKm).toFixed(1)} km.`
     : '';

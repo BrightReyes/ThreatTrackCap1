@@ -30,6 +30,10 @@ function closeOpen() {
   openInstance = null;
 }
 
+export function closeAdminCustomSelects() {
+  closeOpen();
+}
+
 function ensureDocumentCloseListener() {
   if (docCloseBound) return;
   docCloseBound = true;
@@ -54,7 +58,7 @@ function buildListItems(select, list) {
     li.setAttribute('role', 'option');
     li.className = 'admin-select-custom__option';
     li.dataset.value = opt.value;
-    li.textContent = opt.text;
+    renderOptionContent(li, opt);
     if (opt.disabled) {
       li.classList.add('admin-select-custom__option--disabled');
       li.setAttribute('aria-disabled', 'true');
@@ -68,9 +72,46 @@ function buildListItems(select, list) {
   }
 }
 
+function renderOptionContent(target, opt, compact = false) {
+  target.textContent = '';
+  const title = opt.dataset.title || opt.text;
+  const meta = opt.dataset.meta || '';
+  const rank = opt.dataset.rank || '';
+
+  if (!meta && !rank) {
+    target.textContent = opt.text;
+    return;
+  }
+
+  target.classList.add(
+    compact ? 'admin-select-custom__trigger--rich' : 'admin-select-custom__option--rich',
+  );
+
+  if (rank) {
+    const rankEl = document.createElement('span');
+    rankEl.className = 'admin-select-custom__rank';
+    rankEl.textContent = rank;
+    target.appendChild(rankEl);
+  }
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'admin-select-custom__title';
+  titleEl.textContent = title;
+  target.appendChild(titleEl);
+
+  if (meta) {
+    const metaEl = document.createElement('span');
+    metaEl.className = 'admin-select-custom__meta';
+    metaEl.textContent = meta;
+    target.appendChild(metaEl);
+  }
+}
+
 function syncTriggerLabel(trigger, select) {
   const opt = select.options[select.selectedIndex];
-  trigger.textContent = opt ? opt.text : '';
+  trigger.classList.remove('admin-select-custom__trigger--rich');
+  if (opt) renderOptionContent(trigger, opt, true);
+  else trigger.textContent = '';
 }
 
 function enhanceSelect(select) {
@@ -84,9 +125,13 @@ function enhanceSelect(select) {
   select.dataset.adminSelectEnhanced = '1';
 
   const wrap = document.createElement('div');
+  const variant = select.dataset.adminSelectVariant || '';
   wrap.className = 'admin-select-custom';
   if (select.classList.contains('incidents-select')) {
     wrap.classList.add('admin-select-custom--toolbar');
+  }
+  if (variant) {
+    wrap.classList.add(`admin-select-custom--${variant}`);
   }
 
   const trigger = document.createElement('button');
@@ -104,6 +149,9 @@ function enhanceSelect(select) {
   const list = document.createElement('ul');
   list.id = listId;
   list.className = 'admin-select-custom__panel';
+  if (variant) {
+    list.classList.add(`admin-select-custom__panel--${variant}`);
+  }
   list.setAttribute('role', 'listbox');
   list.hidden = true;
   list.tabIndex = -1;
@@ -141,6 +189,7 @@ function enhanceSelect(select) {
     list.style.left = `${Math.max(6, Math.min(r.left, window.innerWidth - r.width - 12))}px`;
     list.style.top = `${r.bottom + margin}px`;
     list.style.minWidth = `${r.width}px`;
+    list.style.width = `${r.width}px`;
     list.style.maxHeight = `${maxH}px`;
     list.style.zIndex = '11000';
   };

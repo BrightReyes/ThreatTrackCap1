@@ -19,6 +19,7 @@ exports.calculateRiskLevel = require("./src/calculateRiskLevel");
 exports.aggregateHeatmapData = require("./src/aggregateHeatmapData");
 exports.getHeatmapData = require("./src/getHeatmapData");
 exports.generateAnalyticsSolutionSummary = require("./src/generateAnalyticsSolutionSummary");
+exports.generateAdminAISummary = require("./src/generateAdminAISummary");
 exports.findNearestPrecinct = require("./src/findNearestPrecinct");
 exports.sendNearbyIncidentAlert = require("./src/sendNearbyIncidentAlert");
 

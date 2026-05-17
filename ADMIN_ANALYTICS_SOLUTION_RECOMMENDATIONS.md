@@ -415,6 +415,42 @@ Recommended `actionId` examples:
 - `public_warning_signage`
 - `business_coordination`
 - `cleanup_property_damage`
+- `escape_route_review`
+- `business_transport_coordination`
+- `commuter_flow_review`
+- `conflict_mediation_referral`
+- `responder_route_check`
+- `vaw_desk_coordination`
+- `safe_reporting_pathway`
+- `observation_log`
+- `community_reporting_channel`
+- `establishment_coordination`
+- `warning_notice_first`
+- `property_owner_coordination`
+- `night_check_schedule`
+- `speed_control_review`
+- `traffic_visibility_assignment`
+- `responder_safety_bulletin`
+- `evidence_preservation`
+- `watch_team_monitoring`
+- `priority_case_review`
+- `sos_triage_review`
+- `hotspot_case_file`
+- `timeboxed_patrol_plan`
+- `multi_agency_action_plan`
+- `cpted_safety_audit`
+
+## Situational Rule Layer
+
+After selecting crime-type recommendations, add situational rules based on the hotspot evidence:
+
+- If high severity reports are clustered, open a priority case review.
+- If SOS reports exist, triage SOS reports before routine prevention actions.
+- If the same street has many reports, create a hotspot case file to track actions and outcomes.
+- If peak hours are clear, create a time-boxed patrol and review plan.
+- If peak hours are unclear but reports are repeated, collect better time details before setting fixed patrol schedules.
+- If two crime types dominate, combine police, barangay, and community partner actions instead of duplicating cards.
+- If the hotspot involves street crimes, run a street-level safety audit for lighting, blind spots, CCTV gaps, pedestrian paths, escape routes, and gathering points.
 
 ## Frontend Implementation Plan
 
@@ -589,8 +625,9 @@ The implemented version now uses a hybrid AI-assisted flow:
 ```text
 Admin Analytics rows
 -> frontend hotspot scoring and rule-based action selection
--> send only aggregated hotspot evidence to Cloud Function
--> OpenAI creates a concise admin summary and suggested solution wording
+-> admin clicks "Generate Action Plan" on one hotspot
+-> Gemini receives only aggregated hotspot evidence and rule-based context
+-> Gemini creates a concise admin summary and suggested solution wording
 -> admin reviews the recommendation
 ```
 
@@ -599,29 +636,29 @@ Implemented files:
 - `web-admin/analytics.html`
 - `web-admin/js/analytics.js`
 - `web-admin/css/analytics.css`
-- `functions/src/generateAnalyticsSolutionSummary.js`
+- `functions/src/generateAdminAISummary.js`
 - `functions/index.js`
 
 Important: the AI does not receive raw reporter descriptions, reporter identity, or incident IDs. It only receives area labels, counts, severity breakdowns, dominant crime types, peak hours, and already-approved rule-based actions.
 
-Set the OpenAI key only on the server side:
+For the local defense demo, the browser asks for the Gemini key once and stores it in `localStorage` on that same browser. For production, set the Gemini key only on the server side:
 
 ```bash
-firebase functions:secrets:set OPENAI_API_KEY
+firebase functions:secrets:set GEMINI_API_KEY
 ```
     
 Firebase Secret Manager requires the Firebase project to be on the Blaze
 pay-as-you-go plan. Without Blaze, the AI endpoint cannot securely store the
-OpenAI key and the admin panel will continue showing the rule-based fallback.
+Gemini key and the admin panel will continue showing the rule-based fallback.
 
 If using normal environment variables during local development:
 
 ```bash
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-5
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-flash-latest
 ```
 
-If `OPENAI_API_KEY` is missing, the admin panel still works and shows the deterministic rule-based summary.
+If `GEMINI_API_KEY` is missing in the secure backend version, the admin panel can still show the deterministic rule-based summary.
 
 For a stronger version, create a Cloud Function that writes to:
 
