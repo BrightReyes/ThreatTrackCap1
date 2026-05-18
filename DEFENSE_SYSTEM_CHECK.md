@@ -24,7 +24,7 @@ Recommended defense framing:
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| `git status --short` | Dirty | Existing uncommitted change found in `mobile/screens/SOSReportScreen.js`. It appears to replace emoji incident icons with `Ionicons`; not treated as a blocker in this pass. |
+| `git status --short` | Clean | No uncommitted changes were reported at the start of this check. |
 | `npm --prefix web-admin run build` | Passed | Admin production build succeeds. Vite still warns that the Firebase chunk is larger than 500 kB. |
 | `npm --prefix functions run lint` | Failed | 2577 ESLint errors. Mostly CRLF line endings, trailing spaces, missing JSDoc, and Google style issues. This can block deploy because `firebase.json` runs lint in `predeploy`. |
 | `npm --prefix functions test -- --runInBand` | Failed | Jest found 0 tests across 13 function files. |
@@ -44,6 +44,7 @@ These were rechecked and should not stay as active defense blockers:
 | --- | --- |
 | Decision support summary UI | Analytics now shows a clearer modern decision-support brief with risk, pattern, strategy, execution steps, advisory, and admin-review notes. |
 | AI generated plan refresh behavior | Generated hotspot plans are saved in `sessionStorage`, restored after browser refresh, and cleared on admin logout/timeout. |
+| Admin access control | Admin pages now require an approved admin/police role before showing the page, and login redirects only approved admin accounts to the dashboard. |
 | Fixed responder assignment | Admin chooses from nearest precinct options instead of always using Malinta. |
 | SOS modal auto-disappearing / overlapping | Priority modal uses a queue and stays until admin action. |
 | Done button not updating user side | `done` writes completed response fields, and the user status screen prioritizes terminal statuses. |
@@ -54,24 +55,15 @@ These were rechecked and should not stay as active defense blockers:
 
 | Order | Side | Flaw | Required change | Main files |
 | --- | --- | --- | --- | --- |
-| 1 | Admin | Admin pages still allow any signed-in Firebase user to reach the dashboard flow. Role is loaded, but normal admin pages are not blocked unless `requirePolice` is set. | Add a general admin role gate. Only approved admin/staff roles should see admin pages. Redirect or sign out normal users. | `web-admin/js/admin-auth.js`, `web-admin/js/login.js` |
-| 2 | Shared | Firestore exposes sensitive data too broadly. Any authenticated user can read all `users`; anyone can read all `incidents`; notifications are publicly readable. | Restrict reads to owner/staff, create sanitized public map summaries, and restrict notification reads to owner/admin. | `firestore.rules` |
-| 3 | Shared/Admin | Role escalation is still possible through rules and admin UI. Police/staff can manage roles and profile trust fields. | Split profile editing from role management. Only true admin should change `role`, `trustScore`, `falseReportCount`, and staff flags. | `firestore.rules`, `web-admin/js/user-modal.js`, `web-admin/js/users-list.js` |
-| 4 | Backend | Functions deployment is blocked by lint because `firebase.json` runs lint before deploy. | Fix line endings/style or adjust ESLint config intentionally, then rerun lint until it passes. | `functions/.eslintrc.js`, `functions/src/*.js`, `functions/index.js`, `firebase.json` |
-| 5 | Shared | Dependency audit has high/critical findings in web, mobile, and functions. | Run safe `npm audit fix` where possible, then review breaking upgrades separately. Rebuild after upgrades. | `web-admin/package-lock.json`, `mobile/package-lock.json`, `functions/package-lock.json` |
-| 6 | Backend | Report rate limiting is a placeholder: `hasNotExceededRateLimit()` always returns `true`. | Enforce report limits through Cloud Functions or server-owned counters. Add emulator tests. | `firestore.rules`, report submission functions |
-| 7 | Backend | `aggregateHeatmapData` reuses a committed Firestore batch after every 500 writes. This can fail on larger datasets. | Create a new `db.batch()` after each commit; also batch cleanup deletes in chunks. | `functions/src/aggregateHeatmapData.js` |
-| 8 | AI/Admin | Analytics still asks for a Gemini key in the browser, stores it in `localStorage`, and calls Gemini directly. | For defense security, move generation behind the Firebase callable with `GEMINI_API_KEY`. If kept for demo, clearly label it as local demo mode. | `web-admin/js/analytics.js`, `functions/src/generateAdminAISummary.js` |
+| 1 | Shared | Firestore exposes sensitive data too broadly. Any authenticated user can read all `users`; anyone can read all `incidents`; notifications are publicly readable. | Restrict reads to owner/staff, create sanitized public map summaries, and restrict notification reads to owner/admin. | `firestore.rules` |
+| 2 | Shared/Admin | Role escalation is still possible through rules and admin UI. Police/staff can manage roles and profile trust fields. | Split profile editing from role management. Only true admin should change `role`, `trustScore`, `falseReportCount`, and staff flags. | `firestore.rules`, `web-admin/js/user-modal.js`, `web-admin/js/users-list.js` |
+| 3 | Backend | Functions deployment is blocked by lint because `firebase.json` runs lint before deploy. | Fix line endings/style or adjust ESLint config intentionally, then rerun lint until it passes. | `functions/.eslintrc.js`, `functions/src/*.js`, `functions/index.js`, `firebase.json` |
+| 4 | Shared | Dependency audit has high/critical findings in web, mobile, and functions. | Run safe `npm audit fix` where possible, then review breaking upgrades separately. Rebuild after upgrades. | `web-admin/package-lock.json`, `mobile/package-lock.json`, `functions/package-lock.json` |
+| 5 | Backend | Report rate limiting is a placeholder: `hasNotExceededRateLimit()` always returns `true`. | Enforce report limits through Cloud Functions or server-owned counters. Add emulator tests. | `firestore.rules`, report submission functions |
+| 6 | Backend | `aggregateHeatmapData` reuses a committed Firestore batch after every 500 writes. This can fail on larger datasets. | Create a new `db.batch()` after each commit; also batch cleanup deletes in chunks. | `functions/src/aggregateHeatmapData.js` |
+| 7 | AI/Admin | Analytics still asks for a Gemini key in the browser, stores it in `localStorage`, and calls Gemini directly. | For defense security, move generation behind the Firebase callable with `GEMINI_API_KEY`. If kept for demo, clearly label it as local demo mode. | `web-admin/js/analytics.js`, `functions/src/generateAdminAISummary.js` |
 
 ## Admin Side Fixes
-
-### P0 - Admin Access Control
-
-| Flaw | Why it matters | Required change |
-| --- | --- | --- |
-| `initAdminPage` loads a profile but does not block non-admin roles on normal admin pages. | A normal mobile user can be signed in and redirected into `dashboard.html`. | Add `isAllowedAdminRole(profile.role)` before `page.hidden = false`. |
-| `login.js` redirects any existing signed-in user to the dashboard. | A regular account can enter the admin shell after login. | After auth, load `users/{uid}` and redirect only if role is approved. |
-| Unauthorized handling is missing. | Defense demo may expose a blank/partial admin state. | Show "Unauthorized admin access" and sign out or redirect to login. |
 
 ### P0 - User and Role Management
 

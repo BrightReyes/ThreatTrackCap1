@@ -1,5 +1,10 @@
-import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../shared/firebase.js";
+import {
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    signOut,
+} from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "../../shared/firebase.js";
 import { handleLogin } from "../../shared/auth.js";
 import Swal from "sweetalert2";
 import { toastError, toastSuccess } from "./alerts.js";
@@ -12,6 +17,69 @@ const loginSubmit = document.getElementById("login-submit");
 const forgotPassword = document.getElementById("forgot-password");
 
 const LOCK_KEY = "tt_admin_login_lock";
+const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
+const UNAUTHORIZED_ADMIN_MESSAGE =
+    "Unauthorized admin access. Please sign in with an approved admin account.";
+
+function normalizeAdminRole(role) {
+    const value = String(role || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
+        return "admin";
+    }
+    if (value === "police_admin") return "police";
+    return value;
+}
+
+function isAllowedAdminRole(role) {
+    return ["admin", "police"].includes(normalizeAdminRole(role));
+}
+
+function cacheAdminRole(role) {
+    const normalized = normalizeAdminRole(role);
+    if (isAllowedAdminRole(normalized)) {
+        localStorage.setItem(ADMIN_ROLE_CACHE_KEY, normalized);
+    } else {
+        localStorage.removeItem(ADMIN_ROLE_CACHE_KEY);
+    }
+    document.documentElement.classList.toggle(
+        "admin-role-police",
+        normalized === "police",
+    );
+}
+
+async function loadLoginAdminProfile(user) {
+    if (!user?.uid) return null;
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (!snap.exists()) return null;
+    return {
+        id: snap.id,
+        ...snap.data(),
+        role: normalizeAdminRole(snap.data()?.role),
+    };
+}
+
+async function requireAdminLogin(user) {
+    try {
+        const profile = await loadLoginAdminProfile(user);
+        if (!isAllowedAdminRole(profile?.role)) {
+            throw new Error(UNAUTHORIZED_ADMIN_MESSAGE);
+        }
+        cacheAdminRole(profile.role);
+        return profile;
+    } catch (err) {
+        cacheAdminRole(null);
+        try {
+            await signOut(auth);
+        } catch (signOutErr) {
+            console.warn("[login] unauthorized sign out failed", signOutErr);
+        }
+        throw err;
+    }
+}
 
 function getLockState() {
     try {
@@ -47,6 +115,16 @@ function getEmailValue() {
     return document.getElementById("email")?.value.trim() || "";
 }
 
+function showPendingAuthNotice() {
+    try {
+        const message = sessionStorage.getItem(ADMIN_AUTH_NOTICE_KEY);
+        if (!message) return;
+        sessionStorage.removeItem(ADMIN_AUTH_NOTICE_KEY);
+        loginError.textContent = message;
+        toastError(message);
+    } catch {}
+}
+
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
@@ -65,14 +143,22 @@ function getLoginErrorMessage(err) {
     return err?.message ?? "Login failed";
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-        window.location.replace("dashboard.html");
+        try {
+            await requireAdminLogin(user);
+            window.location.replace("dashboard.html");
+        } catch (err) {
+            const msg = err?.message || UNAUTHORIZED_ADMIN_MESSAGE;
+            loginError.textContent = msg;
+            toastError(msg);
+            pageLogin.hidden = false;
+        }
         return;
     }
-    localStorage.removeItem("tt_admin_role");
-    document.documentElement.classList.remove("admin-role-police");
+    cacheAdminRole(null);
     pageLogin.hidden = false;
+    showPendingAuthNotice();
 });
 
 loginForm.addEventListener("submit", async (e) => {
@@ -94,7 +180,8 @@ loginForm.addEventListener("submit", async (e) => {
     loginSubmit.disabled = true;
     loginSubmit.innerHTML = `<span class="btn-loader"></span>`;
     try {
-        await handleLogin(email, password);
+        const result = await handleLogin(email, password);
+        await requireAdminLogin(auth.currentUser || result?.user);
         clearLock();
         await toastSuccess("Signed in");
         // Best-effort audit log

@@ -14,7 +14,10 @@ applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
 const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
 const ADMIN_SESSION_STORAGE_PREFIXES = ["tt_hotspot_ai_plan:"];
+const UNAUTHORIZED_ADMIN_MESSAGE =
+    "Unauthorized admin access. Please sign in with an approved admin account.";
 
 function clearAdminSessionCaches() {
     try {
@@ -65,6 +68,10 @@ function normalizeAdminRole(role) {
 
 function isPoliceAdminRole(role) {
     return normalizeAdminRole(role) === "police";
+}
+
+function isAllowedAdminRole(role) {
+    return ["admin", "police"].includes(normalizeAdminRole(role));
 }
 
 function humanizeAdminRole(role) {
@@ -259,6 +266,24 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         }
         const profile = await loadAdminProfile(user);
         applySidebarRoleLabel(profile);
+
+        if (!isAllowedAdminRole(profile?.role)) {
+            cacheAdminRole(null);
+            clearAdminSessionCaches();
+            toastError(UNAUTHORIZED_ADMIN_MESSAGE);
+            sessionStorage.setItem(
+                ADMIN_AUTH_NOTICE_KEY,
+                UNAUTHORIZED_ADMIN_MESSAGE,
+            );
+            try {
+                await signOut(auth);
+            } catch (err) {
+                console.warn("[admin-auth] unauthorized sign out failed", err);
+            }
+            window.location.replace("login.html");
+            return;
+        }
+
         applyRoleNavigation(profile);
 
         if (requirePolice && !isPoliceAdminRole(profile?.role)) {
