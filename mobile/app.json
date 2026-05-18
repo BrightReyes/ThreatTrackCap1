@@ -12,12 +12,31 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ThreatTrack to choose evidence photos for incident reports.",
+          "cameraPermission": "Allow ThreatTrack to take evidence photos for incident reports.",
+          "microphonePermission": false
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.threattrack.mobile"
+      "bundleIdentifier": "com.threattrack.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ThreatTrack uses the camera to take evidence photos for incident reports.",
+        "NSPhotoLibraryUsageDescription": "ThreatTrack uses your photo library to attach evidence photos to incident reports."
+      }
     },
     "android": {
-      "package": "com.threattrack.mobile"
+      "package": "com.threattrack.mobile",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

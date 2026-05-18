@@ -1,0 +1,508 @@
+/* Admin readability layer. Loaded last so page-specific styles keep their layout while text stays comfortable. */
+
+.admin-dashboard {
+    font-size: 16px;
+    line-height: 1.5;
+    color: #111827;
+}
+
+.admin-dashboard p,
+.admin-dashboard li,
+.admin-dashboard td,
+.admin-dashboard dd,
+.admin-dashboard input,
+.admin-dashboard select,
+.admin-dashboard textarea,
+.admin-dashboard button {
+    line-height: 1.45;
+}
+
+.admin-dashboard .sidebar__logo {
+    font-size: 1.14rem;
+}
+
+.admin-dashboard .sidebar__badge,
+.admin-dashboard .sidebar__nav::before,
+.admin-dashboard .sidebar__link[href="settings.html"]::after {
+    font-size: 0.78rem;
+}
+
+.admin-dashboard .sidebar__link {
+    min-height: 44px;
+    font-size: 1rem;
+}
+
+.admin-dashboard .admin-dashboard__main,
+.admin-dashboard .admin-dashboard__content,
+.admin-dashboard .incidents-main,
+.admin-dashboard .analytics-page,
+.admin-dashboard .settings-main,
+.admin-dashboard .operation-main {
+    font-size: 1rem;
+}
+
+.admin-dashboard h1,
+.admin-dashboard .admin-dashboard__welcome-title {
+    font-size: 1.95rem;
+    line-height: 1.18;
+}
+
+.admin-dashboard h2,
+.admin-dashboard .incidents-panel__title,
+.admin-dashboard .settings-card__title {
+    font-size: 1.16rem;
+    line-height: 1.28;
+}
+
+.admin-dashboard h3 {
+    font-size: 1.05rem;
+    line-height: 1.3;
+}
+
+.admin-dashboard [class$="__eyebrow"],
+.admin-dashboard [class$="__label"],
+.admin-dashboard [class$="__hint"],
+.admin-dashboard [class$="__meta"],
+.admin-dashboard [class$="__subtitle"],
+.admin-dashboard small,
+.admin-dashboard dt {
+    font-size: 0.9rem;
+    line-height: 1.42;
+}
+
+.admin-dashboard .incidents-stat-card__label,
+.admin-dashboard .analytics-status-card__meta,
+.admin-dashboard .settings-field__hint,
+.admin-dashboard .incident-actions__feedback,
+.admin-dashboard .incident-detail dt,
+.admin-dashboard .incident-responder-select small,
+.admin-dashboard .operation-field__hint {
+    font-size: 0.92rem;
+}
+
+.admin-dashboard .incidents-stat-card strong,
+.admin-dashboard .analytics-stat-card__value,
+.admin-dashboard .admin-dashboard__stat-value {
+    font-size: 1.85rem;
+}
+
+.admin-dashboard .incidents-search-input,
+.admin-dashboard .settings-input,
+.admin-dashboard .settings-select,
+.admin-dashboard .operation-input,
+.admin-dashboard .operation-form .incidents-select,
+.admin-dashboard .user-modal-form__input,
+.admin-dashboard .user-modal-form .incidents-select,
+.admin-dashboard select:not([multiple]):not(.admin-select-custom__native),
+.admin-dashboard .admin-select-custom__trigger,
+.admin-dashboard .admin-select-custom__option {
+    min-height: 44px;
+    font-size: 1rem;
+}
+
+.admin-dashboard .incidents-table,
+.admin-dashboard .analytics-table {
+    font-size: 1rem;
+}
+
+.admin-dashboard .incidents-table th,
+.admin-dashboard .analytics-table th {
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.admin-dashboard .incidents-table td,
+.admin-dashboard .analytics-table td {
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+.admin-dashboard .incidents-badge,
+.admin-dashboard .users-status,
+.admin-dashboard .analytics-priority-pill,
+.admin-dashboard .notification-pill {
+    font-size: 0.88rem;
+    line-height: 1.25;
+}
+
+.admin-dashboard .incidents-pagination__meta,
+.admin-dashboard .incidents-pagination__page,
+.admin-dashboard .incidents-pagination__btn,
+.admin-dashboard .incidents-row-menu button,
+.admin-dashboard .notification-menu__list button {
+    font-size: 0.95rem;
+}
+
+.admin-dashboard .notification-card__body,
+.admin-dashboard .notification-card__meta,
+.admin-dashboard .analytics-ai-summary__body,
+.admin-dashboard .analytics-solution-card,
+.admin-dashboard .settings-card__body {
+    font-size: 1rem;
+}
+
+.admin-dashboard .incident-modal__title {
+    font-size: 1.35rem;
+}
+
+.admin-dashboard .incident-modal__body,
+.admin-dashboard .incident-detail__row {
+    font-size: 1rem;
+}
+
+.admin-dashboard .incident-detail dt {
+    font-size: 0.88rem;
+}
+
+.admin-dashboard .incident-detail dd,
+.admin-dashboard .incident-detail__desc,
+.admin-dashboard .incident-detail__value {
+    font-size: 1rem;
+}
+
+.admin-dashboard .incident-evidence-panel__eyebrow {
+    font-size: 0.86rem;
+}
+
+.admin-dashboard .incident-evidence-panel h3 {
+    font-size: 1.12rem;
+}
+
+.admin-dashboard .incident-photo-list__item,
+.admin-dashboard .incident-action-btn,
+.admin-dashboard .incident-responder-select select,
+.admin-dashboard .incident-responder-option {
+    font-size: 1rem;
+}
+
+.admin-dashboard .incident-priority-card h3,
+.admin-dashboard .incident-response-card h3,
+.admin-dashboard .incident-responder-picker__header h3 {
+    font-size: 1.08rem;
+}
+
+.admin-dashboard .incident-priority-card p,
+.admin-dashboard .incident-response-card p,
+.admin-dashboard .incident-responder-picker__header p,
+.admin-dashboard .incident-responder-picker__empty {
+    font-size: 0.98rem;
+}
+
+.admin-dashboard .incident-response-card__eyebrow,
+.admin-dashboard .incident-responder-option span.incident-responder-option__rank {
+    font-size: 0.84rem !important;
+}
+
+.admin-dashboard .incident-response-card__meta span,
+.admin-dashboard .incident-responder-option span {
+    font-size: 0.94rem;
+}
+
+/* Incident review modal is mounted outside .admin-dashboard, so scope it directly. */
+#incident-modal {
+    color: #0f172a;
+    font-size: 16px;
+}
+
+#incident-modal .incident-modal__backdrop {
+    background: rgba(15, 23, 42, 0.62);
+    backdrop-filter: blur(10px);
+}
+
+#incident-modal .incident-modal__panel {
+    max-width: min(1240px, calc(100vw - 32px));
+    max-height: min(93vh, 880px);
+    border-color: rgba(203, 213, 225, 0.95);
+    border-radius: 22px;
+    background: #f8fafc;
+    box-shadow:
+        0 34px 90px rgba(15, 23, 42, 0.36),
+        0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+}
+
+#incident-modal .incident-modal__header {
+    padding: 20px 24px 18px;
+    border-bottom-color: #dbe3ef;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eef6ff 100%);
+}
+
+#incident-modal .incident-modal__title {
+    color: #0f172a;
+    font-size: 1.38rem;
+    font-weight: 850;
+    line-height: 1.18;
+    letter-spacing: 0;
+}
+
+#incident-modal .incident-modal__close {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.65rem;
+}
+
+#incident-modal .incident-modal__body {
+    padding: 20px;
+    background: #f8fafc;
+    font-size: 1rem;
+}
+
+#incident-modal .incident-review-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(390px, 0.88fr);
+    gap: 18px;
+}
+
+#incident-modal .incident-review-main,
+#incident-modal .incident-review-side {
+    gap: 16px;
+}
+
+#incident-modal .incident-detail {
+    border-color: #dbe3ef;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+#incident-modal .incident-detail__row {
+    grid-template-columns: minmax(140px, 27%) 1fr;
+    gap: 10px 18px;
+    align-items: center;
+    padding: 14px 17px;
+    border-bottom-color: #e5edf6;
+    background: #ffffff;
+    font-size: 1rem;
+}
+
+#incident-modal .incident-detail__row:nth-child(odd) {
+    background: #fbfdff;
+}
+
+#incident-modal .incident-detail dt {
+    color: #475569;
+    font-size: 0.88rem;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+#incident-modal .incident-detail dd,
+#incident-modal .incident-detail__value {
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.52;
+}
+
+#incident-modal .incident-detail__mono {
+    font-size: 0.94rem;
+}
+
+#incident-modal .incident-detail__desc {
+    padding: 12px 13px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #172033;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.65;
+}
+
+#incident-modal .incident-detail__link {
+    font-weight: 800;
+}
+
+#incident-modal .incidents-badge {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+#incident-modal .incident-evidence-panel,
+#incident-modal .incident-actions,
+#incident-modal .incident-priority-card,
+#incident-modal .incident-response-card,
+#incident-modal .incident-responder-picker {
+    border-radius: 18px;
+    box-shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
+}
+
+#incident-modal .incident-evidence-panel {
+    gap: 14px;
+    padding: 17px;
+    border-color: #cfe0ff;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+#incident-modal .incident-evidence-panel__header {
+    align-items: flex-start;
+    padding-bottom: 12px;
+}
+
+#incident-modal .incident-evidence-panel__eyebrow,
+#incident-modal .incident-response-card__eyebrow,
+#incident-modal .incident-responder-select__label,
+#incident-modal .incident-responder-option span.incident-responder-option__rank {
+    font-size: 0.86rem !important;
+    letter-spacing: 0;
+}
+
+#incident-modal .incident-evidence-panel h3 {
+    font-size: 1.18rem;
+    line-height: 1.2;
+}
+
+#incident-modal .incident-photo-list {
+    gap: 14px;
+}
+
+#incident-modal .incident-photo-list__item {
+    gap: 10px;
+    font-size: 0.98rem;
+    line-height: 1.35;
+}
+
+#incident-modal .incident-photo-list__image {
+    height: clamp(290px, 38vh, 480px);
+    border-color: #cbd5e1;
+    border-radius: 16px;
+    background: #0f172a;
+    object-fit: contain;
+}
+
+#incident-modal .incident-priority-card {
+    gap: 14px;
+    padding: 16px;
+}
+
+#incident-modal .incident-priority-card__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    font-size: 1rem;
+}
+
+#incident-modal .incident-priority-card h3,
+#incident-modal .incident-response-card h3,
+#incident-modal .incident-responder-picker__header h3,
+#incident-modal .incident-actions__title {
+    font-size: 1.08rem;
+    line-height: 1.25;
+}
+
+#incident-modal .incident-priority-card p,
+#incident-modal .incident-response-card p,
+#incident-modal .incident-responder-picker__header p,
+#incident-modal .incident-responder-picker__empty {
+    font-size: 0.96rem;
+    line-height: 1.55;
+}
+
+#incident-modal .incident-response-card,
+#incident-modal .incident-responder-picker,
+#incident-modal .incident-actions {
+    padding: 16px;
+}
+
+#incident-modal .incident-response-card__meta span,
+#incident-modal .incident-responder-option span {
+    font-size: 0.91rem;
+}
+
+#incident-modal .incident-responder-select {
+    gap: 10px;
+    padding: 14px;
+    border-radius: 14px;
+}
+
+#incident-modal .incident-responder-select select {
+    min-height: 48px;
+    border-radius: 11px;
+    font-size: 0.98rem;
+}
+
+#incident-modal .incident-responder-select small,
+#incident-modal .incident-actions__feedback {
+    font-size: 0.92rem;
+}
+
+#incident-modal .incident-responder-option {
+    gap: 7px;
+    padding: 13px;
+    border-radius: 14px;
+    font-size: 0.96rem;
+}
+
+#incident-modal .incident-responder-option strong {
+    font-size: 0.99rem;
+}
+
+#incident-modal .incident-actions {
+    border-color: #dbe3ef;
+    background: #ffffff;
+}
+
+#incident-modal .incident-actions__buttons {
+    gap: 10px;
+}
+
+#incident-modal .incident-action-btn {
+    min-height: 44px;
+    padding: 10px 13px;
+    border-radius: 12px;
+    font-size: 0.96rem;
+    line-height: 1.25;
+}
+
+@media (max-width: 720px) {
+    .admin-dashboard {
+        font-size: 15.5px;
+    }
+
+    .admin-dashboard h1,
+    .admin-dashboard .admin-dashboard__welcome-title {
+        font-size: 1.62rem;
+    }
+
+    .admin-dashboard .incidents-table,
+    .admin-dashboard .analytics-table {
+        font-size: 0.96rem;
+    }
+
+    #incident-modal {
+        font-size: 15.5px;
+    }
+
+    #incident-modal .incident-modal__panel {
+        max-width: calc(100vw - 16px);
+        border-radius: 18px;
+    }
+
+    #incident-modal .incident-modal__header,
+    #incident-modal .incident-modal__body {
+        padding: 18px;
+    }
+
+    #incident-modal .incident-modal__title {
+        font-size: 1.32rem;
+    }
+
+    #incident-modal .incident-review-layout {
+        grid-template-columns: 1fr;
+    }
+
+    #incident-modal .incident-detail__row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 15px;
+    }
+
+    #incident-modal .incident-photo-list__image {
+        height: min(62vh, 460px);
+    }
+
+    #incident-modal .incident-actions--moderation .incident-actions__buttons {
+        grid-template-columns: 1fr;
+    }
+}

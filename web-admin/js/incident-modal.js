@@ -1,4 +1,5 @@
 import {
+    deleteField,
     deleteDoc,
     doc,
     getDoc,
@@ -109,14 +110,31 @@ function buildPhotosHtml(data) {
         });
     }
     if (data.photoURL) urls.push(String(data.photoURL));
+    if (data.photoDataUrl) urls.push(String(data.photoDataUrl));
     const unique = [...new Set(urls)];
+    if (!unique.length && data.hadInlineEvidence && data.evidenceClearedReason === "incident_marked_done") {
+        return '<span class="incident-detail__value">Cleared after completion</span>';
+    }
     if (!unique.length) return '<span class="incident-detail__value">—</span>';
-    return unique
-        .map(
-            (u, i) =>
-                `<a class="incident-detail__link" href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer">Photo ${i + 1}</a>`,
-        )
-        .join(" · ");
+    return `<div class="incident-photo-list">${unique
+        .map((u, i) => {
+            const label = `Evidence photo ${i + 1}`;
+            return `<a class="incident-photo-list__item" href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttr(label)}">
+                <img class="incident-photo-list__image" src="${escapeAttr(u)}" alt="${escapeAttr(label)}" loading="lazy">
+                <span>${escapeHtml(`Photo ${i + 1}`)}</span>
+            </a>`;
+        })
+        .join("")}</div>`;
+}
+
+function buildEvidenceReviewPanel(data = {}) {
+    return `<section class="incident-evidence-panel" aria-label="Evidence photos">
+    <div class="incident-evidence-panel__header">
+      <p class="incident-evidence-panel__eyebrow">Evidence</p>
+      <h3>Photo Review</h3>
+    </div>
+    ${buildPhotosHtml(data)}
+  </section>`;
 }
 
 function reportedAtDisplay(d) {
@@ -246,8 +264,9 @@ function buildResponderSelect(options = null) {
     </label>`;
 }
 
-function buildStatusUpdatePayload(nextStatus) {
+function buildStatusUpdatePayload(nextStatus, currentData = {}) {
     const moderatedBy = auth.currentUser?.uid || null;
+    const hasInlineEvidence = Boolean(currentData.photoDataUrl);
     const firestore = {
         status: nextStatus,
         moderatedBy,
@@ -269,11 +288,23 @@ function buildStatusUpdatePayload(nextStatus) {
             "response.status": "completed",
             "response.completedAt": serverTimestamp(),
             "response.updatedAt": serverTimestamp(),
+            photoDataUrl: deleteField(),
+            photoMimeType: deleteField(),
+            photoStorage: deleteField(),
+            photoSizeChars: deleteField(),
+            photoWidth: deleteField(),
+            photoHeight: deleteField(),
         });
         Object.assign(local, {
             responseStatus: "completed",
             completedBy: moderatedBy,
             completedAt: null,
+            photoDataUrl: undefined,
+            photoMimeType: undefined,
+            photoStorage: undefined,
+            photoSizeChars: undefined,
+            photoWidth: undefined,
+            photoHeight: undefined,
             response: {
                 ...(local.response || {}),
                 status: "completed",
@@ -281,6 +312,21 @@ function buildStatusUpdatePayload(nextStatus) {
                 updatedAt: null,
             },
         });
+
+        if (hasInlineEvidence) {
+            Object.assign(firestore, {
+                evidenceClearedAt: serverTimestamp(),
+                evidenceClearedBy: moderatedBy,
+                evidenceClearedReason: "incident_marked_done",
+                hadInlineEvidence: true,
+            });
+            Object.assign(local, {
+                evidenceClearedAt: null,
+                evidenceClearedBy: moderatedBy,
+                evidenceClearedReason: "incident_marked_done",
+                hadInlineEvidence: true,
+            });
+        }
     }
 
     if (nextStatus === "rejected") {
@@ -330,7 +376,7 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
             : null;
     const mapsHref =
         lat != null && lng != null
-            ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=16/${lat}/${lng}`
+            ? `dashboard.html?focusIncidentId=${encodeURIComponent(docId)}#admin-map`
             : null;
 
     const code = formatIncidentCode(docId);
@@ -363,35 +409,41 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
         ],
         ["Address", escapeHtml(loc.address || "—")],
         ["Reporter", escapeHtml(reporterSummary(d))],
-        ["Photos", buildPhotosHtml(d)],
     ];
 
     const actionStatus = d.status || "under_review";
-    return `<dl class="incident-detail">
-    ${rows
-        .map(
-            ([label, inner]) =>
-                `<div class="incident-detail__row"><dt>${escapeHtml(label)}</dt><dd>${inner}</dd></div>`,
-        )
-        .join("")}
-  </dl>
-  ${buildPriorityPanel(d)}
-  ${buildResponsePanel(d)}
-  <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
-    ${canRespondToIncident(d) ? buildResponderSelect(responderOptions) : ""}
-    <div class="incident-actions__buttons">
-      ${
-          canRespondToIncident(d)
-              ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true">Respond</button>'
-              : ""
-      }
-      <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
-      <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
-      <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">${actionStatus === "done" ? "Completed" : "Mark Done"}</button>
-      <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">Reject</button>
+    return `<div class="incident-review-layout">
+    <div class="incident-review-main">
+      <dl class="incident-detail">
+        ${rows
+            .map(
+                ([label, inner]) =>
+                    `<div class="incident-detail__row"><dt>${escapeHtml(label)}</dt><dd>${inner}</dd></div>`,
+            )
+            .join("")}
+      </dl>
+      ${buildPriorityPanel(d)}
+      ${buildResponsePanel(d)}
     </div>
-    <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
-  </section>`;
+    <aside class="incident-review-side">
+      ${buildEvidenceReviewPanel(d)}
+      <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
+        ${canRespondToIncident(d) ? buildResponderSelect(responderOptions) : ""}
+        <div class="incident-actions__buttons">
+          ${
+              canRespondToIncident(d)
+                  ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true">Respond</button>'
+                  : ""
+          }
+          <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
+          <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
+          <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">${actionStatus === "done" ? "Completed" : "Mark Done"}</button>
+          <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">Reject</button>
+        </div>
+        <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
+      </section>
+    </aside>
+  </div>`;
 }
 
 export function initIncidentModal() {
@@ -448,6 +500,14 @@ export function initIncidentModal() {
 
     closeBtn?.addEventListener("click", closeModal);
     backdrop?.addEventListener("click", closeModal);
+    body.addEventListener("click", (e) => {
+        const link = e.target.closest("a.incident-detail__link");
+        const href = link?.getAttribute("href") || "";
+        if (!href.startsWith("dashboard.html?focusIncidentId=")) return;
+
+        e.preventDefault();
+        window.location.href = href;
+    });
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
             closeRowMenu();
@@ -497,7 +557,7 @@ export function initIncidentModal() {
                     (b) => (b.disabled = true),
                 );
                 try {
-                    const statusUpdate = buildStatusUpdatePayload(nextStatus);
+                    const statusUpdate = buildStatusUpdatePayload(nextStatus, currentData);
                     await updateDoc(
                         doc(db, "incidents", currentIncidentId),
                         statusUpdate.firestore,

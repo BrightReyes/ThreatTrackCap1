@@ -15,14 +15,23 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "ThreatTrack uses the camera to take evidence photos for incident reports.",
+        "NSPhotoLibraryUsageDescription": "ThreatTrack uses your photo library to attach evidence photos to incident reports."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./mobile/assets/favicon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.threattracklogin"
+      "package": "com.anonymous.threattracklogin",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

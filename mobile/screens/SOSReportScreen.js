@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getReportEligibility } from '../utils/auth';
@@ -19,70 +20,60 @@ const INCIDENT_TYPES = [
   {
     id: 'robbery_holdup',
     label: 'Robbery / Hold-up',
-    icon: '🚨',
     severity: 'high',
     description: 'Force or intimidation',
   },
   {
     id: 'physical_assault_injury',
     label: 'Physical Assault / Injury',
-    icon: '🤕',
     severity: 'high',
     description: 'Fight or violent injury',
   },
   {
     id: 'domestic_violence',
     label: 'Domestic Violence',
-    icon: '🏠',
     severity: 'high',
     description: 'Household abuse',
   },
   {
     id: 'traffic_accident',
     label: 'Traffic Accidents',
-    icon: '🚑',
     severity: 'high',
     description: 'Collision or injured person',
   },
   {
     id: 'illegal_weapons',
     label: 'Illegal Weapons',
-    icon: '⚠️',
     severity: 'high',
     description: 'Firearm or deadly weapon',
   },
   {
     id: 'theft_snatching',
     label: 'Theft / Snatching',
-    icon: '🎒',
     severity: 'medium',
     description: 'Phone or bag snatching',
   },
   {
     id: 'drug_related_activity',
     label: 'Drug-Related Activity',
-    icon: '💊',
     severity: 'medium',
     description: 'Illegal selling or usage',
   },
   {
     id: 'public_disturbance',
     label: 'Public Disturbance',
-    icon: '📢',
     severity: 'medium',
     description: 'Noise, conflict, riot',
   },
   {
     id: 'suspicious_activity',
     label: 'Suspicious Activity',
-    icon: '👀',
     severity: 'medium',
     description: 'Unusual behavior',
   },
   {
     id: 'vandalism_property_damage',
     label: 'Vandalism / Damage',
-    icon: '🧱',
     severity: 'low',
     description: 'Property damage',
   },
@@ -116,6 +107,22 @@ const SEVERITY_CONFIG = {
 
 const getIncidentByType = (type) => {
   return INCIDENT_TYPES.find((incidentType) => incidentType.id === type);
+};
+
+const getIncidentIconName = (type) => {
+  const icons = {
+    robbery_holdup: 'alert-circle-outline',
+    physical_assault_injury: 'medkit-outline',
+    domestic_violence: 'home-outline',
+    traffic_accident: 'car-outline',
+    illegal_weapons: 'shield-outline',
+    theft_snatching: 'bag-handle-outline',
+    drug_related_activity: 'flame-outline',
+    public_disturbance: 'megaphone-outline',
+    suspicious_activity: 'eye-outline',
+    vandalism_property_damage: 'construct-outline',
+  };
+  return icons[type] || 'alert-outline';
 };
 
 const getSeverityFromType = (type) => {
@@ -367,7 +374,11 @@ const SOSReportScreen = ({ navigation, route }) => {
                         isSelected && styles.incidentIconBadgeSelected,
                       ]}
                     >
-                      <Text style={styles.incidentTypeIcon}>{type.icon}</Text>
+                      <Ionicons
+                        name={getIncidentIconName(type.id)}
+                        size={22}
+                        color={isSelected ? '#ffffff' : '#b91c1c'}
+                      />
                     </View>
                     <View style={styles.incidentTextWrap}>
                       <Text
@@ -658,16 +669,16 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   incidentIconBadgeSelected: {
-    backgroundColor: '#ffffff',
-  },
-  incidentTypeIcon: {
-    fontSize: 17,
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626',
   },
   incidentTextWrap: {
     flex: 1,

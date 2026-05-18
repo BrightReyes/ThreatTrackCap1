@@ -12,9 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../utils/firebase';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../utils/firebase';
 import { getReportEligibility } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
@@ -130,6 +130,19 @@ const SEVERITY_CONFIG = {
 
 const DESCRIPTION_MIN_LENGTH = 10;
 const DESCRIPTION_MAX_LENGTH = 2000;
+const MAX_INLINE_PHOTO_CHARS = 650 * 1024;
+const IMAGE_PICKER_OPTIONS = {
+  mediaTypes: ['images'],
+  allowsEditing: true,
+  aspect: [4, 3],
+  quality: 0.85,
+};
+const INLINE_PHOTO_VARIANTS = [
+  { width: 900, compress: 0.45 },
+  { width: 720, compress: 0.35 },
+  { width: 560, compress: 0.28 },
+  { width: 420, compress: 0.22 },
+];
 const CONFIRM_REPORT_MESSAGE =
   'By continuing, you declare that this report is true and accurate.\n\nFalse reporting may result in penalties, including account suspension and possible legal action under Philippine law.';
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
@@ -166,6 +179,25 @@ const getReportingIconName = (role) => {
   return icons[role] || 'help-circle-outline';
 };
 
+const getImageContentType = (asset) => {
+  if (asset?.mimeType && asset.mimeType.startsWith('image/')) {
+    return asset.mimeType;
+  }
+
+  const uri = asset?.uri || '';
+  const extension = uri.split('?')[0].split('.').pop()?.toLowerCase();
+  const extensionMap = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+
+  return extensionMap[extension] || 'image/jpeg';
+};
+
 const ReportIncidentScreen = ({ navigation }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [incidentType, setIncidentType] = useState('');
@@ -174,7 +206,7 @@ const ReportIncidentScreen = ({ navigation }) => {
   const [location, setLocation] = useState(null);
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [processingImage, setProcessingImage] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -229,6 +261,67 @@ const ReportIncidentScreen = ({ navigation }) => {
     }
   };
 
+  const buildInlineEvidenceImage = async (asset) => {
+    let lastResult = null;
+
+    for (const variant of INLINE_PHOTO_VARIANTS) {
+      const result = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: variant.width } }],
+        {
+          base64: true,
+          compress: variant.compress,
+          format: ImageManipulator.SaveFormat.JPEG,
+        },
+      );
+
+      if (!result.base64) {
+        throw new Error('Unable to process the selected photo.');
+      }
+
+      const dataUrl = `data:image/jpeg;base64,${result.base64}`;
+      lastResult = { result, dataUrl, variant };
+
+      if (dataUrl.length <= MAX_INLINE_PHOTO_CHARS) {
+        return {
+          uri: result.uri,
+          dataUrl,
+          mimeType: 'image/jpeg',
+          sizeChars: dataUrl.length,
+          width: result.width,
+          height: result.height,
+        };
+      }
+    }
+
+    const lastSize = Math.ceil((lastResult?.dataUrl.length || 0) / 1024);
+    throw new Error(
+      `The selected photo is still too large after compression (${lastSize} KB). Please choose a simpler or smaller image.`,
+    );
+  };
+
+  const attachEvidenceImage = async (asset) => {
+    if (!asset?.uri) {
+      showAlert('Photo Error', 'Unable to load the selected photo. Please try again.', 'error');
+      return;
+    }
+
+    setProcessingImage(true);
+    try {
+      const inlineImage = await buildInlineEvidenceImage(asset);
+      setImage({
+        ...inlineImage,
+        fileName: asset.fileName || null,
+        originalMimeType: getImageContentType(asset),
+      });
+    } catch (error) {
+      console.error('Error processing evidence image:', error);
+      showAlert('Photo Too Large', error.message || 'Please choose a smaller photo.', 'warning');
+    } finally {
+      setProcessingImage(false);
+    }
+  };
+
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -237,15 +330,10 @@ const ReportIncidentScreen = ({ navigation }) => {
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-      });
+      const result = await ImagePicker.launchImageLibraryAsync(IMAGE_PICKER_OPTIONS);
 
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]) {
+        await attachEvidenceImage(result.assets[0]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -261,34 +349,14 @@ const ReportIncidentScreen = ({ navigation }) => {
         return;
       }
 
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-      });
+      const result = await ImagePicker.launchCameraAsync(IMAGE_PICKER_OPTIONS);
 
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
+      if (!result.canceled && result.assets?.[0]) {
+        await attachEvidenceImage(result.assets[0]);
       }
     } catch (error) {
       console.error('Error taking photo:', error);
       showAlert('Error', 'Unable to take photo. Please try again.', 'error');
-    }
-  };
-
-  const uploadImage = async (uri, userId, incidentId) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const filename = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-      const storagePath = `incident-photos/${userId}/${incidentId}/${filename}`;
-      const storageRef = ref(storage, storagePath);
-
-      await uploadBytes(storageRef, blob);
-      return await getDownloadURL(storageRef);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
     }
   };
 
@@ -455,26 +523,22 @@ const ReportIncidentScreen = ({ navigation }) => {
         reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
       };
 
-      const docRef = await addDoc(collection(db, 'incidents'), incidentData);
-
       if (image) {
-        try {
-          setUploading(true);
-          const photoURL = await uploadImage(image, currentUser.uid, docRef.id);
-          setUploading(false);
-
-          await updateDoc(doc(db, 'incidents', docRef.id), {
-            photoURL,
-          });
-        } catch (photoError) {
-          console.error('Photo upload failed, but incident saved:', photoError);
-          setUploading(false);
-        }
+        incidentData.photoDataUrl = image.dataUrl;
+        incidentData.photoMimeType = image.mimeType;
+        incidentData.photoStorage = 'firestore_inline';
+        incidentData.photoSizeChars = image.sizeChars;
+        incidentData.photoWidth = image.width;
+        incidentData.photoHeight = image.height;
       }
+
+      await addDoc(collection(db, 'incidents'), incidentData);
 
       showAlert(
         'Report Submitted',
-        'Your report has been submitted securely. Your identity remains protected.',
+        image
+          ? 'Your report has been submitted securely with photo evidence attached.'
+          : 'Your report has been submitted securely. Your identity remains protected.',
         'success',
         [
           {
@@ -488,7 +552,7 @@ const ReportIncidentScreen = ({ navigation }) => {
       showAlert('Error', 'Failed to submit incident. Please try again.', 'error');
     } finally {
       setLoading(false);
-      setUploading(false);
+      setProcessingImage(false);
     }
   };
 
@@ -755,7 +819,7 @@ const ReportIncidentScreen = ({ navigation }) => {
               </View>
               {image ? (
                 <View style={styles.imageContainer}>
-                  <Image source={{ uri: image }} style={styles.previewImage} />
+                  <Image source={{ uri: image.uri }} style={styles.previewImage} />
                   <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
                     <Ionicons name="close" size={19} color="#ffffff" />
                   </TouchableOpacity>
@@ -766,14 +830,28 @@ const ReportIncidentScreen = ({ navigation }) => {
                 </View>
               ) : (
                 <View style={styles.photoButtonsContainer}>
-                  <TouchableOpacity style={styles.photoActionButton} onPress={takePhoto}>
+                  <TouchableOpacity
+                    style={[styles.photoActionButton, processingImage && styles.photoActionButtonDisabled]}
+                    onPress={takePhoto}
+                    disabled={processingImage || loading}
+                  >
                     <Ionicons name="camera-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Take Photo</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.photoActionButton} onPress={pickImage}>
+                  <TouchableOpacity
+                    style={[styles.photoActionButton, processingImage && styles.photoActionButtonDisabled]}
+                    onPress={pickImage}
+                    disabled={processingImage || loading}
+                  >
                     <Ionicons name="image-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Choose Photo</Text>
                   </TouchableOpacity>
+                </View>
+              )}
+              {processingImage && (
+                <View style={styles.processingPhotoBox}>
+                  <ActivityIndicator color="#dc2626" />
+                  <Text style={styles.processingPhotoText}>Preparing photo evidence...</Text>
                 </View>
               )}
 
@@ -805,16 +883,16 @@ const ReportIncidentScreen = ({ navigation }) => {
               style={[
                 styles.button,
                 styles.submitButton,
-                loading && styles.submitButtonDisabled,
+                (loading || processingImage) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={loading}
+              disabled={loading || processingImage}
             >
               {loading ? (
                 <>
                   <ActivityIndicator color="#ffffff" />
                   <Text style={styles.submitButtonText}>
-                    {uploading ? 'Uploading...' : 'Submitting...'}
+                    Submitting...
                   </Text>
                 </>
               ) : (
@@ -1333,10 +1411,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
   },
+  photoActionButtonDisabled: {
+    opacity: 0.55,
+  },
   photoActionText: {
     fontSize: 16,
     fontWeight: '900',
     color: '#dc2626',
+  },
+  processingPhotoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: '#fff7f7',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: -8,
+    marginBottom: 18,
+  },
+  processingPhotoText: {
+    color: '#991b1b',
+    fontSize: 12,
+    fontWeight: '800',
   },
   imageContainer: {
     position: 'relative',

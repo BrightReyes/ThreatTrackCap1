@@ -107,6 +107,24 @@ service cloud.firestore {
       return hasActiveReporterProfile();
     }
 
+    function isValidInlineEvidencePhoto() {
+      let data = request.resource.data;
+      return !data.keys().hasAny(['photoDataUrl']) ||
+             (data.photoStorage == 'firestore_inline' &&
+              data.photoMimeType == 'image/jpeg' &&
+              data.photoDataUrl is string &&
+              data.photoDataUrl.size() > 0 &&
+              data.photoDataUrl.size() <= 650 * 1024 &&
+              data.photoDataUrl.matches('^data:image/jpeg;base64,.*') &&
+              data.photoSizeChars is number &&
+              data.photoSizeChars == data.photoDataUrl.size() &&
+              data.photoWidth is number &&
+              data.photoWidth > 0 &&
+              data.photoWidth <= 900 &&
+              data.photoHeight is number &&
+              data.photoHeight > 0);
+    }
+
     function isValidIncident() {
       let data = request.resource.data;
       return data.keys().hasAll(['type', 'severity', 'location', 'description', 'timestamp', 'reportedAt']) &&
@@ -133,7 +151,8 @@ service cloud.firestore {
              data.location.latitude >= -90 &&
              data.location.latitude <= 90 &&
              data.location.longitude >= -180 &&
-             data.location.longitude <= 180;
+             data.location.longitude <= 180 &&
+             isValidInlineEvidencePhoto();
     }
 
     function isValidIncidentPhotoUpdate() {

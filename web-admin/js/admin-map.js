@@ -105,6 +105,13 @@ let tileLayer = null;
 let boundaryLayer = null;
 let settings = null;
 let heatRerenderBound = false;
+let focusIncidentId = null;
+let focusIncidentLayer = null;
+let focusIncidentApplied = false;
+let focusFiltersApplied = false;
+let focusPopupTimer = null;
+let visibleIncidentMarkers = new Map();
+let visibleIncidentPoints = new Map();
 
 function severityColor(sev) {
     const custom = settings?.mapSettings?.markers?.severityColors;
@@ -171,6 +178,108 @@ function descriptionSnippet(text) {
     const value = String(text || "").trim();
     if (!value) return "No description provided.";
     return value.length > 120 ? `${value.slice(0, 120).trim()}…` : value;
+}
+
+function getRequestedFocusIncidentId() {
+    const params = new URLSearchParams(window.location.search);
+    const value =
+        params.get("focusIncidentId") ||
+        params.get("mapIncidentId") ||
+        params.get("incidentId");
+    const id = String(value || "").trim();
+    return id || null;
+}
+
+function resetMapFiltersForFocusedIncident() {
+    if (!focusIncidentId || focusFiltersApplied) return;
+    const typeEl = document.getElementById("map-filter-type");
+    const severityEl = document.getElementById("map-filter-severity");
+    const timeframeEl = document.getElementById("map-filter-timeframe");
+
+    if (typeEl) typeEl.value = "all";
+    if (severityEl) severityEl.value = "all";
+    if (timeframeEl) timeframeEl.value = "all";
+    focusFiltersApplied = true;
+}
+
+function incidentPointFromData(docId, d) {
+    const loc = d?.location || {};
+    const lat = Number(loc.latitude);
+    const lng = Number(loc.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    const severity = d?.severity ? String(d.severity) : "unknown";
+    const sev = severity.toLowerCase();
+    const wBase =
+        sev === "high"
+            ? 1
+            : sev === "medium"
+              ? 0.7
+              : sev === "low"
+                ? 0.45
+                : 0.55;
+
+    return { lat, lng, wBase, severity, docId, data: d || {} };
+}
+
+function incidentPointFromDocSnap(docSnap) {
+    if (!docSnap?.exists?.()) return null;
+    return incidentPointFromData(docSnap.id, docSnap.data() || {});
+}
+
+function findDocInSnapshot(snap, id) {
+    let found = null;
+    snap?.forEach?.((docSnap) => {
+        if (docSnap.id === id) found = docSnap;
+    });
+    return found;
+}
+
+function buildIncidentPopupHtml(p, options = {}) {
+    const code = formatIncidentCode(p.docId);
+    const type = p.data?.type ? String(p.data.type) : "Incident";
+    const status = p.data?.status ? String(p.data.status) : "unknown";
+    const reported = formatTimestamp(p.data?.timestamp || p.data?.reportedAt);
+    const reporter = reporterSummary(p.data);
+    const description = descriptionSnippet(p.data?.description);
+    const incidentLink = `incidents.html?incidentId=${encodeURIComponent(p.docId)}`;
+    const selectedLabel = options.focused
+        ? '<div style="display:inline-flex;margin-bottom:8px;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:0.78rem;font-weight:800;">Selected report</div>'
+        : "";
+
+    return `
+        <div style="min-width:240px;line-height:1.4;font-size:0.95rem;">
+          ${selectedLabel}
+          <div style="font-weight:700;margin-bottom:6px;">${escapeHtml(code)}</div>
+          <div style="margin-bottom:6px;">
+            <span style="color:${severityColor(p.severity)};font-weight:600;">${escapeHtml(String(p.severity))}</span>
+            <span style="color:#6b7280;"> &middot; ${escapeHtml(type)} &middot; ${escapeHtml(status)}</span>
+          </div>
+          <div style="margin-bottom:8px;color:#374151;">${escapeHtml(description)}</div>
+          <div style="font-size:0.84rem;color:#6b7280;">
+            ${escapeHtml(reported)} &middot; ${escapeHtml(reporter)}
+          </div>
+          <div style="margin-top:8px;">
+            <a href="${escapeAttr(incidentLink)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:700;">
+              View full incident
+            </a>
+          </div>
+        </div>
+      `;
+}
+
+function buildIncidentTooltipHtml(p) {
+    const code = formatIncidentCode(p.docId);
+    const type = p.data?.type ? String(p.data.type) : "Incident";
+    const status = p.data?.status ? String(p.data.status) : "unknown";
+
+    return `
+        <div style="line-height:1.2;font-size:0.86rem;">
+          <strong>${escapeHtml(code)}</strong><br>
+          <span style="color:${severityColor(p.severity)};font-weight:600;">${escapeHtml(String(p.severity))}</span>
+          <span style="color:#6b7280;"> &middot; ${escapeHtml(type)} &middot; ${escapeHtml(status)}</span>
+        </div>
+      `;
 }
 
 function hexToRgb(hex) {
@@ -403,6 +512,75 @@ function centerMapToCity() {
     });
 }
 
+function setFocusedIncidentMarker(p) {
+    if (!mapInstance) return;
+    if (focusIncidentLayer) {
+        try {
+            mapInstance.removeLayer(focusIncidentLayer);
+        } catch {}
+        focusIncidentLayer = null;
+    }
+
+    focusIncidentLayer = L.marker([p.lat, p.lng], {
+        icon: L.divIcon({
+            className: "admin-map__focus-marker",
+            html: "<span></span>",
+            iconSize: [38, 38],
+            iconAnchor: [19, 19],
+        }),
+        interactive: true,
+        zIndexOffset: 2000,
+    });
+    focusIncidentLayer.bindPopup(buildIncidentPopupHtml(p, { focused: true }));
+    focusIncidentLayer.addTo(mapInstance);
+}
+
+async function resolveFocusedIncidentPoint(id, snap) {
+    const visiblePoint = visibleIncidentPoints.get(id);
+    if (visiblePoint) return visiblePoint;
+
+    const snapDoc = findDocInSnapshot(snap, id);
+    const snapPoint = incidentPointFromDocSnap(snapDoc);
+    if (snapPoint) return snapPoint;
+
+    try {
+        const fetched = await getDoc(doc(db, "incidents", id));
+        return incidentPointFromDocSnap(fetched);
+    } catch (err) {
+        console.error("[admin-map] focus incident fetch", err);
+        return null;
+    }
+}
+
+async function focusIncidentOnMap(id, snap) {
+    if (!mapInstance || !id || focusIncidentApplied) return;
+
+    const point = await resolveFocusedIncidentPoint(id, snap);
+    if (!point) return;
+
+    focusIncidentApplied = true;
+    const mapEl = document.getElementById("admin-map");
+    mapEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+    mapInstance.invalidateSize();
+    setFocusedIncidentMarker(point);
+
+    const targetZoom = Math.min(
+        mapInstance.getMaxZoom(),
+        Math.max(mapInstance.getZoom(), 17),
+    );
+    mapInstance.flyTo([point.lat, point.lng], targetZoom, { duration: 0.8 });
+
+    window.clearTimeout(focusPopupTimer);
+    focusPopupTimer = window.setTimeout(() => {
+        const marker = visibleIncidentMarkers.get(id);
+        if (marker && incidentsLayer?.zoomToShowLayer) {
+            incidentsLayer.zoomToShowLayer(marker, () => marker.openPopup());
+            return;
+        }
+        focusIncidentLayer?.openPopup();
+    }, 900);
+}
+
 function bindMapFilters() {
     const typeEl = document.getElementById("map-filter-type");
     const severityEl = document.getElementById("map-filter-severity");
@@ -430,6 +608,7 @@ function startIncidentRender(snap) {
 
     lastIncidentsSnap = snap;
     populateMapTypeFilter(snap);
+    resetMapFiltersForFocusedIncident();
 
     const markersEnabled = settings?.mapSettings?.markers?.enabled ?? true;
     const markerType = String(
@@ -443,6 +622,8 @@ function startIncidentRender(snap) {
     const buckets = new Map(); // grid bucket -> count
 
     incidentsLayer.clearLayers();
+    visibleIncidentMarkers = new Map();
+    visibleIncidentPoints = new Map();
 
     const sensitivity = String(
         settings?.mapSettings?.heatmap?.sensitivity || "medium",
@@ -456,29 +637,16 @@ function startIncidentRender(snap) {
 
     snap.forEach((docSnap) => {
         if (!incidentMatchesFilters(docSnap, filters)) return;
-        const d = docSnap.data();
-        const loc = d.location || {};
-        const lat = Number(loc.latitude);
-        const lng = Number(loc.longitude);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        const p = incidentPointFromDocSnap(docSnap);
+        if (!p) return;
 
-        const severity = d.severity ? String(d.severity) : "unknown";
-        const sev = severity.toLowerCase();
-        const wBase =
-            sev === "high"
-                ? 1
-                : sev === "medium"
-                  ? 0.7
-                  : sev === "low"
-                    ? 0.45
-                    : 0.55;
-
-        const gx = Math.floor(lat / cellDeg);
-        const gy = Math.floor(lng / cellDeg);
+        const gx = Math.floor(p.lat / cellDeg);
+        const gy = Math.floor(p.lng / cellDeg);
         const key = `${gx}:${gy}`;
         buckets.set(key, (buckets.get(key) || 0) + 1);
 
-        pts.push({ lat, lng, wBase, severity, docId: docSnap.id, data: d });
+        pts.push(p);
+        visibleIncidentPoints.set(p.docId, p);
     });
 
     // Heat points with threshold — one leaflet.heat layer per severity so spread color matches dot color.
@@ -580,6 +748,7 @@ function startIncidentRender(snap) {
 
             if (useIcon) {
                 const marker = L.marker([p.lat, p.lng], {
+                    incidentId: p.docId,
                     incidentSeverity: String(p.severity).toLowerCase(),
                 });
                 marker.bindPopup(popupHtml);
@@ -590,6 +759,7 @@ function startIncidentRender(snap) {
                     opacity: 0.95,
                 });
                 marker.addTo(incidentsLayer);
+                visibleIncidentMarkers.set(p.docId, marker);
             } else {
                 const marker = L.circleMarker([p.lat, p.lng], {
                     radius: 7,
@@ -597,6 +767,7 @@ function startIncidentRender(snap) {
                     weight: 1,
                     fillColor: severityColor(p.severity),
                     fillOpacity: 0.9,
+                    incidentId: p.docId,
                     incidentSeverity: String(p.severity).toLowerCase(),
                 });
                 marker.bindPopup(popupHtml);
@@ -607,8 +778,16 @@ function startIncidentRender(snap) {
                     opacity: 0.95,
                 });
                 marker.addTo(incidentsLayer);
+                visibleIncidentMarkers.set(p.docId, marker);
             }
         });
+    }
+
+    if (focusIncidentId && !focusIncidentApplied) {
+        window.clearTimeout(focusPopupTimer);
+        focusPopupTimer = window.setTimeout(() => {
+            focusIncidentOnMap(focusIncidentId, snap);
+        }, 80);
     }
 }
 
@@ -761,6 +940,7 @@ function applyBoundaryOverlay() {
 export function initAdminMap() {
     const el = document.getElementById("admin-map");
     if (!el || mapInstance) return;
+    focusIncidentId = getRequestedFocusIncidentId();
 
     // Load saved settings first (best-effort).
     // If settings are missing, the map will still render with defaults.
