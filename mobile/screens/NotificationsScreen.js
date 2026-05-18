@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { collection, query, getDocs, updateDoc, doc, where } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 
@@ -90,10 +91,10 @@ const NotificationsScreen = () => {
     <>
     <LinearGradient colors={['#3d5a8c','#2d4a7c','#1a2f5c']} style={styles.container}>
       <View style={styles.topNav}>
-        <TouchableOpacity style={styles.navItem}><Text style={styles.navIcon}>🏠</Text><Text style={styles.navLabel}>Home</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}><Text style={styles.navIcon}>📄</Text><Text style={styles.navLabel}>Reports</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}><Text style={styles.navIcon}>🔔</Text><Text style={styles.navLabel}>Alerts</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}><Text style={styles.navIcon}>⚙️</Text><Text style={styles.navLabel}>Settings</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="home-outline" size={22} color="#ffffff" /><Text style={styles.navLabel}>Home</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="document-text-outline" size={22} color="#ffffff" /><Text style={styles.navLabel}>Reports</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="notifications-outline" size={22} color="#ffffff" /><Text style={styles.navLabel}>Alerts</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.navItem}><Ionicons name="settings-outline" size={22} color="#ffffff" /><Text style={styles.navLabel}>Settings</Text></TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={{paddingBottom:120}}>
@@ -115,7 +116,11 @@ const NotificationsScreen = () => {
             <View key={n.id} style={[styles.notifCard, n.read ? styles.notifRead : styles.notifUnread]}>
               <View style={styles.notifRowTop}>
                 <Text style={styles.notifTitle}>{n.type}</Text>
-                {n.severity === 'high' && <View style={styles.warningIcon}><Text style={styles.warningText}>!</Text></View>}
+                {n.severity === 'high' && (
+                  <View style={styles.warningIcon}>
+                    <Ionicons name="alert-circle-outline" size={18} color="#b91c1c" />
+                  </View>
+                )}
               </View>
               <Text style={styles.notifBody} numberOfLines={3}>{n.body}</Text>
             </View>
@@ -134,7 +139,6 @@ const styles = StyleSheet.create({
   container: { flex:1 },
   topNav: { backgroundColor:'#d32f2f', flexDirection:'row', justifyContent:'space-around', paddingTop:HEADER_TOP_PADDING, paddingBottom:12 },
   navItem:{alignItems:'center', width:'25%'},
-  navIcon:{color:'#fff', fontSize:18, marginBottom:4},
   navLabel:{color:'#fff', fontWeight:'700', fontSize: 14, lineHeight: 18},
   scrollView: { flex:1 },
   headerAlt: { paddingHorizontal:20, paddingTop:18, paddingBottom:8 },
@@ -153,7 +157,6 @@ const styles = StyleSheet.create({
   notifRowTop: { flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:6 },
   notifTitle: { fontSize:16, fontWeight:'900', color:'#111827' },
   warningIcon: { backgroundColor:'#fff3f3', paddingHorizontal:6, paddingVertical:2, borderRadius:8 },
-  warningText: { color:'#b91c1c', fontWeight:'900' },
   notifBody: { color:'#6b7280', fontSize: 14, lineHeight: 20, fontWeight: '600' },
 });
 

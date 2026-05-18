@@ -8,12 +8,13 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
-  Modal,
   StatusBar,
 } from 'react-native';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
+import SmoothModal from '../components/SmoothModal';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
@@ -310,10 +311,12 @@ const StatusScreen = ({ navigation }) => {
     return date.toLocaleString();
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIconName = (status) => {
     const meta = getStatusMeta(status);
-    if (status === 'responding') return 'SOS';
-    return meta.step >= 3 ? 'OK' : meta.step === 2 ? '...' : '1';
+    if (status === 'responding') return 'radio-outline';
+    if (meta.step >= 3) return 'checkmark-circle-outline';
+    if (meta.step === 2) return 'time-outline';
+    return 'document-text-outline';
   };
 
   const getDisplayStatus = (incident) => {
@@ -330,20 +333,20 @@ const StatusScreen = ({ navigation }) => {
     return incident?.status;
   };
 
-  const getIncidentIcon = (type) => {
-    switch (type?.toLowerCase()) {
-      case 'theft_snatching': return '👜';
-      case 'robbery_holdup': return '🚨';
-      case 'physical_assault_injury': return '🤕';
-      case 'domestic_violence': return '🏠';
-      case 'drug_related_activity': return '🔥';
-      case 'public_disturbance': return '⚠️';
-      case 'vandalism_property_damage': return '🧱';
-      case 'traffic_accident': return '🚗';
-      case 'illegal_weapons': return '🔒';
-      case 'suspicious_activity': return '👁️';
-      default: return '!';
-    }
+  const getIncidentIconName = (type) => {
+    const icons = {
+      theft_snatching: 'bag-handle-outline',
+      robbery_holdup: 'alert-circle-outline',
+      physical_assault_injury: 'medkit-outline',
+      domestic_violence: 'home-outline',
+      drug_related_activity: 'flame-outline',
+      public_disturbance: 'megaphone-outline',
+      vandalism_property_damage: 'construct-outline',
+      traffic_accident: 'car-outline',
+      illegal_weapons: 'shield-outline',
+      suspicious_activity: 'eye-outline',
+    };
+    return icons[type?.toLowerCase()] || 'alert-outline';
   };
 
   const formatIncidentType = (incident) => {
@@ -448,14 +451,12 @@ const StatusScreen = ({ navigation }) => {
     const etaText = response.etaMinutes ? `${response.etaMinutes} min ETA` : 'ETA unavailable';
 
     return (
-      <Modal
+      <SmoothModal
         visible={detailsVisible}
-        transparent
-        animationType="slide"
         onRequestClose={closeDetailsModal}
+        overlayStyle={styles.detailsBackdrop}
+        contentStyle={styles.detailsSheet}
       >
-        <View style={styles.detailsBackdrop}>
-          <View style={styles.detailsSheet}>
             <View style={styles.detailsHandle} />
             <View style={styles.detailsHeader}>
               <View style={styles.detailsTitleBlock}>
@@ -464,14 +465,14 @@ const StatusScreen = ({ navigation }) => {
                 <Text style={styles.detailsSubtitle}>Submitted {formatTimestamp(selectedIncident.timestamp || selectedIncident.clientTimestamp)}</Text>
               </View>
               <TouchableOpacity style={styles.detailsCloseButton} onPress={closeDetailsModal}>
-                <Text style={styles.detailsCloseText}>X</Text>
+                <Ionicons name="close-outline" size={24} color="#ffffff" />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.detailsStatusPanel}>
                 <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
-                  <Text style={[styles.detailsStatusIconText, { color: meta.color }]}>{getStatusIcon(displayStatus)}</Text>
+                  <Ionicons name={getStatusIconName(displayStatus)} size={27} color={meta.color} />
                 </View>
                 <View style={styles.detailsStatusCopy}>
                   <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
@@ -485,7 +486,7 @@ const StatusScreen = ({ navigation }) => {
                 <View style={styles.responderCard}>
                   <View style={styles.responderHeader}>
                     <View style={styles.responderSignal}>
-                      <Text style={styles.responderSignalText}>!</Text>
+                      <Ionicons name="radio-outline" size={24} color="#ffffff" />
                     </View>
                     <View style={styles.responderTitleBlock}>
                       <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
@@ -560,9 +561,7 @@ const StatusScreen = ({ navigation }) => {
                 </Text>
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </SmoothModal>
     );
   };
 
@@ -611,7 +610,7 @@ const StatusScreen = ({ navigation }) => {
 
           <View style={styles.assuranceBanner}>
             <View style={styles.assuranceBannerIcon}>
-              <Text style={styles.assuranceBannerIconText}>i</Text>
+              <Ionicons name="information-outline" size={23} color="#ffffff" />
             </View>
             <View style={styles.assuranceBannerCopy}>
               <Text style={styles.assuranceBannerTitle}>Your reports stay trackable</Text>
@@ -638,7 +637,11 @@ const StatusScreen = ({ navigation }) => {
                   >
                     <View style={styles.incidentRowTop}>
                       <View style={[styles.incidentTypeIconWrap, { backgroundColor: getSeverityBackground(incident.severity) }]}>
-                        <Text style={styles.incidentTypeIconText}>{getIncidentIcon(incident.type)}</Text>
+                        <Ionicons
+                          name={getIncidentIconName(incident.type)}
+                          size={24}
+                          color={severityColor}
+                        />
                       </View>
                       <View style={styles.incidentTitleBlock}>
                         <Text style={styles.incidentTitle} numberOfLines={2}>{formatIncidentType(incident)}</Text>
@@ -663,9 +666,8 @@ const StatusScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIcon}>
-                  <Text style={styles.emptyIconText}>!</Text>
+                  <Ionicons name="document-text-outline" size={30} color="#dc2626" />
                 </View>
-                <Text style={styles.emptyEmoji}>📋</Text>
                 <Text style={styles.emptyTitle}>No Reports Yet</Text>
                 <Text style={styles.emptySubtitle}>
                   Your submitted incident reports will appear here
@@ -681,12 +683,12 @@ const StatusScreen = ({ navigation }) => {
         {/* Bottom Navigation Bar */}
         <View style={styles.bottomNavBarContainer}>
           <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
               <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+            <TouchableOpacity style={styles.navBottomItem}>
               <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
@@ -816,11 +818,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  assuranceBannerIconText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '900',
-  },
   assuranceBannerCopy: {
     flex: 1,
   },
@@ -867,9 +864,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  incidentTypeIconText: {
-    fontSize: 22,
   },
   incidentTitleBlock: {
     flex: 1,
@@ -1053,11 +1047,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  detailsCloseText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
   detailsScroll: {
     maxHeight: 560,
   },
@@ -1079,10 +1068,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  detailsStatusIconText: {
-    fontSize: 14,
-    fontWeight: '900',
   },
   detailsStatusCopy: {
     flex: 1,
@@ -1125,11 +1110,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 11,
-  },
-  responderSignalText: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '900',
   },
   responderTitleBlock: {
     flex: 1,
@@ -1269,16 +1249,6 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyIconText: {
-    color: '#dc2626',
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  emptyEmoji: {
-    display: 'none',
-    fontSize: 64,
     marginBottom: 16,
   },
   emptyTitle: {

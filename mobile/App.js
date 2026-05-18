@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { enableFreeze, enableScreens } from 'react-native-screens';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
 import MainNavigator from './navigation/MainNavigator';
+
+enableScreens(true);
+enableFreeze(true);
 
 // Simple Error Boundary Component
 class ErrorBoundary extends React.Component {

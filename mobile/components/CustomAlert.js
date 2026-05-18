@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
+  Easing,
   Modal,
   View,
   Text,
@@ -7,6 +9,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +23,58 @@ const CustomAlert = ({
   autoCloseDelay = 0,
 }) => {
   const timerRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.96)).current;
+  const translateAnim = useRef(new Animated.Value(12)).current;
+  const [isMounted, setIsMounted] = React.useState(visible);
+
+  useEffect(() => {
+    if (visible) {
+      setIsMounted(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 180,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          damping: 18,
+          stiffness: 260,
+          mass: 0.8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (isMounted) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 150,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.97,
+          duration: 150,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 10,
+          duration: 150,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => setIsMounted(false));
+    }
+  }, [fadeAnim, isMounted, scaleAnim, translateAnim, visible]);
 
   useEffect(() => {
     if (visible && autoCloseDelay > 0) {
@@ -58,37 +113,83 @@ const CustomAlert = ({
   const getTypeConfig = () => {
     switch (type) {
       case 'success':
-        return { icon: 'OK', label: 'Success' };
+        return {
+          icon: 'checkmark-circle-outline',
+          label: 'Success',
+          color: '#047857',
+          backgroundColor: '#ecfdf5',
+          borderColor: '#a7f3d0',
+        };
       case 'error':
-        return { icon: '!', label: 'Alert' };
+        return {
+          icon: 'alert-circle-outline',
+          label: 'Alert',
+          color: '#dc2626',
+          backgroundColor: '#fef2f2',
+          borderColor: '#fecaca',
+        };
       case 'warning':
-        return { icon: '!', label: 'Warning' };
+        return {
+          icon: 'warning-outline',
+          label: 'Warning',
+          color: '#dc2626',
+          backgroundColor: '#fef2f2',
+          borderColor: '#fecaca',
+        };
       default:
-        return { icon: 'i', label: 'Notice' };
+        return {
+          icon: 'information-circle-outline',
+          label: 'Notice',
+          color: '#dc2626',
+          backgroundColor: '#fef2f2',
+          borderColor: '#fecaca',
+        };
     }
   };
 
   const typeConfig = getTypeConfig();
 
+  if (!isMounted) return null;
+
   return (
     <Modal
-      visible={visible}
+      visible={isMounted}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={handleManualClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.alertCard}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[
+            styles.alertCard,
+            {
+              transform: [
+                { translateY: translateAnim },
+                { scale: scaleAnim },
+              ],
+            },
+          ]}
+        >
           <View style={styles.header}>
-            <View style={styles.headerIconWrap}>
-              <Text style={styles.headerIcon}>{typeConfig.icon}</Text>
+            <View
+              style={[
+                styles.headerIconWrap,
+                {
+                  backgroundColor: typeConfig.backgroundColor,
+                  borderColor: typeConfig.borderColor,
+                },
+              ]}
+            >
+              <Ionicons name={typeConfig.icon} size={28} color={typeConfig.color} />
             </View>
             <View style={styles.headerCopy}>
-              <Text style={styles.headerEyebrow}>{typeConfig.label}</Text>
+              <Text style={[styles.headerEyebrow, { color: typeConfig.color }]}>
+                {typeConfig.label}
+              </Text>
               <Text style={styles.headerTitle}>{title}</Text>
             </View>
             <TouchableOpacity onPress={handleManualClose} style={styles.closeButton}>
-              <Text style={styles.closeIcon}>X</Text>
+              <Ionicons name="close-outline" size={23} color="#991b1b" />
             </TouchableOpacity>
           </View>
 
@@ -128,8 +229,8 @@ const CustomAlert = ({
               )}
             </View>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -137,86 +238,82 @@ const CustomAlert = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(17, 24, 39, 0.48)',
+    backgroundColor: 'rgba(17, 24, 39, 0.56)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   alertCard: {
-    width: width * 0.88,
-    maxWidth: 400,
-    borderRadius: 26,
+    width: width * 0.9,
+    maxWidth: 420,
+    borderRadius: 24,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: '#fee2e2',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.28,
-    shadowRadius: 22,
-    elevation: 18,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 20,
   },
   header: {
-    paddingVertical: 18,
+    paddingTop: 20,
+    paddingBottom: 16,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fee2e2',
   },
   headerIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-  },
-  headerIcon: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#dc2626',
+    borderWidth: 1.5,
   },
   headerCopy: {
     flex: 1,
   },
   headerEyebrow: {
-    color: '#fee2e2',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    letterSpacing: 0.9,
     textTransform: 'uppercase',
-    marginBottom: 3,
+    marginBottom: 5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '900',
-    color: '#ffffff',
+    color: '#111827',
     letterSpacing: 0.2,
+    lineHeight: 25,
   },
   closeButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 10,
-  },
-  closeIcon: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   contentContainer: {
-    paddingHorizontal: 22,
-    paddingVertical: 22,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
   },
   message: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#1f2937',
     textAlign: 'left',
-    lineHeight: 23,
+    lineHeight: 24,
     marginBottom: 22,
     fontWeight: '700',
   },
@@ -228,9 +325,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   button: {
-    paddingVertical: 14,
+    minHeight: 52,
+    paddingVertical: 13,
     paddingHorizontal: 18,
-    borderRadius: 15,
+    borderRadius: 16,
     minWidth: 112,
     alignItems: 'center',
     justifyContent: 'center',
@@ -241,19 +339,19 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#dc2626',
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.18,
     shadowRadius: 12,
     elevation: 7,
   },
   secondaryButton: {
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#dc2626',
+    borderColor: '#fecaca',
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0.2,
     textAlign: 'center',

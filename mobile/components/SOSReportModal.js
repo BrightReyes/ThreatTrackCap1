@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Modal,
   ScrollView,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../utils/firebase';
 import CustomAlert from './CustomAlert';
+import SmoothModal from './SmoothModal';
 
 const SOSReportModal = ({ visible, onClose, userLocation }) => {
   const [incidentType, setIncidentType] = useState('');
@@ -138,29 +139,28 @@ const SOSReportModal = ({ visible, onClose, userLocation }) => {
 
   return (
     <>
-      <Modal
+      <SmoothModal
         visible={visible}
-        transparent={true}
-        animationType="fade"
         onRequestClose={handleClose}
+        position="center"
+        overlayStyle={styles.modalOverlay}
+        contentStyle={styles.modalContent}
       >
-        <View style={styles.modalOverlay}>
           <ScrollView 
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.modalContent}>
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.headerContent}>
-                  <Text style={styles.warningIcon}>⚠️</Text>
+                  <Ionicons name="alert-circle-outline" size={24} color="#ff4444" style={styles.warningIcon} />
                   <Text style={styles.headerTitle}>Report Incident</Text>
                 </View>
                 <TouchableOpacity 
                   style={styles.closeButton}
                   onPress={handleClose}
                 >
-                  <Text style={styles.closeButtonText}>✕</Text>
+                  <Ionicons name="close-outline" size={24} color="#ffffff" />
                 </TouchableOpacity>
               </View>
 
@@ -256,7 +256,7 @@ const SOSReportModal = ({ visible, onClose, userLocation }) => {
 
               {/* Info Box */}
               <View style={styles.infoBox}>
-                <Text style={styles.infoIcon}>ℹ️</Text>
+                <Ionicons name="information-circle-outline" size={20} color="#2196F3" style={styles.infoIcon} />
                 <Text style={styles.infoText}>
                   Your report will be submitted anonymously to protect your identity. Only essential information will be shared with authorities.
                 </Text>
@@ -264,10 +264,8 @@ const SOSReportModal = ({ visible, onClose, userLocation }) => {
 
               {/* Bottom Spacing */}
               <View style={styles.bottomSpacing} />
-            </View>
           </ScrollView>
-        </View>
-      </Modal>
+      </SmoothModal>
 
       {/* Custom Alert Modal */}
       <CustomAlert

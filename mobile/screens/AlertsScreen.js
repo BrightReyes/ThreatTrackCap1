@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image, StatusBar } from 'react-native';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
+import SmoothModal from '../components/SmoothModal';
 
 const NEARBY_RADIUS_KM = 5; // Alert for incidents within 5km
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
@@ -23,7 +25,7 @@ const AlertsScreen = ({ navigation }) => {
       title: 'High Crime Activity Detected',
       description: 'Increased reports near Main Street area. Avoid if possible.',
       type: 'crime',
-      badge: '⚠️ High Priority',
+      badge: 'High Priority',
       read: false,
     },
     {
@@ -31,7 +33,7 @@ const AlertsScreen = ({ navigation }) => {
       title: 'Safety Alert Resolved',
       description: 'Increased reports near Main Street area. Avoid if possible.',
       type: 'safety',
-      badge: '✓ Resolved',
+      badge: 'Resolved',
       read: false,
     },
     {
@@ -187,16 +189,16 @@ const AlertsScreen = ({ navigation }) => {
     );
   }
 
-  const getAlertIcon = (type) => {
+  const getAlertIconName = (type) => {
     switch (type?.toLowerCase()) {
-      case 'police_urgent_report': return '!';
-      case 'response_update': return '!';
-      case 'crime': return '⚠️';
-      case 'safety': return '✓';
-      case 'precinct': return '🛡️';
-      case 'theft': return '⚠️';
-      case 'meeting': return '✓';
-      default: return 'ℹ️';
+      case 'police_urgent_report': return 'alert-circle-outline';
+      case 'response_update': return 'radio-outline';
+      case 'crime': return 'warning-outline';
+      case 'safety': return 'checkmark-circle-outline';
+      case 'precinct': return 'shield-outline';
+      case 'theft': return 'bag-handle-outline';
+      case 'meeting': return 'people-outline';
+      default: return 'information-circle-outline';
     }
   };
 
@@ -228,6 +230,143 @@ const AlertsScreen = ({ navigation }) => {
 
   const filteredAlerts = filterTab === 'all' ? notifications : notifications.filter(a => !a.read && !a.readAt);
   const unreadCount = notifications.filter(a => !a.read && !a.readAt).length;
+  const selectedType = selectedNotification?.type || 'notification';
+  const selectedPriority = selectedNotification?.priority || selectedNotification?.severity || 'normal';
+  const selectedColor = getAlertColor(selectedType);
+  const selectedBgColor = getAlertBgColor(selectedType);
+  const selectedTypeLabel = String(selectedType).replace(/_/g, ' ');
+
+  const renderNotificationDetailModal = () => {
+    if (!selectedNotification) return null;
+
+    const isLinkedToReport = shouldLinkNotificationToReports(selectedNotification);
+    const locationText = selectedNotification.location?.address;
+    const message = selectedNotification.body || selectedNotification.description || 'No message provided.';
+
+    return (
+      <SmoothModal
+        visible={!!selectedNotification}
+        onRequestClose={() => setSelectedNotification(null)}
+        position="center"
+        overlayStyle={styles.notificationDetailOverlay}
+        contentStyle={styles.notificationDetailCard}
+      >
+        <View style={styles.notificationDetailHeader}>
+          <View style={[styles.notificationDetailIcon, { backgroundColor: selectedBgColor }]}>
+            <Ionicons
+              name={getAlertIconName(selectedType)}
+              size={30}
+              color={selectedColor}
+            />
+          </View>
+          <View style={styles.notificationDetailTitleBlock}>
+            <Text style={[styles.notificationDetailEyebrow, { color: selectedColor }]}>
+              {selectedPriority === 'high' ? 'Priority alert' : 'Notification'}
+            </Text>
+            <Text style={styles.notificationDetailTitle}>
+              {selectedNotification.title || selectedTypeLabel}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.notificationDetailClose}
+            onPress={() => setSelectedNotification(null)}
+            activeOpacity={0.82}
+          >
+            <Ionicons name="close-outline" size={24} color="#991b1b" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          style={styles.notificationDetailScroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.notificationMessagePanel}>
+            <Text style={styles.notificationMessageText}>{message}</Text>
+          </View>
+
+          <View style={styles.notificationMetaGrid}>
+            <View style={styles.notificationMetaCard}>
+              <Text style={styles.notificationMetaLabel}>Type</Text>
+              <Text style={styles.notificationMetaValue}>{selectedTypeLabel}</Text>
+            </View>
+            <View style={styles.notificationMetaCard}>
+              <Text style={styles.notificationMetaLabel}>Priority</Text>
+              <Text style={[styles.notificationMetaValue, { color: selectedColor }]}>
+                {selectedPriority}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.notificationInfoRow}>
+            <View style={styles.notificationInfoIcon}>
+              <Ionicons name="time-outline" size={19} color="#991b1b" />
+            </View>
+            <View style={styles.notificationInfoCopy}>
+              <Text style={styles.notificationInfoLabel}>Received</Text>
+              <Text style={styles.notificationInfoText}>
+                {formatNotificationTime(selectedNotification.sentAt || selectedNotification.timestamp)}
+              </Text>
+            </View>
+          </View>
+
+          {locationText ? (
+            <View style={styles.notificationInfoRow}>
+              <View style={styles.notificationInfoIcon}>
+                <Ionicons name="location-outline" size={19} color="#991b1b" />
+              </View>
+              <View style={styles.notificationInfoCopy}>
+                <Text style={styles.notificationInfoLabel}>Location</Text>
+                <Text style={styles.notificationInfoText}>{locationText}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {isLinkedToReport ? (
+            <View style={styles.notificationLinkedPanel}>
+              <Ionicons name="document-text-outline" size={20} color="#dc2626" />
+              <Text style={styles.notificationLinkedText}>
+                This notification is linked to your report status.
+              </Text>
+            </View>
+          ) : null}
+        </ScrollView>
+
+        <View style={styles.notificationDetailActions}>
+          {isLinkedToReport ? (
+            <TouchableOpacity
+              style={[styles.notificationDetailButton, styles.notificationDetailPrimary]}
+              onPress={() => {
+                setSelectedNotification(null);
+                navigation.navigate('Status');
+              }}
+              activeOpacity={0.86}
+            >
+              <Ionicons name="document-text-outline" size={18} color="#ffffff" />
+              <Text style={styles.notificationDetailPrimaryText}>View Reports</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={[
+              styles.notificationDetailButton,
+              isLinkedToReport ? styles.notificationDetailSecondary : styles.notificationDetailPrimary,
+            ]}
+            onPress={() => setSelectedNotification(null)}
+            activeOpacity={0.86}
+          >
+            <Text
+              style={
+                isLinkedToReport
+                  ? styles.notificationDetailSecondaryText
+                  : styles.notificationDetailPrimaryText
+              }
+            >
+              Close
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SmoothModal>
+    );
+  };
 
   return (
     <>
@@ -241,7 +380,15 @@ const AlertsScreen = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.headerNew}>
-            <Text style={styles.headerNewTitle}>NOTIFICATIONS NEW</Text>
+            <View style={styles.headerTitleRow}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="notifications-outline" size={24} color="#ffffff" />
+              </View>
+              <View style={styles.headerCopy}>
+                <Text style={styles.headerNewTitle}>NOTIFICATIONS</Text>
+                <Text style={styles.headerSubtitle}>Review safety alerts and response updates.</Text>
+              </View>
+            </View>
           </View>
 
           {/* Filter Tabs */}
@@ -281,7 +428,11 @@ const AlertsScreen = ({ navigation }) => {
                   <View style={styles.notificationContent}>
                     <View style={styles.notificationHeader}>
                       <View style={[styles.notificationIcon, { backgroundColor: getAlertBgColor(alert.type) }]}>
-                        <Text style={styles.notificationIconText}>{getAlertIcon(alert.type)}</Text>
+                        <Ionicons
+                          name={getAlertIconName(alert.type)}
+                          size={22}
+                          color={getAlertColor(alert.type)}
+                        />
                       </View>
                       <View style={styles.notificationTextContainer}>
                         <Text style={styles.notificationTitle}>{alert.title || alert.type}</Text>
@@ -298,7 +449,9 @@ const AlertsScreen = ({ navigation }) => {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>🔔</Text>
+                <View style={styles.emptyIcon}>
+                  <Ionicons name="notifications-outline" size={34} color="#dc2626" />
+                </View>
                 <Text style={styles.emptyTitle}>No Notifications</Text>
                 <Text style={styles.emptySubtitle}>You're all caught up!</Text>
               </View>
@@ -312,12 +465,12 @@ const AlertsScreen = ({ navigation }) => {
         {/* Bottom Navigation Bar */}
         <View style={styles.bottomNavBarContainer}>
           <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
               <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
               <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
@@ -342,25 +495,7 @@ const AlertsScreen = ({ navigation }) => {
         onClose={hideAlert}
         autoCloseDelay={5000}
       />
-      <CustomAlert
-        visible={!!selectedNotification}
-        title={selectedNotification?.title || selectedNotification?.type || 'Notification'}
-        message={buildNotificationDetails(selectedNotification)}
-        type={selectedNotification?.priority === 'high' || selectedNotification?.severity === 'high' ? 'warning' : 'info'}
-        buttons={[
-          ...(shouldLinkNotificationToReports(selectedNotification)
-            ? [{
-                text: 'View Reports',
-                onPress: () => {
-                  setSelectedNotification(null);
-                  navigation.navigate('Status');
-                },
-              }]
-            : []),
-          { text: 'Close', onPress: () => setSelectedNotification(null) },
-        ]}
-        onClose={() => setSelectedNotification(null)}
-      />
+      {renderNotificationDetailModal()}
     </>
   );
 };
@@ -368,7 +503,7 @@ const AlertsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f8fafc',
   },
   scrollView: {
     flex: 1,
@@ -389,14 +524,44 @@ const styles = StyleSheet.create({
   headerNew: {
     paddingHorizontal: 20,
     paddingTop: HEADER_TOP_PADDING,
-    paddingBottom: 12,
+    paddingBottom: 16,
     backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  headerCopy: {
+    flex: 1,
   },
   headerNewTitle: {
     fontSize: 24,
     fontWeight: '900',
     color: '#111827',
     letterSpacing: 1.2,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '700',
+    lineHeight: 19,
   },
 
   // Tabs
@@ -406,16 +571,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
   },
   tab: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 9,
+    marginRight: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
   },
   tabActive: {
-    borderBottomColor: '#dc2626',
+    borderColor: '#dc2626',
+    backgroundColor: '#fef2f2',
   },
   tabText: {
     fontSize: 14,
@@ -434,17 +604,17 @@ const styles = StyleSheet.create({
   notificationCard: {
     backgroundColor: '#ffffff',
     borderLeftWidth: 4,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
+    borderRadius: 18,
+    padding: 15,
+    marginBottom: 14,
+    borderWidth: 1.5,
     borderColor: '#f3f4f6',
     borderLeftColor: '#dc2626',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 3,
   },
   notificationContent: {
     flex: 1,
@@ -455,25 +625,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   notificationIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
     backgroundColor: '#fee2e2',
-  },
-  notificationIconText: {
-    fontSize: 16,
   },
   notificationTextContainer: {
     flex: 1,
   },
   notificationTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -481,19 +648,230 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   badge: {
-    backgroundColor: '#dbeafe',
-    color: '#0284c7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   notificationBody: {
     fontSize: 14,
     color: '#6b7280',
     lineHeight: 20,
-    marginLeft: 42,
+    marginLeft: 54,
+    fontWeight: '600',
+  },
+  notificationDetailOverlay: {
+    backgroundColor: 'rgba(17, 24, 39, 0.58)',
+  },
+  notificationDetailCard: {
+    width: '100%',
+    maxHeight: '82%',
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    overflow: 'hidden',
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  notificationDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fee2e2',
+  },
+  notificationDetailIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 13,
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+  },
+  notificationDetailTitleBlock: {
+    flex: 1,
+  },
+  notificationDetailEyebrow: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+    marginBottom: 5,
+  },
+  notificationDetailTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#111827',
+    lineHeight: 27,
+  },
+  notificationDetailClose: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  notificationDetailScroll: {
+    maxHeight: 440,
+  },
+  notificationMessagePanel: {
+    margin: 16,
+    marginBottom: 12,
+    backgroundColor: '#fff7f7',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 14,
+  },
+  notificationMessageText: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  notificationMetaGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  notificationMetaCard: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    borderRadius: 16,
+    padding: 12,
+  },
+  notificationMetaLabel: {
+    fontSize: 12,
+    color: '#991b1b',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 5,
+  },
+  notificationMetaValue: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '900',
+    textTransform: 'capitalize',
+  },
+  notificationInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    borderRadius: 16,
+    padding: 12,
+  },
+  notificationInfoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  notificationInfoCopy: {
+    flex: 1,
+  },
+  notificationInfoLabel: {
+    fontSize: 12,
+    color: '#991b1b',
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+    marginBottom: 3,
+  },
+  notificationInfoText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  notificationLinkedPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 2,
+    marginBottom: 16,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 16,
+    padding: 12,
+  },
+  notificationLinkedText: {
+    flex: 1,
+    color: '#991b1b',
+    fontSize: 14,
+    fontWeight: '800',
+    lineHeight: 20,
+    marginLeft: 9,
+  },
+  notificationDetailActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#fee2e2',
+    backgroundColor: '#ffffff',
+  },
+  notificationDetailButton: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  notificationDetailPrimary: {
+    backgroundColor: '#dc2626',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 7,
+  },
+  notificationDetailSecondary: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+  },
+  notificationDetailPrimaryText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  notificationDetailSecondaryText: {
+    color: '#dc2626',
+    fontSize: 15,
+    fontWeight: '900',
   },
 
   // Empty State
@@ -501,8 +879,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 80,
   },
-  emptyEmoji: {
-    fontSize: 64,
+  emptyIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
@@ -634,28 +1019,6 @@ const formatNotificationTime = (value) => {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-};
-
-const buildNotificationDetails = (item) => {
-  if (!item) return '';
-
-  const lines = [
-    item.body || item.description || 'No message provided.',
-    '',
-    `Type: ${String(item.type || 'notification').replace(/_/g, ' ')}`,
-    `Priority: ${item.priority || item.severity || 'normal'}`,
-    `Time: ${formatNotificationTime(item.sentAt || item.timestamp)}`,
-  ];
-
-  if (item.location?.address) {
-    lines.push(`Location: ${item.location.address}`);
-  }
-
-  if (shouldLinkNotificationToReports(item)) {
-    lines.push('', 'This notification is linked to a report.');
-  }
-
-  return lines.join('\n');
 };
 
 const shouldLinkNotificationToReports = (item) => {

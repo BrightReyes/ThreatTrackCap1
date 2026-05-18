@@ -10,7 +10,6 @@ import {
   Linking,
   Image,
   Animated,
-  Modal,
   StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
+import SmoothModal from '../components/SmoothModal';
 import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
 
 const { width, height } = Dimensions.get('window');
@@ -137,6 +137,17 @@ const getMapPrecincts = (firestorePrecincts = []) => {
     });
 
   return Array.from(precinctsByKey.values());
+};
+
+const getPrecinctCoordinate = (precinct) => {
+  const latitude = Number(precinct?.location?.latitude);
+  const longitude = Number(precinct?.location?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return { latitude, longitude };
 };
 
 const SEVERITY_ORDER = {
@@ -1081,11 +1092,11 @@ const HomeScreen = ({ navigation }) => {
         </View>
         <View style={styles.bottomNavBarContainer}>
             <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+            <TouchableOpacity style={styles.navBottomItem}>
               <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Home</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
               <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
@@ -1195,24 +1206,28 @@ const HomeScreen = ({ navigation }) => {
                 )}
 
                 {/* Precinct Markers */}
-                {precincts.map((precinct) => (
-                  precinct.location && precinct.location.latitude && precinct.location.longitude && (
+                {precincts.map((precinct) => {
+                  const coordinate = getPrecinctCoordinate(precinct);
+
+                  if (!coordinate) return null;
+
+                  return (
                     <Marker
-                      key={precinct.id}
-                      coordinate={{
-                        latitude: precinct.location.latitude,
-                        longitude: precinct.location.longitude,
-                      }}
+                      key={`precinct-marker-${precinct.id || precinct.name}`}
+                      coordinate={coordinate}
                       title={precinct.name}
                       description={precinct.address}
+                      anchor={{ x: 0.5, y: 1 }}
+                      zIndex={20}
                     >
                       <Image
                         source={require('../assets/icons/police-station.png')}
                         style={styles.policeStationMarker}
+                        fadeDuration={0}
                       />
                     </Marker>
-                  )
-                ))}
+                  );
+                })}
               </MapView>
               {heatmapLoading && (
                 <View style={styles.heatmapLoadingBadge}>
@@ -1360,12 +1375,12 @@ const HomeScreen = ({ navigation }) => {
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNavBarContainer}>
         <View style={styles.bottomNavBar}>
-          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={styles.navBottomItem}>
             <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
             <Text style={styles.navBottomLabel}>Home</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
             <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
             <Text style={styles.navBottomLabel}>Reports</Text>
           </TouchableOpacity>
@@ -1380,19 +1395,15 @@ const HomeScreen = ({ navigation }) => {
       </View>
     </View>
 
-    <Modal
+    <SmoothModal
       visible={homeModal.visible}
-      transparent
-      animationType="slide"
       onRequestClose={closeHomeModal}
+      overlayStyle={styles.homeModalBackdrop}
+      contentStyle={styles.homeModalSheet}
     >
-      <View style={styles.homeModalBackdrop}>
-        <View style={styles.homeModalSheet}>
-          <View style={styles.homeModalHandle} />
-          {renderHomeModalContent()}
-        </View>
-      </View>
-    </Modal>
+      <View style={styles.homeModalHandle} />
+      {renderHomeModalContent()}
+    </SmoothModal>
 
     {/* Custom Alert Modal */}
     <CustomAlert
@@ -2560,8 +2571,8 @@ const styles = StyleSheet.create({
   
   // Police Station Marker
   policeStationMarker: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     resizeMode: 'contain',
   },
   

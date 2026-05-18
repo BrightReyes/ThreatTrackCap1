@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   StatusBar,
-  Modal,
   TextInput,
   ActivityIndicator,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import CustomAlert from '../components/CustomAlert';
+import SmoothModal from '../components/SmoothModal';
 import { auth, db } from '../utils/firebase';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
@@ -387,12 +387,12 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.bottomNavBarContainer}>
           <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Home')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
               <Ionicons name="home-outline" size={27} color="#ffffff" style={styles.navBottomIcon} />
               <Text style={styles.navBottomLabel}>Home</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.navigate('Status')}>
+            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
               <Ionicons name="document-text-outline" size={27} color="#ffffff" style={styles.navBottomIcon} />
               <Text style={styles.navBottomLabel}>Reports</Text>
             </TouchableOpacity>
@@ -407,14 +407,12 @@ const SettingsScreen = ({ navigation, onLogout }) => {
         </View>
       </View>
 
-      <Modal
+      <SmoothModal
         visible={profileVisible}
-        animationType="slide"
-        transparent
         onRequestClose={() => setProfileVisible(false)}
+        overlayStyle={styles.profileModalOverlay}
+        contentStyle={styles.profileModalPanel}
       >
-        <View style={styles.profileModalOverlay}>
-          <View style={styles.profileModalPanel}>
             <View style={styles.profileModalHeader}>
               <View style={styles.profileModalAvatar}>
                 <Text style={styles.profileModalAvatarText}>
@@ -456,18 +454,14 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 <ProfileField icon="finger-print-outline" label="User ID" value={user?.uid} />
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </SmoothModal>
 
-      <Modal
+      <SmoothModal
         visible={passwordModalVisible}
-        animationType="slide"
-        transparent
         onRequestClose={closePasswordModal}
+        overlayStyle={styles.profileModalOverlay}
+        contentStyle={styles.passwordModalPanel}
       >
-        <View style={styles.profileModalOverlay}>
-          <View style={styles.passwordModalPanel}>
             <View style={styles.passwordModalHeader}>
               <View>
                 <Text style={styles.profileModalTitle}>Change password</Text>
@@ -554,18 +548,14 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </SmoothModal>
 
-      <Modal
+      <SmoothModal
         visible={supportVisible}
-        animationType="slide"
-        transparent
         onRequestClose={closeSupportModal}
+        overlayStyle={styles.profileModalOverlay}
+        contentStyle={styles.supportModalPanel}
       >
-        <View style={styles.profileModalOverlay}>
-          <View style={styles.supportModalPanel}>
             <View style={styles.passwordModalHeader}>
               <View>
                 <Text style={styles.profileModalTitle}>Help & Support</Text>
@@ -658,18 +648,14 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 </Text>
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </SmoothModal>
 
-      <Modal
+      <SmoothModal
         visible={aboutVisible}
-        animationType="slide"
-        transparent
         onRequestClose={closeAboutModal}
+        overlayStyle={styles.profileModalOverlay}
+        contentStyle={styles.supportModalPanel}
       >
-        <View style={styles.profileModalOverlay}>
-          <View style={styles.supportModalPanel}>
             <View style={styles.passwordModalHeader}>
               <View>
                 <Text style={styles.profileModalTitle}>About ThreatTrack</Text>
@@ -740,9 +726,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 </Text>
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </SmoothModal>
 
       <CustomAlert
         visible={alertConfig.visible}
