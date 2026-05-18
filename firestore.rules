@@ -99,7 +99,8 @@ service cloud.firestore {
     function hasActiveReporterProfile() {
       return isAuthenticated() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             userDoc(request.auth.uid).data.accountStatus == 'active' &&
+             (userDoc(request.auth.uid).data.accountStatus == 'active' ||
+              userDoc(request.auth.uid).data.status == 'active') &&
              userDoc(request.auth.uid).data.falseReportAcknowledged == true;
     }
 

@@ -595,6 +595,7 @@ function bindAddUserModal() {
             status: EDIT_STATUSES_FOR_CREATE.includes(status)
                 ? status
                 : "active",
+            accountStatus: status === "active" ? "active" : status,
             disabled: status === "inactive",
             suspended: status === "suspended",
             createdAt: serverTimestamp(),

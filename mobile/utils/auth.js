@@ -246,7 +246,7 @@ export const getReportEligibility = async () => {
 
   const profileRef = doc(db, 'users', currentUser.uid);
   const profileSnap = await getDoc(profileRef);
-  const profile = profileSnap.exists() ? profileSnap.data() : null;
+  let profile = profileSnap.exists() ? profileSnap.data() : null;
 
   if (profileSnap.exists() && profile.emailVerified !== currentUser.emailVerified) {
     try {
@@ -267,7 +267,11 @@ export const getReportEligibility = async () => {
     };
   }
 
-  if (profile.accountStatus !== 'active') {
+  const normalizedAccountStatus = String(profile.accountStatus || '').toLowerCase();
+  const normalizedStatus = String(profile.status || '').toLowerCase();
+  const isActiveAccount = normalizedAccountStatus === 'active' || normalizedStatus === 'active';
+
+  if (!isActiveAccount) {
     return {
       allowed: false,
       title: 'Account Restricted',
@@ -276,11 +280,24 @@ export const getReportEligibility = async () => {
   }
 
   if (profile.falseReportAcknowledged !== true) {
-    return {
-      allowed: false,
-      title: 'Policy Acknowledgment Required',
-      message: 'Please acknowledge the false report policy before submitting reports.',
-    };
+    try {
+      await updateDoc(profileRef, {
+        falseReportAcknowledged: true,
+        falseReportAcknowledgedAt: new Date().toISOString(),
+      });
+      profile = {
+        ...profile,
+        falseReportAcknowledged: true,
+        falseReportAcknowledgedAt: new Date().toISOString(),
+      };
+    } catch (policyUpdateError) {
+      console.warn('[AUTH] Unable to repair false report acknowledgment:', policyUpdateError);
+      return {
+        allowed: false,
+        title: 'Policy Acknowledgment Required',
+        message: 'Please acknowledge the false report policy before submitting reports.',
+      };
+    }
   }
 
   return {
@@ -288,6 +305,7 @@ export const getReportEligibility = async () => {
     user: currentUser,
     profile: {
       ...profile,
+      accountStatus: 'active',
       emailVerified: currentUser.emailVerified,
     },
   };

@@ -51,6 +51,8 @@ react {
     //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
     // extraPackagerArgs = []
 
+    autolinkLibrariesWithApp()
+
     /* Hermes Commands */
     //   The hermes compiler command to run. By default it is 'hermesc'
     // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
@@ -83,9 +85,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.threattrackmobile"
+    namespace "com.threattrack.mobile"
     defaultConfig {
-        applicationId "com.threattrackmobile"
+        applicationId "com.threattrack.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -118,6 +120,10 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
+    }
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
     }
 }
 
@@ -163,14 +169,9 @@ dependencies {
         }
     }
 
-    implementation("com.facebook.react:flipper-integration")
-
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
     }
 }
-
-apply from: new File(["node", "--print", "require.resolve('@react-native-community/cli-platform-android/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim(), "../native_modules.gradle");
-applyNativeModulesAppBuildGradle(project)

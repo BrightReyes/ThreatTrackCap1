@@ -425,6 +425,7 @@ export function initUserModal() {
                 lastName,
                 role,
                 status,
+                accountStatus: status === "active" ? "active" : status,
                 disabled: status === "inactive",
                 suspended: status === "suspended",
             };

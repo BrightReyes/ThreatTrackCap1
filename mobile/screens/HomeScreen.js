@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { WebView } from 'react-native-webview';
 import MapView, { Marker, Polygon, Heatmap, Circle } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
@@ -42,6 +43,7 @@ const DEFAULT_HEATMAP_DAYS = 7;
 const HEATMAP_NATIVE_RADIUS = 50;
 const MAX_HEATMAP_MARKERS = 45;
 const HEATMAP_GRID_SIZE = 0.002;
+const ENABLE_NATIVE_HOME_MAP = false;
 const HEATMAP_VISIBLE_STATUSES = new Set([
   'verified',
   'under_review',
@@ -242,6 +244,25 @@ const VALENZUELA_BOUNDARY = [
   { latitude: 14.7340427, longitude: 120.9495509 },
 ];
 
+const clampMapPercent = (value) => Math.min(Math.max(value, 4), 96);
+
+const projectCoordinateToMap = (coordinate) => {
+  const latitude = Number(coordinate?.latitude);
+  const longitude = Number(coordinate?.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  const latRange = VALENZUELA_BOUNDS.northEast.latitude - VALENZUELA_BOUNDS.southWest.latitude;
+  const lngRange = VALENZUELA_BOUNDS.northEast.longitude - VALENZUELA_BOUNDS.southWest.longitude;
+
+  return {
+    left: `${clampMapPercent(((longitude - VALENZUELA_BOUNDS.southWest.longitude) / lngRange) * 100)}%`,
+    top: `${clampMapPercent(((VALENZUELA_BOUNDS.northEast.latitude - latitude) / latRange) * 100)}%`,
+  };
+};
+
 const HomeScreen = ({ navigation }) => {
   // State management
   const [userLocation, setUserLocation] = useState(null);
@@ -255,6 +276,7 @@ const HomeScreen = ({ navigation }) => {
   const [heatmapLoading, setHeatmapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isMapInteracting, setIsMapInteracting] = useState(false);
   const mapRef = useRef(null);
   const unsubscribeRef = useRef(null);
   const notificationsUnsubscribeRef = useRef(null);
@@ -1052,6 +1074,220 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  const createOsmMapHtml = () => {
+    const mapIncidents = incidents
+      .filter((incident) => projectCoordinateToMap(incident.location))
+      .slice(0, 60)
+      .map((incident) => ({
+        id: incident.id,
+        title: formatIncidentType(incident),
+        severity: incident.severity || 'pending',
+        color: getMarkerColor(incident.severity),
+        icon: getIncidentIcon(incident.type),
+        description: incident.description || '',
+        latitude: Number(incident.location.latitude),
+        longitude: Number(incident.location.longitude),
+      }));
+
+    const mapPrecincts = precincts
+      .filter((precinct) => projectCoordinateToMap(precinct.location))
+      .slice(0, 24)
+      .map((precinct) => ({
+        id: precinct.id,
+        name: precinct.name || 'Police Precinct',
+        address: precinct.address || '',
+        latitude: Number(precinct.location.latitude),
+        longitude: Number(precinct.location.longitude),
+      }));
+
+    const mapHeatPoints = getHeatmapMarkerPoints(heatmapData || [])
+      .filter((point) => projectCoordinateToMap(point))
+      .slice(0, 24)
+      .map((point) => ({
+        latitude: Number(point.latitude),
+        longitude: Number(point.longitude),
+        weight: getNormalizedHeatmapWeight(point.weight),
+      }));
+
+    const mapUserLocation = projectCoordinateToMap(userLocation)
+      ? {
+          latitude: Number(userLocation.latitude),
+          longitude: Number(userLocation.longitude),
+        }
+      : null;
+
+    return `<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background: #17243d; }
+    .leaflet-control-attribution { font-size: 9px; }
+    .incident-marker, .precinct-marker, .user-marker {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+      color: #fff;
+      font: 800 13px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .incident-marker { font-size: 14px; }
+    .precinct-marker { background: #2563eb; }
+    .user-marker { background: #10b981; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.2); }
+    .popup-title { font-weight: 800; color: #111827; margin-bottom: 4px; }
+    .popup-subtitle { color: #4b5563; font-size: 12px; line-height: 1.35; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    const center = ${JSON.stringify([VALENZUELA_CENTER.latitude, VALENZUELA_CENTER.longitude])};
+    const bounds = ${JSON.stringify([
+      [VALENZUELA_BOUNDS.southWest.latitude, VALENZUELA_BOUNDS.southWest.longitude],
+      [VALENZUELA_BOUNDS.northEast.latitude, VALENZUELA_BOUNDS.northEast.longitude],
+    ])};
+    const boundary = ${JSON.stringify(VALENZUELA_BOUNDARY.map((point) => [point.latitude, point.longitude]))};
+    const incidents = ${JSON.stringify(mapIncidents)};
+    const precincts = ${JSON.stringify(mapPrecincts)};
+    const heatPoints = ${JSON.stringify(mapHeatPoints)};
+    const userLocation = ${JSON.stringify(mapUserLocation)};
+
+    const map = L.map('map', {
+      zoomControl: false,
+      attributionControl: true,
+      maxBounds: bounds,
+      maxBoundsViscosity: 0.9
+    }).setView(center, 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[character]));
+
+    L.polygon(boundary, {
+      color: '#6a8eef',
+      weight: 3,
+      fillColor: '#6a8eef',
+      fillOpacity: 0.08
+    }).addTo(map);
+
+    heatPoints.forEach((point) => {
+      L.circle([point.latitude, point.longitude], {
+        radius: 90 + point.weight * 180,
+        color: '#ef4444',
+        weight: 1,
+        fillColor: '#ef4444',
+        fillOpacity: 0.22
+      }).addTo(map);
+    });
+
+    precincts.forEach((precinct) => {
+      const marker = L.marker([precinct.latitude, precinct.longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="precinct-marker">P</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
+      }).addTo(map);
+      marker.bindPopup('<div class="popup-title">' + escapeHtml(precinct.name) + '</div><div class="popup-subtitle">' + escapeHtml(precinct.address) + '</div>');
+    });
+
+    incidents.forEach((incident) => {
+      const marker = L.marker([incident.latitude, incident.longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="incident-marker" style="background:' + incident.color + '">' + incident.icon + '</div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
+      }).addTo(map);
+      marker.bindPopup('<div class="popup-title">' + escapeHtml(incident.title) + '</div><div class="popup-subtitle">' + escapeHtml(incident.description.substring(0, 90)) + '</div>');
+      marker.on('click', () => {
+        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'incident', id: incident.id }));
+      });
+    });
+
+    if (userLocation) {
+      L.marker([userLocation.latitude, userLocation.longitude], {
+        icon: L.divIcon({
+          className: '',
+          html: '<div class="user-marker"></div>',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
+      }).addTo(map).bindPopup('<div class="popup-title">Your Location</div>');
+    }
+  </script>
+</body>
+</html>`;
+  };
+
+  const renderOpenStreetMap = () => {
+    const mapHtml = createOsmMapHtml();
+
+    return (
+      <View
+        style={styles.osmMapShell}
+        onTouchStart={() => setIsMapInteracting(true)}
+        onTouchEnd={() => setIsMapInteracting(false)}
+        onTouchCancel={() => setIsMapInteracting(false)}
+      >
+        <WebView
+          originWhitelist={['*']}
+          source={{ html: mapHtml }}
+          style={styles.osmMap}
+          javaScriptEnabled
+          domStorageEnabled
+          mixedContentMode="always"
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          onMessage={(event) => {
+            try {
+              const message = JSON.parse(event.nativeEvent.data);
+              if (message.type === 'incident') {
+                const selectedIncident = incidents.find((incident) => incident.id === message.id);
+                if (selectedIncident) {
+                  openHomeModal('incident', selectedIncident);
+                }
+              }
+            } catch (error) {
+              console.warn('Map message failed:', error);
+            }
+          }}
+        />
+        <View style={styles.osmMapOverlay} pointerEvents="box-none">
+          <View style={styles.osmMapBadge}>
+            <Text style={styles.osmMapTitle}>Valenzuela Safety Map</Text>
+            <Text style={styles.osmMapSubtitle}>
+              {incidents.length} reports · {precincts.length} precincts
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.osmMapRefresh} onPress={fetchIncidents}>
+            <Text style={styles.osmMapRefreshText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     const loadingScale = rotationValue.interpolate({
       inputRange: [0, 1],
@@ -1131,11 +1367,12 @@ const HomeScreen = ({ navigation }) => {
 
       <ScrollView 
         style={styles.scrollView}
+        scrollEnabled={!isMapInteracting}
         showsVerticalScrollIndicator={false}
       >
         {/* Map Container */}
         <View style={styles.mapContainer}>
-          {userLocation ? (
+          {userLocation && ENABLE_NATIVE_HOME_MAP ? (
             <>
               <MapView
                 ref={mapRef}
@@ -1222,17 +1459,7 @@ const HomeScreen = ({ navigation }) => {
               )}
             </>
           ) : (
-            <View style={styles.mapPlaceholder}>
-              <Text style={styles.mapPlaceholderText}>📍</Text>
-              <Text style={styles.mapPlaceholderLabel}>Location Required</Text>
-              <Text style={styles.mapPlaceholderSubtext}>Enable location to view map</Text>
-              <TouchableOpacity 
-                style={styles.enableLocationButton}
-                onPress={initializeApp}
-              >
-                <Text style={styles.enableLocationButtonText}>Enable Location</Text>
-              </TouchableOpacity>
-            </View>
+            renderOpenStreetMap()
           )}
         </View>
 
@@ -1702,6 +1929,217 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  demoMap: {
+    width: '100%',
+    height: 320,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#17243d',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  demoMapGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  demoMapGrid: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.32,
+  },
+  demoMapGridLineVertical: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  demoMapGridLineHorizontal: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  demoMapBoundary: {
+    position: 'absolute',
+    left: '10%',
+    top: '8%',
+    width: '78%',
+    height: '82%',
+    borderWidth: 2,
+    borderColor: 'rgba(106, 142, 239, 0.85)',
+    borderRadius: 36,
+    backgroundColor: 'rgba(106, 142, 239, 0.08)',
+    transform: [{ rotate: '-8deg' }],
+  },
+  demoHeatPoint: {
+    position: 'absolute',
+    marginLeft: -24,
+    marginTop: -24,
+    backgroundColor: 'rgba(239, 68, 68, 0.26)',
+    borderWidth: 1,
+    borderColor: 'rgba(252, 165, 165, 0.45)',
+  },
+  demoIncidentMarker: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    marginLeft: -15,
+    marginTop: -15,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  demoIncidentMarkerText: {
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  demoPrecinctMarker: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    marginLeft: -14,
+    marginTop: -14,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#2563eb',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  demoPrecinctMarkerText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  demoUserMarker: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+    marginLeft: -14,
+    marginTop: -14,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 2,
+    borderColor: '#34d399',
+  },
+  demoUserMarkerCore: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#ffffff',
+  },
+  demoMapOverlay: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    right: 110,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  demoMapTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  demoMapSubtitle: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  demoMapRefresh: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  demoMapRefreshText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  osmMapShell: {
+    width: '100%',
+    height: 320,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#17243d',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  osmMap: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#17243d',
+  },
+  osmMapOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  osmMapBadge: {
+    maxWidth: width - 170,
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  osmMapTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  osmMapSubtitle: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  osmMapRefresh: {
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  osmMapRefreshText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   heatmapLoadingBadge: {
     position: 'absolute',
