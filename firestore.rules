@@ -352,6 +352,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // === AI KNOWLEDGE COLLECTION ===
+    // Admin-managed knowledge base (ordinances, policies, procedures, guidelines).
+    // Used by the AI decision-support subsystem in later phases.
+    match /ai_knowledge/{knowledgeId} {
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow create, update: if isAdmin() || isPoliceAdmin();
+      allow delete: if false; // Soft-delete via status field
+    }
+
+    // === AI RULES COLLECTION ===
+    // Admin-managed operational rules for AI decision-support.
+    // Structured rules that the AI context builder will query in later phases.
+    match /ai_rules/{ruleId} {
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow create, update: if isAdmin() || isPoliceAdmin();
+      allow delete: if false; // Soft-delete via status field
+    }
+
     // Fallback: deny by default (explicit rules above control access)
   }
 }
