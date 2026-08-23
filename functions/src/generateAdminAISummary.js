@@ -213,26 +213,32 @@ const generateAdminAISummaryFunction = onCall(
         };
       }
 
+      let summary;
+      let usage = null;
+      let source = "gemini";
+      let model = GEMINI_MODEL;
+      let provider = "gemini";
+
       const apiKey = GEMINI_API_KEY.value();
-      if (!apiKey) {
-        throw new HttpsError(
-            "failed-precondition",
-            "GEMINI_API_KEY secret is not configured.",
-        );
+      if (apiKey) {
+        try {
+          const geminiResult = await callGemini(apiKey, analyticsPayload, aiContext);
+          summary = normalizeSummary(geminiResult.summary, analyticsPayload, aiContext);
+          usage = geminiResult.usage;
+        } catch (geminiError) {
+          console.warn("[generateAdminAISummary] Gemini call failed, engaging deterministic fallback:", geminiError.message);
+          summary = buildDeterministicFallbackSummary(analyticsPayload, aiContext, filters);
+          source = "deterministic_fallback";
+          model = "rule_engine_v1";
+          provider = "rules_engine";
+        }
+      } else {
+        console.warn("[generateAdminAISummary] No GEMINI_API_KEY secret configured, using deterministic fallback engine.");
+        summary = buildDeterministicFallbackSummary(analyticsPayload, aiContext, filters);
+        source = "deterministic_fallback";
+        model = "rule_engine_v1";
+        provider = "rules_engine";
       }
-
-      let geminiResult;
-      try {
-        geminiResult = await callGemini(apiKey, analyticsPayload, aiContext);
-      } catch (error) {
-        console.error("[generateAdminAISummary] Gemini call failed", error);
-        throw new HttpsError(
-            "internal",
-            "Gemini could not generate the AI summary. Check the API key, billing, and model access.",
-        );
-      }
-
-      const summary = normalizeSummary(geminiResult.summary, analyticsPayload, aiContext);
 
       // Phase 6: Run deterministic Safety & Verification Guardrails
       const verification = verifyAIGuardrails(summary, analyticsPayload, aiContext);
@@ -244,16 +250,16 @@ const generateAdminAISummaryFunction = onCall(
         aiContext,
         summary,
         verification,
-        usage: geminiResult.usage,
-        source: "gemini",
+        usage,
+        source,
       });
 
       return {
         id: saved.id,
-        provider: "gemini",
-        model: GEMINI_MODEL,
-        source: "gemini",
-        usage: geminiResult.usage,
+        provider,
+        model,
+        source,
+        usage,
         analytics: analyticsPayload,
         aiContext: aiContext.metadata,
         verification,
@@ -261,6 +267,7 @@ const generateAdminAISummaryFunction = onCall(
       };
     },
 );
+
 
 async function assertAdminAccess(db, uid) {
   const snap = await db.collection("users").doc(uid).get();
@@ -975,12 +982,112 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, num));
 }
 
+function buildDeterministicFallbackSummary(analyticsPayload, aiContext = {}, filters = {}) {
+  const hotspots = analyticsPayload.hotspots || [];
+  const topTypes = Object.keys(analyticsPayload.topCrimeTypes || {});
+  const dominantCrime = topTypes[0] || "incident";
+  const dominantCrimeLabel = dominantCrime.replace(/_/g, " ");
+
+  const totalIncidents = analyticsPayload.overallStats?.totalIncidents || 0;
+  const highSeverity = analyticsPayload.overallStats?.highSeverity || 0;
+  const peakHours = analyticsPayload.peakHours || [];
+
+  const headline = `Operational rule guidance for ${totalIncidents} reported ${dominantCrimeLabel} incidents`;
+  const overallRisk = highSeverity >= 5 || (analyticsPayload.overallStats?.sosReports || 0) > 0 ? "high" :
+    highSeverity >= 2 ? "medium" : "low";
+
+  const executiveSummary = [
+    `Analysis of ${totalIncidents} incident records across Valenzuela City indicates elevated ${dominantCrimeLabel} activity,`,
+    `with ${highSeverity} high-severity cases reported.`,
+    peakHours.length > 0 ? `Peak reporting hours are concentrated around ${peakHours.join(", ")}.` : "",
+    "Recommended operational actions are synthesized directly from active administrative guidelines and municipal policies.",
+  ].filter(Boolean).join(" ");
+
+  const groundingSummary = "Synthesized using ThreatTrack Deterministic Rule Engine based on active ordinances and operational directives (Fallback Mode).";
+
+  const priorityHotspots = hotspots.slice(0, 5).map((hotspot, idx) => {
+    const hotspotRules = (aiContext.rulesByHotspot && aiContext.rulesByHotspot[hotspot.key]) ||
+      (aiContext.triggeredRules || []).slice(0, 2);
+
+    const matchedGuidance = hotspotRules.map((r) => `${r.ruleName}: ${r.guidance}`);
+    const citedKnowledge = (aiContext.knowledge || [])
+        .slice(0, 2)
+        .map((k) => `${k.referenceNumber ? `${k.referenceNumber}: ` : ""}${k.title}`);
+
+    const recommendedActions = hotspotRules.length > 0 ?
+      hotspotRules.map((r) => ({
+        action: r.guidance,
+        owner: r.priority === "critical" ? "police" : "barangay",
+        urgency: r.priority === "critical" ? "today" : "this_week",
+        reason: r.reason || `Correlates with ${hotspot.reportCount} reports in ${hotspot.locationLabel}`,
+      })) :
+      [
+        {
+          action: "Deploy routine high-visibility foot and mobile patrols during peak hours.",
+          owner: "police",
+          urgency: "today",
+          reason: `Address cluster of ${hotspot.reportCount} reports recorded in ${hotspot.locationLabel}.`,
+        },
+        {
+          action: "Coordinate with Barangay Peacekeeping Action Team (BPAT) for area monitoring.",
+          owner: "barangay",
+          urgency: "this_week",
+          reason: "Enhance community presence and deter opportunist offences.",
+        },
+      ];
+
+    const suggestedPublicAdvisory = `Residents and commuters around ${hotspot.locationLabel} are advised to remain vigilant during peak evening transit hours and report any suspicious activity to local authorities.`;
+
+    return {
+      rank: idx + 1,
+      locationLabel: hotspot.locationLabel || "Valenzuela Hotspot",
+      street: hotspot.street || "",
+      barangay: hotspot.barangay || "",
+      riskLevel: hotspot.severityBreakdown?.high >= 2 ? "high" : "medium",
+      mainPattern: `${hotspot.reportCount} reported incidents with focus on ${dominantCrimeLabel}.`,
+      evidence: [
+        `${hotspot.reportCount} incident reports in selected period`,
+        `${hotspot.severityBreakdown?.high || 0} high-severity cases`,
+        hotspot.peakHours && hotspot.peakHours.length ? `Peak time: ${hotspot.peakHours.join(", ")}` : "Dispersed reporting hours",
+      ],
+      citedKnowledge: citedKnowledge.slice(0, 3),
+      matchedGuidance: matchedGuidance.slice(0, 3),
+      recommendedActions: recommendedActions.slice(0, 4),
+      suggestedPublicAdvisory,
+      confidence: 0.85,
+    };
+  });
+
+  return {
+    headline,
+    overallRisk,
+    executiveSummary,
+    groundingSummary,
+    priorityHotspots,
+    dataWarnings: [
+      "Generated via deterministic operational rule engine (AI network fallback mode).",
+    ],
+    nextDataToCollect: [
+      "Continue logging verified incident coordinates and peak time details.",
+    ],
+    basedOn: {
+      totalIncidents,
+      hotspotCount: hotspots.length,
+      timeRange: filters.range || "30d",
+      knowledgeEntriesCited: (aiContext.knowledge || []).length,
+      rulesEvaluated: aiContext.metadata?.rulesTriggeredCount || 0,
+    },
+  };
+}
+
 // Module Exports (including pure helpers for unit testing)
 module.exports = {
   generateAdminAISummary: generateAdminAISummaryFunction,
   AI_SUMMARY_SCHEMA,
   buildGeminiPrompt,
   normalizeSummary,
+  buildDeterministicFallbackSummary,
   buildAnalyticsPayload,
   clusterHotspots,
 };
+

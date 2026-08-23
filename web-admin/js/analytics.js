@@ -1563,11 +1563,22 @@ function renderGroundedAISummary(data) {
     const verification = data.verification || { passed: true, safetyScore: 1.0, violations: [] };
     const hotspots = Array.isArray(summary.priorityHotspots) ? summary.priorityHotspots : [];
 
-    const isSafe = verification.passed !== false;
-    const safetyScorePct = Math.round((verification.safetyScore || 1.0) * 100);
-    const safetyBadgeClass = isSafe ? "analytics-ai-guardrail-badge" : "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--warning";
-    const safetyIcon = isSafe ? "verified_user" : "warning";
+    const isSafe = verification ? verification.passed : true;
+    const safetyScorePct = verification ? Math.round(verification.safetyScore * 100) : 100;
+    const safetyBadgeClass = isSafe ? "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--pass" : "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--alert";
+    const safetyIcon = isSafe ? "verified_user" : "gpp_maybe";
     const safetyLabel = isSafe ? `🛡️ ${safetyScorePct}% Verified Safe` : `⚠️ Guardrail Alert (${safetyScorePct}%)`;
+
+    const isFallback = data.source === "deterministic_fallback" || data.provider === "rules_engine";
+    const engineBadgeHtml = isFallback ?
+        `<span class="analytics-ai-guardrail-badge" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">
+            <span class="material-symbols-outlined" style="font-size:14px;">bolt</span>
+            <span>Deterministic Rule Engine</span>
+        </span>` :
+        `<span class="analytics-ai-guardrail-badge" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd;">
+            <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span>
+            <span>Gemini Flash Grounded</span>
+        </span>`;
 
     container.innerHTML = `
         <div class="analytics-ai-brief-card">
@@ -1576,7 +1587,8 @@ function renderGroundedAISummary(data) {
                     <span class="analytics-ai-meta-bar__headline">${escapeHtml(summary.headline || "Grounded AI Decision Brief")}</span>
                     <span class="analytics-solution-card__priority analytics-solution-card__priority--${escapeAttr(summary.overallRisk || "medium")}">${escapeHtml(humanize(summary.overallRisk))} Risk</span>
                 </div>
-                <div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    ${engineBadgeHtml}
                     <span class="${safetyBadgeClass}">
                         <span class="material-symbols-outlined" style="font-size:14px;">${safetyIcon}</span>
                         <span>${escapeHtml(safetyLabel)}</span>

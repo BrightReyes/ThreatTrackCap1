@@ -1,15 +1,16 @@
 /**
- * Unit Tests for Context Grounding & Prompt Redesign
- * Phase 5 Test Suite: Jest unit tests for functions/src/generateAdminAISummary.js
+ * Unit Tests for Context Grounding, Prompt Redesign & Fallback Engine
+ * Phase 5 & 12 Test Suite: Jest unit tests for functions/src/generateAdminAISummary.js
  */
 
 const {
   buildGeminiPrompt,
   normalizeSummary,
+  buildDeterministicFallbackSummary,
   AI_SUMMARY_SCHEMA,
 } = require("../src/generateAdminAISummary");
 
-describe("AI Prompt & Grounding Synthesis Engine (Phase 5)", () => {
+describe("AI Prompt & Grounding Synthesis Engine (Phase 5 & 12)", () => {
   const mockAnalyticsPayload = {
     timeRange: {label: "30d", start: "2026-07-24T00:00:00Z", end: "2026-08-23T00:00:00Z"},
     overallStats: {totalIncidents: 15, highSeverity: 5, openIncidents: 8, sosReports: 2, withCoordinates: 15},
@@ -17,12 +18,14 @@ describe("AI Prompt & Grounding Synthesis Engine (Phase 5)", () => {
     peakHours: ["6:00 PM", "8:00 PM"],
     hotspots: [
       {
+        key: "gen. t. de leon__commercial corridor",
         rank: 1,
         locationLabel: "Gen. T. de Leon Commercial Corridor",
         street: "Gen. T. de Leon",
         barangay: "Gen. T. de Leon",
         reportCount: 8,
         weightedScore: 18,
+        severityBreakdown: {high: 3, medium: 4, low: 1},
       },
     ],
   };
@@ -47,6 +50,16 @@ describe("AI Prompt & Grounding Synthesis Engine (Phase 5)", () => {
         reason: "Triggered by incident_count: 8 >= 5 (30d window)",
       },
     ],
+    rulesByHotspot: {
+      "gen. t. de leon__commercial corridor": [
+        {
+          ruleName: "Theft Hotspot Escalation Rule",
+          guidance: "Deploy joint mobile patrol and establish high-visibility checkpoint.",
+          priority: "critical",
+          reason: "Triggered by incident_count: 8 >= 5",
+        },
+      ],
+    },
     metadata: {
       knowledgeCount: 1,
       rulesTriggeredCount: 1,
@@ -160,7 +173,24 @@ describe("AI Prompt & Grounding Synthesis Engine (Phase 5)", () => {
     });
   });
 
-  describe("3. Schema Integrity (AI_SUMMARY_SCHEMA)", () => {
+  describe("3. Deterministic Fallback Engine (buildDeterministicFallbackSummary - Phase 12)", () => {
+    test("generates complete, grounded summary when Gemini is offline", () => {
+      const fallback = buildDeterministicFallbackSummary(mockAnalyticsPayload, mockAiContext, {range: "30d"});
+
+      expect(fallback.headline).toContain("Operational rule guidance for 15 reported theft snatching incidents");
+      expect(fallback.overallRisk).toBe("high");
+      expect(fallback.groundingSummary).toContain("Fallback Mode");
+      expect(fallback.priorityHotspots).toHaveLength(1);
+      expect(fallback.priorityHotspots[0].locationLabel).toBe("Gen. T. de Leon Commercial Corridor");
+      expect(fallback.priorityHotspots[0].citedKnowledge[0]).toContain("Anti-Theft Commercial Corridor Ordinance");
+      expect(fallback.priorityHotspots[0].matchedGuidance[0]).toContain("Theft Hotspot Escalation Rule");
+      expect(fallback.dataWarnings).toContain(
+          "Generated via deterministic operational rule engine (AI network fallback mode).",
+      );
+    });
+  });
+
+  describe("4. Schema Integrity (AI_SUMMARY_SCHEMA)", () => {
     test("schema requires core summary properties and hotspot citation fields", () => {
       expect(AI_SUMMARY_SCHEMA.required).toContain("headline");
       expect(AI_SUMMARY_SCHEMA.required).toContain("overallRisk");
