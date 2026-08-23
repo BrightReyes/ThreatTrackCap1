@@ -31,6 +31,7 @@ export default defineConfig({
         users: path.resolve(__dirname, 'users.html'),
         notifications: path.resolve(__dirname, 'notifications.html'),
         settings: path.resolve(__dirname, 'settings.html'),
+        aiManagement: path.resolve(__dirname, 'ai-management.html'),
       },
     },
   },

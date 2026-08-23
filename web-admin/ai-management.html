@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Admin | AI Management</title>
+        <meta name="description" content="Manage AI knowledge base and operational rules for ThreatTrack decision support." />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+            if (localStorage.getItem("tt_admin_role") === "police") {
+                document.documentElement.classList.add("admin-role-police");
+            }
+        </script>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+        <link rel="stylesheet" href="/css/ai-management.css" />
+        <link rel="stylesheet" href="/css/admin-readability.css" />
+    </head>
+    <body>
+        <div id="page-ai-management" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Collapse sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >close</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
+                    </div>
+                    <nav class="sidebar__nav">
+                        <a href="dashboard.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >dashboard</span
+                            >
+                            <span>Dashboard</span>
+                        </a>
+
+                        <a href="incidents.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >warning</span
+                            >
+                            <span>Incidents</span>
+                        </a>
+
+                        <a
+                            href="operation.html"
+                            class="sidebar__link"
+                            data-role-nav="police"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >emergency_home</span
+                            >
+                            <span>Operation</span>
+                        </a>
+
+                        <a href="analytics.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >query_stats</span
+                            >
+                            <span>Analytics</span>
+                        </a>
+
+                        <a
+                            href="ai-management.html"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                        >
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >psychology</span
+                            >
+                            <span>AI Management</span>
+                        </a>
+
+                        <a href="users.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >group</span
+                            >
+                            <span>Users</span>
+                        </a>
+
+                        <a href="notifications.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >notifications</span
+                            >
+                            <span>Notifications</span>
+                        </a>
+
+                        <a href="settings.html" class="sidebar__link">
+                            <span
+                                class="sidebar__icon material-symbols-outlined"
+                                >settings</span
+                            >
+                            <span>Settings</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">AI Management</h1>
+                        <p class="admin-dashboard__tagline">
+                            Manage knowledge base and operational rules for AI decision support
+                        </p>
+                    </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                ></time>
+                                <span
+                                    class="admin-dashboard__clock-sep"
+                                    aria-hidden="true"
+                                    >·</span
+                                >
+                                <span class="admin-dashboard__clock-tz"
+                                    >PHT</span
+                                >
+                            </div>
+                            <p
+                                id="dashboard-clock-date"
+                                class="admin-dashboard__clock-date"
+                            ></p>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main ai-mgmt-main">
+                    <!-- Top Summary Stat Cards (matching ThreatTrack dashboard & incidents) -->
+                    <section class="ai-mgmt-stats" aria-label="Knowledge statistics summary">
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--total">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">menu_book</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Total Knowledge</p>
+                                <strong id="stat-total-knowledge">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--published">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">verified</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Published</p>
+                                <strong id="stat-published-knowledge">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--draft">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">edit_document</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Drafts</p>
+                                <strong id="stat-draft-knowledge">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--archived">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">archive</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Archived</p>
+                                <strong id="stat-archived-knowledge">0</strong>
+                            </div>
+                        </article>
+                    </section>
+
+                    <!-- Tab Navigation -->
+                    <div class="ai-mgmt-tabs" role="tablist" aria-label="AI Management sections">
+                        <button
+                            type="button"
+                            role="tab"
+                            id="tab-knowledge"
+                            class="ai-mgmt-tab ai-mgmt-tab--active"
+                            aria-selected="true"
+                            aria-controls="panel-knowledge"
+                        >
+                            <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+                            <span>Knowledge Base</span>
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            id="tab-rules"
+                            class="ai-mgmt-tab"
+                            aria-selected="false"
+                            aria-controls="panel-rules"
+                        >
+                            <span class="material-symbols-outlined" aria-hidden="true">rule</span>
+                            <span>Operational Rules</span>
+                        </button>
+                    </div>
+
+                    <!-- Knowledge Base Panel -->
+                    <section
+                        id="panel-knowledge"
+                        role="tabpanel"
+                        aria-labelledby="tab-knowledge"
+                        class="ai-mgmt-panel"
+                    >
+                        <!-- Toolbar matching incidents/users toolbar -->
+                        <div class="ai-mgmt-toolbar">
+                            <div class="ai-mgmt-toolbar__search">
+                                <span class="ai-mgmt-toolbar__search-icon material-symbols-outlined" aria-hidden="true">search</span>
+                                <input
+                                    type="search"
+                                    id="knowledge-search"
+                                    class="ai-mgmt-search-input"
+                                    placeholder="Search by title, source, reference number, or keywords…"
+                                    aria-label="Search knowledge entries"
+                                    autocomplete="off"
+                                />
+                            </div>
+                            <div class="ai-mgmt-toolbar__filters">
+                                <select id="knowledge-filter-status" class="ai-mgmt-select-filter" aria-label="Status filter">
+                                    <option value="all">All Statuses</option>
+                                    <option value="published">Published</option>
+                                    <option value="draft">Drafts</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                                <select id="knowledge-filter-type" class="ai-mgmt-select-filter" aria-label="Type filter">
+                                    <option value="all">All Types</option>
+                                    <option value="ordinance">Ordinance</option>
+                                    <option value="policy">Policy</option>
+                                    <option value="procedure">Procedure</option>
+                                    <option value="guideline">Guideline</option>
+                                    <option value="reference">Reference</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    id="btn-add-knowledge"
+                                    class="ai-mgmt-btn ai-mgmt-btn--primary"
+                                >
+                                    <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                                    <span>Add Knowledge</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Knowledge Table Wrapper -->
+                        <div class="ai-mgmt-table-card">
+                            <div class="ai-mgmt-table-wrap">
+                                <table class="ai-mgmt-table" id="knowledge-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Type</th>
+                                            <th>Source</th>
+                                            <th>Status</th>
+                                            <th>Version</th>
+                                            <th>Last Modified</th>
+                                            <th class="ai-mgmt-th--actions">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="knowledge-tbody">
+                                        <tr>
+                                            <td colspan="7" class="ai-mgmt-empty">
+                                                <div class="ai-mgmt-loading-state">
+                                                    <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
+                                                    <span>Loading knowledge entries…</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="ai-mgmt-table-footer">
+                                <span id="knowledge-count" class="ai-mgmt-count"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Operational Rules Panel (Phase 3 Placeholder) -->
+                    <section
+                        id="panel-rules"
+                        role="tabpanel"
+                        aria-labelledby="tab-rules"
+                        class="ai-mgmt-panel"
+                        hidden
+                    >
+                        <div class="ai-mgmt-placeholder-card">
+                            <span class="material-symbols-outlined ai-mgmt-placeholder-card__icon">rule</span>
+                            <h3>AI Operational Rules Management</h3>
+                            <p>Define structured threshold rules (e.g. Theft Hotspot, Night Crime Pattern) to guide AI decision support. Coming in Phase 3.</p>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <!-- Knowledge Add/Edit Modal (Matching ThreatTrack Modal Standards) -->
+        <div id="knowledge-modal" class="ai-mgmt-modal" hidden>
+            <div class="ai-mgmt-modal__backdrop"></div>
+            <div class="ai-mgmt-modal__dialog" role="dialog" aria-labelledby="knowledge-modal-title" aria-modal="true">
+                <div class="ai-mgmt-modal__header">
+                    <div class="ai-mgmt-modal__header-titles">
+                        <h2 id="knowledge-modal-title">Add Knowledge Entry</h2>
+                        <p class="ai-mgmt-modal__subtitle">Provide official ordinances, policies, or procedures for AI decision support.</p>
+                    </div>
+                    <button type="button" id="knowledge-modal-close" class="ai-mgmt-modal__close" aria-label="Close dialog">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form id="knowledge-form" class="ai-mgmt-modal__body" novalidate>
+                    <input type="hidden" id="knowledge-edit-id" value="" />
+
+                    <div class="ai-mgmt-form-group">
+                        <label for="knowledge-title" class="ai-mgmt-form-label">
+                            Title <span class="ai-mgmt-required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="knowledge-title"
+                            class="ai-mgmt-form-input"
+                            placeholder="e.g. Night Patrol Protocol for Commercial Corridors"
+                            required
+                            minlength="3"
+                            maxlength="200"
+                        />
+                        <span class="ai-mgmt-form-hint">Descriptive name of the ordinance, procedure, or policy guideline.</span>
+                    </div>
+
+                    <div class="ai-mgmt-form-row">
+                        <div class="ai-mgmt-form-group">
+                            <label for="knowledge-type" class="ai-mgmt-form-label">
+                                Type <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <select id="knowledge-type" class="ai-mgmt-form-select" required>
+                                <option value="">Select type…</option>
+                                <option value="ordinance">Ordinance (Local Law)</option>
+                                <option value="policy">Policy (Departmental)</option>
+                                <option value="procedure">Procedure (SOP)</option>
+                                <option value="guideline">Guideline (Advisory)</option>
+                                <option value="reference">Reference Context</option>
+                            </select>
+                        </div>
+                        <div class="ai-mgmt-form-group">
+                            <label for="knowledge-status" class="ai-mgmt-form-label">
+                                Initial Status <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <select id="knowledge-status" class="ai-mgmt-form-select" required>
+                                <option value="draft">Draft (Private to Admin)</option>
+                                <option value="published">Published (Active in AI)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="ai-mgmt-form-row">
+                        <div class="ai-mgmt-form-group">
+                            <label for="knowledge-source" class="ai-mgmt-form-label">
+                                Issuing Source / Authority <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="knowledge-source"
+                                class="ai-mgmt-form-input"
+                                placeholder="e.g. City Council, Barangay Karuhatan, PNP"
+                                required
+                                minlength="3"
+                                maxlength="200"
+                            />
+                        </div>
+                        <div class="ai-mgmt-form-group">
+                            <label for="knowledge-ref" class="ai-mgmt-form-label">
+                                Reference / Ordinance Number
+                            </label>
+                            <input
+                                type="text"
+                                id="knowledge-ref"
+                                class="ai-mgmt-form-input"
+                                placeholder="e.g. Ord. No. 2024-088"
+                                maxlength="100"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="ai-mgmt-form-group">
+                        <label for="knowledge-content" class="ai-mgmt-form-label">
+                            Full Knowledge Content & Operational Directives <span class="ai-mgmt-required">*</span>
+                        </label>
+                        <textarea
+                            id="knowledge-content"
+                            class="ai-mgmt-form-textarea"
+                            placeholder="Enter the official text, mandates, required response times, designated units, or operational guidance..."
+                            required
+                            minlength="10"
+                            maxlength="10000"
+                            rows="7"
+                        ></textarea>
+                        <div class="ai-mgmt-form-meta">
+                            <span class="ai-mgmt-form-hint">AI uses this exact text when forming evidence-grounded recommendations.</span>
+                            <span class="ai-mgmt-char-counter">
+                                <span id="knowledge-content-count">0</span> / 10,000
+                            </span>
+                        </div>
+                    </div>
+                </form>
+                <div class="ai-mgmt-modal__footer">
+                    <button type="button" id="knowledge-modal-cancel" class="ai-mgmt-btn ai-mgmt-btn--ghost">Cancel</button>
+                    <button type="button" id="knowledge-modal-save" class="ai-mgmt-btn ai-mgmt-btn--primary">
+                        <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                        <span>Save Knowledge Entry</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/js/ai-management.js"></script>
+    </body>
+</html>
