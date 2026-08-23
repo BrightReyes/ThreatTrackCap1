@@ -978,3 +978,62 @@
         max-height: 96vh;
     }
 }
+
+/* ============================================================
+   STATUS TOGGLE SWITCH
+   ============================================================ */
+.ai-mgmt-status-toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-mgmt-toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 38px;
+    height: 22px;
+    background: #cbd5e1;
+    border-radius: 999px;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    transition: background-color 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+    outline: none;
+    flex-shrink: 0;
+}
+
+.ai-mgmt-toggle-switch:hover {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.ai-mgmt-toggle-switch:focus-visible {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.ai-mgmt-toggle-switch__slider {
+    display: block;
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0);
+}
+
+.ai-mgmt-toggle-switch--on {
+    background: #10b981 !important;
+}
+
+.ai-mgmt-toggle-switch--on .ai-mgmt-toggle-switch__slider {
+    transform: translateX(16px);
+}
+
+.ai-mgmt-toggle-switch--loading {
+    opacity: 0.5;
+    cursor: wait;
+    pointer-events: none;
+}
+

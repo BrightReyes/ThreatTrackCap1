@@ -284,7 +284,7 @@ async function loadKnowledge() {
     if (!elements.knowledgeTbody) return;
     elements.knowledgeTbody.innerHTML = `
         <tr>
-            <td colspan="7" class="ai-mgmt-empty">
+            <td colspan="6" class="ai-mgmt-empty">
                 <div class="ai-mgmt-loading-state">
                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
                     <span>Loading knowledge entries…</span>
@@ -323,7 +323,7 @@ async function loadKnowledge() {
         console.error("[ai-management] Failed to load knowledge:", error);
         elements.knowledgeTbody.innerHTML = `
             <tr>
-                <td colspan="7" class="ai-mgmt-empty" style="color: #ef4444;">
+                <td colspan="6" class="ai-mgmt-empty" style="color: #ef4444;">
                     Failed to load knowledge entries: ${escapeHtml(error.message)}
                 </td>
             </tr>
@@ -389,7 +389,7 @@ function renderKnowledgeTable() {
               : "No knowledge entries yet. Click \"Add Knowledge\" to create the first entry.";
         elements.knowledgeTbody.innerHTML = `
             <tr>
-                <td colspan="7" class="ai-mgmt-empty">${escapeHtml(message)}</td>
+                <td colspan="6" class="ai-mgmt-empty">${escapeHtml(message)}</td>
             </tr>
         `;
         return;
@@ -398,7 +398,32 @@ function renderKnowledgeTable() {
     elements.knowledgeTbody.innerHTML = filtered
         .map((item) => {
             const dateStr = formatDate(item.updatedAt || item.createdAt);
+            const isPublished = item.status === "published";
+            const isArchived = item.status === "archived";
             const statusClass = `ai-mgmt-badge--${escapeAttr(item.status)}`;
+
+            let statusHtml = "";
+            if (isArchived) {
+                statusHtml = `<span class="ai-mgmt-badge ai-mgmt-badge--archived">Archived</span>`;
+            } else {
+                statusHtml = `
+                    <div class="ai-mgmt-status-toggle-wrap">
+                        <button
+                            type="button"
+                            class="ai-mgmt-toggle-switch ${isPublished ? "ai-mgmt-toggle-switch--on" : ""}"
+                            data-action="toggle-status"
+                            data-id="${escapeAttr(item.id)}"
+                            data-next-status="${isPublished ? "draft" : "published"}"
+                            role="switch"
+                            aria-checked="${isPublished}"
+                            title="Click to ${isPublished ? "Unpublish (set to Draft)" : "Publish this Entry"}"
+                        >
+                            <span class="ai-mgmt-toggle-switch__slider"></span>
+                        </button>
+                        <span class="ai-mgmt-badge ${statusClass}">${escapeHtml(isPublished ? "Published" : "Draft")}</span>
+                    </div>
+                `;
+            }
 
             return `
                 <tr data-id="${escapeAttr(item.id)}">
@@ -418,10 +443,7 @@ function renderKnowledgeTable() {
                         ${item.referenceNumber ? `<div class="ai-mgmt-table__meta-sub">${escapeHtml(item.referenceNumber)}</div>` : ""}
                     </td>
                     <td>
-                        <span class="ai-mgmt-badge ${statusClass}">${escapeHtml(item.status)}</span>
-                    </td>
-                    <td>
-                        <strong>v${escapeHtml(String(item.version))}</strong>
+                        ${statusHtml}
                     </td>
                     <td>${escapeHtml(dateStr)}</td>
                     <td class="ai-mgmt-th--actions">
@@ -435,20 +457,6 @@ function renderKnowledgeTable() {
                             >
                                 <span class="material-symbols-outlined">edit</span>
                             </button>
-                            ${
-                                item.status !== "published"
-                                    ? `
-                                <button
-                                    type="button"
-                                    class="ai-mgmt-btn ai-mgmt-btn--publish ai-mgmt-btn--sm"
-                                    data-action="publish"
-                                    data-id="${escapeAttr(item.id)}"
-                                    title="Publish Knowledge"
-                                >
-                                    <span class="material-symbols-outlined">publish</span>
-                                </button>`
-                                    : ""
-                            }
                             ${
                                 item.status !== "archived"
                                     ? `
@@ -489,7 +497,10 @@ async function handleKnowledgeTableAction(e) {
     const item = knowledgeList.find((k) => k.id === id);
     if (!item) return;
 
-    if (action === "edit") {
+    if (action === "toggle-status") {
+        const nextStatus = btn.dataset.nextStatus;
+        await toggleKnowledgeStatusDirect(item, nextStatus, btn);
+    } else if (action === "edit") {
         openKnowledgeModal(item);
     } else if (action === "publish") {
         await handleKnowledgeStatusChange(item, "published");
@@ -497,6 +508,47 @@ async function handleKnowledgeTableAction(e) {
         await handleKnowledgeStatusChange(item, "archived");
     } else if (action === "restore") {
         await handleKnowledgeStatusChange(item, "draft");
+    }
+}
+
+async function toggleKnowledgeStatusDirect(item, newStatus, btn) {
+    if (!item) return;
+    if (btn) btn.classList.add("ai-mgmt-toggle-switch--loading");
+
+    try {
+        const nextVersion = (item.version || 1) + 1;
+        const docRef = doc(db, "ai_knowledge", item.id);
+
+        await updateDoc(docRef, {
+            status: newStatus,
+            version: nextVersion,
+            updatedBy: currentAdminUser?.uid || "admin",
+            updatedAt: serverTimestamp(),
+        });
+
+        item.status = newStatus;
+        item.version = nextVersion;
+
+        await logAudit("ai_knowledge.toggle_status", {
+            knowledgeId: item.id,
+            title: item.title,
+            previousStatus: newStatus === "published" ? "draft" : "published",
+            newStatus,
+            version: nextVersion,
+        });
+
+        updateKnowledgeStats();
+        renderKnowledgeTable();
+
+        if (newStatus === "published") {
+            toastSuccess(`"${item.title}" is now Published for AI Decision Support.`);
+        } else {
+            toastSuccess(`"${item.title}" unpublished (set to Draft).`);
+        }
+    } catch (error) {
+        console.error("[ai-management] Failed to toggle knowledge status:", error);
+        toastError("Failed to update status.");
+        if (btn) btn.classList.remove("ai-mgmt-toggle-switch--loading");
     }
 }
 
@@ -703,7 +755,7 @@ async function loadRules() {
     if (!elements.rulesTbody) return;
     elements.rulesTbody.innerHTML = `
         <tr>
-            <td colspan="8" class="ai-mgmt-empty">
+            <td colspan="7" class="ai-mgmt-empty">
                 <div class="ai-mgmt-loading-state">
                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
                     <span>Loading operational rules…</span>
@@ -745,7 +797,7 @@ async function loadRules() {
         console.error("[ai-management] Failed to load rules:", error);
         elements.rulesTbody.innerHTML = `
             <tr>
-                <td colspan="8" class="ai-mgmt-empty" style="color: #ef4444;">
+                <td colspan="7" class="ai-mgmt-empty" style="color: #ef4444;">
                     Failed to load operational rules: ${escapeHtml(error.message)}
                 </td>
             </tr>
@@ -814,7 +866,7 @@ function renderRulesTable() {
               : "No operational rules yet. Click \"Add Rule\" to create the first operational guidance.";
         elements.rulesTbody.innerHTML = `
             <tr>
-                <td colspan="8" class="ai-mgmt-empty">${escapeHtml(message)}</td>
+                <td colspan="7" class="ai-mgmt-empty">${escapeHtml(message)}</td>
             </tr>
         `;
         return;
@@ -825,6 +877,8 @@ function renderRulesTable() {
             const dateStr = formatDate(r.updatedAt || r.createdAt);
             const statusClass = `ai-mgmt-badge--${escapeAttr(r.status)}`;
             const priorityClass = `ai-mgmt-priority--${escapeAttr(r.priority)}`;
+            const isActive = r.status === "active";
+            const isArchived = r.status === "archived";
 
             // Render Condition Badge: either formula tag or General Guidance pill
             let conditionHtml = "";
@@ -842,6 +896,29 @@ function renderRulesTable() {
                         <span class="material-symbols-outlined" style="font-size: 1rem; color: #6366f1;">lightbulb</span>
                         General Guidance
                     </span>
+                `;
+            }
+
+            let statusHtml = "";
+            if (isArchived) {
+                statusHtml = `<span class="ai-mgmt-badge ai-mgmt-badge--archived">Archived</span>`;
+            } else {
+                statusHtml = `
+                    <div class="ai-mgmt-status-toggle-wrap">
+                        <button
+                            type="button"
+                            class="ai-mgmt-toggle-switch ${isActive ? "ai-mgmt-toggle-switch--on" : ""}"
+                            data-action="toggle-rule-status"
+                            data-id="${escapeAttr(r.id)}"
+                            data-next-status="${isActive ? "inactive" : "active"}"
+                            role="switch"
+                            aria-checked="${isActive}"
+                            title="Click to ${isActive ? "Deactivate (set to Inactive)" : "Activate this Rule"}"
+                        >
+                            <span class="ai-mgmt-toggle-switch__slider"></span>
+                        </button>
+                        <span class="ai-mgmt-badge ${statusClass}">${escapeHtml(isActive ? "Active" : "Inactive")}</span>
+                    </div>
                 `;
             }
 
@@ -868,10 +945,7 @@ function renderRulesTable() {
                         <span class="ai-mgmt-priority ${priorityClass}">${escapeHtml(r.priority)}</span>
                     </td>
                     <td>
-                        <span class="ai-mgmt-badge ${statusClass}">${escapeHtml(r.status)}</span>
-                    </td>
-                    <td>
-                        <strong>v${escapeHtml(String(r.version))}</strong>
+                        ${statusHtml}
                     </td>
                     <td class="ai-mgmt-th--actions">
                         <div class="ai-mgmt-table__actions">
@@ -884,31 +958,6 @@ function renderRulesTable() {
                             >
                                 <span class="material-symbols-outlined">edit</span>
                             </button>
-                            ${
-                                r.status === "active"
-                                    ? `
-                                <button
-                                    type="button"
-                                    class="ai-mgmt-btn ai-mgmt-btn--deactivate ai-mgmt-btn--sm"
-                                    data-action="deactivate-rule"
-                                    data-id="${escapeAttr(r.id)}"
-                                    title="Deactivate Rule"
-                                >
-                                    <span class="material-symbols-outlined">pause</span>
-                                </button>`
-                                    : r.status === "inactive"
-                                      ? `
-                                <button
-                                    type="button"
-                                    class="ai-mgmt-btn ai-mgmt-btn--activate ai-mgmt-btn--sm"
-                                    data-action="activate-rule"
-                                    data-id="${escapeAttr(r.id)}"
-                                    title="Activate Rule"
-                                >
-                                    <span class="material-symbols-outlined">play_arrow</span>
-                                </button>`
-                                      : ""
-                            }
                             ${
                                 r.status !== "archived"
                                     ? `
@@ -949,7 +998,10 @@ async function handleRulesTableAction(e) {
     const rule = rulesList.find((r) => r.id === id);
     if (!rule) return;
 
-    if (action === "edit-rule") {
+    if (action === "toggle-rule-status") {
+        const nextStatus = btn.dataset.nextStatus;
+        await toggleRuleStatusDirect(rule, nextStatus, btn);
+    } else if (action === "edit-rule") {
         openRuleModal(rule);
     } else if (action === "activate-rule") {
         await handleRuleStatusChange(rule, "active");
@@ -959,6 +1011,47 @@ async function handleRulesTableAction(e) {
         await handleRuleStatusChange(rule, "archived");
     } else if (action === "restore-rule") {
         await handleRuleStatusChange(rule, "inactive");
+    }
+}
+
+async function toggleRuleStatusDirect(rule, newStatus, btn) {
+    if (!rule) return;
+    if (btn) btn.classList.add("ai-mgmt-toggle-switch--loading");
+
+    try {
+        const nextVersion = (rule.version || 1) + 1;
+        const docRef = doc(db, "ai_rules", rule.id);
+
+        await updateDoc(docRef, {
+            status: newStatus,
+            version: nextVersion,
+            updatedBy: currentAdminUser?.uid || "admin",
+            updatedAt: serverTimestamp(),
+        });
+
+        rule.status = newStatus;
+        rule.version = nextVersion;
+
+        await logAudit("ai_rules.toggle_status", {
+            ruleId: rule.id,
+            name: rule.name,
+            previousStatus: newStatus === "active" ? "inactive" : "active",
+            newStatus,
+            version: nextVersion,
+        });
+
+        updateRulesStats();
+        renderRulesTable();
+
+        if (newStatus === "active") {
+            toastSuccess(`"${rule.name}" is now Active in AI Decision Support.`);
+        } else {
+            toastSuccess(`"${rule.name}" set to Inactive.`);
+        }
+    } catch (error) {
+        console.error("[ai-management] Failed to toggle rule status:", error);
+        toastError("Failed to update rule status.");
+        if (btn) btn.classList.remove("ai-mgmt-toggle-switch--loading");
     }
 }
 

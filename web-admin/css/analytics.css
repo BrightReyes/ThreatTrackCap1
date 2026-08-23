@@ -2720,6 +2720,487 @@
     color: #6d28d9;
 }
 
+.analytics-ai-guardrail-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 650;
+    line-height: 1.4;
+    transition: all 0.15s ease;
+}
+
+.analytics-ai-guardrail-badge--pass {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.analytics-ai-guardrail-badge--pass:hover {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+}
+
+.analytics-ai-guardrail-badge--alert {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* ============================================================
+   SPINNER & LOADING SKELETON ANIMATIONS
+   ============================================================ */
+@keyframes ttSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes ttShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.analytics-ai-spinner {
+    display: inline-block !important;
+    animation: ttSpin 0.85s linear infinite !important;
+}
+
+.analytics-ai-loading-card {
+    border: 1.5px solid #818cf8 !important;
+    background: linear-gradient(135deg, #faf5ff 0%, #f0f9ff 100%) !important;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15) !important;
+}
+
+.analytics-ai-loading-card::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.65) 50%, transparent 100%);
+    animation: ttShimmer 1.8s infinite;
+    pointer-events: none;
+}
+
+
+/* ============================================================
+   GROUNDED POLICY REFERENCES PANEL & CARDS
+   ============================================================ */
+.analytics-ai-references-panel {
+    margin: 12px 0 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.analytics-ai-references-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.73rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.analytics-ai-references-header .material-symbols-outlined {
+    font-size: 15px;
+    color: #6366f1;
+}
+
+.analytics-ai-references-panel--empty {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.analytics-ai-references-empty-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #92400e;
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.analytics-ai-references-empty-alert .material-symbols-outlined {
+    font-size: 1.2rem;
+    color: #d97706;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.analytics-ai-references-empty-alert p {
+    margin: 3px 0 0 0;
+    color: #78350f;
+    font-size: 0.8rem;
+}
+
+.analytics-ai-references-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.analytics-ai-ref-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.82rem;
+    color: #1e293b;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: all 0.15s ease;
+    max-width: 100%;
+}
+
+.analytics-ai-ref-card:hover {
+    border-color: #94a3b8;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.analytics-ai-ref-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.analytics-ai-ref-badge .material-symbols-outlined {
+    font-size: 13px;
+}
+
+.analytics-ai-ref-badge--rule {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border-color: #ddd6fe;
+}
+
+.analytics-ai-ref-title {
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 340px;
+}
+
+@media (max-width: 768px) {
+    .analytics-ai-ref-title {
+        max-width: 200px;
+    }
+}
+
+/* ============================================================
+   RECOMMENDED ACTION PLAN & TACTICAL CARDS
+   ============================================================ */
+.analytics-action-plan-section {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.analytics-action-plan-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.analytics-action-plan-header__left {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.analytics-action-plan-header__icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: #eef2ff;
+    color: #4f46e5;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.analytics-action-plan-header__icon .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.analytics-action-plan-title {
+    margin: 0;
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+.analytics-action-plan-sub {
+    font-size: 0.76rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-left: 2px;
+}
+
+.analytics-action-count-badge {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.analytics-action-cards-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.analytics-tactical-card {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-left: 5px solid #6366f1;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.analytics-tactical-card--police {
+    background: linear-gradient(180deg, #f8faff 0%, #ffffff 60%, #f4f8ff 100%) !important;
+    border-color: #bfdbfe !important;
+    border-left-color: #2563eb !important;
+    box-shadow: 0 2px 12px rgba(37, 99, 235, 0.06) !important;
+}
+
+.analytics-tactical-card--barangay {
+    background: linear-gradient(180deg, #f7fdfa 0%, #ffffff 60%, #f0fdf4 100%) !important;
+    border-color: #bbf7d0 !important;
+    border-left-color: #059669 !important;
+    box-shadow: 0 2px 12px rgba(5, 150, 105, 0.06) !important;
+}
+
+.analytics-tactical-card--admin {
+    background: linear-gradient(180deg, #faf5ff 0%, #ffffff 60%, #f5f3ff 100%) !important;
+    border-color: #ddd6fe !important;
+    border-left-color: #7c3aed !important;
+    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.06) !important;
+}
+
+.analytics-tactical-card:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1.5px);
+}
+
+.analytics-tactical-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.analytics-tactical-card__role {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 7px;
+    font-size: 0.78rem;
+    font-weight: 750;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.analytics-tactical-card__role--police {
+    background: #eff6ff;
+    color: #1e40af;
+    border-color: #93c5fd;
+}
+
+.analytics-tactical-card__role--barangay {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #6ee7b7;
+}
+
+.analytics-tactical-card__role--admin {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border-color: #c4b5fd;
+}
+
+.analytics-tactical-card__role .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.analytics-tactical-card__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.analytics-tactical-step-pill {
+    font-size: 0.72rem;
+    font-weight: 750;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 3px 9px;
+    border-radius: 5px;
+}
+
+.analytics-tactical-urgency-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.analytics-tactical-urgency-chip--today {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.analytics-tactical-urgency-chip--week {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.analytics-tactical-urgency-chip--monitor {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.analytics-tactical-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ef4444;
+    display: inline-block;
+    animation: ttPulseGlow 1.5s infinite;
+}
+
+.analytics-tactical-card__text {
+    margin: 0;
+    font-size: 1.01rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.52;
+}
+
+.analytics-tactical-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.analytics-tactical-detail-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.81rem;
+    line-height: 1.45;
+}
+
+.analytics-tactical-detail-chip .material-symbols-outlined {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.analytics-tactical-detail-chip--trigger {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #881337;
+}
+.analytics-tactical-detail-chip--trigger .material-symbols-outlined {
+    color: #e11d48;
+}
+
+.analytics-tactical-detail-chip--policy {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    color: #4c1d95;
+}
+.analytics-tactical-detail-chip--policy .material-symbols-outlined {
+    color: #7c3aed;
+}
+
+.analytics-tactical-detail-chip--impact {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #064e3b;
+}
+.analytics-tactical-detail-chip--impact .material-symbols-outlined {
+    color: #059669;
+}
+
+.analytics-tactical-card__reason {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #6366f1;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.analytics-tactical-card__reason .material-symbols-outlined {
+    font-size: 15px;
+    color: #6366f1;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
 /* Action Bar */
 .analytics-ai-actions-bar {
     display: flex;
@@ -2746,48 +3227,41 @@
     transition: all 0.15s ease;
 }
 
-.analytics-ai-act-btn--approve {
-    background: #ecfdf5;
-    color: #059669;
-    border-color: #a7f3d0;
-}
-
-.analytics-ai-act-btn--approve:hover {
-    background: #059669;
-    color: #ffffff;
-}
-
-.analytics-ai-act-btn--adopt {
-    background: #eef2ff;
-    color: #4f46e5;
-    border-color: #c7d2fe;
-}
-
-.analytics-ai-act-btn--adopt:hover {
-    background: #4f46e5;
-    color: #ffffff;
-}
-
-.analytics-ai-act-btn--reject {
-    background: #fef2f2;
-    color: #dc2626;
-    border-color: #fecaca;
-}
-
-.analytics-ai-act-btn--reject:hover {
-    background: #dc2626;
-    color: #ffffff;
-}
-
 .analytics-ai-act-btn--feedback {
     background: #ffffff;
-    color: #64748b;
+    color: #475569;
     border-color: #cbd5e1;
 }
 
 .analytics-ai-act-btn--feedback:hover {
     background: #f1f5f9;
     color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.analytics-ai-act-btn--copy-plan {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.analytics-ai-act-btn--copy-plan:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.analytics-ai-act-btn--regenerate {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #cbd5e1;
+    margin-left: auto;
+}
+
+.analytics-ai-act-btn--regenerate:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
 }
 
 /* ============================================================
