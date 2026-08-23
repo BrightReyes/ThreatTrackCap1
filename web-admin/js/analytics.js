@@ -1603,8 +1603,57 @@ async function handleGenerateGroundedAISummary() {
     }
 }
 
+function getHotspotStats(rows) {
+    const grouped = new Map();
+    rows.forEach((row) => {
+        const area = hotspotLabel(row);
+        const current = grouped.get(area) || {
+            area,
+            totalReports: 0,
+            severityBreakdown: { high: 0, medium: 0, low: 0 },
+            typeCounts: {},
+            hours: {},
+        };
+        current.totalReports += 1;
+        const sev = String(row.data?.severity || "low").toLowerCase();
+        if (current.severityBreakdown[sev] !== undefined) {
+            current.severityBreakdown[sev] += 1;
+        } else {
+            current.severityBreakdown.low += 1;
+        }
+        const type = String(row.data?.type || "other").toLowerCase();
+        current.typeCounts[type] = (current.typeCounts[type] || 0) + 1;
+        const hour = getPhtHour(row.date);
+        if (hour != null) {
+            current.hours[hour] = (current.hours[hour] || 0) + 1;
+        }
+        grouped.set(area, current);
+    });
+
+    return [...grouped.values()]
+        .map((h) => {
+            const sortedHours = Object.entries(h.hours).sort((a, b) => b[1] - a[1]);
+            const peakH = sortedHours[0] ? Number(sortedHours[0][0]) : null;
+            const peakLabel = peakH != null ? hourLabel(peakH) : "Various hours";
+            const priority = h.severityBreakdown.high >= 3 ? "critical" :
+                             h.severityBreakdown.high >= 1 ? "high" :
+                             h.totalReports >= 5 ? "medium" : "low";
+            return {
+                ...h,
+                peakLabel,
+                priority,
+                evidence: [
+                    `${h.totalReports} total reports in ${h.area}`,
+                    `${h.severityBreakdown.high} high severity cases`,
+                    `Peak concentrated activity: ${peakLabel}`,
+                ],
+            };
+        })
+        .sort((a, b) => b.totalReports - a.totalReports);
+}
+
 async function callGeminiDirectClient(apiKey, range) {
-    const rows = filteredIncidentRows();
+    const rows = getSelectedRangeRows();
     const totalIncidents = rows.length;
     const highSeverity = rows.filter((r) => String(r.data?.severity || "").toLowerCase() === "high").length;
     const sosReports = rows.filter((r) => r.data?.isSOSReport === true).length;
@@ -1626,7 +1675,7 @@ async function callGeminiDirectClient(apiKey, range) {
         console.warn("[analytics] Direct Gemini rules query:", e);
     }
 
-    const rankedHotspots = buildHotspotRanking(rows);
+    const rankedHotspots = getHotspotStats(rows);
     const topHotspots = rankedHotspots.slice(0, 5);
 
     const crimeCounts = {};
@@ -1636,7 +1685,7 @@ async function callGeminiDirectClient(apiKey, range) {
     });
 
     const analyticsPayload = {
-        timeRange: { label: range },
+        timeRange: { label: rangeLabel(range) },
         overallStats: { totalIncidents, highSeverity, sosReports },
         topCrimeTypes: crimeCounts,
         hotspots: topHotspots.map((h, i) => ({
@@ -1774,7 +1823,7 @@ async function callGeminiDirectClient(apiKey, range) {
 
 
 async function synthesizeClientGroundedAISummary(range) {
-    const rows = filteredIncidentRows();
+    const rows = getSelectedRangeRows();
     const totalIncidents = rows.length;
     const highSeverity = rows.filter((r) => String(r.data?.severity || "").toLowerCase() === "high").length;
     const sosReports = rows.filter((r) => r.data?.isSOSReport === true).length;
@@ -1796,7 +1845,7 @@ async function synthesizeClientGroundedAISummary(range) {
         console.warn("[analytics] Client rules query:", e);
     }
 
-    const rankedHotspots = buildHotspotRanking(rows);
+    const rankedHotspots = getHotspotStats(rows);
     const topHotspots = rankedHotspots.slice(0, 5);
 
     const crimeCounts = {};
@@ -1809,7 +1858,7 @@ async function synthesizeClientGroundedAISummary(range) {
     const dominantCrimeLabel = dominantCrime.replace(/_/g, " ");
 
     const overallRisk = highSeverity >= 5 || sosReports > 0 ? "high" : highSeverity >= 2 ? "medium" : "low";
-    const headline = `Operational Decision Brief for ${totalIncidents} reported ${dominantCrimeLabel} incidents (${selectedRangeLabel()})`;
+    const headline = `Operational Decision Brief for ${totalIncidents} reported ${dominantCrimeLabel} incidents (${rangeLabel(range)})`;
     const executiveSummary = `Analysis of ${totalIncidents} incident records across Valenzuela City indicates elevated ${dominantCrimeLabel} activity with ${highSeverity} high-severity cases. Tactical actions are synthesized from registered municipal ordinances and active operational guidance.`;
     const groundingSummary = `Grounded in ${knowledgeList.length} published city ordinances and ${rulesList.length} active administrative rules.`;
 
