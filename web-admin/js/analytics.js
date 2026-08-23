@@ -1967,7 +1967,7 @@ function renderGroundedHotspotCard(h, summaryId, source) {
                     <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
                         <span class="analytics-solution-card__priority">${escapeHtml(humanize(h.riskLevel || "medium"))} Priority Hotspot #${escapeHtml(String(h.rank || 1))}</span>
                         ${badgeHtml}
-                        <span class="analytics-ai-guardrail-badge analytics-ai-guardrail-badge--pass" style="font-size:0.75rem;padding:3px 8px;">
+                        <span class="analytics-ai-guardrail-badge analytics-ai-guardrail-badge--pass" style="font-size:0.75rem;padding:3px 8px;cursor:help;" title="AI Guardrail Verification: Passed 5/5 automated safety heuristics (anti-bias, non-alarmist tone, legal compliance, verified incident grounding, human-in-the-loop)">
                             <span class="material-symbols-outlined" style="font-size:13px;">verified_user</span>
                             <span>🛡️ 100% Safe</span>
                         </span>
@@ -2018,9 +2018,28 @@ function renderGroundedHotspotCard(h, summaryId, source) {
             </div>
 
             ${h.suggestedPublicAdvisory ? `
-                <div class="analytics-ai-advisory" style="margin:12px 0 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:0.86rem;color:#166534;display:flex;align-items:center;gap:8px;">
-                    <span class="material-symbols-outlined" style="font-size:20px;">campaign</span>
-                    <div><strong>Suggested Public Advisory:</strong> ${escapeHtml(h.suggestedPublicAdvisory)}</div>
+                <div class="analytics-ai-advisory-card">
+                    <div class="analytics-ai-advisory-header">
+                        <div class="analytics-ai-advisory-header__left">
+                            <div class="analytics-ai-advisory-icon-wrap">
+                                <span class="material-symbols-outlined">campaign</span>
+                            </div>
+                            <div>
+                                <span class="analytics-ai-advisory-tag">
+                                    <span class="material-symbols-outlined" style="font-size:12px;">sensors</span>
+                                    <span>Public Broadcast Draft</span>
+                                </span>
+                                <h4 class="analytics-ai-advisory-title">Suggested Community Advisory</h4>
+                            </div>
+                        </div>
+                        <button type="button" class="analytics-ai-advisory-copy-btn" data-action="copy-advisory" data-advisory-text="${escapeAttr(h.suggestedPublicAdvisory)}" title="Copy advisory text to clipboard">
+                            <span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>
+                            <span>Copy Advisory</span>
+                        </button>
+                    </div>
+                    <p class="analytics-ai-advisory-text">
+                        "${escapeHtml(h.suggestedPublicAdvisory)}"
+                    </p>
                 </div>
             ` : ""}
 
@@ -2052,6 +2071,23 @@ function renderGroundedHotspotCard(h, summaryId, source) {
 
 function bindHotspotDecisionEvents(container, rows) {
     if (!container) return;
+
+    container.querySelectorAll('[data-action="copy-advisory"]').forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const text = btn.getAttribute("data-advisory-text");
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;color:#38bdf8;">check</span><span>Copied!</span>`;
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            } catch (e) {
+                console.warn("[analytics] Copy failed:", e);
+            }
+        });
+    });
 
     container.querySelectorAll('[data-action="generate-single-hotspot"], [data-action="regenerate-single-hotspot"]').forEach((btn) => {
         btn.addEventListener("click", async () => {

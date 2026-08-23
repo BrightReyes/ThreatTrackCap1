@@ -2790,6 +2790,129 @@
     color: #0f172a;
 }
 
+/* ============================================================
+   FUTURISTIC AI PUBLIC ADVISORY BROADCAST CARD
+   ============================================================ */
+.analytics-ai-advisory-card {
+    margin: 16px 0 6px;
+    background: linear-gradient(135deg, #0b1120 0%, #1e1b4b 60%, #0f172a 100%);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    border-radius: 12px;
+    padding: 16px 18px;
+    color: #f8fafc;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    position: relative;
+    overflow: hidden;
+}
+
+.analytics-ai-advisory-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #38bdf8, #10b981, #6366f1);
+    background-size: 200% 100%;
+    animation: advisoryGlow 4s linear infinite;
+}
+
+@keyframes advisoryGlow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+.analytics-ai-advisory-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.analytics-ai-advisory-header__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.analytics-ai-advisory-icon-wrap {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(99, 102, 241, 0.3);
+    border: 1px solid rgba(129, 140, 248, 0.5);
+    border-radius: 8px;
+    color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+.analytics-ai-advisory-icon-wrap .material-symbols-outlined {
+    font-size: 18px;
+    animation: advisoryPulse 2s ease-in-out infinite;
+}
+
+@keyframes advisoryPulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 6px #38bdf8); }
+}
+
+.analytics-ai-advisory-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.analytics-ai-advisory-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: 5px 12px;
+    font-size: 0.76rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    backdrop-filter: blur(4px);
+}
+
+.analytics-ai-advisory-copy-btn:hover {
+    background: rgba(99, 102, 241, 0.4);
+    border-color: rgba(129, 140, 248, 0.7);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+.analytics-ai-advisory-text {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: #f1f5f9;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px 16px;
+    letter-spacing: 0.01em;
+    font-weight: 500;
+}
+
+.analytics-ai-advisory-text em {
+    color: #38bdf8;
+    font-style: normal;
+    font-weight: 700;
+}
+
+
 /* Feedback Modal Styles */
 .analytics-modal {
     position: fixed;
