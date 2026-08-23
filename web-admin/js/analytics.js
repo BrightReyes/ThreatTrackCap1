@@ -1857,44 +1857,55 @@ async function synthesizeClientGroundedAISummary(range) {
     const dominantCrime = sortedTypes[0]?.[0] || "incident";
     const dominantCrimeLabel = dominantCrime.replace(/_/g, " ");
 
+    const hasKnowledge = knowledgeList.length > 0;
+    const hasRules = rulesList.length > 0;
+
     const overallRisk = highSeverity >= 5 || sosReports > 0 ? "high" : highSeverity >= 2 ? "medium" : "low";
     const headline = `Operational Decision Brief for ${totalIncidents} reported ${dominantCrimeLabel} incidents (${rangeLabel(range)})`;
-    const executiveSummary = `Analysis of ${totalIncidents} incident records across Valenzuela City indicates elevated ${dominantCrimeLabel} activity with ${highSeverity} high-severity cases. Tactical actions are synthesized from registered municipal ordinances and active operational guidance.`;
-    const groundingSummary = `Grounded in ${knowledgeList.length} published city ordinances and ${rulesList.length} active administrative rules.`;
+    const executiveSummary = `Analysis of ${totalIncidents} incident records across Valenzuela City indicates elevated ${dominantCrimeLabel} activity with ${highSeverity} high-severity cases.`;
+    const groundingSummary = (hasKnowledge || hasRules) ?
+        `Grounded in ${knowledgeList.length} published city ordinances and ${rulesList.length} active administrative rules.` :
+        `⚠️ 0 published city ordinances and 0 active administrative rules found in AI Management. Policy citations and tactical directives are awaiting configuration.`;
 
     const priorityHotspots = topHotspots.map((h, idx) => {
         const matchingRules = rulesList.filter((r) => {
             if (r.crimeType && h.typeCounts && h.typeCounts[r.crimeType]) return true;
             return false;
         });
-        const appliedRules = matchingRules.length > 0 ? matchingRules : rulesList.slice(0, 2);
+        const appliedRules = matchingRules.length > 0 ? matchingRules : (hasRules ? rulesList.slice(0, 2) : []);
 
         const citedKnowledge = knowledgeList.slice(0, 2).map((k) =>
             `${k.referenceNumber ? `${k.referenceNumber}: ` : ""}${k.title}`,
         );
         const matchedGuidance = appliedRules.map((r) => `${r.name}: ${r.recommendedAction || r.guidance}`);
 
-        const recommendedActions = appliedRules.length > 0 ?
-            appliedRules.map((r) => ({
+        let recommendedActions = [];
+        if (appliedRules.length > 0) {
+            recommendedActions = appliedRules.map((r) => ({
                 action: r.recommendedAction || r.guidance || "Conduct high-visibility roving patrol.",
                 owner: r.priority === "critical" ? "police" : "barangay",
                 urgency: r.priority === "critical" ? "today" : "this_week",
                 reason: `Correlates with ${h.totalReports} incident reports in ${h.area}`,
-            })) :
-            [
+            }));
+        } else if (!hasKnowledge && !hasRules) {
+            recommendedActions = [
+                {
+                    action: "Publish relevant City Ordinances and Operational Rules in the 'AI Management' tab.",
+                    owner: "admin",
+                    urgency: "today",
+                    reason: "AI decision support requires published policies to generate grounded operational steps.",
+                },
+            ];
+        } else {
+            recommendedActions = [
                 {
                     action: "Deploy routine high-visibility foot and mobile patrols during peak hours.",
                     owner: "police",
                     urgency: "today",
                     reason: `Address cluster of ${h.totalReports} reports in ${h.area}`,
                 },
-                {
-                    action: "Coordinate with Barangay Peacekeeping Action Team (BPAT) for area monitoring.",
-                    owner: "barangay",
-                    urgency: "this_week",
-                    reason: "Enhance community presence and deter opportunist offences.",
-                },
             ];
+        }
 
         return {
             rank: idx + 1,
@@ -1906,7 +1917,7 @@ async function synthesizeClientGroundedAISummary(range) {
             matchedGuidance: matchedGuidance.slice(0, 3),
             recommendedActions: recommendedActions.slice(0, 4),
             suggestedPublicAdvisory: `Residents and commuters near ${h.area} are advised to remain vigilant during peak transit hours.`,
-            confidence: 0.92,
+            confidence: (hasKnowledge || hasRules) ? 0.92 : 0.65,
         };
     });
 
@@ -2042,7 +2053,14 @@ function renderGroundedHotspotCard(h, summaryId) {
                     ${citedList.map((c) => `<span class="analytics-ai-citation-tag"><span class="material-symbols-outlined" style="font-size:14px;">gavel</span><span>${escapeHtml(c)}</span></span>`).join("")}
                     ${guidanceList.map((g) => `<span class="analytics-ai-guidance-tag"><span class="material-symbols-outlined" style="font-size:14px;">lightbulb</span><span>${escapeHtml(g)}</span></span>`).join("")}
                 </div>
-            ` : ""}
+            ` : `
+                <div class="analytics-ai-tags-row">
+                    <span class="analytics-ai-citation-tag" style="background:#fffbeb;color:#92400e;border-color:#fde68a;">
+                        <span class="material-symbols-outlined" style="font-size:14px;">info</span>
+                        <span>No Active Ordinances or Rules Published</span>
+                    </span>
+                </div>
+            `}
 
             <div class="analytics-hotspot-ai-action-list" style="margin-top:10px;">
                 <div class="analytics-hotspot-ai-action-list__header">
