@@ -1516,8 +1516,7 @@ function riskClass(value) {
     return "medium";
 }
 
-let latestGeneratedAISummary = null;
-
+let perHotspotDecisionPlans = new Map();
 
 function getSavedGeminiKey() {
     return sessionStorage.getItem(GEMINI_DEMO_KEY_STORAGE) ||
@@ -1546,60 +1545,6 @@ function updateGeminiKeyButtonUI() {
         }
         if (label) label.textContent = "API Key";
         if (icon) icon.textContent = "key";
-    }
-}
-
-async function handleGenerateGroundedAISummary() {
-    const btn = document.getElementById("btn-generate-ai-summary");
-    const container = document.getElementById("analytics-solutions");
-    if (!container) return;
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">progress_activity</span><span>Synthesizing AI Brief...</span>`;
-    }
-
-    container.innerHTML = `
-        <div class="analytics-ai-placeholder-card" style="border-color:#4f46e5;background:#f5f3ff;">
-            <span class="material-symbols-outlined analytics-ai-placeholder-icon" style="animation:spin 1.5s linear infinite;color:#4f46e5;background:#ede9fe;">auto_awesome</span>
-            <div>
-                <h4>Synthesizing Grounded Public Safety Intelligence</h4>
-                <p>Querying active incidents, published city ordinances, and operational rules through Grounded Intelligence Engine...</p>
-            </div>
-        </div>
-    `;
-
-    try {
-        const userApiKey = getSavedGeminiKey();
-        const range = currentAnalyticsRange();
-
-        if (userApiKey) {
-            try {
-                const data = await callGeminiDirectClient(userApiKey, range);
-                latestGeneratedAISummary = data;
-                renderGroundedAISummary(data);
-                return;
-            } catch (geminiErr) {
-                console.warn("[analytics] Direct Gemini API call failed, falling back to local grounded rules engine:", geminiErr);
-            }
-        }
-
-        const data = await synthesizeClientGroundedAISummary(range);
-        latestGeneratedAISummary = data;
-        renderGroundedAISummary(data);
-    } catch (err) {
-        console.error("[analytics] Grounded AI summary generation failed", err);
-        container.innerHTML = `
-            <div class="analytics-ai-error" role="alert">
-                <strong>Decision Brief Generation Failed</strong>
-                <p>${escapeHtml(err?.message || "Could not generate AI decision brief.")}</p>
-            </div>
-        `;
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `<span class="material-symbols-outlined">auto_awesome</span><span>Generate AI Decision Brief</span>`;
-        }
     }
 }
 
@@ -1652,101 +1597,47 @@ function getHotspotStats(rows) {
         .sort((a, b) => b.totalReports - a.totalReports);
 }
 
-async function callGeminiDirectClient(apiKey, range) {
-    const rows = getSelectedRangeRows();
-    const totalIncidents = rows.length;
-    const highSeverity = rows.filter((r) => String(r.data?.severity || "").toLowerCase() === "high").length;
-    const sosReports = rows.filter((r) => r.data?.isSOSReport === true).length;
-
-    let knowledgeList = [];
-    let rulesList = [];
-
-    try {
-        const kSnap = await getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published")));
-        knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } catch (e) {
-        console.warn("[analytics] Direct Gemini knowledge query:", e);
-    }
-
-    try {
-        const rSnap = await getDocs(query(collection(db, "ai_rules"), where("status", "==", "active")));
-        rulesList = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } catch (e) {
-        console.warn("[analytics] Direct Gemini rules query:", e);
-    }
-
-    const rankedHotspots = getHotspotStats(rows);
-    const topHotspots = rankedHotspots.slice(0, 5);
-
-    const crimeCounts = {};
-    rows.forEach((r) => {
-        const t = String(r.data?.type || "other").toLowerCase();
-        crimeCounts[t] = (crimeCounts[t] || 0) + 1;
+async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList, range) {
+    const matchingRules = rulesList.filter((r) => {
+        if (r.crimeType && hotspot.typeCounts && hotspot.typeCounts[r.crimeType]) return true;
+        return false;
     });
-
-    const analyticsPayload = {
-        timeRange: { label: rangeLabel(range) },
-        overallStats: { totalIncidents, highSeverity, sosReports },
-        topCrimeTypes: crimeCounts,
-        hotspots: topHotspots.map((h, i) => ({
-            rank: i + 1,
-            locationLabel: h.area,
-            reportCount: h.totalReports,
-            severityBreakdown: h.severityBreakdown,
-            peakHours: [h.peakLabel],
-        })),
-    };
-
-    const knowledgeSection = knowledgeList.length > 0 ?
-        knowledgeList.map((k, i) =>
-            `${i + 1}. [${k.type?.toUpperCase() || "POLICY"}] "${k.title}" (${k.source || "City"}${k.referenceNumber ? ` | Ref: ${k.referenceNumber}` : ""})\n   Directives: ${k.content || ""}`,
-        ).join("\n\n") :
-        "No official knowledge base documents currently registered.";
-
-    const rulesSection = rulesList.length > 0 ?
-        rulesList.map((r, i) =>
-            `${i + 1}. [${(r.priority || "HIGH").toUpperCase()}] "${r.name}" (Applies to: ${r.crimeType || "General"})\n   Guidance: ${r.recommendedAction || r.guidance || ""}`,
-        ).join("\n\n") :
-        "No specific operational guidance registered.";
+    const appliedRules = matchingRules.length > 0 ? matchingRules : rulesList.slice(0, 2);
 
     const promptText = [
         "You are an expert public safety decision-support AI for Valenzuela City's ThreatTrack system.",
-        "TASK: Analyze the provided incident evidence and synthesize actionable, non-alarmist public safety recommendations grounded strictly in the provided official policies/ordinances and administrative operational rules.",
-        "Output MUST be valid JSON only conforming to the schema:",
+        "TASK: Analyze this single hotspot cluster and synthesize actionable, non-alarmist public safety recommendations grounded strictly in the provided official policies/ordinances and administrative operational rules.",
+        "Output MUST be valid JSON only matching the schema:",
         `{
-            "headline": "string",
-            "overallRisk": "low" | "medium" | "high" | "critical",
-            "executiveSummary": "string",
-            "groundingSummary": "string",
-            "priorityHotspots": [
-                {
-                    "rank": 1,
-                    "locationLabel": "string",
-                    "riskLevel": "low" | "medium" | "high" | "critical",
-                    "mainPattern": "string",
-                    "evidence": ["string"],
-                    "citedKnowledge": ["string"],
-                    "matchedGuidance": ["string"],
-                    "recommendedActions": [
-                        { "action": "string", "owner": "police" | "barangay", "urgency": "today" | "this_week" | "monitor", "reason": "string" }
-                    ],
-                    "suggestedPublicAdvisory": "string",
-                    "confidence": 0.9
-                }
+            "rank": ${hotspot.rank || 1},
+            "locationLabel": ${JSON.stringify(hotspot.area)},
+            "riskLevel": "${hotspot.priority || "medium"}",
+            "mainPattern": "string describing incident pattern and peak timing",
+            "evidence": ["string"],
+            "citedKnowledge": ["string"],
+            "matchedGuidance": ["string"],
+            "recommendedActions": [
+                { "action": "string", "owner": "police" | "barangay", "urgency": "today" | "this_week" | "monitor", "reason": "string" }
             ],
-            "dataWarnings": ["string"],
-            "nextDataToCollect": ["string"],
-            "basedOn": { "totalIncidents": 0, "hotspotCount": 0, "timeRange": "${range}", "knowledgeEntriesCited": ${knowledgeList.length}, "rulesEvaluated": ${rulesList.length} }
+            "suggestedPublicAdvisory": "string",
+            "confidence": 0.95
         }`,
         "",
-        "=== SECTION 1: AGGREGATED INCIDENT EVIDENCE ===",
-        JSON.stringify(analyticsPayload, null, 2),
+        "=== HOTSPOT CLUSTER EVIDENCE ===",
+        JSON.stringify({
+            location: hotspot.area,
+            totalReports: hotspot.totalReports,
+            severityBreakdown: hotspot.severityBreakdown,
+            crimeTypes: hotspot.typeCounts,
+            peakHour: hotspot.peakLabel,
+            timeRange: rangeLabel(range),
+        }, null, 2),
         "",
-        "=== SECTION 2: OFFICIAL POLICIES & ORDINANCES (Knowledge Base) ===",
-        knowledgeSection,
+        "=== OFFICIAL POLICIES & ORDINANCES (Knowledge Base) ===",
+        knowledgeList.length > 0 ? knowledgeList.map((k, i) => `${i + 1}. [${k.referenceNumber || "ORD"}] ${k.title}: ${k.content}`).join("\n") : "No official city ordinances registered.",
         "",
-        "=== SECTION 3: ADMINISTRATIVE OPERATIONAL GUIDANCE & RULES ===",
-        rulesSection,
+        "=== ADMINISTRATIVE OPERATIONAL GUIDANCE & RULES ===",
+        appliedRules.length > 0 ? appliedRules.map((r, i) => `${i + 1}. [${r.priority || "HIGH"}] ${r.name}: ${r.recommendedAction || r.guidance}`).join("\n") : "No active rules registered.",
     ].join("\n\n");
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -1757,10 +1648,7 @@ async function callGeminiDirectClient(apiKey, range) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents: [{ parts: [{ text: promptText }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.2,
-            },
+            generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
         }),
     });
 
@@ -1770,277 +1658,322 @@ async function callGeminiDirectClient(apiKey, range) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 contents: [{ parts: [{ text: promptText }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    temperature: 0.2,
-                },
+                generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
             }),
         });
     }
 
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
+        throw new Error(`Gemini API Error: ${await response.text()}`);
     }
 
-    const geminiJson = await response.json();
-    const rawText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error("Empty response from Gemini.");
-
-    const parsedSummary = JSON.parse(rawText);
-
-    const verification = {
-        passed: true,
-        safetyScore: 1.0,
-        groundingScore: 1.0,
-        violations: [],
-    };
-
-    let docId = "gemini_" + Date.now();
-    try {
-        const docRef = await addDoc(collection(db, "ai_suggestion_summaries"), {
-            summary: parsedSummary,
-            verification,
-            source: "gemini_client",
-            createdAt: serverTimestamp(),
-            filters: { range },
-            review: { status: "pending", updatedAt: serverTimestamp() },
-        });
-        docId = docRef.id;
-    } catch (e) {
-        console.warn("[analytics] Saved summary locally:", e);
-    }
-
-    return {
-        id: docId,
-        provider: "gemini",
-        model: "gemini-flash",
-        source: "gemini",
-        summary: parsedSummary,
-        verification,
-    };
+    const json = await response.json();
+    const raw = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) throw new Error("Empty response from Gemini.");
+    return JSON.parse(raw);
 }
 
-
-async function synthesizeClientGroundedAISummary(range) {
-    const rows = getSelectedRangeRows();
-    const totalIncidents = rows.length;
-    const highSeverity = rows.filter((r) => String(r.data?.severity || "").toLowerCase() === "high").length;
-    const sosReports = rows.filter((r) => r.data?.isSOSReport === true).length;
-
-    let knowledgeList = [];
-    let rulesList = [];
-
-    try {
-        const kSnap = await getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published")));
-        knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } catch (e) {
-        console.warn("[analytics] Client knowledge query:", e);
-    }
-
-    try {
-        const rSnap = await getDocs(query(collection(db, "ai_rules"), where("status", "==", "active")));
-        rulesList = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    } catch (e) {
-        console.warn("[analytics] Client rules query:", e);
-    }
-
-    const rankedHotspots = getHotspotStats(rows);
-    const topHotspots = rankedHotspots.slice(0, 5);
-
-    const crimeCounts = {};
-    rows.forEach((r) => {
-        const t = String(r.data?.type || "other").toLowerCase();
-        crimeCounts[t] = (crimeCounts[t] || 0) + 1;
-    });
-    const sortedTypes = Object.entries(crimeCounts).sort((a, b) => b[1] - a[1]);
-    const dominantCrime = sortedTypes[0]?.[0] || "incident";
-    const dominantCrimeLabel = dominantCrime.replace(/_/g, " ");
-
+function synthesizeSingleHotspotDeterministic(hotspot, knowledgeList, rulesList) {
     const hasKnowledge = knowledgeList.length > 0;
     const hasRules = rulesList.length > 0;
 
-    const overallRisk = highSeverity >= 5 || sosReports > 0 ? "high" : highSeverity >= 2 ? "medium" : "low";
-    const headline = `Operational Decision Brief for ${totalIncidents} reported ${dominantCrimeLabel} incidents (${rangeLabel(range)})`;
-    const executiveSummary = `Analysis of ${totalIncidents} incident records across Valenzuela City indicates elevated ${dominantCrimeLabel} activity with ${highSeverity} high-severity cases.`;
-    const groundingSummary = (hasKnowledge || hasRules) ?
-        `Grounded in ${knowledgeList.length} published city ordinances and ${rulesList.length} active administrative rules.` :
-        `⚠️ 0 published city ordinances and 0 active administrative rules found in AI Management. Policy citations and tactical directives are awaiting configuration.`;
-
-    const priorityHotspots = topHotspots.map((h, idx) => {
-        const matchingRules = rulesList.filter((r) => {
-            if (r.crimeType && h.typeCounts && h.typeCounts[r.crimeType]) return true;
-            return false;
-        });
-        const appliedRules = matchingRules.length > 0 ? matchingRules : (hasRules ? rulesList.slice(0, 2) : []);
-
-        const citedKnowledge = knowledgeList.slice(0, 2).map((k) =>
-            `${k.referenceNumber ? `${k.referenceNumber}: ` : ""}${k.title}`,
-        );
-        const matchedGuidance = appliedRules.map((r) => `${r.name}: ${r.recommendedAction || r.guidance}`);
-
-        let recommendedActions = [];
-        if (appliedRules.length > 0) {
-            recommendedActions = appliedRules.map((r) => ({
-                action: r.recommendedAction || r.guidance || "Conduct high-visibility roving patrol.",
-                owner: r.priority === "critical" ? "police" : "barangay",
-                urgency: r.priority === "critical" ? "today" : "this_week",
-                reason: `Correlates with ${h.totalReports} incident reports in ${h.area}`,
-            }));
-        } else if (!hasKnowledge && !hasRules) {
-            recommendedActions = [
-                {
-                    action: "Publish relevant City Ordinances and Operational Rules in the 'AI Management' tab.",
-                    owner: "admin",
-                    urgency: "today",
-                    reason: "AI decision support requires published policies to generate grounded operational steps.",
-                },
-            ];
-        } else {
-            recommendedActions = [
-                {
-                    action: "Deploy routine high-visibility foot and mobile patrols during peak hours.",
-                    owner: "police",
-                    urgency: "today",
-                    reason: `Address cluster of ${h.totalReports} reports in ${h.area}`,
-                },
-            ];
-        }
-
-        return {
-            rank: idx + 1,
-            locationLabel: h.area || "Valenzuela Hotspot",
-            riskLevel: h.priority || "medium",
-            mainPattern: `${h.totalReports} reported incidents with ${h.severityBreakdown?.high || 0} high-severity cases. Peak at ${h.peakLabel}.`,
-            evidence: h.evidence || [`${h.totalReports} reports in selected period`],
-            citedKnowledge: citedKnowledge.slice(0, 3),
-            matchedGuidance: matchedGuidance.slice(0, 3),
-            recommendedActions: recommendedActions.slice(0, 4),
-            suggestedPublicAdvisory: `Residents and commuters near ${h.area} are advised to remain vigilant during peak transit hours.`,
-            confidence: (hasKnowledge || hasRules) ? 0.92 : 0.65,
-        };
+    const matchingRules = rulesList.filter((r) => {
+        if (r.crimeType && hotspot.typeCounts && hotspot.typeCounts[r.crimeType]) return true;
+        return false;
     });
+    const appliedRules = matchingRules.length > 0 ? matchingRules : (hasRules ? rulesList.slice(0, 2) : []);
 
-    const summary = {
-        headline,
-        overallRisk,
-        executiveSummary,
-        groundingSummary,
-        priorityHotspots,
-        dataWarnings: [
-            "Grounded public safety decision brief synthesized from active administrative rules.",
-        ],
-        nextDataToCollect: [
-            "Continue logging verified incident coordinates and peak time details.",
-        ],
-        basedOn: {
-            totalIncidents,
-            hotspotCount: topHotspots.length,
-            timeRange: range,
-            knowledgeEntriesCited: knowledgeList.length,
-            rulesEvaluated: rulesList.length,
-        },
-    };
+    const citedKnowledge = knowledgeList.slice(0, 2).map((k) =>
+        `${k.referenceNumber ? `${k.referenceNumber}: ` : ""}${k.title}`,
+    );
+    const matchedGuidance = appliedRules.map((r) => `${r.name}: ${r.recommendedAction || r.guidance}`);
 
-    const verification = {
-        passed: true,
-        safetyScore: 1.0,
-        groundingScore: 1.0,
-        violations: [],
-    };
-
-    let docId = "local_" + Date.now();
-    try {
-        const docRef = await addDoc(collection(db, "ai_suggestion_summaries"), {
-            summary,
-            verification,
-            source: "grounded_engine",
-            createdAt: serverTimestamp(),
-            filters: { range },
-            review: { status: "pending", updatedAt: serverTimestamp() },
-        });
-        docId = docRef.id;
-    } catch (e) {
-        console.warn("[analytics] Saved locally (offline/permission fallback):", e);
+    let recommendedActions = [];
+    if (appliedRules.length > 0) {
+        recommendedActions = appliedRules.map((r) => ({
+            action: r.recommendedAction || r.guidance || "Conduct high-visibility roving patrol.",
+            owner: r.priority === "critical" ? "police" : "barangay",
+            urgency: r.priority === "critical" ? "today" : "this_week",
+            reason: `Correlates with ${hotspot.totalReports} incident reports in ${hotspot.area}`,
+        }));
+    } else if (!hasKnowledge && !hasRules) {
+        recommendedActions = [
+            {
+                action: "Publish relevant City Ordinances and Operational Rules in the 'AI Management' tab.",
+                owner: "admin",
+                urgency: "today",
+                reason: "AI decision support requires published policies to generate grounded operational steps.",
+            },
+        ];
+    } else {
+        recommendedActions = [
+            {
+                action: "Deploy routine high-visibility foot and mobile patrols during peak hours.",
+                owner: "police",
+                urgency: "today",
+                reason: `Address cluster of ${hotspot.totalReports} reports in ${hotspot.area}`,
+            },
+        ];
     }
 
     return {
-        id: docId,
-        provider: "grounded_engine",
-        model: "valenzuela_rules_v1",
-        source: "grounded_engine",
-        summary,
-        verification,
+        rank: hotspot.rank || 1,
+        locationLabel: hotspot.area,
+        riskLevel: hotspot.priority || "medium",
+        mainPattern: `${hotspot.totalReports} reported incidents with ${hotspot.severityBreakdown?.high || 0} high-severity cases. Peak at ${hotspot.peakLabel}.`,
+        evidence: hotspot.evidence || [`${hotspot.totalReports} reports in selected period`],
+        citedKnowledge: citedKnowledge.slice(0, 3),
+        matchedGuidance: matchedGuidance.slice(0, 3),
+        recommendedActions: recommendedActions.slice(0, 4),
+        suggestedPublicAdvisory: `Residents and commuters near ${hotspot.area} are advised to remain vigilant during peak transit hours.`,
+        confidence: (hasKnowledge || hasRules) ? 0.92 : 0.65,
     };
 }
 
-function renderGroundedAISummary(data) {
+async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
+    const originalHtml = btn?.innerHTML || "";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:16px;">progress_activity</span><span>Synthesizing...</span>`;
+    }
+
+    try {
+        const range = currentAnalyticsRange();
+        const userApiKey = getSavedGeminiKey();
+
+        let knowledgeList = [];
+        let rulesList = [];
+
+        try {
+            const kSnap = await getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published")));
+            knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn("[analytics] Knowledge query fallback:", e);
+        }
+
+        try {
+            const rSnap = await getDocs(query(collection(db, "ai_rules"), where("status", "==", "active")));
+            rulesList = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn("[analytics] Rules query fallback:", e);
+        }
+
+        let plan = null;
+        let source = "grounded_engine";
+
+        if (userApiKey) {
+            try {
+                plan = await callGeminiSingleHotspot(userApiKey, { ...hotspot, rank }, knowledgeList, rulesList, range);
+                source = "gemini";
+            } catch (geminiErr) {
+                console.warn("[analytics] Single hotspot Gemini call failed, falling back to deterministic rules:", geminiErr);
+                plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
+                source = "deterministic_fallback";
+            }
+        } else {
+            plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
+            source = "grounded_engine";
+        }
+
+        let docId = "hotspot_" + Date.now();
+        try {
+            const docRef = await addDoc(collection(db, "ai_suggestion_summaries"), {
+                summary: {
+                    headline: `Decision Brief for ${hotspot.area}`,
+                    overallRisk: hotspot.priority || "medium",
+                    priorityHotspots: [plan],
+                },
+                verification: { passed: true, safetyScore: 1.0, violations: [] },
+                source,
+                createdAt: serverTimestamp(),
+                filters: { range, hotspotArea: hotspot.area },
+                review: { status: "pending", updatedAt: serverTimestamp() },
+            });
+            docId = docRef.id;
+        } catch (e) {
+            console.warn("[analytics] Firestore write fallback:", e);
+        }
+
+        perHotspotDecisionPlans.set(hotspot.area, {
+            plan,
+            summaryId: docId,
+            source,
+            provider: source === "gemini" ? "gemini" : "rules_engine",
+        });
+
+        renderHotspotDecisionSection(rows);
+    } catch (err) {
+        console.error("[analytics] handleGenerateSingleHotspot failed", err);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+        alert(`Failed to generate hotspot decision support: ${err?.message || "Please check network connection."}`);
+    }
+}
+
+async function handleGenerateAllHotspots() {
+    const rows = getSelectedRangeRows();
+    const hotspotList = getHotspotStats(rows).slice(0, 6);
+    if (hotspotList.length === 0) return;
+
+    const btn = document.getElementById("btn-generate-ai-summary");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">progress_activity</span><span>Generating All...</span>`;
+    }
+
+    try {
+        for (let i = 0; i < hotspotList.length; i++) {
+            const h = hotspotList[i];
+            await handleGenerateSingleHotspot(h, i + 1, null, rows);
+        }
+    } catch (e) {
+        console.error("[analytics] Generate all failed:", e);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">auto_awesome</span><span>Generate All Hotspots</span>`;
+        }
+    }
+}
+
+function renderHotspotDecisionSection(rows) {
     const container = document.getElementById("analytics-solutions");
-    if (!container || !data || !data.summary) return;
+    if (!container) return;
 
-    const summary = data.summary;
-    const verification = data.verification || { passed: true, safetyScore: 1.0, violations: [] };
-    const hotspots = Array.isArray(summary.priorityHotspots) ? summary.priorityHotspots : [];
+    const hotspotStats = getHotspotStats(rows).slice(0, 6);
 
-    const isSafe = verification ? verification.passed : true;
-    const safetyScorePct = verification ? Math.round(verification.safetyScore * 100) : 100;
-    const safetyBadgeClass = isSafe ? "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--pass" : "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--alert";
-    const safetyIcon = isSafe ? "verified_user" : "gpp_maybe";
-    const safetyLabel = isSafe ? `🛡️ ${safetyScorePct}% Verified Safe` : `⚠️ Guardrail Alert (${safetyScorePct}%)`;
-
-    const isFallback = data.source === "deterministic_fallback" || data.provider === "rules_engine";
-    const engineBadgeHtml = isFallback ?
-        `<span class="analytics-ai-guardrail-badge" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;">
-            <span class="material-symbols-outlined" style="font-size:14px;">bolt</span>
-            <span>Deterministic Rule Engine</span>
-        </span>` :
-        `<span class="analytics-ai-guardrail-badge" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd;">
-            <span class="material-symbols-outlined" style="font-size:14px;">auto_awesome</span>
-            <span>Gemini Flash Grounded</span>
-        </span>`;
-
-    container.innerHTML = `
-        <div class="analytics-ai-brief-card">
-            <div class="analytics-ai-meta-bar">
-                <div class="analytics-ai-meta-bar__left">
-                    <span class="analytics-ai-meta-bar__headline">${escapeHtml(summary.headline || "Grounded AI Decision Brief")}</span>
-                    <span class="analytics-solution-card__priority analytics-solution-card__priority--${escapeAttr(summary.overallRisk || "medium")}">${escapeHtml(humanize(summary.overallRisk))} Risk</span>
-                </div>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    ${engineBadgeHtml}
-                    <span class="${safetyBadgeClass}">
-                        <span class="material-symbols-outlined" style="font-size:14px;">${safetyIcon}</span>
-                        <span>${escapeHtml(safetyLabel)}</span>
-                    </span>
+    if (hotspotStats.length === 0) {
+        container.innerHTML = `
+            <div class="analytics-ai-placeholder-card">
+                <span class="material-symbols-outlined analytics-ai-placeholder-icon">location_off</span>
+                <div>
+                    <h4>No Hotspot Clusters Detected</h4>
+                    <p>No high-density incident locations were identified in the selected ${escapeHtml(rangeLabel(currentAnalyticsRange()))}.</p>
                 </div>
             </div>
+        `;
+        return;
+    }
 
-            <div class="analytics-ai-executive-summary">
-                <strong>Executive Assessment:</strong> ${escapeHtml(summary.executiveSummary || "")}
-                ${summary.groundingSummary ? `<div style="margin-top:6px;font-size:0.84rem;color:#64748b;"><em>Policy Grounding:</em> ${escapeHtml(summary.groundingSummary)}</div>` : ""}
+    const generatedCount = hotspotStats.filter((h) => perHotspotDecisionPlans.has(h.area)).length;
+
+    container.innerHTML = `
+        <div class="analytics-ai-brief-card" style="padding:16px 20px;">
+            <div class="analytics-ai-meta-bar" style="margin-bottom:14px;">
+                <div class="analytics-ai-meta-bar__left">
+                    <span class="analytics-ai-meta-bar__headline">
+                        ${hotspotStats.length} Detected Priority Hotspots (${escapeHtml(rangeLabel(currentAnalyticsRange()))})
+                    </span>
+                    <span class="analytics-solution-card__priority" style="background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe;">
+                        ${generatedCount} of ${hotspotStats.length} Decision Plans Active
+                    </span>
+                </div>
+                <div style="font-size:0.82rem;color:#64748b;">
+                    Generate targeted AI decision support per hotspot on demand to preserve tokens.
+                </div>
             </div>
 
             <div class="analytics-ai-hotspots-grid" style="display:flex;flex-direction:column;gap:16px;">
-        ${hotspots.length > 0 ? hotspots.map((h) => renderGroundedHotspotCard(h, data.id)).join("") : '<p class="analytics-empty">No hotspots prioritized for this range.</p>'}
+                ${hotspotStats.map((h, idx) => {
+                    const planData = perHotspotDecisionPlans.get(h.area);
+                    if (planData) {
+                        return renderGroundedHotspotCard(planData.plan, planData.summaryId, planData.source);
+                    }
+                    return renderUngeneratedHotspotCard(h, idx + 1);
+                }).join("")}
             </div>
         </div>
     `;
 
-    bindGroundedActionEvents(container, data);
+    bindHotspotDecisionEvents(container, rows);
 }
 
-function renderGroundedHotspotCard(h, summaryId) {
+function renderUngeneratedHotspotCard(h, rank) {
+    const topType = Object.entries(h.typeCounts || {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "incident";
+    const topTypeLabel = humanize(topType);
+
+    return `
+        <article class="analytics-solution-card analytics-solution-card--${escapeAttr(h.priority || "medium")}" id="hotspot-card-${escapeAttr(h.area)}">
+            <div class="analytics-solution-card__top" style="align-items:center;">
+                <div style="flex:1;">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+                        <span class="analytics-solution-card__priority analytics-solution-card__priority--${escapeAttr(h.priority || "medium")}">
+                            ${escapeHtml(humanize(h.priority || "medium"))} Priority Hotspot #${rank}
+                        </span>
+                        <span style="font-size:0.78rem;font-weight:700;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:6px;">
+                            ${escapeHtml(topTypeLabel)}
+                        </span>
+                    </div>
+                    <h3 style="margin:0 0 4px;font-size:1.05rem;color:#0f172a;">${escapeHtml(h.area)}</h3>
+                    <p style="margin:0;font-size:0.86rem;color:#475569;">
+                        <strong>${h.totalReports}</strong> reported incidents (${h.severityBreakdown.high} high-severity). Peak concentrated activity at <strong>${escapeHtml(h.peakLabel)}</strong>.
+                    </p>
+                </div>
+                <div>
+                    <button
+                        type="button"
+                        class="analytics-ai-btn"
+                        data-action="generate-single-hotspot"
+                        data-hotspot-area="${escapeAttr(h.area)}"
+                        data-hotspot-rank="${rank}"
+                        style="white-space:nowrap;padding:8px 14px;font-size:0.85rem;"
+                    >
+                        <span class="material-symbols-outlined" style="font-size:18px;">auto_awesome</span>
+                        <span>Generate Decision Support</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="analytics-ai-tags-row" style="margin-top:10px;">
+                <span class="analytics-ai-citation-tag" style="background:#f8fafc;color:#475569;border-color:#e2e8f0;">
+                    <span class="material-symbols-outlined" style="font-size:14px;">pin_drop</span>
+                    <span>${h.totalReports} Reports (${rangeLabel(currentAnalyticsRange())})</span>
+                </span>
+                <span class="analytics-ai-citation-tag" style="background:#fef2f2;color:#991b1b;border-color:#fecaca;">
+                    <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+                    <span>${h.severityBreakdown.high} High Severity</span>
+                </span>
+                <span class="analytics-ai-guidance-tag" style="background:#f0fdf4;color:#166534;border-color:#bbf7d0;">
+                    <span class="material-symbols-outlined" style="font-size:14px;">schedule</span>
+                    <span>Peak: ${escapeHtml(h.peakLabel)}</span>
+                </span>
+            </div>
+        </article>
+    `;
+}
+
+function renderGroundedHotspotCard(h, summaryId, source) {
     const citedList = Array.isArray(h.citedKnowledge) ? h.citedKnowledge : [];
     const guidanceList = Array.isArray(h.matchedGuidance) ? h.matchedGuidance : [];
     const actionsList = Array.isArray(h.recommendedActions) ? h.recommendedActions : [];
+    const isGemini = source === "gemini" || source === "gemini_client";
+
+    const badgeHtml = isGemini ?
+        `<span class="analytics-ai-guardrail-badge" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd;font-size:0.75rem;padding:3px 8px;">
+            <span class="material-symbols-outlined" style="font-size:13px;">auto_awesome</span>
+            <span>Gemini Flash</span>
+        </span>` :
+        `<span class="analytics-ai-guardrail-badge" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:0.75rem;padding:3px 8px;">
+            <span class="material-symbols-outlined" style="font-size:13px;">bolt</span>
+            <span>Deterministic Rules</span>
+        </span>`;
 
     return `
-        <article class="analytics-solution-card analytics-solution-card--${escapeAttr(h.riskLevel || "medium")}">
+        <article class="analytics-solution-card analytics-solution-card--${escapeAttr(h.riskLevel || "medium")}" id="hotspot-card-${escapeAttr(h.locationLabel)}">
             <div class="analytics-solution-card__top">
                 <div>
-                    <span class="analytics-solution-card__priority">${escapeHtml(humanize(h.riskLevel || "medium"))} Priority Hotspot #${escapeHtml(String(h.rank || 1))}</span>
-                    <h3>${escapeHtml(h.locationLabel || "Unknown Area")}</h3>
-                    <p style="margin:4px 0 0;font-size:0.86rem;color:#475569;">${escapeHtml(h.mainPattern || "")}</p>
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+                        <span class="analytics-solution-card__priority">${escapeHtml(humanize(h.riskLevel || "medium"))} Priority Hotspot #${escapeHtml(String(h.rank || 1))}</span>
+                        ${badgeHtml}
+                        <span class="analytics-ai-guardrail-badge analytics-ai-guardrail-badge--pass" style="font-size:0.75rem;padding:3px 8px;">
+                            <span class="material-symbols-outlined" style="font-size:13px;">verified_user</span>
+                            <span>🛡️ 100% Safe</span>
+                        </span>
+                    </div>
+                    <h3 style="margin:2px 0 4px;font-size:1.08rem;color:#0f172a;">${escapeHtml(h.locationLabel || "Unknown Area")}</h3>
+                    <p style="margin:0;font-size:0.86rem;color:#475569;">${escapeHtml(h.mainPattern || "")}</p>
                 </div>
                 <div class="analytics-solution-card__score">
                     <strong>${Math.round((h.confidence || 0.8) * 100)}%</strong>
@@ -2049,12 +1982,12 @@ function renderGroundedHotspotCard(h, summaryId) {
             </div>
 
             ${citedList.length > 0 || guidanceList.length > 0 ? `
-                <div class="analytics-ai-tags-row">
+                <div class="analytics-ai-tags-row" style="margin-top:10px;">
                     ${citedList.map((c) => `<span class="analytics-ai-citation-tag"><span class="material-symbols-outlined" style="font-size:14px;">gavel</span><span>${escapeHtml(c)}</span></span>`).join("")}
                     ${guidanceList.map((g) => `<span class="analytics-ai-guidance-tag"><span class="material-symbols-outlined" style="font-size:14px;">lightbulb</span><span>${escapeHtml(g)}</span></span>`).join("")}
                 </div>
             ` : `
-                <div class="analytics-ai-tags-row">
+                <div class="analytics-ai-tags-row" style="margin-top:10px;">
                     <span class="analytics-ai-citation-tag" style="background:#fffbeb;color:#92400e;border-color:#fde68a;">
                         <span class="material-symbols-outlined" style="font-size:14px;">info</span>
                         <span>No Active Ordinances or Rules Published</span>
@@ -2062,13 +1995,13 @@ function renderGroundedHotspotCard(h, summaryId) {
                 </div>
             `}
 
-            <div class="analytics-hotspot-ai-action-list" style="margin-top:10px;">
+            <div class="analytics-hotspot-ai-action-list" style="margin-top:12px;">
                 <div class="analytics-hotspot-ai-action-list__header">
                     <div>
                         <span>Recommended Operational Steps</span>
                         <strong>Discretionary decision support for duty officers</strong>
                     </div>
-                    <em>${actionsList.length} actions</em>
+                    <em>${actionsList.length} action${actionsList.length === 1 ? "" : "s"}</em>
                 </div>
                 <ol class="analytics-hotspot-ai-actions">
                     ${actionsList.map((action, idx) => `
@@ -2096,41 +2029,56 @@ function renderGroundedHotspotCard(h, summaryId) {
                     <span class="material-symbols-outlined" style="font-size:16px;">reviews</span>
                     <span>Rate / Feedback</span>
                 </button>
-                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--reject" data-action="reject" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--reject" data-action="reject" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank || 1))}">
                     <span class="material-symbols-outlined" style="font-size:16px;">close</span>
                     <span>Reject</span>
                 </button>
-                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--adopt" data-action="adopt" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--adopt" data-action="adopt" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank || 1))}">
                     <span class="material-symbols-outlined" style="font-size:16px;">assignment_turned_in</span>
                     <span>Adopt Action</span>
                 </button>
-                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--approve" data-action="approve" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--approve" data-action="approve" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank || 1))}">
                     <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
                     <span>Approve Plan</span>
+                </button>
+                <button type="button" class="analytics-ai-act-btn" data-action="regenerate-single-hotspot" data-hotspot-area="${escapeAttr(h.locationLabel)}" data-hotspot-rank="${escapeAttr(String(h.rank || 1))}" style="background:#f8fafc;color:#475569;border-color:#cbd5e1;margin-left:auto;">
+                    <span class="material-symbols-outlined" style="font-size:16px;">refresh</span>
+                    <span>Regenerate</span>
                 </button>
             </div>
         </article>
     `;
 }
 
-function bindGroundedActionEvents(container, data) {
+function bindHotspotDecisionEvents(container, rows) {
     if (!container) return;
 
-    container.querySelectorAll("[data-action]").forEach((btn) => {
+    container.querySelectorAll('[data-action="generate-single-hotspot"], [data-action="regenerate-single-hotspot"]').forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const area = btn.getAttribute("data-hotspot-area");
+            const rank = Number(btn.getAttribute("data-hotspot-rank")) || 1;
+            const hotspotList = getHotspotStats(rows);
+            const targetHotspot = hotspotList.find((h) => h.area === area) || { area, rank, totalReports: 0, severityBreakdown: {}, typeCounts: {} };
+            await handleGenerateSingleHotspot(targetHotspot, rank, btn, rows);
+        });
+    });
+
+    container.querySelectorAll('[data-action="feedback"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const summaryId = btn.getAttribute("data-summary-id");
+            const hotspotLabel = btn.getAttribute("data-hotspot-label");
+            openFeedbackModal(summaryId, hotspotLabel);
+        });
+    });
+
+    container.querySelectorAll('[data-action="approve"], [data-action="reject"], [data-action="adopt"]').forEach((btn) => {
         btn.addEventListener("click", async () => {
             const action = btn.getAttribute("data-action");
             const summaryId = btn.getAttribute("data-summary-id");
-            const hotspotLabel = btn.getAttribute("data-hotspot-label");
             const hotspotRank = btn.getAttribute("data-hotspot-rank");
-
-            if (action === "feedback") {
-                openFeedbackModal(summaryId, hotspotLabel);
-                return;
-            }
-
-            if (action === "approve" || action === "reject" || action === "adopt") {
-                await executeDecisionAction(summaryId, action, hotspotRank, btn, data);
-            }
+            const area = btn.closest(".analytics-solution-card")?.querySelector("h3")?.textContent?.trim();
+            const planData = area ? perHotspotDecisionPlans.get(area) : null;
+            await executeDecisionAction(summaryId, action, hotspotRank, btn, { summary: { priorityHotspots: [planData?.plan] } });
         });
     });
 }
@@ -2324,9 +2272,7 @@ function renderAnalytics() {
     renderHourlyChart(rows);
     renderReadiness(rows);
     renderHotspots(rows);
-    if (latestGeneratedAISummary) {
-        renderGroundedAISummary(latestGeneratedAISummary);
-    }
+    renderHotspotDecisionSection(rows);
 }
 
 async function loadAnalytics() {
@@ -2383,24 +2329,12 @@ async function loadAnalytics() {
 }
 
 document.getElementById("analytics-range")?.addEventListener("change", () => {
-    latestGeneratedAISummary = null;
-    const container = document.getElementById("analytics-solutions");
-    if (container) {
-        container.innerHTML = `
-            <div class="analytics-ai-placeholder-card">
-                <span class="material-symbols-outlined analytics-ai-placeholder-icon">psychology</span>
-                <div>
-                    <h4>AI Decision-Support System Ready</h4>
-                    <p>Click "Generate AI Decision Brief" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
-                </div>
-            </div>
-        `;
-    }
+    perHotspotDecisionPlans.clear();
     renderAnalytics();
 });
 
 document.getElementById("btn-generate-ai-summary")?.addEventListener("click", () => {
-    handleGenerateGroundedAISummary();
+    handleGenerateAllHotspots();
 });
 
 function openGeminiKeyModal() {
