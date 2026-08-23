@@ -4,9 +4,9 @@
  * Callable Cloud Function that builds an aggregated, privacy-safe analytics
  * payload from incident data, retrieves published knowledge and active operational rules
  * from Firestore, asks Gemini for a structured recommendation summary grounded in evidence,
- * and stores the generated draft for audit.
+ * verifies output against deterministic safety guardrails, and stores the draft for audit.
  *
- * Phase 5 Implementation: Context Grounding & Prompt Redesign.
+ * Phase 5 & 6 Implementation: Context Grounding, Prompt Redesign, and Safety Guardrails.
  */
 
 const crypto = require("crypto");
@@ -14,6 +14,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const {retrieveAIContext} = require("./retrieveAIContext");
+const {verifyAIGuardrails} = require("./verifyAIGuardrails");
 
 /* eslint-disable require-jsdoc */
 
@@ -184,17 +185,19 @@ const generateAdminAISummaryFunction = onCall(
           filters,
       );
 
-      // Phase 4/5: Retrieve knowledge base & operational rules
+      // Phase 4: Retrieve knowledge base & operational rules
       const aiContext = await retrieveAIContext(db, analyticsPayload);
 
       if (!analyticsPayload.overallStats.totalIncidents) {
         const summary = buildNoDataSummary(filters, aiContext);
+        const verification = verifyAIGuardrails(summary, analyticsPayload, aiContext);
         const saved = await saveSummary(db, {
           uid,
           filters,
           analyticsPayload,
           aiContext,
           summary,
+          verification,
           usage: null,
           source: "system_no_data",
         });
@@ -205,6 +208,7 @@ const generateAdminAISummaryFunction = onCall(
           source: "system_no_data",
           analytics: analyticsPayload,
           aiContext: aiContext.metadata,
+          verification,
           summary,
         };
       }
@@ -229,12 +233,17 @@ const generateAdminAISummaryFunction = onCall(
       }
 
       const summary = normalizeSummary(geminiResult.summary, analyticsPayload, aiContext);
+
+      // Phase 6: Run deterministic Safety & Verification Guardrails
+      const verification = verifyAIGuardrails(summary, analyticsPayload, aiContext);
+
       const saved = await saveSummary(db, {
         uid,
         filters,
         analyticsPayload,
         aiContext,
         summary,
+        verification,
         usage: geminiResult.usage,
         source: "gemini",
       });
@@ -247,6 +256,7 @@ const generateAdminAISummaryFunction = onCall(
         usage: geminiResult.usage,
         analytics: analyticsPayload,
         aiContext: aiContext.metadata,
+        verification,
         summary,
       };
     },
@@ -587,6 +597,9 @@ async function saveSummary(db, data) {
   const usage = data.usage || {};
   const estimatedCostUsd = estimateGeminiFlashCost(usage);
   const aiContext = data.aiContext || {};
+  const verification = data.verification || {passed: true, safetyScore: 1.0};
+
+  const initialStatus = verification.passed ? "draft" : "flagged_safety";
 
   const ref = await db.collection("ai_suggestion_summaries").add({
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -610,16 +623,25 @@ async function saveSummary(db, data) {
       knowledgeCount: (aiContext.knowledge || []).length,
       rulesTriggeredCount: (aiContext.triggeredRules || []).length,
     },
+    verification: {
+      passed: verification.passed,
+      safetyScore: verification.safetyScore,
+      groundingScore: verification.groundingScore,
+      criticalViolationCount: verification.criticalViolationCount || 0,
+      warningCount: verification.warningCount || 0,
+      violations: verification.violations || [],
+      verifiedAt: verification.verifiedAt || new Date().toISOString(),
+    },
     summary: data.summary,
     usage: {
       ...usage,
       estimatedCostUsd,
     },
     review: {
-      status: "draft",
+      status: initialStatus,
       reviewedBy: null,
       reviewedAt: null,
-      adminNotes: "",
+      adminNotes: verification.passed ? "" : "Automatically flagged for admin safety review.",
     },
   });
 
