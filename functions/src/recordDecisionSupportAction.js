@@ -121,6 +121,7 @@ function buildAuditRecord(payload, user, summaryMeta = {}) {
  */
 const recordDecisionSupportActionFunction = onCall(
     {
+      cors: true,
       timeoutSeconds: 30,
       memory: "256MiB",
     },

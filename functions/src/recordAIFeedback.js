@@ -113,6 +113,7 @@ function buildFeedbackAuditRecord(payload, user) {
  */
 const recordAIFeedbackFunction = onCall(
     {
+      cors: true,
       timeoutSeconds: 30,
       memory: "256MiB",
     },

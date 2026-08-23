@@ -163,6 +163,7 @@ const AI_SUMMARY_SCHEMA = {
 
 const generateAdminAISummaryFunction = onCall(
     {
+      cors: true,
       secrets: [GEMINI_API_KEY],
       timeoutSeconds: 60,
       memory: "512MiB",
