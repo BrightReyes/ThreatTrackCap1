@@ -9,7 +9,6 @@ const {
   matchesCrimeType,
   evaluateRuleAgainstHotspot,
   retrievePublishedKnowledge,
-  evaluateActiveRules,
   retrieveAIContext,
 } = require("../src/retrieveAIContext");
 
@@ -51,7 +50,7 @@ describe("AI Retrieval & Evaluation Engine (Phase 4)", () => {
   describe("2. Metric Extractor (extractMetricValue)", () => {
     const mockHotspot = {
       totalReports: 12,
-      severityBreakdown: { high: 4, medium: 5, low: 3 },
+      severityBreakdown: {high: 4, medium: 5, low: 3},
       sosReports: 2,
       weightedScore: 25,
     };
@@ -80,17 +79,17 @@ describe("AI Retrieval & Evaluation Engine (Phase 4)", () => {
 
   describe("3. Crime Type Matching (matchesCrimeType)", () => {
     test("matches rule with 'all' against any hotspot", () => {
-      expect(matchesCrimeType({ crimeType: "all" }, { dominantType: "theft_snatching" })).toBe(true);
+      expect(matchesCrimeType({crimeType: "all"}, {dominantType: "theft_snatching"})).toBe(true);
     });
 
     test("matches specific crime type accurately", () => {
-      const rule = { crimeType: "theft_snatching" };
-      expect(matchesCrimeType(rule, { dominantType: "theft_snatching" })).toBe(true);
-      expect(matchesCrimeType(rule, { dominantType: "robbery_holdup" })).toBe(false);
+      const rule = {crimeType: "theft_snatching"};
+      expect(matchesCrimeType(rule, {dominantType: "theft_snatching"})).toBe(true);
+      expect(matchesCrimeType(rule, {dominantType: "robbery_holdup"})).toBe(false);
     });
 
     test("matches against topTypes list in hotspot", () => {
-      const rule = { crimeType: "drug_related_activity" };
+      const rule = {crimeType: "drug_related_activity"};
       const hotspot = {
         dominantType: "public_disturbance",
         topTypes: ["public_disturbance", "drug_related_activity"],
@@ -104,7 +103,7 @@ describe("AI Retrieval & Evaluation Engine (Phase 4)", () => {
       locationLabel: "Gen. T. de Leon Commercial Strip",
       dominantType: "theft_snatching",
       totalReports: 8,
-      severityBreakdown: { high: 3, medium: 3, low: 2 },
+      severityBreakdown: {high: 3, medium: 3, low: 2},
       sosReports: 1,
       weightedScore: 16,
     };
@@ -163,7 +162,7 @@ describe("AI Retrieval & Evaluation Engine (Phase 4)", () => {
         hasConditions: true,
         conditionType: "sos_count",
         operator: ">=",
-        threshold: 5, // Hotspot only has 1
+        threshold: 5,
       };
 
       const result = evaluateRuleAgainstHotspot(strictRule, testHotspot);
@@ -202,7 +201,7 @@ describe("AI Retrieval & Evaluation Engine (Phase 4)", () => {
             type: "guideline",
             status: "published",
             content: "Outdated guideline...",
-            expirationDate: new Date(Date.now() - 100000), // Past
+            expirationDate: new Date(Date.now() - 100000),
           }),
         },
       ];

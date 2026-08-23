@@ -2,14 +2,18 @@
  * Generate Admin AI Suggestion Summary
  *
  * Callable Cloud Function that builds an aggregated, privacy-safe analytics
- * payload from incident data, asks Gemini for a structured recommendation
- * summary, and stores the generated draft for audit.
+ * payload from incident data, retrieves published knowledge and active operational rules
+ * from Firestore, asks Gemini for a structured recommendation summary grounded in evidence,
+ * and stores the generated draft for audit.
+ *
+ * Phase 5 Implementation: Context Grounding & Prompt Redesign.
  */
 
 const crypto = require("crypto");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const {retrieveAIContext} = require("./retrieveAIContext");
 
 /* eslint-disable require-jsdoc */
 
@@ -60,6 +64,10 @@ const AI_SUMMARY_SCHEMA = {
       type: "string",
       description: "Brief admin-facing summary of the reported pattern.",
     },
+    groundingSummary: {
+      type: "string",
+      description: "Brief note summarizing how official ordinances and operational guidance were incorporated.",
+    },
     priorityHotspots: {
       type: "array",
       maxItems: 5,
@@ -91,6 +99,18 @@ const AI_SUMMARY_SCHEMA = {
             type: "array",
             maxItems: 5,
             items: {type: "string"},
+          },
+          citedKnowledge: {
+            type: "array",
+            maxItems: 5,
+            items: {type: "string"},
+            description: "Official ordinances, policies, or reference numbers applicable to this hotspot.",
+          },
+          matchedGuidance: {
+            type: "array",
+            maxItems: 5,
+            items: {type: "string"},
+            description: "Admin operational rules or guidance applied to this hotspot.",
           },
           recommendedActions: {
             type: "array",
@@ -140,7 +160,7 @@ const AI_SUMMARY_SCHEMA = {
   },
 };
 
-module.exports = onCall(
+const generateAdminAISummaryFunction = onCall(
     {
       secrets: [GEMINI_API_KEY],
       timeoutSeconds: 60,
@@ -164,12 +184,16 @@ module.exports = onCall(
           filters,
       );
 
+      // Phase 4/5: Retrieve knowledge base & operational rules
+      const aiContext = await retrieveAIContext(db, analyticsPayload);
+
       if (!analyticsPayload.overallStats.totalIncidents) {
-        const summary = buildNoDataSummary(filters);
+        const summary = buildNoDataSummary(filters, aiContext);
         const saved = await saveSummary(db, {
           uid,
           filters,
           analyticsPayload,
+          aiContext,
           summary,
           usage: null,
           source: "system_no_data",
@@ -180,6 +204,7 @@ module.exports = onCall(
           model: "no_data",
           source: "system_no_data",
           analytics: analyticsPayload,
+          aiContext: aiContext.metadata,
           summary,
         };
       }
@@ -194,7 +219,7 @@ module.exports = onCall(
 
       let geminiResult;
       try {
-        geminiResult = await callGemini(apiKey, analyticsPayload);
+        geminiResult = await callGemini(apiKey, analyticsPayload, aiContext);
       } catch (error) {
         console.error("[generateAdminAISummary] Gemini call failed", error);
         throw new HttpsError(
@@ -203,11 +228,12 @@ module.exports = onCall(
         );
       }
 
-      const summary = normalizeSummary(geminiResult.summary, analyticsPayload);
+      const summary = normalizeSummary(geminiResult.summary, analyticsPayload, aiContext);
       const saved = await saveSummary(db, {
         uid,
         filters,
         analyticsPayload,
+        aiContext,
         summary,
         usage: geminiResult.usage,
         source: "gemini",
@@ -220,6 +246,7 @@ module.exports = onCall(
         source: "gemini",
         usage: geminiResult.usage,
         analytics: analyticsPayload,
+        aiContext: aiContext.metadata,
         summary,
       };
     },
@@ -256,145 +283,163 @@ function normalizeFilters(data) {
     days,
     startDate,
     endDate,
+    barangay: normalizeText(data.barangay || "", 60),
+    crimeType: normalizeText(data.crimeType || "", 60),
   };
 }
 
 async function loadIncidentRows(db, filters) {
-  let ref = db.collection("incidents");
+  let query = db.collection("incidents");
   if (filters.startDate) {
-    ref = ref
-        .where(
-            "timestamp",
-            ">=",
-            admin.firestore.Timestamp.fromDate(filters.startDate),
-        )
-        .orderBy("timestamp", "desc");
-  } else {
-    ref = ref.orderBy("timestamp", "desc");
+    query = query.where("createdAt", ">=", filters.startDate);
   }
 
-  const snap = await ref.limit(MAX_INCIDENTS).get();
-  return snap.docs
-      .map((doc) => ({
-        id: doc.id,
-        data: doc.data() || {},
-        date: toDate(doc.data().timestamp) ||
-          toDate(doc.data().reportedAt) ||
-          toDate(doc.data().clientTimestamp),
-      }))
-      .filter((row) => {
-        const status = normalizeText(row.data.status).toLowerCase();
-        return !status || VISIBLE_STATUSES.has(status);
-      });
+  const snapshot = await query.limit(MAX_INCIDENTS).get();
+  const rows = [];
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() || {};
+    const status = normalizeText(data.status).toLowerCase();
+    if (status && !VISIBLE_STATUSES.has(status)) return;
+
+    const barangay = getBarangay(data);
+    if (filters.barangay && barangay.toLowerCase() !== filters.barangay.toLowerCase()) {
+      return;
+    }
+
+    const type = normalizeText(data.type || data.crimeType || "other").toLowerCase();
+    if (filters.crimeType && type !== filters.crimeType.toLowerCase()) {
+      return;
+    }
+
+    const date = parseTimestamp(data.createdAt);
+    rows.push({
+      id: docSnap.id,
+      date,
+      data,
+    });
+  });
+
+  return rows;
 }
 
 async function loadPrecincts(db) {
   try {
-    const snap = await db.collection("precincts").limit(100).get();
-    return snap.docs
-        .map((doc) => {
-          const data = doc.data() || {};
-          return {
-            id: doc.id,
-            name: normalizeText(data.name || data.code || doc.id, 90),
-            latitude: Number(data.location && data.location.latitude),
-            longitude: Number(data.location && data.location.longitude),
-          };
-        })
-        .filter((p) =>
-          Number.isFinite(p.latitude) && Number.isFinite(p.longitude),
-        );
+    const snapshot = await db.collection("police_precincts").get();
+    const precincts = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data() || {};
+      if (
+        Number.isFinite(Number(data.latitude)) &&
+        Number.isFinite(Number(data.longitude))
+      ) {
+        precincts.push({
+          id: docSnap.id,
+          name: normalizeText(data.name || data.stationName || "Precinct", 60),
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude),
+        });
+      }
+    });
+    return precincts;
   } catch (error) {
-    console.warn("[generateAdminAISummary] precinct load failed", error);
+    console.warn("[generateAdminAISummary] Could not load precincts", error);
     return [];
   }
 }
 
-function buildAnalyticsPayload(rows, precincts, filters) {
-  const severityCounts = {high: 0, medium: 0, low: 0};
-  const statusCounts = {};
-  const typeCounts = {};
-  let openIncidents = 0;
-  let withCoordinates = 0;
+function buildAnalyticsPayload(incidents, precincts, filters) {
+  const overallStats = {
+    totalIncidents: incidents.length,
+    highSeverity: 0,
+    mediumSeverity: 0,
+    lowSeverity: 0,
+    openIncidents: 0,
+    sosReports: 0,
+    withCoordinates: 0,
+  };
 
-  rows.forEach((row) => {
-    const severity = normalizeSeverity(row.data.severity);
-    const status = normalizeText(row.data.status || "unknown").toLowerCase();
-    const type = normalizeText(row.data.type || "unknown").toLowerCase();
-    severityCounts[severity] += 1;
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
+  const typeCounts = {};
+  const hourCounts = new Array(24).fill(0);
+  const barangayCounts = {};
+
+  incidents.forEach((row) => {
+    const d = row.data;
+    const severity = normalizeSeverity(d.severity);
+    if (severity === "high") overallStats.highSeverity += 1;
+    else if (severity === "medium") overallStats.mediumSeverity += 1;
+    else overallStats.lowSeverity += 1;
+
+    const status = normalizeText(d.status).toLowerCase();
+    if (status !== "done" && status !== "resolved") {
+      overallStats.openIncidents += 1;
+    }
+
+    if (d.isSOSReport === true) overallStats.sosReports += 1;
+
+    if (hasCoordinates(d.location)) overallStats.withCoordinates += 1;
+
+    const type = normalizeText(d.type || d.crimeType || "other").toLowerCase();
     typeCounts[type] = (typeCounts[type] || 0) + 1;
-    if (status === "pending" || status === "under_review") {
-      openIncidents += 1;
-    }
-    if (hasCoordinates(row.data.location)) {
-      withCoordinates += 1;
-    }
+
+    const brgy = getBarangay(d);
+    if (brgy) barangayCounts[brgy] = (barangayCounts[brgy] || 0) + 1;
+
+    const hour = getPhtHour(row.date);
+    if (hour != null) hourCounts[hour] += 1;
   });
 
-  const hotspots = buildHotspots(rows, precincts, filters);
+  const hotspots = clusterHotspots(incidents, precincts, filters);
 
   return {
-    city: "Valenzuela City",
-    generatedAt: new Date().toISOString(),
     timeRange: {
       label: filters.range,
       start: filters.startDate ? filters.startDate.toISOString() : null,
       end: filters.endDate.toISOString(),
-      days: filters.days,
     },
-    overallStats: {
-      totalIncidents: rows.length,
-      openIncidents,
-      withCoordinates,
-      severityBreakdown: severityCounts,
-      statusBreakdown: sortObjectByValue(statusCounts),
-      typeBreakdown: sortObjectByValue(typeCounts),
-    },
+    overallStats,
+    topCrimeTypes: sortObjectByValue(typeCounts),
+    peakHours: formatPeakHours(hourCounts, incidents.length),
+    barangayDistribution: sortObjectByValue(barangayCounts),
     hotspots,
+    priorityHotspots: hotspots,
   };
 }
 
-function buildHotspots(rows, precincts, filters) {
+function clusterHotspots(incidents, precincts, filters) {
   const grouped = new Map();
   const midpoint = filters.startDate ?
     filters.startDate.getTime() +
       (filters.endDate.getTime() - filters.startDate.getTime()) / 2 :
     null;
 
-  rows.forEach((row) => {
-    const location = row.data.location || {};
-    const gridKey = getGridKey(location);
+  incidents.forEach((row) => {
     const street = getStreet(row.data);
     const barangay = getBarangay(row.data);
-    const key = street || barangay ?
-      `${street}|${barangay}|${gridKey || "no_grid"}` :
-      gridKey;
-    if (!key) return;
+    const gridKey = getGridKey(row.data.location);
+    const key = `${barangay}__${street || gridKey || "general"}`.toLowerCase();
 
     if (!grouped.has(key)) {
       grouped.set(key, {
+        key,
         label: buildLocationLabel(street, barangay, gridKey),
         street,
         barangay,
-        center: {
-          latitude: Number(location.latitude),
-          longitude: Number(location.longitude),
-        },
+        center: row.data.location || {},
         reportCount: 0,
         weightedScore: 0,
         severityBreakdown: {high: 0, medium: 0, low: 0},
         typeBreakdown: {},
-        hourCounts: Array.from({length: 24}, () => 0),
+        hourCounts: new Array(24).fill(0),
+        sosReports: 0,
         previousPeriodCount: 0,
         recentPeriodCount: 0,
-        sosReports: 0,
       });
     }
 
     const hotspot = grouped.get(key);
     const severity = normalizeSeverity(row.data.severity);
-    const type = normalizeText(row.data.type || "unknown").toLowerCase();
+    const type = normalizeText(row.data.type || row.data.crimeType || "other").toLowerCase();
     const hour = getPhtHour(row.date);
 
     hotspot.reportCount += 1;
@@ -424,6 +469,7 @@ function buildHotspots(rows, precincts, filters) {
       .slice(0, MAX_HOTSPOTS)
       .map((hotspot, index) => ({
         rank: index + 1,
+        locationLabel: hotspot.label,
         ...hotspot,
       }));
 }
@@ -448,8 +494,8 @@ function enrichHotspot(hotspot, precincts) {
   };
 }
 
-async function callGemini(apiKey, analyticsPayload) {
-  const prompt = buildGeminiPrompt(analyticsPayload);
+async function callGemini(apiKey, analyticsPayload, aiContext) {
+  const prompt = buildGeminiPrompt(analyticsPayload, aiContext);
   const body = {
     contents: [
       {
@@ -458,7 +504,7 @@ async function callGemini(apiKey, analyticsPayload) {
     ],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 2500,
+      maxOutputTokens: 3000,
       responseMimeType: "application/json",
       responseJsonSchema: AI_SUMMARY_SCHEMA,
     },
@@ -495,25 +541,41 @@ async function callGemini(apiKey, analyticsPayload) {
   };
 }
 
-function buildGeminiPrompt(analyticsPayload) {
+function buildGeminiPrompt(analyticsPayload, aiContext = {}) {
+  const knowledge = Array.isArray(aiContext.knowledge) ? aiContext.knowledge : [];
+  const rules = Array.isArray(aiContext.triggeredRules) ? aiContext.triggeredRules : [];
+
+  const knowledgeSection = knowledge.length > 0 ?
+    knowledge.map((k, i) => `${i + 1}. [${k.type.toUpperCase()}] "${k.title}" (${k.source}${k.referenceNumber ? ` | Ref: ${k.referenceNumber}` : ""})\n   Directives: ${k.content}`).join("\n\n") :
+    "No official knowledge base documents currently registered.";
+
+  const rulesSection = rules.length > 0 ?
+    rules.map((r, i) => `${i + 1}. [${r.priority.toUpperCase()}] "${r.ruleName}" (Applies to: ${r.appliesTo})\n   Guidance: ${r.guidance}${r.additionalContext ? `\n   Context: ${r.additionalContext}` : ""}\n   Trigger: ${r.reason}`).join("\n\n") :
+    "No specific operational guidance triggered for these hotspots.";
+
   return [
-    "You are an analyst assistant for ThreatTrack, a public safety incident",
-    "reporting admin dashboard for Valenzuela City.",
+    "You are an expert public safety decision-support AI for Valenzuela City's ThreatTrack system.",
     "",
-    "Analyze the aggregated incident analytics and generate practical,",
-    "non-alarmist recommendations for admin review.",
+    "TASK:",
+    "Analyze the provided incident evidence and synthesize actionable, non-alarmist public safety recommendations",
+    "grounded strictly in the provided official policies/ordinances and administrative operational rules.",
     "",
-    "Rules:",
-    "- Do not claim certainty. Use cautious wording based on reported data.",
-    "- Do not identify private people, reporters, victims, or suspects.",
-    "- Do not recommend vigilante action.",
-    "- Do not blame a community or create public panic.",
-    "- Recommend actions admins, police, barangay responders, or the system can do.",
-    "- If data is thin, state that and recommend monitoring.",
-    "- Return only JSON matching the schema.",
+    "CORE GROUNDING RULES:",
+    "1. FACTUAL GROUNDING: Anchor every claim strictly in the supplied analytics numbers, peak times, and crime types. Do NOT hallucinate statistics or locations.",
+    "2. POLICY CITATION: Where applicable to a hotspot, reference relevant official ordinances or policies in 'citedKnowledge' using their title or reference number.",
+    "3. OPERATIONAL GUIDANCE: Incorporate triggered administrative rules into 'matchedGuidance' and translate them into specific 'recommendedActions'.",
+    "4. SENSITIVITY: For domestic dispute or VAWC incidents, ensure privacy, victim safety, and direct referral to Barangay VAWC desks.",
+    "5. OBJECTIVITY: Avoid alarmist language. If data is thin, recommend monitoring and continued data collection.",
+    "6. FORMAT: Output MUST strictly adhere to the provided JSON schema.",
     "",
-    "Aggregated analytics data:",
-    JSON.stringify(analyticsPayload),
+    "=== SECTION 1: AGGREGATED INCIDENT EVIDENCE ===",
+    JSON.stringify(analyticsPayload, null, 2),
+    "",
+    "=== SECTION 2: OFFICIAL POLICIES & ORDINANCES (Knowledge Base) ===",
+    knowledgeSection,
+    "",
+    "=== SECTION 3: ADMINISTRATIVE OPERATIONAL GUIDANCE & RULES ===",
+    rulesSection,
   ].join("\n");
 }
 
@@ -524,6 +586,7 @@ async function saveSummary(db, data) {
       .digest("hex");
   const usage = data.usage || {};
   const estimatedCostUsd = estimateGeminiFlashCost(usage);
+  const aiContext = data.aiContext || {};
 
   const ref = await db.collection("ai_suggestion_summaries").add({
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -543,6 +606,10 @@ async function saveSummary(db, data) {
       openIncidents: data.analyticsPayload.overallStats.openIncidents,
       withCoordinates: data.analyticsPayload.overallStats.withCoordinates,
     },
+    aiContextMetadata: aiContext.metadata || {
+      knowledgeCount: (aiContext.knowledge || []).length,
+      rulesTriggeredCount: (aiContext.triggeredRules || []).length,
+    },
     summary: data.summary,
     usage: {
       ...usage,
@@ -559,7 +626,7 @@ async function saveSummary(db, data) {
   return {id: ref.id};
 }
 
-function normalizeSummary(value, analyticsPayload) {
+function normalizeSummary(value, analyticsPayload, aiContext = {}) {
   const summary = value && typeof value === "object" ? value : {};
   const hotspots = Array.isArray(summary.priorityHotspots) ?
     summary.priorityHotspots :
@@ -573,6 +640,11 @@ function normalizeSummary(value, analyticsPayload) {
     ),
     overallRisk: normalizeRisk(summary.overallRisk),
     executiveSummary: normalizeText(summary.executiveSummary, 900),
+    groundingSummary: normalizeText(
+        summary.groundingSummary ||
+          "Grounded in verified incident evidence, city ordinances, and operational directives.",
+        300,
+    ),
     priorityHotspots: hotspots
         .slice(0, 5)
         .map((hotspot, index) => normalizeHotspotSummary(hotspot, index)),
@@ -586,6 +658,8 @@ function normalizeSummary(value, analyticsPayload) {
       totalIncidents: analyticsPayload.overallStats.totalIncidents,
       hotspotCount: analyticsPayload.hotspots.length,
       timeRange: analyticsPayload.timeRange.label,
+      knowledgeEntriesCited: (aiContext.knowledge || []).length,
+      rulesEvaluated: aiContext.metadata?.rulesTriggeredCount || 0,
     },
   };
 }
@@ -604,6 +678,8 @@ function normalizeHotspotSummary(hotspot, index) {
     riskLevel: normalizeRisk(value.riskLevel),
     mainPattern: normalizeText(value.mainPattern, 500),
     evidence: normalizeStringArray(value.evidence, 5, 180),
+    citedKnowledge: normalizeStringArray(value.citedKnowledge, 5, 200),
+    matchedGuidance: normalizeStringArray(value.matchedGuidance, 5, 200),
     recommendedActions: actions
         .slice(0, 6)
         .map((action) => normalizeActionSummary(action)),
@@ -622,7 +698,7 @@ function normalizeActionSummary(action) {
   };
 }
 
-function buildNoDataSummary(filters) {
+function buildNoDataSummary(filters, aiContext = {}) {
   return {
     headline: "No incident pattern available for this range",
     overallRisk: "low",
@@ -631,6 +707,7 @@ function buildNoDataSummary(filters) {
         "There are no visible incident records in the selected range,",
         "so no hotspot-specific AI recommendation is needed yet.",
       ].join(" "),
+    groundingSummary: "No incident data to evaluate against operational rules.",
     priorityHotspots: [],
     dataWarnings: [
       "The selected range has no visible incident records.",
@@ -642,6 +719,8 @@ function buildNoDataSummary(filters) {
       totalIncidents: 0,
       hotspotCount: 0,
       timeRange: filters.range,
+      knowledgeEntriesCited: (aiContext.knowledge || []).length,
+      rulesEvaluated: 0,
     },
   };
 }
@@ -649,54 +728,45 @@ function buildNoDataSummary(filters) {
 function normalizeGeminiUsage(usage) {
   if (!usage || typeof usage !== "object") return null;
   return {
-    promptTokenCount: numberOrNull(usage.promptTokenCount),
-    candidatesTokenCount: numberOrNull(usage.candidatesTokenCount),
-    totalTokenCount: numberOrNull(usage.totalTokenCount),
+    promptTokens: Number(usage.promptTokenCount) || 0,
+    candidatesTokens: Number(usage.candidatesTokenCount) || 0,
+    totalTokens: Number(usage.totalTokenCount) || 0,
   };
 }
 
 function estimateGeminiFlashCost(usage) {
-  if (!usage) return null;
-  const input = Number(usage.promptTokenCount);
-  const output = Number(usage.candidatesTokenCount);
-  if (!Number.isFinite(input) && !Number.isFinite(output)) return null;
-  const inputCost = (Number.isFinite(input) ? input : 0) * 0.30 / 1000000;
-  const outputCost = (Number.isFinite(output) ? output : 0) * 2.50 / 1000000;
-  return Number((inputCost + outputCost).toFixed(6));
+  if (!usage) return 0;
+  const prompt = Number(usage.promptTokens) || 0;
+  const output = Number(usage.candidatesTokens) || 0;
+  const cost = prompt * (0.075 / 1000000) + output * (0.3 / 1000000);
+  return Number(cost.toFixed(6));
 }
 
 function extractGeminiText(json) {
-  const parts = json &&
-    json.candidates &&
-    json.candidates[0] &&
-    json.candidates[0].content &&
-    Array.isArray(json.candidates[0].content.parts) ?
-    json.candidates[0].content.parts :
-    [];
-  return parts
-      .map((part) => part.text || "")
-      .join("")
+  const candidate = json &&
+    Array.isArray(json.candidates) &&
+    json.candidates[0];
+  const parts = candidate &&
+    candidate.content &&
+    Array.isArray(candidate.content.parts) &&
+    candidate.content.parts;
+  return parts && parts[0] && typeof parts[0].text === "string" ?
+    parts[0].text :
+    null;
+}
+
+function stripJson(raw) {
+  return String(raw || "")
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
       .trim();
 }
 
-function stripJson(text) {
-  const trimmed = String(text || "").trim();
-  const fence = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  return fence ? fence[1].trim() : trimmed;
-}
-
-function toDate(value) {
+function parseTimestamp(value) {
   if (!value) return null;
-  if (typeof value.toDate === "function") {
-    try {
-      return value.toDate();
-    } catch (error) {
-      return null;
-    }
-  }
-  if (value instanceof Date) return value;
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return new Date(value);
+  if (value.toDate && typeof value.toDate === "function") {
+    return value.toDate();
   }
   if (typeof value === "string") {
     const date = new Date(value);
@@ -883,7 +953,12 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, num));
 }
 
-function numberOrNull(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-}
+// Module Exports (including pure helpers for unit testing)
+module.exports = {
+  generateAdminAISummary: generateAdminAISummaryFunction,
+  AI_SUMMARY_SCHEMA,
+  buildGeminiPrompt,
+  normalizeSummary,
+  buildAnalyticsPayload,
+  clusterHotspots,
+};
