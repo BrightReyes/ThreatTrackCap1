@@ -181,8 +181,8 @@
                 </header>
 
                 <main class="admin-dashboard__main ai-mgmt-main">
-                    <!-- Top Summary Stat Cards (matching ThreatTrack dashboard & incidents) -->
-                    <section class="ai-mgmt-stats" aria-label="Knowledge statistics summary">
+                    <!-- Knowledge Stat Cards (visible when Knowledge tab active) -->
+                    <section id="stats-knowledge" class="ai-mgmt-stats" aria-label="Knowledge statistics summary">
                         <article class="ai-mgmt-stat-card ai-mgmt-stat-card--total">
                             <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">menu_book</span>
                             <div>
@@ -213,6 +213,38 @@
                         </article>
                     </section>
 
+                    <!-- Rules Stat Cards (visible when Rules tab active) -->
+                    <section id="stats-rules" class="ai-mgmt-stats" aria-label="Rules statistics summary" hidden>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--total">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">rule</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Total Rules</p>
+                                <strong id="stat-total-rules">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--published">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">check_circle</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Active Rules</p>
+                                <strong id="stat-active-rules">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--draft">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">pause_circle</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Inactive Rules</p>
+                                <strong id="stat-inactive-rules">0</strong>
+                            </div>
+                        </article>
+                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--archived">
+                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">inventory_2</span>
+                            <div>
+                                <p class="ai-mgmt-stat-card__label">Archived Rules</p>
+                                <strong id="stat-archived-rules">0</strong>
+                            </div>
+                        </article>
+                    </section>
+
                     <!-- Tab Navigation -->
                     <div class="ai-mgmt-tabs" role="tablist" aria-label="AI Management sections">
                         <button
@@ -239,14 +271,16 @@
                         </button>
                     </div>
 
-                    <!-- Knowledge Base Panel -->
+                    <!-- ============================================================
+                         PANEL 1: Knowledge Base
+                         ============================================================ -->
                     <section
                         id="panel-knowledge"
                         role="tabpanel"
                         aria-labelledby="tab-knowledge"
                         class="ai-mgmt-panel"
                     >
-                        <!-- Toolbar matching incidents/users toolbar -->
+                        <!-- Knowledge Toolbar -->
                         <div class="ai-mgmt-toolbar">
                             <div class="ai-mgmt-toolbar__search">
                                 <span class="ai-mgmt-toolbar__search-icon material-symbols-outlined" aria-hidden="true">search</span>
@@ -318,7 +352,9 @@
                         </div>
                     </section>
 
-                    <!-- Operational Rules Panel (Phase 3 Placeholder) -->
+                    <!-- ============================================================
+                         PANEL 2: AI Operational Rules (Phase 3)
+                         ============================================================ -->
                     <section
                         id="panel-rules"
                         role="tabpanel"
@@ -326,17 +362,97 @@
                         class="ai-mgmt-panel"
                         hidden
                     >
-                        <div class="ai-mgmt-placeholder-card">
-                            <span class="material-symbols-outlined ai-mgmt-placeholder-card__icon">rule</span>
-                            <h3>AI Operational Rules Management</h3>
-                            <p>Define structured threshold rules (e.g. Theft Hotspot, Night Crime Pattern) to guide AI decision support. Coming in Phase 3.</p>
+                        <!-- Rules Toolbar -->
+                        <div class="ai-mgmt-toolbar">
+                            <div class="ai-mgmt-toolbar__search">
+                                <span class="ai-mgmt-toolbar__search-icon material-symbols-outlined" aria-hidden="true">search</span>
+                                <input
+                                    type="search"
+                                    id="rules-search"
+                                    class="ai-mgmt-search-input"
+                                    placeholder="Search by rule name, description, or recommended action…"
+                                    aria-label="Search operational rules"
+                                    autocomplete="off"
+                                />
+                            </div>
+                            <div class="ai-mgmt-toolbar__filters">
+                                <select id="rules-filter-crime" class="ai-mgmt-select-filter" aria-label="Crime type filter">
+                                    <option value="all">All Crime Types</option>
+                                    <option value="theft_snatching">Theft / Snatching</option>
+                                    <option value="robbery_holdup">Robbery / Holdup</option>
+                                    <option value="physical_assault_injury">Assault / Injury</option>
+                                    <option value="domestic_violence">Domestic Violence</option>
+                                    <option value="drug_related_activity">Drug-Related</option>
+                                    <option value="public_disturbance">Public Disturbance</option>
+                                    <option value="vandalism_property_damage">Vandalism</option>
+                                    <option value="traffic_accident">Traffic Accident</option>
+                                    <option value="illegal_weapons">Illegal Weapons</option>
+                                    <option value="suspicious_activity">Suspicious Activity</option>
+                                </select>
+                                <select id="rules-filter-priority" class="ai-mgmt-select-filter" aria-label="Priority filter">
+                                    <option value="all">All Priorities</option>
+                                    <option value="critical">Critical</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                                <select id="rules-filter-status" class="ai-mgmt-select-filter" aria-label="Status filter">
+                                    <option value="all">All Statuses</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="archived">Archived</option>
+                                </select>
+                                <button
+                                    type="button"
+                                    id="btn-add-rule"
+                                    class="ai-mgmt-btn ai-mgmt-btn--primary"
+                                >
+                                    <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                                    <span>Add Rule</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Rules Table Card -->
+                        <div class="ai-mgmt-table-card">
+                            <div class="ai-mgmt-table-wrap">
+                                <table class="ai-mgmt-table" id="rules-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Rule Name</th>
+                                            <th>Crime Type</th>
+                                            <th>Trigger Condition</th>
+                                            <th>Recommended Action</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Version</th>
+                                            <th class="ai-mgmt-th--actions">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rules-tbody">
+                                        <tr>
+                                            <td colspan="8" class="ai-mgmt-empty">
+                                                <div class="ai-mgmt-loading-state">
+                                                    <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
+                                                    <span>Loading operational rules…</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="ai-mgmt-table-footer">
+                                <span id="rules-count" class="ai-mgmt-count"></span>
+                            </div>
                         </div>
                     </section>
                 </main>
             </div>
         </div>
 
-        <!-- Knowledge Add/Edit Modal (Matching ThreatTrack Modal Standards) -->
+        <!-- ============================================================
+             MODAL 1: Knowledge Add/Edit Modal
+             ============================================================ -->
         <div id="knowledge-modal" class="ai-mgmt-modal" hidden>
             <div class="ai-mgmt-modal__backdrop"></div>
             <div class="ai-mgmt-modal__dialog" role="dialog" aria-labelledby="knowledge-modal-title" aria-modal="true">
@@ -384,7 +500,7 @@
                         </div>
                         <div class="ai-mgmt-form-group">
                             <label for="knowledge-status" class="ai-mgmt-form-label">
-                                Initial Status <span class="ai-mgmt-required">*</span>
+                                Status <span class="ai-mgmt-required">*</span>
                             </label>
                             <select id="knowledge-status" class="ai-mgmt-form-select" required>
                                 <option value="draft">Draft (Private to Admin)</option>
@@ -448,6 +564,185 @@
                     <button type="button" id="knowledge-modal-save" class="ai-mgmt-btn ai-mgmt-btn--primary">
                         <span class="material-symbols-outlined" aria-hidden="true">save</span>
                         <span>Save Knowledge Entry</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             MODAL 2: Operational Rule Add/Edit Modal (Phase 3)
+             ============================================================ -->
+        <div id="rule-modal" class="ai-mgmt-modal" hidden>
+            <div class="ai-mgmt-modal__backdrop"></div>
+            <div class="ai-mgmt-modal__dialog ai-mgmt-modal__dialog--wide" role="dialog" aria-labelledby="rule-modal-title" aria-modal="true">
+                <div class="ai-mgmt-modal__header">
+                    <div class="ai-mgmt-modal__header-titles">
+                        <h2 id="rule-modal-title">Add Operational Rule</h2>
+                        <p class="ai-mgmt-modal__subtitle">Configure deterministic threshold criteria and recommended actions for AI decision support.</p>
+                    </div>
+                    <button type="button" id="rule-modal-close" class="ai-mgmt-modal__close" aria-label="Close dialog">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form id="rule-form" class="ai-mgmt-modal__body" novalidate>
+                    <input type="hidden" id="rule-edit-id" value="" />
+
+                    <div class="ai-mgmt-form-row">
+                        <div class="ai-mgmt-form-group">
+                            <label for="rule-name" class="ai-mgmt-form-label">
+                                Rule Name <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="rule-name"
+                                class="ai-mgmt-form-input"
+                                placeholder="e.g. Theft Hotspot Escalation Rule"
+                                required
+                                minlength="3"
+                                maxlength="150"
+                            />
+                        </div>
+                        <div class="ai-mgmt-form-group">
+                            <label for="rule-crime-type" class="ai-mgmt-form-label">
+                                Target Crime Type <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <select id="rule-crime-type" class="ai-mgmt-form-select" required>
+                                <option value="all">All Crime Types (General Rule)</option>
+                                <option value="theft_snatching">Theft / Snatching</option>
+                                <option value="robbery_holdup">Robbery / Holdup</option>
+                                <option value="physical_assault_injury">Assault / Physical Injury</option>
+                                <option value="domestic_violence">Domestic Violence</option>
+                                <option value="drug_related_activity">Drug-Related Activity</option>
+                                <option value="public_disturbance">Public Disturbance</option>
+                                <option value="vandalism_property_damage">Vandalism / Property Damage</option>
+                                <option value="traffic_accident">Traffic Accident</option>
+                                <option value="illegal_weapons">Illegal Weapons</option>
+                                <option value="suspicious_activity">Suspicious Activity</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="ai-mgmt-form-group">
+                        <label for="rule-description" class="ai-mgmt-form-label">
+                            Description / Administrative Purpose
+                        </label>
+                        <input
+                            type="text"
+                            id="rule-description"
+                            class="ai-mgmt-form-input"
+                            placeholder="e.g. Triggered when theft incidents exceed normal baseline over a 30-day window"
+                            maxlength="300"
+                        />
+                    </div>
+
+                    <!-- Trigger Condition Formula Builder -->
+                    <div class="ai-mgmt-condition-box">
+                        <span class="ai-mgmt-condition-box__title">
+                            <span class="material-symbols-outlined">tune</span>
+                            Trigger Condition Formula
+                        </span>
+                        <div class="ai-mgmt-condition-grid">
+                            <div class="ai-mgmt-form-group">
+                                <label for="rule-condition-type" class="ai-mgmt-form-label">
+                                    Condition Metric <span class="ai-mgmt-required">*</span>
+                                </label>
+                                <select id="rule-condition-type" class="ai-mgmt-form-select" required>
+                                    <option value="incident_count">Incident Count</option>
+                                    <option value="high_severity_count">High-Severity Count</option>
+                                    <option value="sos_count">SOS Alert Count</option>
+                                    <option value="weighted_score">Weighted Hotspot Score</option>
+                                </select>
+                            </div>
+                            <div class="ai-mgmt-form-group">
+                                <label for="rule-operator" class="ai-mgmt-form-label">
+                                    Operator <span class="ai-mgmt-required">*</span>
+                                </label>
+                                <select id="rule-operator" class="ai-mgmt-form-select" required>
+                                    <option value=">=">&gt;= (Greater or equal)</option>
+                                    <option value=">">&gt; (Greater than)</option>
+                                    <option value="<=">&lt;= (Less or equal)</option>
+                                    <option value="<">&lt; (Less than)</option>
+                                    <option value="==">== (Exactly equal)</option>
+                                </select>
+                            </div>
+                            <div class="ai-mgmt-form-group">
+                                <label for="rule-threshold" class="ai-mgmt-form-label">
+                                    Threshold Value <span class="ai-mgmt-required">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    id="rule-threshold"
+                                    class="ai-mgmt-form-input"
+                                    placeholder="e.g. 5"
+                                    min="1"
+                                    max="10000"
+                                    value="5"
+                                    required
+                                />
+                            </div>
+                            <div class="ai-mgmt-form-group">
+                                <label for="rule-time-period" class="ai-mgmt-form-label">
+                                    Time Period <span class="ai-mgmt-required">*</span>
+                                </label>
+                                <select id="rule-time-period" class="ai-mgmt-form-select" required>
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="14d">Last 14 Days</option>
+                                    <option value="30d" selected>Last 30 Days</option>
+                                    <option value="90d">Last 90 Days</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ai-mgmt-form-group">
+                        <label for="rule-action" class="ai-mgmt-form-label">
+                            Recommended Action / Directive <span class="ai-mgmt-required">*</span>
+                        </label>
+                        <textarea
+                            id="rule-action"
+                            class="ai-mgmt-form-textarea"
+                            placeholder="e.g. Recommend increased foot patrol and mobile visibility during peak hours (18:00–22:00) along commuter waiting areas..."
+                            required
+                            minlength="10"
+                            maxlength="500"
+                            rows="4"
+                        ></textarea>
+                        <div class="ai-mgmt-form-meta">
+                            <span class="ai-mgmt-form-hint">The AI will propose this specific action when the trigger condition is met.</span>
+                            <span class="ai-mgmt-char-counter">
+                                <span id="rule-action-count">0</span> / 500
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="ai-mgmt-form-row">
+                        <div class="ai-mgmt-form-group">
+                            <label for="rule-priority" class="ai-mgmt-form-label">
+                                Priority Level <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <select id="rule-priority" class="ai-mgmt-form-select" required>
+                                <option value="critical">Critical</option>
+                                <option value="high" selected>High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="ai-mgmt-form-group">
+                            <label for="rule-status" class="ai-mgmt-form-label">
+                                Operational Status <span class="ai-mgmt-required">*</span>
+                            </label>
+                            <select id="rule-status" class="ai-mgmt-form-select" required>
+                                <option value="active" selected>Active (Enforced by AI)</option>
+                                <option value="inactive">Inactive (Disabled)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+                <div class="ai-mgmt-modal__footer">
+                    <button type="button" id="rule-modal-cancel" class="ai-mgmt-btn ai-mgmt-btn--ghost">Cancel</button>
+                    <button type="button" id="rule-modal-save" class="ai-mgmt-btn ai-mgmt-btn--primary">
+                        <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                        <span>Save Operational Rule</span>
                     </button>
                 </div>
             </div>
