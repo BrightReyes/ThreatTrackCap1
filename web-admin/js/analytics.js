@@ -4,7 +4,8 @@ import {
     getCountFromServer,
     getDocs,
 } from "firebase/firestore";
-import { db } from "../../shared/firebase.js";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../../shared/firebase.js";
 
 const INCIDENT_LIMIT = 500;
 const OPEN_STATUSES = new Set(["pending", "under_review"]);
@@ -1508,426 +1509,295 @@ function riskClass(value) {
     return "medium";
 }
 
-function hotspotAiSessionKey(solution) {
-    if (!currentAdminSessionId || !solution) return "";
-    const signature = {
-        range: currentAnalyticsRange(),
-        area: solution.area,
-        priority: solution.priority,
-        totalReports: solution.totalReports,
-        weightedScore: solution.weightedScore,
-        evidence: solution.evidence,
-        severityBreakdown: solution.severityBreakdown,
-        typeCounts: solution.typeCounts,
-        sosReports: solution.sosReports,
-        peakLabel: solution.peakLabel,
-        latestReportAt: solution.latestReportAt?.getTime?.() || "",
-    };
-    return `${HOTSPOT_AI_SESSION_PREFIX}${currentAdminSessionId}:${hashString(JSON.stringify(signature))}`;
-}
+let latestGeneratedAISummary = null;
 
-function getCachedHotspotAiPlan(solution) {
-    const key = hotspotAiSessionKey(solution);
-    if (!key) return null;
+
+async function handleGenerateGroundedAISummary() {
+    const btn = document.getElementById("btn-generate-ai-summary");
+    const container = document.getElementById("analytics-solutions");
+    if (!container) return;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">progress_activity</span><span>Synthesizing AI Brief...</span>`;
+    }
+
+    container.innerHTML = `
+        <div class="analytics-ai-placeholder-card" style="border-color:#4f46e5;background:#f5f3ff;">
+            <span class="material-symbols-outlined analytics-ai-placeholder-icon" style="animation:spin 1.5s linear infinite;color:#4f46e5;background:#ede9fe;">auto_awesome</span>
+            <div>
+                <h4>Synthesizing Grounded Public Safety Intelligence</h4>
+                <p>Querying active incidents, published city ordinances, and operational rules through Gemini Flash with safety guardrail verification...</p>
+            </div>
+        </div>
+    `;
+
     try {
-        const cached = JSON.parse(sessionStorage.getItem(key) || "null");
-        if (!cached?.summary) return null;
-        return cached;
-    } catch (error) {
-        console.warn("[analytics] invalid cached AI plan", error);
-        sessionStorage.removeItem(key);
-        return null;
+        const generateFunction = httpsCallable(functions, "generateAdminAISummary");
+        const range = currentAnalyticsRange();
+        const response = await generateFunction({ range });
+        const data = response.data;
+        latestGeneratedAISummary = data;
+        renderGroundedAISummary(data);
+    } catch (err) {
+        console.error("[analytics] Grounded AI summary generation failed", err);
+        container.innerHTML = `
+            <div class="analytics-ai-error" role="alert">
+                <strong>Decision Brief Generation Failed</strong>
+                <p>${escapeHtml(err?.message || "Could not generate AI decision brief.")}</p>
+            </div>
+        `;
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span class="material-symbols-outlined">auto_awesome</span><span>Generate AI Decision Brief</span>`;
+        }
     }
 }
 
-function cacheHotspotAiPlan(solution, result) {
-    const key = hotspotAiSessionKey(solution);
-    if (!key || !result?.summary) return;
+function renderGroundedAISummary(data) {
+    const container = document.getElementById("analytics-solutions");
+    if (!container || !data || !data.summary) return;
+
+    const summary = data.summary;
+    const verification = data.verification || { passed: true, safetyScore: 1.0, violations: [] };
+    const hotspots = Array.isArray(summary.priorityHotspots) ? summary.priorityHotspots : [];
+
+    const isSafe = verification.passed !== false;
+    const safetyScorePct = Math.round((verification.safetyScore || 1.0) * 100);
+    const safetyBadgeClass = isSafe ? "analytics-ai-guardrail-badge" : "analytics-ai-guardrail-badge analytics-ai-guardrail-badge--warning";
+    const safetyIcon = isSafe ? "verified_user" : "warning";
+    const safetyLabel = isSafe ? `🛡️ ${safetyScorePct}% Verified Safe` : `⚠️ Guardrail Alert (${safetyScorePct}%)`;
+
+    container.innerHTML = `
+        <div class="analytics-ai-brief-card">
+            <div class="analytics-ai-meta-bar">
+                <div class="analytics-ai-meta-bar__left">
+                    <span class="analytics-ai-meta-bar__headline">${escapeHtml(summary.headline || "Grounded AI Decision Brief")}</span>
+                    <span class="analytics-solution-card__priority analytics-solution-card__priority--${escapeAttr(summary.overallRisk || "medium")}">${escapeHtml(humanize(summary.overallRisk))} Risk</span>
+                </div>
+                <div>
+                    <span class="${safetyBadgeClass}">
+                        <span class="material-symbols-outlined" style="font-size:14px;">${safetyIcon}</span>
+                        <span>${escapeHtml(safetyLabel)}</span>
+                    </span>
+                </div>
+            </div>
+
+            <div class="analytics-ai-executive-summary">
+                <strong>Executive Assessment:</strong> ${escapeHtml(summary.executiveSummary || "")}
+                ${summary.groundingSummary ? `<div style="margin-top:6px;font-size:0.84rem;color:#64748b;"><em>Policy Grounding:</em> ${escapeHtml(summary.groundingSummary)}</div>` : ""}
+            </div>
+
+            <div class="analytics-ai-hotspots-grid" style="display:flex;flex-direction:column;gap:16px;">
+        ${hotspots.length > 0 ? hotspots.map((h) => renderGroundedHotspotCard(h, data.id)).join("") : '<p class="analytics-empty">No hotspots prioritized for this range.</p>'}
+            </div>
+        </div>
+    `;
+
+    bindGroundedActionEvents(container, data);
+}
+
+function renderGroundedHotspotCard(h, summaryId) {
+    const citedList = Array.isArray(h.citedKnowledge) ? h.citedKnowledge : [];
+    const guidanceList = Array.isArray(h.matchedGuidance) ? h.matchedGuidance : [];
+    const actionsList = Array.isArray(h.recommendedActions) ? h.recommendedActions : [];
+
+    return `
+        <article class="analytics-solution-card analytics-solution-card--${escapeAttr(h.riskLevel || "medium")}">
+            <div class="analytics-solution-card__top">
+                <div>
+                    <span class="analytics-solution-card__priority">${escapeHtml(humanize(h.riskLevel || "medium"))} Priority Hotspot #${escapeHtml(String(h.rank || 1))}</span>
+                    <h3>${escapeHtml(h.locationLabel || "Unknown Area")}</h3>
+                    <p style="margin:4px 0 0;font-size:0.86rem;color:#475569;">${escapeHtml(h.mainPattern || "")}</p>
+                </div>
+                <div class="analytics-solution-card__score">
+                    <strong>${Math.round((h.confidence || 0.8) * 100)}%</strong>
+                    <span>Confidence</span>
+                </div>
+            </div>
+
+            ${citedList.length > 0 || guidanceList.length > 0 ? `
+                <div class="analytics-ai-tags-row">
+                    ${citedList.map((c) => `<span class="analytics-ai-citation-tag"><span class="material-symbols-outlined" style="font-size:14px;">gavel</span><span>${escapeHtml(c)}</span></span>`).join("")}
+                    ${guidanceList.map((g) => `<span class="analytics-ai-guidance-tag"><span class="material-symbols-outlined" style="font-size:14px;">lightbulb</span><span>${escapeHtml(g)}</span></span>`).join("")}
+                </div>
+            ` : ""}
+
+            <div class="analytics-hotspot-ai-action-list" style="margin-top:10px;">
+                <div class="analytics-hotspot-ai-action-list__header">
+                    <div>
+                        <span>Recommended Operational Steps</span>
+                        <strong>Discretionary decision support for duty officers</strong>
+                    </div>
+                    <em>${actionsList.length} actions</em>
+                </div>
+                <ol class="analytics-hotspot-ai-actions">
+                    ${actionsList.map((action, idx) => `
+                        <li class="analytics-hotspot-ai-action">
+                            <b>${idx + 1}</b>
+                            <div>
+                                <strong>${escapeHtml(action.action || "")}</strong>
+                                <span>${escapeHtml(action.reason || "")}</span>
+                                <p><i class="material-symbols-outlined" aria-hidden="true">group</i> Assigned: <strong>${escapeHtml(humanize(action.owner || "police"))}</strong> | Urgency: <em>${escapeHtml(humanize(action.urgency || "monitor"))}</em></p>
+                            </div>
+                        </li>
+                    `).join("")}
+                </ol>
+            </div>
+
+            ${h.suggestedPublicAdvisory ? `
+                <div class="analytics-ai-advisory" style="margin:12px 0 0;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:0.86rem;color:#166534;display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style="font-size:20px;">campaign</span>
+                    <div><strong>Suggested Public Advisory:</strong> ${escapeHtml(h.suggestedPublicAdvisory)}</div>
+                </div>
+            ` : ""}
+
+            <div class="analytics-ai-actions-bar">
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--feedback" data-action="feedback" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-label="${escapeAttr(h.locationLabel)}">
+                    <span class="material-symbols-outlined" style="font-size:16px;">reviews</span>
+                    <span>Rate / Feedback</span>
+                </button>
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--reject" data-action="reject" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                    <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+                    <span>Reject</span>
+                </button>
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--adopt" data-action="adopt" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                    <span class="material-symbols-outlined" style="font-size:16px;">assignment_turned_in</span>
+                    <span>Adopt Action</span>
+                </button>
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--approve" data-action="approve" data-summary-id="${escapeAttr(summaryId)}" data-hotspot-rank="${escapeAttr(String(h.rank))}">
+                    <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
+                    <span>Approve Plan</span>
+                </button>
+            </div>
+        </article>
+    `;
+}
+
+function bindGroundedActionEvents(container, data) {
+    if (!container) return;
+
+    container.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const action = btn.getAttribute("data-action");
+            const summaryId = btn.getAttribute("data-summary-id");
+            const hotspotLabel = btn.getAttribute("data-hotspot-label");
+            const hotspotRank = btn.getAttribute("data-hotspot-rank");
+
+            if (action === "feedback") {
+                openFeedbackModal(summaryId, hotspotLabel);
+                return;
+            }
+
+            if (action === "approve" || action === "reject" || action === "adopt") {
+                await executeDecisionAction(summaryId, action, hotspotRank, btn, data);
+            }
+        });
+    });
+}
+
+async function executeDecisionAction(summaryId, action, hotspotRank, btn, fullData) {
+    if (!summaryId) return;
+
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;font-size:16px;">progress_activity</span><span>Recording...</span>`;
+
     try {
-        sessionStorage.setItem(
-            key,
-            JSON.stringify({
-                summary: result.summary,
-                usage: result.usage || null,
-                savedAt: new Date().toISOString(),
-            }),
-        );
-    } catch (error) {
-        console.warn("[analytics] AI session cache failed", error);
+        const recordFunction = httpsCallable(functions, "recordDecisionSupportAction");
+        const decision = action === "approve" ? "approved" : action === "reject" ? "rejected" : "adopted_action";
+
+        let adoptedActions = [];
+        if (action === "adopt" && fullData?.summary?.priorityHotspots) {
+            const rankNum = Number(hotspotRank) || 1;
+            const targetHotspot = fullData.summary.priorityHotspots.find((h) => h.rank === rankNum);
+            if (targetHotspot?.recommendedActions) {
+                adoptedActions = targetHotspot.recommendedActions.map((act, i) => ({
+                    actionId: `action-${rankNum}-${i + 1}`,
+                    action: act.action,
+                    assignedUnit: act.owner || "police",
+                    targetLocation: targetHotspot.locationLabel,
+                }));
+            }
+        }
+
+        await recordFunction({
+            summaryId,
+            decision,
+            adminNotes: `Recorded from Analytics Dashboard for Hotspot #${hotspotRank}`,
+            adoptedActions,
+        });
+
+        btn.className = "analytics-ai-act-btn analytics-ai-act-btn--approve";
+        btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">task_alt</span><span>${humanize(decision)}</span>`;
+    } catch (err) {
+        console.error("[analytics] recordDecisionSupportAction failed", err);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        alert(`Failed to record decision: ${err?.message || "Please check your network and admin permissions."}`);
     }
 }
 
-async function handleGenerateHotspotAi(aiId, button) {
-    const solution = latestSolutionById.get(String(aiId));
-    const output = document.getElementById(`analytics-ai-hotspot-${aiId}`);
-    if (!solution || !output) return;
+function openFeedbackModal(summaryId, hotspotLabel) {
+    const modal = document.getElementById("ai-feedback-modal");
+    const summaryInput = document.getElementById("ai-feedback-summary-id");
+    const hotspotInput = document.getElementById("ai-feedback-hotspot-label");
+    const commentInput = document.getElementById("ai-feedback-comment");
 
-    const key = getGeminiDemoKey();
-    if (!key) {
-        output.innerHTML =
-            '<p class="analytics-ai-error">No Gemini key provided for local demo.</p>';
+    if (summaryInput) summaryInput.value = summaryId || "";
+    if (hotspotInput) hotspotInput.value = hotspotLabel || "City-Wide";
+    if (commentInput) commentInput.value = "";
+
+    if (modal) modal.hidden = false;
+}
+
+function closeFeedbackModal() {
+    const modal = document.getElementById("ai-feedback-modal");
+    if (modal) modal.hidden = true;
+}
+
+async function handleFeedbackSubmit() {
+    const summaryId = document.getElementById("ai-feedback-summary-id")?.value;
+    const hotspotLabel = document.getElementById("ai-feedback-hotspot-label")?.value;
+    const ratingInput = document.querySelector('input[name="ai-rating"]:checked');
+    const category = document.getElementById("ai-feedback-category")?.value || "general";
+    const comment = document.getElementById("ai-feedback-comment")?.value || "";
+    const submitBtn = document.getElementById("ai-feedback-submit");
+
+    if (!summaryId) {
+        closeFeedbackModal();
         return;
     }
 
-    setHotspotAiButtonLoading(button, true);
-    output.innerHTML = renderHotspotAiLoading(solution);
+    const rating = ratingInput ? ratingInput.value : "helpful";
 
-    try {
-        const result = await generateHotspotAiPlan(solution, key);
-        cacheHotspotAiPlan(solution, result);
-        output.innerHTML = renderHotspotAiPlan(result.summary, result.usage);
-    } catch (error) {
-        console.error("[analytics] hotspot Gemini plan", error);
-        localStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
-        output.innerHTML = `<div class="analytics-ai-error" role="alert">
-            <strong>AI tailoring failed</strong>
-            <p>${escapeHtml(error?.message || "Gemini could not tailor this hotspot plan.")}</p>
-        </div>`;
-    } finally {
-        setHotspotAiButtonLoading(button, false);
-    }
-}
-
-function setHotspotAiButtonLoading(button, isLoading) {
-    if (!button) return;
-    button.disabled = isLoading;
-    button.innerHTML = isLoading
-        ? '<span class="material-symbols-outlined" aria-hidden="true">progress_activity</span><span>Generating...</span>'
-        : '<span class="material-symbols-outlined" aria-hidden="true">psychology</span><span>Generate Action Plan</span>';
-}
-
-function getGeminiDemoKey() {
-    const cached = localStorage.getItem(GEMINI_DEMO_KEY_STORAGE);
-    if (cached) return cached;
-
-    const message = [
-        "Local demo mode: paste the Gemini API key.",
-        "",
-        "The key will be remembered in this browser for the local demo.",
-        "It is not written to the repository.",
-    ].join("\n");
-    const key = window.prompt(message);
-    const trimmed = String(key || "").trim();
-    if (!trimmed) return "";
-    localStorage.setItem(GEMINI_DEMO_KEY_STORAGE, trimmed);
-    return trimmed;
-}
-
-async function generateHotspotAiPlan(solution, key) {
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_DEMO_MODEL}:generateContent`,
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-goog-api-key": key,
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            {
-                                text: buildHotspotGeminiPrompt(solution),
-                            },
-                        ],
-                    },
-                ],
-                generationConfig: {
-                    temperature: 0.15,
-                    maxOutputTokens: 4096,
-                    responseMimeType: "application/json",
-                    responseSchema: HOTSPOT_AI_SCHEMA,
-                },
-            }),
-        },
-    );
-
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(
-            data?.error?.message ||
-                `Gemini request failed with HTTP ${response.status}`,
-        );
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="material-symbols-outlined" style="animation:spin 1s linear infinite;">progress_activity</span><span>Submitting...</span>`;
     }
 
-    const text = (data.candidates?.[0]?.content?.parts || [])
-        .map((part) => part.text || "")
-        .join("")
-        .trim();
-    if (!text) throw new Error("Gemini returned an empty response.");
-
-    return {
-        summary: parseGeminiJson(text),
-        usage: data.usageMetadata || null,
-    };
-}
-
-function parseGeminiJson(text) {
-    const cleaned = stripJsonFence(text);
     try {
-        return JSON.parse(cleaned);
-    } catch (error) {
-        const extracted = extractJsonObject(cleaned);
-        if (extracted && extracted !== cleaned) {
-            try {
-                return JSON.parse(extracted);
-            } catch (innerError) {
-                void innerError;
-            }
-        }
-        console.warn("[analytics] invalid Gemini JSON", {
-            error,
-            preview: cleaned.slice(0, 600),
+        const feedbackFunction = httpsCallable(functions, "recordAIFeedback");
+        await feedbackFunction({
+            summaryId,
+            hotspotLabel,
+            rating,
+            category,
+            comment,
         });
-        throw new Error(
-            "Gemini returned incomplete JSON. Please click Generate Action Plan again.",
-        );
-    }
-}
 
-function stripJsonFence(text) {
-    const raw = String(text || "").trim();
-    const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(raw);
-    return fenced ? fenced[1].trim() : raw;
-}
-
-function extractJsonObject(text) {
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-        return text.slice(start, end + 1);
-    }
-    return "";
-}
-
-function buildHotspotGeminiPrompt(solution) {
-    const payload = {
-        city: "Valenzuela City",
-        timeRange: rangeLabel(currentAnalyticsRange()),
-        hotspot: {
-            area: solution.area,
-            priority: solution.priority,
-            dominantCrimeTypes: solution.dominantTypes,
-            totalReports: solution.totalReports,
-            weightedScore: solution.weightedScore,
-            severityBreakdown: solution.severityBreakdown,
-            typeCounts: solution.typeCounts,
-            sosReports: solution.sosReports,
-            peakHours: solution.peakHours.map(hourLabel),
-            evidence: solution.evidence,
-        },
-        ruleBasedRecommendations: solution.actions.map((action) => ({
-            action: action.title,
-            reason: action.reason,
-            timeframe: action.timeframe,
-            basis: action.source || "rule",
-        })),
-        operationalReference: buildHotspotOperationalReference(solution),
-    };
-
-    return [
-        "You are the AI assistant for ThreatTrack admin analytics.",
-        "Create a tailored prevention and response plan for ONE hotspot only.",
-        "Do not summarize the whole city or other hotspots.",
-        "Use the analytics evidence and the rule-based recommendations as your basis.",
-        "Use the rule-based actions as the starting checklist, then combine them into a practical operational plan.",
-        "Use the operationalReference as the knowledge base for choosing safer and more accurate actions.",
-        "Explain the practical approach without exposing internal rule IDs or sounding like raw rule output.",
-        "For high-priority hotspots, return 4 to 5 concrete priorityActions when the evidence supports it.",
-        "Keep each JSON string concise to avoid truncated output.",
-        "Make the plan specific to the street or area label in the payload.",
-        "Use cautious wording such as 'reported data suggests'.",
-        "Do not identify private people, reporters, victims, or suspects.",
-        "Do not recommend vigilante action, public shaming, or panic messaging.",
-        "Focus on actions an admin, police team, barangay, or community partners can review.",
-        "Return only JSON matching the schema.",
-        "",
-        JSON.stringify(payload),
-    ].join("\n");
-}
-
-function buildHotspotOperationalReference(solution) {
-    const dominantTypes = Array.isArray(solution.dominantTypes)
-        ? solution.dominantTypes
-        : [];
-    const situationalGuidance = getSituationalActions(dominantTypes, solution).map(
-        (rule) => ({
-            approach: rule.title,
-            reason: buildRuleReason(rule, solution),
-            timeframe: rule.timeframe,
-        }),
-    );
-    const typePlaybook = dominantTypes.map((type) => ({
-        crimeType: humanize(type),
-        approaches: (TYPE_SOLUTION_RULES[type] || []).map((rule) => ({
-            action: rule.title,
-            reason: buildRuleReason(rule, solution),
-            timeframe: rule.timeframe,
-        })),
-    }));
-
-    return {
-        decisionRules: AI_OPERATIONAL_REFERENCE.decisionRules,
-        safetyBoundaries: AI_OPERATIONAL_REFERENCE.safetyBoundaries,
-        accuracyGuidance: AI_OPERATIONAL_REFERENCE.accuracyGuidance,
-        situationalGuidance,
-        typePlaybook,
-        dataReading: buildHotspotDataReading(solution),
-    };
-}
-
-function buildHotspotDataReading(solution) {
-    const high = solution.severityBreakdown?.high || 0;
-    const medium = solution.severityBreakdown?.medium || 0;
-    const low = solution.severityBreakdown?.low || 0;
-    const peak =
-        solution.peakLabel && solution.peakLabel !== "No clear peak time yet"
-            ? solution.peakLabel
-            : "No reliable peak hour yet";
-    const dominant = (solution.dominantTypes || []).map(humanize).join(", ");
-    const notes = [
-        `${solution.totalReports || 0} reports in this hotspot during the selected range.`,
-        `Severity mix: ${high} high, ${medium} medium, ${low} low.`,
-        `${solution.sosReports || 0} SOS reports.`,
-        `${peak}.`,
-    ];
-
-    if (dominant) {
-        notes.push(`Dominant reported pattern: ${dominant}.`);
-    }
-    if ((solution.totalReports || 0) >= 8) {
-        notes.push("Repeat hotspot: recommend tracking actions and outcomes in one case file.");
-    }
-    if (high >= 3 || (solution.sosReports || 0) > 0) {
-        notes.push("Urgency signal: prioritize triage before routine prevention work.");
-    }
-    if (!solution.peakHours?.length && (solution.totalReports || 0) >= 5) {
-        notes.push("Timing uncertainty: avoid claiming an exact high-risk hour until data improves.");
-    }
-
-    return notes;
-}
-
-function renderHotspotAiPlan(summary, usage, fromSession = false) {
-    const risk = riskClass(summary?.riskLevel);
-    const actions = Array.isArray(summary?.priorityActions)
-        ? summary.priorityActions
-        : [];
-    const tokenText = usage?.totalTokenCount
-        ? `${usage.totalTokenCount} tokens`
-        : "local Gemini demo";
-
-    return `<div class="analytics-hotspot-ai-plan analytics-hotspot-ai-plan--${escapeAttr(risk)}">
-        <div class="analytics-hotspot-ai-plan__top">
-            <div class="analytics-hotspot-ai-plan__identity">
-                <i class="material-symbols-outlined" aria-hidden="true">auto_awesome</i>
-                <div>
-                    <em>Generated decision support</em>
-                    <h4>${escapeHtml(summary?.hotspotTitle || "Hotspot action plan")}</h4>
-                </div>
-            </div>
-            <div class="analytics-hotspot-ai-plan__status">
-                <span>${escapeHtml(risk)}</span>
-                <em>${fromSession ? "Restored from this session" : "Admin review needed"}</em>
-            </div>
-        </div>
-        <div class="analytics-hotspot-ai-brief">
-            ${renderHotspotAiBrief("Risk Summary", summary?.riskSummary, "shield")}
-            ${renderHotspotAiBrief("Observed Pattern", summary?.crimePattern, "hub")}
-        </div>
-        <div class="analytics-hotspot-ai-strategy">
-            <div>
-                <i class="material-symbols-outlined" aria-hidden="true">conversion_path</i>
-                <strong>Recommended Strategy</strong>
-            </div>
-            <p>${escapeHtml(summary?.tailoredSolution || "No tailored strategy returned.")}</p>
-        </div>
-        ${
-            actions.length
-                ? `<div class="analytics-hotspot-ai-action-list">
-                    <div class="analytics-hotspot-ai-action-list__header">
-                        <div>
-                            <span>Execution Steps</span>
-                            <strong>Start with the first item, then continue in order.</strong>
-                        </div>
-                        <em>${actions.length} actions</em>
-                    </div>
-                    <ol class="analytics-hotspot-ai-actions">${actions.map(renderHotspotAiAction).join("")}</ol>
-                </div>`
-                : ""
+        closeFeedbackModal();
+        alert("Thank you! Your feedback has been recorded to refine future AI guidance.");
+    } catch (err) {
+        console.error("[analytics] recordAIFeedback error", err);
+        alert(`Feedback submission failed: ${err?.message || "Unknown error"}`);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<span class="material-symbols-outlined">send</span><span>Submit Feedback</span>`;
         }
-        <div class="analytics-hotspot-ai-review">
-            <section class="analytics-ai-advisory">
-                <i class="material-symbols-outlined" aria-hidden="true">campaign</i>
-                <div>
-                    <strong>Public advisory draft</strong>
-                    <p>${escapeHtml(summary?.publicAdvisoryDraft || "No public advisory drafted.")}</p>
-                </div>
-            </section>
-            <section class="analytics-hotspot-ai-plan__notes">
-                <div>
-                    <strong>Admin notes</strong>
-                    <p>${escapeHtml(summary?.adminNotes || "Review the evidence before using this plan.")}</p>
-                </div>
-                <div>
-                    <strong>Confidence</strong>
-                    <p>${escapeHtml(summary?.confidenceNote || "Confidence note was not returned.")}</p>
-                </div>
-                <em>${escapeHtml(tokenText)}</em>
-            </section>
-        </div>
-    </div>`;
-}
-
-function renderHotspotAiBrief(label, value, icon) {
-    return `<section class="analytics-hotspot-ai-brief__item">
-        <i class="material-symbols-outlined" aria-hidden="true">${escapeHtml(icon)}</i>
-        <div>
-            <strong>${escapeHtml(label)}</strong>
-            <p>${escapeHtml(value || "No detail returned.")}</p>
-        </div>
-    </section>`;
-}
-
-function renderHotspotAiPlaceholder(solution) {
-    return `<div class="analytics-hotspot-ai-placeholder">
-        <i class="material-symbols-outlined" aria-hidden="true">data_exploration</i>
-        <div>
-            <strong>Ready to generate a decision brief</strong>
-            <p>Creates a risk summary, pattern reading, recommended strategy, execution steps, public advisory draft, and admin review notes for ${escapeHtml(solution.area)}.</p>
-        </div>
-    </div>`;
-}
-
-function renderHotspotAiAction(action, index) {
-    return `<li class="analytics-hotspot-ai-action">
-        <b>${index + 1}</b>
-        <div>
-            <strong>${escapeHtml(action?.action || "Review hotspot")}</strong>
-            <span>${escapeHtml(action?.why || "")}</span>
-            <p><i class="material-symbols-outlined" aria-hidden="true">rule_settings</i>${escapeHtml(action?.implementation || "Assign responsible staff and verify the latest report details.")}</p>
-            <em><i class="material-symbols-outlined" aria-hidden="true">schedule</i>${escapeHtml(action?.timeframe || "Review as soon as possible")}</em>
-        </div>
-    </li>`;
-}
-
-function renderHotspotAiLoading(solution) {
-    return `<div class="analytics-hotspot-ai-loading" role="status" aria-live="polite">
-        <div class="analytics-hotspot-ai-loading__visual" aria-hidden="true">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
-        <div class="analytics-hotspot-ai-loading__content">
-            <strong>Generating action plan for ${escapeHtml(solution.area)}</strong>
-            <p>Gemini is reviewing the hotspot evidence, crime mix, severity, peak hours, and rule-based actions.</p>
-            <ol>
-                <li>Reading hotspot analytics</li>
-                <li>Matching prevention priorities</li>
-                <li>Preparing admin-ready recommendations</li>
-            </ol>
-        </div>
-    </div>`;
+    }
 }
 
 function renderAnalytics() {
@@ -1970,7 +1840,9 @@ function renderAnalytics() {
     renderHourlyChart(rows);
     renderReadiness(rows);
     renderHotspots(rows);
-    renderSolutions(rows);
+    if (latestGeneratedAISummary) {
+        renderGroundedAISummary(latestGeneratedAISummary);
+    }
 }
 
 async function loadAnalytics() {
@@ -2027,8 +1899,29 @@ async function loadAnalytics() {
 }
 
 document.getElementById("analytics-range")?.addEventListener("change", () => {
+    latestGeneratedAISummary = null;
+    const container = document.getElementById("analytics-solutions");
+    if (container) {
+        container.innerHTML = `
+            <div class="analytics-ai-placeholder-card">
+                <span class="material-symbols-outlined analytics-ai-placeholder-icon">psychology</span>
+                <div>
+                    <h4>AI Decision-Support System Ready</h4>
+                    <p>Click "Generate AI Decision Brief" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
+                </div>
+            </div>
+        `;
+    }
     renderAnalytics();
 });
+
+document.getElementById("btn-generate-ai-summary")?.addEventListener("click", () => {
+    handleGenerateGroundedAISummary();
+});
+
+document.getElementById("ai-feedback-close")?.addEventListener("click", closeFeedbackModal);
+document.getElementById("ai-feedback-cancel")?.addEventListener("click", closeFeedbackModal);
+document.getElementById("ai-feedback-submit")?.addEventListener("click", handleFeedbackSubmit);
 
 initAdminPage({
     pageId: "page-analytics",

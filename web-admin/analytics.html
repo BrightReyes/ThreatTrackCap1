@@ -370,20 +370,102 @@
 
                         <article class="analytics-panel analytics-panel--wide">
                             <div class="analytics-panel__header">
-                                <h2>Decision Support Summaries</h2>
-                                <span>Rule evidence + Gemini decision brief</span>
+                                <div>
+                                    <h2>AI Decision-Support Intelligence</h2>
+                                    <span>Grounded in incident evidence, official city ordinances, & operational guidance</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    id="btn-generate-ai-summary"
+                                    class="analytics-ai-btn"
+                                >
+                                    <span class="material-symbols-outlined">auto_awesome</span>
+                                    <span>Generate AI Decision Brief</span>
+                                </button>
                             </div>
                             <div
                                 id="analytics-solutions"
                                 class="analytics-solutions"
                             >
-                                <p class="analytics-empty">
-                                    Loading recommendations...
-                                </p>
+                                <div class="analytics-ai-placeholder-card">
+                                    <span class="material-symbols-outlined analytics-ai-placeholder-icon">psychology</span>
+                                    <div>
+                                        <h4>AI Decision-Support System Ready</h4>
+                                        <p>Click "Generate AI Decision Brief" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
+                                    </div>
+                                </div>
                             </div>
                         </article>
                     </section>
                 </main>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             MODAL: AI Feedback & Rating Dialog
+             ============================================================ -->
+        <div id="ai-feedback-modal" class="analytics-modal" hidden>
+            <div class="analytics-modal__backdrop"></div>
+            <div class="analytics-modal__dialog" role="dialog" aria-labelledby="ai-feedback-title" aria-modal="true">
+                <div class="analytics-modal__header">
+                    <div>
+                        <h3 id="ai-feedback-title">Rate AI Recommendation</h3>
+                        <p class="analytics-modal__subtitle">Provide operational feedback to refine future AI guidance.</p>
+                    </div>
+                    <button type="button" id="ai-feedback-close" class="analytics-modal__close" aria-label="Close dialog">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form id="ai-feedback-form" class="analytics-modal__body">
+                    <input type="hidden" id="ai-feedback-summary-id" value="" />
+                    <input type="hidden" id="ai-feedback-hotspot-label" value="" />
+
+                    <div class="analytics-form-group">
+                        <label class="analytics-form-label">How helpful was this decision brief?</label>
+                        <div class="analytics-rating-options">
+                            <label class="analytics-rating-btn">
+                                <input type="radio" name="ai-rating" value="helpful" checked />
+                                <span class="material-symbols-outlined">thumb_up</span>
+                                <span>Helpful & Grounded</span>
+                            </label>
+                            <label class="analytics-rating-btn">
+                                <input type="radio" name="ai-rating" value="unhelpful" />
+                                <span class="material-symbols-outlined">thumb_down</span>
+                                <span>Needs Improvement</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="analytics-form-group">
+                        <label for="ai-feedback-category" class="analytics-form-label">Category</label>
+                        <select id="ai-feedback-category" class="analytics-form-select">
+                            <option value="accurate">Accurate & Feasible</option>
+                            <option value="helpful_strategy">Helpful Strategy / Tactic</option>
+                            <option value="inaccurate_law">Inaccurate Law / Ordinance Citation</option>
+                            <option value="unrealistic_action">Unrealistic Operational Action</option>
+                            <option value="incomplete_data">Incomplete Incident Data Context</option>
+                            <option value="other">Other / General Comment</option>
+                        </select>
+                    </div>
+
+                    <div class="analytics-form-group">
+                        <label for="ai-feedback-comment" class="analytics-form-label">Officer Notes / Feedback (Optional)</label>
+                        <textarea
+                            id="ai-feedback-comment"
+                            class="analytics-form-textarea"
+                            placeholder="Share specific context, field observations, or why this recommendation worked or didn't work..."
+                            maxlength="600"
+                            rows="3"
+                        ></textarea>
+                    </div>
+                </form>
+                <div class="analytics-modal__footer">
+                    <button type="button" id="ai-feedback-cancel" class="analytics-btn analytics-btn--ghost">Cancel</button>
+                    <button type="button" id="ai-feedback-submit" class="analytics-btn analytics-btn--primary">
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Submit Feedback</span>
+                    </button>
+                </div>
             </div>
         </div>
 

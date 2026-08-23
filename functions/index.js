@@ -19,6 +19,7 @@ exports.getHeatmapData = require("./src/getHeatmapData");
 exports.generateAnalyticsSolutionSummary = require("./src/generateAnalyticsSolutionSummary");
 exports.generateAdminAISummary = require("./src/generateAdminAISummary").generateAdminAISummary;
 exports.recordDecisionSupportAction = require("./src/recordDecisionSupportAction").recordDecisionSupportAction;
+exports.recordAIFeedback = require("./src/recordAIFeedback").recordAIFeedback;
 exports.findNearestPrecinct = require("./src/findNearestPrecinct");
 exports.sendNearbyIncidentAlert = require("./src/sendNearbyIncidentAlert");
 

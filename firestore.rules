@@ -370,7 +370,14 @@ service cloud.firestore {
       allow delete: if false; // Soft-delete via status field
     }
 
+    // === AI FEEDBACK COLLECTION ===
+    // Admin feedback and quality ratings on AI recommendations.
+    match /ai_feedback/{feedbackId} {
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow create: if isAdmin() || isPoliceAdmin();
+      allow update, delete: if false; // Immutable feedback history
+    }
+
     // Fallback: deny by default (explicit rules above control access)
   }
 }
-
