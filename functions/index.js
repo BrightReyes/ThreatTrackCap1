@@ -1,6 +1,6 @@
 /**
  * ThreatTrack Cloud Functions
- * 
+ *
  * This file exports all Cloud Functions for the ThreatTrack application.
  * Functions are organized by feature area.
  */

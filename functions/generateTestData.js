@@ -1,9 +1,9 @@
 /**
  * Sample Test Data Generator
- * 
+ *
  * This script generates sample incidents and precincts for testing.
  * Run this script to populate your Firestore with test data.
- * 
+ *
  * Usage: node generateTestData.js
  */
 

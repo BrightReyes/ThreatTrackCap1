@@ -1,9 +1,9 @@
 /**
  * Validate Incident Submission
- * 
+ *
  * This Cloud Function validates incident reports when they are created.
  * It checks for spam, validates data integrity, and assigns a verification score.
- * 
+ *
  * Trigger: Firestore onCreate - incidents collection
  */
 
@@ -84,7 +84,7 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
     return {success: true, verificationScore, status};
   } catch (error) {
     console.error(`Error validating incident ${incidentId}:`, error);
-    
+
     // Update incident with error status
     await db.collection("incidents").doc(incidentId).update({
       status: "error",
@@ -100,19 +100,19 @@ module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
  */
 function validateLocation(location) {
   if (!location || typeof location !== "object") return false;
-  
+
   const {latitude, longitude} = location;
-  
+
   // Check if coordinates exist and are valid numbers
   if (typeof latitude !== "number" || typeof longitude !== "number") return false;
-  
+
   // Check if coordinates are within valid ranges
   if (latitude < -90 || latitude > 90) return false;
   if (longitude < -180 || longitude > 180) return false;
-  
+
   // Check if coordinates are not (0, 0) which is likely an error
   if (latitude === 0 && longitude === 0) return false;
-  
+
   return true;
 }
 
@@ -148,18 +148,18 @@ function validateSeverity(severity) {
  */
 function validateDescription(description) {
   if (!description || typeof description !== "string") return false;
-  
+
   // Check minimum length (at least 10 characters)
   if (description.trim().length < 10) return false;
-  
+
   // Check maximum length (2000 characters)
   if (description.length > 2000) return false;
-  
+
   // Check for spam keywords (basic spam detection)
   const spamKeywords = ["viagra", "casino", "lottery", "click here", "buy now"];
   const lowerDesc = description.toLowerCase();
   const hasSpamKeywords = spamKeywords.some((keyword) => lowerDesc.includes(keyword));
-  
+
   return !hasSpamKeywords;
 }
 
@@ -241,14 +241,14 @@ async function updateReporterStats(db, reporterId) {
  */
 function calculateVerificationScore(results) {
   let score = 0;
-  
+
   // Each validation check contributes to the score
   if (results.hasValidLocation) score += 25;
   if (results.hasValidType) score += 15;
   if (results.hasValidSeverity) score += 15;
   if (results.hasValidDescription) score += 25;
   if (results.isNotSpam) score += 20;
-  
+
   return score;
 }
 
@@ -293,8 +293,8 @@ async function createAdminPriorityNotification(db, incident, incidentId) {
 function humanizeType(type) {
   if (!type) return "Incident";
   return String(type)
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /**

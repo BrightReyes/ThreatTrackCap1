@@ -1,9 +1,9 @@
 /**
  * Find Nearest Precinct
- * 
+ *
  * This Cloud Function finds the nearest police precinct(s) to a given location.
  * Returns up to 3 nearest precincts with distance and contact information.
- * 
+ *
  * Trigger: HTTP Request
  */
 
@@ -39,8 +39,8 @@ module.exports = onRequest({cors: true}, async (req, res) => {
 
     // Get all active precincts
     const snapshot = await db.collection("precincts")
-      .where("isActive", "==", true)
-      .get();
+        .where("isActive", "==", true)
+        .get();
 
     if (snapshot.empty) {
       return res.status(404).json({
@@ -51,14 +51,14 @@ module.exports = onRequest({cors: true}, async (req, res) => {
 
     // Calculate distances and sort
     const precincts = [];
-    
+
     snapshot.forEach((doc) => {
       const data = doc.data();
-      
+
       if (data.location && data.location.latitude && data.location.longitude) {
         const distance = distanceBetween(
-          [latitude, longitude],
-          [data.location.latitude, data.location.longitude]
+            [latitude, longitude],
+            [data.location.latitude, data.location.longitude],
         );
 
         precincts.push({

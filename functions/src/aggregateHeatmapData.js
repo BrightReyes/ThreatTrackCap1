@@ -1,9 +1,9 @@
 /**
  * Aggregate Heatmap Data
- * 
+ *
  * This Cloud Function runs on a schedule to aggregate incident data into grid cells
  * for efficient heatmap visualization. Runs every hour.
- * 
+ *
  * Trigger: Cloud Scheduler (hourly)
  */
 
@@ -16,12 +16,12 @@ module.exports = onSchedule("every 1 hours", async (event) => {
   console.log("Starting heatmap data aggregation...");
 
   const db = admin.firestore();
-  
+
   try {
     // Get all visible incidents
     const snapshot = await db.collection("incidents")
-      .where("status", "in", VISIBLE_STATUSES)
-      .get();
+        .where("status", "in", VISIBLE_STATUSES)
+        .get();
 
     console.log(`Processing ${snapshot.size} incidents for heatmap aggregation`);
 
@@ -33,7 +33,7 @@ module.exports = onSchedule("every 1 hours", async (event) => {
 
     snapshot.forEach((doc) => {
       const incident = doc.data();
-      
+
       if (!incident.location || !incident.location.latitude || !incident.location.longitude) {
         return; // Skip incidents without valid location
       }
@@ -41,17 +41,17 @@ module.exports = onSchedule("every 1 hours", async (event) => {
       // Round coordinates to create grid cell
       const lat = parseFloat(incident.location.latitude.toFixed(GRID_PRECISION));
       const lon = parseFloat(incident.location.longitude.toFixed(GRID_PRECISION));
-      
+
       // Get incident timestamp
-      const timestamp = incident.timestamp?.toDate?.() || 
-                       new Date(incident.timestamp?.seconds * 1000) || 
+      const timestamp = incident.timestamp?.toDate?.() ||
+                       new Date(incident.timestamp?.seconds * 1000) ||
                        new Date(incident.timestamp);
-      
+
       const dateStr = timestamp.toISOString().split("T")[0]; // YYYY-MM-DD
-      
+
       // Create unique key for this grid cell and date
       const gridKey = `${dateStr}_${lat}_${lon}`;
-      
+
       // Initialize grid cell data if not exists
       if (!gridData.has(gridKey)) {
         gridData.set(gridKey, {
@@ -72,24 +72,21 @@ module.exports = onSchedule("every 1 hours", async (event) => {
             suspicious_activity: 0,
           },
           weightedScore: 0,
-          incidentIds: [], // For debugging/reference
+          incidentIds: [],
         });
       }
 
-      // Update aggregated data
       const cellData = gridData.get(gridKey);
       cellData.incidentCount++;
       cellData.incidentIds.push(doc.id);
 
-      // Update severity breakdown
       const severity = incident.severity || "low";
-      if (cellData.severityBreakdown.hasOwnProperty(severity)) {
+      if (Object.prototype.hasOwnProperty.call(cellData.severityBreakdown, severity)) {
         cellData.severityBreakdown[severity]++;
       }
 
-      // Update type breakdown
       const type = incident.type || "other";
-      if (cellData.typeBreakdown.hasOwnProperty(type)) {
+      if (Object.prototype.hasOwnProperty.call(cellData.typeBreakdown, type)) {
         cellData.typeBreakdown[type]++;
       }
     });
@@ -100,26 +97,21 @@ module.exports = onSchedule("every 1 hours", async (event) => {
     const MAX_BATCH_SIZE = 500;
 
     for (const [gridKey, cellData] of gridData) {
-      // Calculate weighted score (high=3, medium=2, low=1)
-      cellData.weightedScore = 
+      cellData.weightedScore =
         (cellData.severityBreakdown.high * 3) +
         (cellData.severityBreakdown.medium * 2) +
         (cellData.severityBreakdown.low * 1);
 
-      // Remove incidentIds before saving (too large for document)
       delete cellData.incidentIds;
 
-      // Add timestamp
       cellData.lastUpdated = admin.firestore.FieldValue.serverTimestamp();
       cellData.period = "daily";
 
-      // Create or update document
       const docRef = db.collection("crime_statistics").doc(gridKey);
       batch.set(docRef, cellData, {merge: true});
 
       batchCount++;
 
-      // Commit batch if it reaches max size
       if (batchCount >= MAX_BATCH_SIZE) {
         await batch.commit();
         console.log(`Committed batch of ${batchCount} documents`);
@@ -127,7 +119,6 @@ module.exports = onSchedule("every 1 hours", async (event) => {
       }
     }
 
-    // Commit remaining documents
     if (batchCount > 0) {
       await batch.commit();
       console.log(`Committed final batch of ${batchCount} documents`);
@@ -163,18 +154,16 @@ async function cleanupOldData(db) {
 
     console.log(`Cleaning up data older than ${cutoffDate}`);
 
-    // Query old documents
     const oldDocs = await db.collection("crime_statistics")
-      .where("date", "<", cutoffDate)
-      .where("period", "==", "daily") // Only delete daily aggregations
-      .get();
+        .where("date", "<", cutoffDate)
+        .where("period", "==", "daily")
+        .get();
 
     if (oldDocs.empty) {
       console.log("No old data to clean up");
       return;
     }
 
-    // Delete in batches
     const batch = db.batch();
     let count = 0;
 
@@ -195,7 +184,6 @@ async function cleanupOldData(db) {
  */
 async function createPeriodAggregations(db, gridData) {
   try {
-    // Calculate date ranges
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -203,23 +191,20 @@ async function createPeriodAggregations(db, gridData) {
     const date7d = sevenDaysAgo.toISOString().split("T")[0];
     const date30d = thirtyDaysAgo.toISOString().split("T")[0];
 
-    // Get incidents for each period
     const [snapshot7d, snapshot30d] = await Promise.all([
       db.collection("crime_statistics")
-        .where("date", ">=", date7d)
-        .where("period", "==", "daily")
-        .get(),
+          .where("date", ">=", date7d)
+          .where("period", "==", "daily")
+          .get(),
       db.collection("crime_statistics")
-        .where("date", ">=", date30d)
-        .where("period", "==", "daily")
-        .get(),
+          .where("date", ">=", date30d)
+          .where("period", "==", "daily")
+          .get(),
     ]);
 
-    // Aggregate 7-day data
     const grid7d = aggregateByLocation(snapshot7d);
     await savePeriodData(db, grid7d, "7d");
 
-    // Aggregate 30-day data
     const grid30d = aggregateByLocation(snapshot30d);
     await savePeriodData(db, grid30d, "30d");
 
@@ -263,18 +248,15 @@ function aggregateByLocation(snapshot) {
     const cellData = gridMap.get(locKey);
     cellData.incidentCount += data.incidentCount;
 
-    // Aggregate severity
     Object.keys(data.severityBreakdown).forEach((severity) => {
       cellData.severityBreakdown[severity] += data.severityBreakdown[severity];
     });
 
-    // Aggregate type
     Object.keys(data.typeBreakdown).forEach((type) => {
       cellData.typeBreakdown[type] += data.typeBreakdown[type];
     });
 
-    // Recalculate weighted score
-    cellData.weightedScore = 
+    cellData.weightedScore =
       (cellData.severityBreakdown.high * 3) +
       (cellData.severityBreakdown.medium * 2) +
       (cellData.severityBreakdown.low * 1);
@@ -293,7 +275,7 @@ async function savePeriodData(db, gridMap, period) {
   for (const [locKey, cellData] of gridMap) {
     const docId = `${period}_${locKey}`;
     const docRef = db.collection("crime_statistics").doc(docId);
-    
+
     batch.set(docRef, {
       ...cellData,
       period,

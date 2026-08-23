@@ -563,11 +563,16 @@ function buildGeminiPrompt(analyticsPayload, aiContext = {}) {
   const rules = Array.isArray(aiContext.triggeredRules) ? aiContext.triggeredRules : [];
 
   const knowledgeSection = knowledge.length > 0 ?
-    knowledge.map((k, i) => `${i + 1}. [${k.type.toUpperCase()}] "${k.title}" (${k.source}${k.referenceNumber ? ` | Ref: ${k.referenceNumber}` : ""})\n   Directives: ${k.content}`).join("\n\n") :
+    knowledge.map((k, i) =>
+      `${i + 1}. [${k.type.toUpperCase()}] "${k.title}" (${k.source}${k.referenceNumber ? ` | Ref: ${k.referenceNumber}` : ""})\n` +
+      `   Directives: ${k.content}`).join("\n\n") :
     "No official knowledge base documents currently registered.";
 
   const rulesSection = rules.length > 0 ?
-    rules.map((r, i) => `${i + 1}. [${r.priority.toUpperCase()}] "${r.ruleName}" (Applies to: ${r.appliesTo})\n   Guidance: ${r.guidance}${r.additionalContext ? `\n   Context: ${r.additionalContext}` : ""}\n   Trigger: ${r.reason}`).join("\n\n") :
+    rules.map((r, i) =>
+      `${i + 1}. [${r.priority.toUpperCase()}] "${r.ruleName}" (Applies to: ${r.appliesTo})\n` +
+      `   Guidance: ${r.guidance}${r.additionalContext ? `\n   Context: ${r.additionalContext}` : ""}\n` +
+      `   Trigger: ${r.reason}`).join("\n\n") :
     "No specific operational guidance triggered for these hotspots.";
 
   return [
@@ -578,12 +583,13 @@ function buildGeminiPrompt(analyticsPayload, aiContext = {}) {
     "grounded strictly in the provided official policies/ordinances and administrative operational rules.",
     "",
     "CORE GROUNDING RULES:",
-    "1. FACTUAL GROUNDING: Anchor every claim strictly in the supplied analytics numbers, peak times, and crime types. Do NOT hallucinate statistics or locations.",
-    "2. POLICY CITATION: Where applicable to a hotspot, reference relevant official ordinances or policies in 'citedKnowledge' using their title or reference number.",
-    "3. OPERATIONAL GUIDANCE: Incorporate triggered administrative rules into 'matchedGuidance' and translate them into specific 'recommendedActions'.",
-    "4. SENSITIVITY: For domestic dispute or VAWC incidents, ensure privacy, victim safety, and direct referral to Barangay VAWC desks.",
+    "1. FACTUAL GROUNDING: Anchor every claim strictly in the supplied analytics numbers, peak times, and crime types.",
+    "2. POLICY CITATION: Reference relevant official ordinances or policies in 'citedKnowledge' using title/ref.",
+    "3. OPERATIONAL GUIDANCE: Incorporate triggered administrative rules into 'matchedGuidance' and 'recommendedActions'.",
+    "4. SENSITIVITY: For domestic dispute or VAWC incidents, ensure privacy, victim safety, and Barangay VAWC referral.",
     "5. OBJECTIVITY: Avoid alarmist language. If data is thin, recommend monitoring and continued data collection.",
     "6. FORMAT: Output MUST strictly adhere to the provided JSON schema.",
+
     "",
     "=== SECTION 1: AGGREGATED INCIDENT EVIDENCE ===",
     JSON.stringify(analyticsPayload, null, 2),
@@ -1003,7 +1009,8 @@ function buildDeterministicFallbackSummary(analyticsPayload, aiContext = {}, fil
     "Recommended operational actions are synthesized directly from active administrative guidelines and municipal policies.",
   ].filter(Boolean).join(" ");
 
-  const groundingSummary = "Synthesized using ThreatTrack Deterministic Rule Engine based on active ordinances and operational directives (Fallback Mode).";
+  const groundingSummary =
+    "Synthesized using ThreatTrack Deterministic Rule Engine based on active ordinances and directives (Fallback Mode).";
 
   const priorityHotspots = hotspots.slice(0, 5).map((hotspot, idx) => {
     const hotspotRules = (aiContext.rulesByHotspot && aiContext.rulesByHotspot[hotspot.key]) ||
@@ -1036,7 +1043,10 @@ function buildDeterministicFallbackSummary(analyticsPayload, aiContext = {}, fil
         },
       ];
 
-    const suggestedPublicAdvisory = `Residents and commuters around ${hotspot.locationLabel} are advised to remain vigilant during peak evening transit hours and report any suspicious activity to local authorities.`;
+    const suggestedPublicAdvisory =
+      `Residents and commuters around ${hotspot.locationLabel} are advised to remain vigilant ` +
+      `during peak evening transit hours and report any suspicious activity to local authorities.`;
+
 
     return {
       rank: idx + 1,

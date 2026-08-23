@@ -1,9 +1,9 @@
 /**
  * Send Nearby Incident Alert
- * 
+ *
  * This Cloud Function sends push notifications to users when a new verified
  * incident is reported near their location.
- * 
+ *
  * Trigger: Firestore onUpdate - incidents collection (when status changes to verified)
  */
 
@@ -29,8 +29,8 @@ module.exports = onDocumentUpdated("incidents/{incidentId}", async (event) => {
 
       // Get all users with alert preferences enabled
       const usersSnapshot = await db.collection("users")
-        .where("alertPreferences.enabled", "==", true)
-        .get();
+          .where("alertPreferences.enabled", "==", true)
+          .get();
 
       if (usersSnapshot.empty) {
         console.log("No users with alerts enabled");
@@ -65,13 +65,13 @@ module.exports = onDocumentUpdated("incidents/{incidentId}", async (event) => {
 
         // Calculate distance
         const distance = distanceBetween(
-          [incidentLat, incidentLon],
-          [userData.location.latitude, userData.location.longitude]
+            [incidentLat, incidentLon],
+            [userData.location.latitude, userData.location.longitude],
         );
 
         // Check if within alert radius
         const alertRadius = userData.alertRadius || 5; // Default 5km
-        
+
         if (distance <= alertRadius) {
           // User is nearby, prepare notification
           const notification = {
@@ -150,8 +150,8 @@ function getNotificationTitle(severity, type) {
  * Generate notification body
  */
 function getNotificationBody(type, distance, address) {
-  const distanceStr = distance < 1 ? 
-    `${Math.round(distance * 1000)}m` : 
+  const distanceStr = distance < 1 ?
+    `${Math.round(distance * 1000)}m` :
     `${distance.toFixed(1)}km`;
 
   const location = address || "your area";
@@ -169,10 +169,10 @@ async function sendPushNotifications(fcmTokens, incidentData) {
 
     // Send in batches of 500 (FCM limit)
     const batchSize = 500;
-    
+
     for (let i = 0; i < fcmTokens.length; i += batchSize) {
       const batch = fcmTokens.slice(i, i + batchSize);
-      
+
       const messages = batch.map((item) => ({
         token: item.token,
         notification: {
@@ -211,7 +211,7 @@ async function sendPushNotifications(fcmTokens, incidentData) {
         response.responses.forEach((resp, idx) => {
           if (!resp.success) {
             console.error(`Failed to send to token ${batch[idx].token}:`, resp.error);
-            
+
             // If token is invalid, could delete it from user document
             // (implement token cleanup logic here if needed)
           }
