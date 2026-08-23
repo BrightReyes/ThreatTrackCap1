@@ -6,8 +6,6 @@
  */
 
 const {onRequest} = require("firebase-functions/v2/https");
-const {onSchedule} = require("firebase-functions/v2/scheduler");
-const {onDocumentCreated, onDocumentUpdated} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 
 // Initialize Firebase Admin
@@ -19,7 +17,8 @@ exports.calculateRiskLevel = require("./src/calculateRiskLevel");
 exports.aggregateHeatmapData = require("./src/aggregateHeatmapData");
 exports.getHeatmapData = require("./src/getHeatmapData");
 exports.generateAnalyticsSolutionSummary = require("./src/generateAnalyticsSolutionSummary");
-exports.generateAdminAISummary = require("./src/generateAdminAISummary");
+exports.generateAdminAISummary = require("./src/generateAdminAISummary").generateAdminAISummary;
+exports.recordDecisionSupportAction = require("./src/recordDecisionSupportAction").recordDecisionSupportAction;
 exports.findNearestPrecinct = require("./src/findNearestPrecinct");
 exports.sendNearbyIncidentAlert = require("./src/sendNearbyIncidentAlert");
 
@@ -29,6 +28,6 @@ exports.healthCheck = onRequest((req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     service: "ThreatTrack Cloud Functions",
-    version: "1.0.0"
+    version: "1.0.0",
   });
 });
