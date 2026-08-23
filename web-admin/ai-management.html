@@ -149,7 +149,7 @@
                     <div class="admin-dashboard__header-left">
                         <h1 class="admin-dashboard__title">AI Management</h1>
                         <p class="admin-dashboard__tagline">
-                            Manage knowledge base and operational rules for AI decision support
+                            Manage knowledge base and operational guidance for AI decision support
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -353,7 +353,7 @@
                     </section>
 
                     <!-- ============================================================
-                         PANEL 2: AI Operational Rules (Phase 3)
+                         PANEL 2: AI Operational Rules (Hybrid Model)
                          ============================================================ -->
                     <section
                         id="panel-rules"
@@ -370,14 +370,14 @@
                                     type="search"
                                     id="rules-search"
                                     class="ai-mgmt-search-input"
-                                    placeholder="Search by rule name, description, or recommended action…"
+                                    placeholder="Search by rule name, applies to, or guidance text…"
                                     aria-label="Search operational rules"
                                     autocomplete="off"
                                 />
                             </div>
                             <div class="ai-mgmt-toolbar__filters">
-                                <select id="rules-filter-crime" class="ai-mgmt-select-filter" aria-label="Crime type filter">
-                                    <option value="all">All Crime Types</option>
+                                <select id="rules-filter-crime" class="ai-mgmt-select-filter" aria-label="Applies To filter">
+                                    <option value="all">All Categories</option>
                                     <option value="theft_snatching">Theft / Snatching</option>
                                     <option value="robbery_holdup">Robbery / Holdup</option>
                                     <option value="physical_assault_injury">Assault / Injury</option>
@@ -420,9 +420,9 @@
                                     <thead>
                                         <tr>
                                             <th>Rule Name</th>
-                                            <th>Crime Type</th>
+                                            <th>Applies To</th>
+                                            <th>Rule / Guidance</th>
                                             <th>Trigger Condition</th>
-                                            <th>Recommended Action</th>
                                             <th>Priority</th>
                                             <th>Status</th>
                                             <th>Version</th>
@@ -549,7 +549,7 @@
                             required
                             minlength="10"
                             maxlength="10000"
-                            rows="7"
+                            rows="6"
                         ></textarea>
                         <div class="ai-mgmt-form-meta">
                             <span class="ai-mgmt-form-hint">AI uses this exact text when forming evidence-grounded recommendations.</span>
@@ -570,7 +570,7 @@
         </div>
 
         <!-- ============================================================
-             MODAL 2: Operational Rule Add/Edit Modal (Phase 3)
+             MODAL 2: Operational Rule Add/Edit Modal (Graceful & Responsive)
              ============================================================ -->
         <div id="rule-modal" class="ai-mgmt-modal" hidden>
             <div class="ai-mgmt-modal__backdrop"></div>
@@ -578,7 +578,7 @@
                 <div class="ai-mgmt-modal__header">
                     <div class="ai-mgmt-modal__header-titles">
                         <h2 id="rule-modal-title">Add Operational Rule</h2>
-                        <p class="ai-mgmt-modal__subtitle">Configure deterministic threshold criteria and recommended actions for AI decision support.</p>
+                        <p class="ai-mgmt-modal__subtitle">Define operational guidance that the AI should consider when generating decision-support recommendations.</p>
                     </div>
                     <button type="button" id="rule-modal-close" class="ai-mgmt-modal__close" aria-label="Close dialog">
                         <span class="material-symbols-outlined">close</span>
@@ -596,7 +596,7 @@
                                 type="text"
                                 id="rule-name"
                                 class="ai-mgmt-form-input"
-                                placeholder="e.g. Theft Hotspot Escalation Rule"
+                                placeholder="e.g. Theft Hotspot Response Guidance"
                                 required
                                 minlength="3"
                                 maxlength="150"
@@ -604,10 +604,10 @@
                         </div>
                         <div class="ai-mgmt-form-group">
                             <label for="rule-crime-type" class="ai-mgmt-form-label">
-                                Target Crime Type <span class="ai-mgmt-required">*</span>
+                                Applies To <span class="ai-mgmt-required">*</span>
                             </label>
                             <select id="rule-crime-type" class="ai-mgmt-form-select" required>
-                                <option value="all">All Crime Types (General Rule)</option>
+                                <option value="all">All Crime Types (General Guidance)</option>
                                 <option value="theft_snatching">Theft / Snatching</option>
                                 <option value="robbery_holdup">Robbery / Holdup</option>
                                 <option value="physical_assault_injury">Assault / Physical Injury</option>
@@ -622,95 +622,24 @@
                         </div>
                     </div>
 
-                    <div class="ai-mgmt-form-group">
-                        <label for="rule-description" class="ai-mgmt-form-label">
-                            Description / Administrative Purpose
-                        </label>
-                        <input
-                            type="text"
-                            id="rule-description"
-                            class="ai-mgmt-form-input"
-                            placeholder="e.g. Triggered when theft incidents exceed normal baseline over a 30-day window"
-                            maxlength="300"
-                        />
-                    </div>
-
-                    <!-- Trigger Condition Formula Builder -->
-                    <div class="ai-mgmt-condition-box">
-                        <span class="ai-mgmt-condition-box__title">
-                            <span class="material-symbols-outlined">tune</span>
-                            Trigger Condition Formula
-                        </span>
-                        <div class="ai-mgmt-condition-grid">
-                            <div class="ai-mgmt-form-group">
-                                <label for="rule-condition-type" class="ai-mgmt-form-label">
-                                    Condition Metric <span class="ai-mgmt-required">*</span>
-                                </label>
-                                <select id="rule-condition-type" class="ai-mgmt-form-select" required>
-                                    <option value="incident_count">Incident Count</option>
-                                    <option value="high_severity_count">High-Severity Count</option>
-                                    <option value="sos_count">SOS Alert Count</option>
-                                    <option value="weighted_score">Weighted Hotspot Score</option>
-                                </select>
-                            </div>
-                            <div class="ai-mgmt-form-group">
-                                <label for="rule-operator" class="ai-mgmt-form-label">
-                                    Operator <span class="ai-mgmt-required">*</span>
-                                </label>
-                                <select id="rule-operator" class="ai-mgmt-form-select" required>
-                                    <option value=">=">&gt;= (Greater or equal)</option>
-                                    <option value=">">&gt; (Greater than)</option>
-                                    <option value="<=">&lt;= (Less or equal)</option>
-                                    <option value="<">&lt; (Less than)</option>
-                                    <option value="==">== (Exactly equal)</option>
-                                </select>
-                            </div>
-                            <div class="ai-mgmt-form-group">
-                                <label for="rule-threshold" class="ai-mgmt-form-label">
-                                    Threshold Value <span class="ai-mgmt-required">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    id="rule-threshold"
-                                    class="ai-mgmt-form-input"
-                                    placeholder="e.g. 5"
-                                    min="1"
-                                    max="10000"
-                                    value="5"
-                                    required
-                                />
-                            </div>
-                            <div class="ai-mgmt-form-group">
-                                <label for="rule-time-period" class="ai-mgmt-form-label">
-                                    Time Period <span class="ai-mgmt-required">*</span>
-                                </label>
-                                <select id="rule-time-period" class="ai-mgmt-form-select" required>
-                                    <option value="7d">Last 7 Days</option>
-                                    <option value="14d">Last 14 Days</option>
-                                    <option value="30d" selected>Last 30 Days</option>
-                                    <option value="90d">Last 90 Days</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
+                    <!-- Main Rule / Guidance Textarea -->
                     <div class="ai-mgmt-form-group">
                         <label for="rule-action" class="ai-mgmt-form-label">
-                            Recommended Action / Directive <span class="ai-mgmt-required">*</span>
+                            Rule / Operational Guidance <span class="ai-mgmt-required">*</span>
                         </label>
                         <textarea
                             id="rule-action"
                             class="ai-mgmt-form-textarea"
-                            placeholder="e.g. Recommend increased foot patrol and mobile visibility during peak hours (18:00–22:00) along commuter waiting areas..."
+                            placeholder="e.g. When theft incidents repeatedly occur in the same hotspot, especially during evening peak hours, consider increased patrol visibility and coordination with the appropriate public safety personnel..."
                             required
                             minlength="10"
-                            maxlength="500"
-                            rows="4"
+                            maxlength="800"
+                            rows="3"
                         ></textarea>
                         <div class="ai-mgmt-form-meta">
-                            <span class="ai-mgmt-form-hint">The AI will propose this specific action when the trigger condition is met.</span>
+                            <span class="ai-mgmt-form-hint">The AI will incorporate this guidance when synthesizing decision-support plans.</span>
                             <span class="ai-mgmt-char-counter">
-                                <span id="rule-action-count">0</span> / 500
+                                <span id="rule-action-count">0</span> / 800
                             </span>
                         </div>
                     </div>
@@ -718,7 +647,7 @@
                     <div class="ai-mgmt-form-row">
                         <div class="ai-mgmt-form-group">
                             <label for="rule-priority" class="ai-mgmt-form-label">
-                                Priority Level <span class="ai-mgmt-required">*</span>
+                                Priority <span class="ai-mgmt-required">*</span>
                             </label>
                             <select id="rule-priority" class="ai-mgmt-form-select" required>
                                 <option value="critical">Critical</option>
@@ -729,14 +658,105 @@
                         </div>
                         <div class="ai-mgmt-form-group">
                             <label for="rule-status" class="ai-mgmt-form-label">
-                                Operational Status <span class="ai-mgmt-required">*</span>
+                                Status <span class="ai-mgmt-required">*</span>
                             </label>
                             <select id="rule-status" class="ai-mgmt-form-select" required>
-                                <option value="active" selected>Active (Enforced by AI)</option>
-                                <option value="inactive">Inactive (Disabled)</option>
+                                <option value="active" selected>Active</option>
+                                <option value="inactive">Inactive</option>
                             </select>
                         </div>
                     </div>
+
+                    <!-- Collapsible 1: Advanced Trigger Conditions (Optional) -->
+                    <details class="ai-mgmt-accordion" id="rule-accordion-conditions">
+                        <summary class="ai-mgmt-accordion__header">
+                            <div class="ai-mgmt-accordion__title-wrap">
+                                <span class="material-symbols-outlined ai-mgmt-accordion__icon">tune</span>
+                                <span class="ai-mgmt-accordion__title">Advanced Trigger Conditions</span>
+                                <span class="ai-mgmt-accordion__badge">Optional</span>
+                            </div>
+                            <span class="material-symbols-outlined ai-mgmt-accordion__chevron">expand_more</span>
+                        </summary>
+                        <div class="ai-mgmt-accordion__content">
+                            <label class="ai-mgmt-toggle-card" for="rule-enable-condition">
+                                <div class="ai-mgmt-toggle-card__left">
+                                    <span class="material-symbols-outlined ai-mgmt-toggle-card__icon">rule</span>
+                                    <div>
+                                        <div class="ai-mgmt-toggle-card__title">Enable Numerical Trigger Thresholds</div>
+                                        <div class="ai-mgmt-toggle-card__sub">Apply this rule only when hotspot statistics cross specific criteria</div>
+                                    </div>
+                                </div>
+                                <input type="checkbox" id="rule-enable-condition" class="ai-mgmt-checkbox-switch" />
+                            </label>
+                            
+                            <div id="rule-condition-fields" class="ai-mgmt-condition-grid" hidden>
+                                <div class="ai-mgmt-form-group">
+                                    <label for="rule-condition-type" class="ai-mgmt-form-label">Condition Metric</label>
+                                    <select id="rule-condition-type" class="ai-mgmt-form-select">
+                                        <option value="incident_count">Incident Count</option>
+                                        <option value="high_severity_count">High-Severity Count</option>
+                                        <option value="sos_count">SOS Alert Count</option>
+                                        <option value="weighted_score">Weighted Hotspot Score</option>
+                                    </select>
+                                </div>
+                                <div class="ai-mgmt-form-group">
+                                    <label for="rule-operator" class="ai-mgmt-form-label">Operator</label>
+                                    <select id="rule-operator" class="ai-mgmt-form-select">
+                                        <option value=">=">&gt;= (Greater or equal)</option>
+                                        <option value=">">&gt; (Greater than)</option>
+                                        <option value="<=">&lt;= (Less or equal)</option>
+                                        <option value="<">&lt; (Less than)</option>
+                                        <option value="==">== (Exactly equal)</option>
+                                    </select>
+                                </div>
+                                <div class="ai-mgmt-form-group">
+                                    <label for="rule-threshold" class="ai-mgmt-form-label">Threshold Value</label>
+                                    <input
+                                        type="number"
+                                        id="rule-threshold"
+                                        class="ai-mgmt-form-input"
+                                        placeholder="e.g. 5"
+                                        min="1"
+                                        max="10000"
+                                        value="5"
+                                    />
+                                </div>
+                                <div class="ai-mgmt-form-group">
+                                    <label for="rule-time-period" class="ai-mgmt-form-label">Time Window</label>
+                                    <select id="rule-time-period" class="ai-mgmt-form-select">
+                                        <option value="7d">Last 7 Days</option>
+                                        <option value="14d">Last 14 Days</option>
+                                        <option value="30d" selected>Last 30 Days</option>
+                                        <option value="90d">Last 90 Days</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- Collapsible 2: Additional Context / Notes (Optional) -->
+                    <details class="ai-mgmt-accordion" id="rule-accordion-context">
+                        <summary class="ai-mgmt-accordion__header">
+                            <div class="ai-mgmt-accordion__title-wrap">
+                                <span class="material-symbols-outlined ai-mgmt-accordion__icon">notes</span>
+                                <span class="ai-mgmt-accordion__title">Additional Context / Administrative Notes</span>
+                                <span class="ai-mgmt-accordion__badge">Optional</span>
+                            </div>
+                            <span class="material-symbols-outlined ai-mgmt-accordion__chevron">expand_more</span>
+                        </summary>
+                        <div class="ai-mgmt-accordion__content">
+                            <div class="ai-mgmt-form-group">
+                                <textarea
+                                    id="rule-description"
+                                    class="ai-mgmt-form-textarea"
+                                    placeholder="Provide location characteristics, relevant local context, or background factors (e.g. 'Area contains major transport terminals and high foot traffic during rush hours...')"
+                                    maxlength="400"
+                                    rows="2"
+                                ></textarea>
+                                <span class="ai-mgmt-form-hint">Additional context helps the AI tailor recommendations to specific local conditions.</span>
+                            </div>
+                        </div>
+                    </details>
                 </form>
                 <div class="ai-mgmt-modal__footer">
                     <button type="button" id="rule-modal-cancel" class="ai-mgmt-btn ai-mgmt-btn--ghost">Cancel</button>

@@ -2,7 +2,7 @@
  * AI Management — Knowledge Base & Operational Rules UI Controller
  * Phase 2 & Phase 3 Implementation:
  * - Knowledge Management CRUD (ai_knowledge)
- * - Operational Rules Management CRUD (ai_rules)
+ * - Hybrid Operational Rules Management CRUD (ai_rules)
  * Strictly isolated from AI generation at this phase.
  */
 
@@ -128,7 +128,7 @@ const elements = {
     knowledgeContent: document.getElementById("knowledge-content"),
     knowledgeContentCount: document.getElementById("knowledge-content-count"),
 
-    // Rules Modal
+    // Rules Modal (Hybrid Model)
     ruleModal: document.getElementById("rule-modal"),
     ruleModalTitle: document.getElementById("rule-modal-title"),
     ruleModalClose: document.getElementById("rule-modal-close"),
@@ -139,14 +139,18 @@ const elements = {
     ruleName: document.getElementById("rule-name"),
     ruleCrimeType: document.getElementById("rule-crime-type"),
     ruleDescription: document.getElementById("rule-description"),
-    ruleConditionType: document.getElementById("rule-condition-type"),
-    ruleOperator: document.getElementById("rule-operator"),
-    ruleThreshold: document.getElementById("rule-threshold"),
-    ruleTimePeriod: document.getElementById("rule-time-period"),
     ruleAction: document.getElementById("rule-action"),
     ruleActionCount: document.getElementById("rule-action-count"),
     rulePriority: document.getElementById("rule-priority"),
     ruleStatus: document.getElementById("rule-status"),
+    ruleAccordionConditions: document.getElementById("rule-accordion-conditions"),
+    ruleAccordionContext: document.getElementById("rule-accordion-context"),
+    ruleEnableCondition: document.getElementById("rule-enable-condition"),
+    ruleConditionFields: document.getElementById("rule-condition-fields"),
+    ruleConditionType: document.getElementById("rule-condition-type"),
+    ruleOperator: document.getElementById("rule-operator"),
+    ruleThreshold: document.getElementById("rule-threshold"),
+    ruleTimePeriod: document.getElementById("rule-time-period"),
 };
 
 // Initialize Page
@@ -220,6 +224,12 @@ function bindEvents() {
     elements.ruleModalClose?.addEventListener("click", closeRuleModal);
     elements.ruleModalCancel?.addEventListener("click", closeRuleModal);
     elements.ruleModal?.querySelector(".ai-mgmt-modal__backdrop")?.addEventListener("click", closeRuleModal);
+
+    // Condition checkbox toggle
+    elements.ruleEnableCondition?.addEventListener("change", (e) => {
+        toggleConditionInputs(e.target.checked);
+    });
+
     elements.ruleAction?.addEventListener("input", () => {
         if (elements.ruleActionCount && elements.ruleAction) {
             elements.ruleActionCount.textContent = String(elements.ruleAction.value.length);
@@ -227,6 +237,15 @@ function bindEvents() {
     });
     elements.ruleModalSave?.addEventListener("click", handleSaveRule);
     elements.rulesTbody?.addEventListener("click", handleRulesTableAction);
+}
+
+/**
+ * Toggle Condition Input Availability
+ */
+function toggleConditionInputs(enabled) {
+    if (elements.ruleConditionFields) {
+        elements.ruleConditionFields.hidden = !enabled;
+    }
 }
 
 /**
@@ -677,7 +696,7 @@ async function handleKnowledgeStatusChange(item, newStatus) {
 }
 
 /* ============================================================
-   OPERATIONAL RULES (ai_rules) CRUD — Phase 3
+   OPERATIONAL RULES (ai_rules) CRUD — Hybrid Model
    ============================================================ */
 
 async function loadRules() {
@@ -702,13 +721,14 @@ async function loadRules() {
             return {
                 id: docSnap.id,
                 name: data.name || "",
-                crimeType: data.crimeType || "all",
-                description: data.description || "",
-                conditionType: data.conditionType || "incident_count",
-                operator: data.operator || ">=",
-                threshold: Number.isFinite(data.threshold) ? data.threshold : 1,
-                timePeriod: data.timePeriod || "30d",
-                recommendedAction: data.recommendedAction || "",
+                crimeType: data.crimeType || data.appliesTo || "all",
+                description: data.description || data.additionalContext || "",
+                recommendedAction: data.recommendedAction || data.guidance || "",
+                hasConditions: data.hasConditions === true,
+                conditionType: data.conditionType || null,
+                operator: data.operator || null,
+                threshold: Number.isFinite(data.threshold) ? data.threshold : null,
+                timePeriod: data.timePeriod || null,
                 priority: data.priority || "medium",
                 status: data.status || "active",
                 version: Number.isFinite(data.version) ? data.version : 1,
@@ -791,7 +811,7 @@ function renderRulesTable() {
             ? "No operational rules matching your search query."
             : rulesCrimeFilter !== "all" || rulesPriorityFilter !== "all" || rulesStatusFilter !== "all"
               ? "No operational rules match the selected filters."
-              : "No operational rules yet. Click \"Add Rule\" to configure the first AI threshold.";
+              : "No operational rules yet. Click \"Add Rule\" to create the first operational guidance.";
         elements.rulesTbody.innerHTML = `
             <tr>
                 <td colspan="8" class="ai-mgmt-empty">${escapeHtml(message)}</td>
@@ -805,7 +825,25 @@ function renderRulesTable() {
             const dateStr = formatDate(r.updatedAt || r.createdAt);
             const statusClass = `ai-mgmt-badge--${escapeAttr(r.status)}`;
             const priorityClass = `ai-mgmt-priority--${escapeAttr(r.priority)}`;
-            const metricLabel = formatConditionMetric(r.conditionType);
+
+            // Render Condition Badge: either formula tag or General Guidance pill
+            let conditionHtml = "";
+            if (r.hasConditions && r.conditionType && r.operator && r.threshold != null) {
+                const metricLabel = formatConditionMetric(r.conditionType);
+                conditionHtml = `
+                    <span class="ai-mgmt-formula-tag" title="Trigger condition criteria">
+                        ${escapeHtml(metricLabel)} ${escapeHtml(r.operator)} ${escapeHtml(String(r.threshold))}
+                        <span class="ai-mgmt-formula-tag__window">[${escapeHtml(r.timePeriod || "30d")}]</span>
+                    </span>
+                `;
+            } else {
+                conditionHtml = `
+                    <span class="ai-mgmt-guidance-pill" title="Applies broadly whenever target crime type occurs">
+                        <span class="material-symbols-outlined" style="font-size: 1rem; color: #6366f1;">lightbulb</span>
+                        General Guidance
+                    </span>
+                `;
+            }
 
             return `
                 <tr data-id="${escapeAttr(r.id)}">
@@ -813,21 +851,18 @@ function renderRulesTable() {
                         <div class="ai-mgmt-table__title" title="${escapeAttr(r.name)}">
                             ${escapeHtml(r.name)}
                         </div>
-                        ${r.description ? `<div class="ai-mgmt-table__meta-sub">${escapeHtml(truncate(r.description, 50))}</div>` : ""}
+                        ${r.description ? `<div class="ai-mgmt-table__meta-sub" title="${escapeAttr(r.description)}">${escapeHtml(truncate(r.description, 45))}</div>` : ""}
                     </td>
                     <td>
                         <span class="ai-mgmt-type-tag">${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
                     </td>
                     <td>
-                        <span class="ai-mgmt-formula-tag" title="Condition formula">
-                            ${escapeHtml(metricLabel)} ${escapeHtml(r.operator)} ${escapeHtml(String(r.threshold))}
-                            <span class="ai-mgmt-formula-tag__window">[${escapeHtml(r.timePeriod)}]</span>
-                        </span>
+                        <div class="ai-mgmt-table__title" style="max-width: 260px; font-weight: 500;" title="${escapeAttr(r.recommendedAction)}">
+                            ${escapeHtml(truncate(r.recommendedAction, 70))}
+                        </div>
                     </td>
                     <td>
-                        <div class="ai-mgmt-table__title" style="max-width: 240px; font-weight: 500;" title="${escapeAttr(r.recommendedAction)}">
-                            ${escapeHtml(truncate(r.recommendedAction, 65))}
-                        </div>
+                        ${conditionHtml}
                     </td>
                     <td>
                         <span class="ai-mgmt-priority ${priorityClass}">${escapeHtml(r.priority)}</span>
@@ -937,24 +972,41 @@ function openRuleModal(rule = null) {
         elements.ruleName.value = rule.name;
         elements.ruleCrimeType.value = rule.crimeType;
         elements.ruleDescription.value = rule.description || "";
-        elements.ruleConditionType.value = rule.conditionType;
-        elements.ruleOperator.value = rule.operator;
-        elements.ruleThreshold.value = String(rule.threshold);
-        elements.ruleTimePeriod.value = rule.timePeriod;
         elements.ruleAction.value = rule.recommendedAction;
         elements.rulePriority.value = rule.priority;
         elements.ruleStatus.value = rule.status === "archived" ? "inactive" : rule.status;
+
+        // Conditions
+        const hasCond = rule.hasConditions === true;
+        if (elements.ruleEnableCondition) elements.ruleEnableCondition.checked = hasCond;
+        toggleConditionInputs(hasCond);
+
+        if (hasCond) {
+            elements.ruleConditionType.value = rule.conditionType || "incident_count";
+            elements.ruleOperator.value = rule.operator || ">=";
+            elements.ruleThreshold.value = String(rule.threshold || "5");
+            elements.ruleTimePeriod.value = rule.timePeriod || "30d";
+            if (elements.ruleAccordionConditions) elements.ruleAccordionConditions.open = true;
+        } else {
+            if (elements.ruleAccordionConditions) elements.ruleAccordionConditions.open = false;
+        }
+
+        if (rule.description && elements.ruleAccordionContext) {
+            elements.ruleAccordionContext.open = true;
+        } else if (elements.ruleAccordionContext) {
+            elements.ruleAccordionContext.open = false;
+        }
     } else {
         elements.ruleModalTitle.textContent = "Add Operational Rule";
         elements.ruleEditId.value = "";
         elements.ruleForm.reset();
         elements.ruleCrimeType.value = "all";
-        elements.ruleConditionType.value = "incident_count";
-        elements.ruleOperator.value = ">=";
-        elements.ruleThreshold.value = "5";
-        elements.ruleTimePeriod.value = "30d";
         elements.rulePriority.value = "high";
         elements.ruleStatus.value = "active";
+        if (elements.ruleEnableCondition) elements.ruleEnableCondition.checked = false;
+        toggleConditionInputs(false);
+        if (elements.ruleAccordionConditions) elements.ruleAccordionConditions.open = false;
+        if (elements.ruleAccordionContext) elements.ruleAccordionContext.open = false;
     }
 
     if (elements.ruleActionCount && elements.ruleAction) {
@@ -976,13 +1028,15 @@ async function handleSaveRule() {
     const name = (elements.ruleName?.value || "").trim();
     const crimeType = (elements.ruleCrimeType?.value || "all").trim();
     const description = (elements.ruleDescription?.value || "").trim();
-    const conditionType = (elements.ruleConditionType?.value || "incident_count").trim();
-    const operator = (elements.ruleOperator?.value || ">=").trim();
-    const thresholdNum = Number(elements.ruleThreshold?.value);
-    const timePeriod = (elements.ruleTimePeriod?.value || "30d").trim();
     const recommendedAction = (elements.ruleAction?.value || "").trim();
     const priority = (elements.rulePriority?.value || "medium").trim();
     const status = (elements.ruleStatus?.value || "active").trim();
+    const hasConditions = elements.ruleEnableCondition?.checked === true;
+
+    let conditionType = null;
+    let operator = null;
+    let thresholdNum = null;
+    let timePeriod = null;
 
     clearFormErrors();
     let hasError = false;
@@ -993,32 +1047,12 @@ async function handleSaveRule() {
     }
 
     if (!VALID_CRIME_TYPES.has(crimeType)) {
-        setFieldError(elements.ruleCrimeType, "Please select a valid crime type.");
+        setFieldError(elements.ruleCrimeType, "Please select what this rule applies to.");
         hasError = true;
     }
 
-    if (!VALID_CONDITION_TYPES.has(conditionType)) {
-        setFieldError(elements.ruleConditionType, "Please select a valid condition metric.");
-        hasError = true;
-    }
-
-    if (!VALID_OPERATORS.has(operator)) {
-        setFieldError(elements.ruleOperator, "Please select a valid operator.");
-        hasError = true;
-    }
-
-    if (!Number.isFinite(thresholdNum) || thresholdNum < 1 || thresholdNum > 100000) {
-        setFieldError(elements.ruleThreshold, "Threshold must be a valid positive number.");
-        hasError = true;
-    }
-
-    if (!VALID_TIME_PERIODS.has(timePeriod)) {
-        setFieldError(elements.ruleTimePeriod, "Please select a valid time period.");
-        hasError = true;
-    }
-
-    if (!recommendedAction || recommendedAction.length < 10 || recommendedAction.length > 500) {
-        setFieldError(elements.ruleAction, "Recommended action is required (10–500 characters).");
+    if (!recommendedAction || recommendedAction.length < 10 || recommendedAction.length > 800) {
+        setFieldError(elements.ruleAction, "Rule / Operational guidance is required (10–800 characters).");
         hasError = true;
     }
 
@@ -1030,6 +1064,34 @@ async function handleSaveRule() {
     if (!VALID_RULE_STATUSES.has(status)) {
         setFieldError(elements.ruleStatus, "Please select a valid status.");
         hasError = true;
+    }
+
+    // Validate optional trigger conditions if enabled
+    if (hasConditions) {
+        conditionType = (elements.ruleConditionType?.value || "incident_count").trim();
+        operator = (elements.ruleOperator?.value || ">=").trim();
+        thresholdNum = Number(elements.ruleThreshold?.value);
+        timePeriod = (elements.ruleTimePeriod?.value || "30d").trim();
+
+        if (!VALID_CONDITION_TYPES.has(conditionType)) {
+            setFieldError(elements.ruleConditionType, "Please select a valid condition metric.");
+            hasError = true;
+        }
+
+        if (!VALID_OPERATORS.has(operator)) {
+            setFieldError(elements.ruleOperator, "Please select a valid operator.");
+            hasError = true;
+        }
+
+        if (!Number.isFinite(thresholdNum) || thresholdNum < 1 || thresholdNum > 100000) {
+            setFieldError(elements.ruleThreshold, "Threshold must be a valid positive number.");
+            hasError = true;
+        }
+
+        if (!VALID_TIME_PERIODS.has(timePeriod)) {
+            setFieldError(elements.ruleTimePeriod, "Please select a valid time window.");
+            hasError = true;
+        }
     }
 
     if (hasError) return;
@@ -1057,11 +1119,12 @@ async function handleSaveRule() {
                 name,
                 crimeType,
                 description,
-                conditionType,
-                operator,
-                threshold: thresholdNum,
-                timePeriod,
                 recommendedAction,
+                hasConditions,
+                conditionType: hasConditions ? conditionType : null,
+                operator: hasConditions ? operator : null,
+                threshold: hasConditions ? thresholdNum : null,
+                timePeriod: hasConditions ? timePeriod : null,
                 priority,
                 status,
                 version: nextVersion,
@@ -1072,6 +1135,7 @@ async function handleSaveRule() {
             await logAudit("ai_rules.update", {
                 ruleId: editId,
                 name,
+                hasConditions,
                 version: nextVersion,
                 status,
             });
@@ -1082,11 +1146,12 @@ async function handleSaveRule() {
                 name,
                 crimeType,
                 description,
-                conditionType,
-                operator,
-                threshold: thresholdNum,
-                timePeriod,
                 recommendedAction,
+                hasConditions,
+                conditionType: hasConditions ? conditionType : null,
+                operator: hasConditions ? operator : null,
+                threshold: hasConditions ? thresholdNum : null,
+                timePeriod: hasConditions ? timePeriod : null,
                 priority,
                 status,
                 version: 1,
@@ -1102,6 +1167,7 @@ async function handleSaveRule() {
                 ruleId: docRef.id,
                 name,
                 crimeType,
+                hasConditions,
                 priority,
                 status,
             });
