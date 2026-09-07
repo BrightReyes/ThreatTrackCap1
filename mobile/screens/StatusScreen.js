@@ -9,12 +9,14 @@ import {
   RefreshControl,
   Image,
   StatusBar,
+  Linking,
 } from 'react-native';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
+import GlobalBottomBar from '../components/GlobalBottomBar';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
@@ -268,6 +270,26 @@ const StatusScreen = ({ navigation }) => {
     fetchMyIncidents();
   };
 
+  const handleCallResponder = async (phoneNumber) => {
+    const cleanNumber = String(phoneNumber || '83524000').replace(/[^0-9+]/g, '');
+    const telUrl = `tel:${cleanNumber}`;
+    try {
+      const supported = await Linking.canOpenURL(telUrl);
+      if (supported) {
+        await Linking.openURL(telUrl);
+      } else {
+        showAlert(
+          'Dialer Unavailable',
+          `Cannot automatically open phone dialer. Please dial ${cleanNumber} manually.`,
+          'info'
+        );
+      }
+    } catch (error) {
+      console.error('Call responder error:', error);
+      showAlert('Call Error', `Unable to place call: ${error.message}`, 'error');
+    }
+  };
+
   const handleSOSPress = async () => {
     try {
       // Import getCurrentLocation here since StatusScreen doesn't have it
@@ -511,6 +533,14 @@ const StatusScreen = ({ navigation }) => {
                   <Text style={styles.responderAddress}>
                     {responder.address || 'Valenzuela City'}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.callResponderButton}
+                    onPress={() => handleCallResponder(responder.phone || responder.contactNumber || '83524000')}
+                    activeOpacity={0.86}
+                  >
+                    <Ionicons name="call" size={16} color="#ffffff" />
+                    <Text style={styles.callResponderButtonText}>Call Assigned Unit</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -681,26 +711,7 @@ const StatusScreen = ({ navigation }) => {
         </ScrollView>
 
         {/* Bottom Navigation Bar */}
-        <View style={styles.bottomNavBarContainer}>
-          <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
-              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.navBottomItem}>
-              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-            <View style={styles.sosGlowRing} />
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <GlobalBottomBar navigation={navigation} activeTab="Status" />
       </View>
 
       {renderDetailsModal()}
@@ -1115,61 +1126,77 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   responderEyebrow: {
-    color: '#dc2626',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
+    color: '#dc2626',
     letterSpacing: 1.1,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   responderTitle: {
-    color: '#111827',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
-    lineHeight: 20,
+    color: '#111827',
   },
   responderMessage: {
-    color: '#374151',
     fontSize: 14,
-    fontWeight: '700',
+    color: '#4b5563',
+    fontWeight: '600',
     lineHeight: 20,
     marginBottom: 12,
   },
   responderMetaRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     marginBottom: 10,
   },
   responderMetaPill: {
     flex: 1,
     backgroundColor: '#ffffff',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#fee2e2',
-    borderRadius: 14,
-    padding: 12,
+    borderColor: '#fecaca',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   responderMetaLabel: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#991b1b',
-    fontSize: 14,
-    fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.7,
-    marginBottom: 4,
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   responderMetaValue: {
-    color: '#111827',
     fontSize: 14,
     fontWeight: '900',
+    color: '#111827',
   },
   responderAddress: {
-    color: '#7f1d1d',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 20,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    gap: 10,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
     marginBottom: 12,
+  },
+  callResponderButton: {
+    backgroundColor: '#dc2626',
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 8,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  callResponderButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.3,
   },
   detailsInfoCard: {
     flex: 1,

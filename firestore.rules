@@ -166,6 +166,20 @@ service cloud.firestore {
              request.resource.data.photoURL.size() > 0;
     }
 
+    function isValidIncidentLiveGPSStreamUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isOwner(resource.data.reporterId) &&
+             request.resource.data.reporterId == resource.data.reporterId &&
+             changedKeys.hasOnly(['location', 'lastGpsStreamAt', 'liveStreamingActive', 'distressResolvedAt']) &&
+             (!request.resource.data.keys().hasAny(['location']) ||
+              (request.resource.data.location.latitude is number &&
+               request.resource.data.location.longitude is number &&
+               request.resource.data.location.latitude >= -90 &&
+               request.resource.data.location.latitude <= 90 &&
+               request.resource.data.location.longitude >= -180 &&
+               request.resource.data.location.longitude <= 180));
+    }
+
     function hasNotExceededRateLimit() {
       // Simplified; production should enforce via Cloud Functions or server
       return true;
@@ -287,6 +301,9 @@ service cloud.firestore {
       // Users can attach the uploaded evidence photo URL to their own incident
       // after creation, even if validation has already moved it out of pending.
       allow update: if isValidIncidentPhotoUpdate();
+
+      // Allow distressed user to continuously stream GPS coordinates or resolve distress
+      allow update: if isValidIncidentLiveGPSStreamUpdate();
 
       // Barangay/Police admins can update or delete incidents for moderation and data tools.
       allow update, delete: if isAdmin() || isPoliceAdmin();

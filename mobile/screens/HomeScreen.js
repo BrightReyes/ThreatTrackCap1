@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
+import GlobalBottomBar from '../components/GlobalBottomBar';
 import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
 
 const { width, height } = Dimensions.get('window');
@@ -1090,24 +1091,7 @@ const HomeScreen = ({ navigation }) => {
           </Animated.View>
           <Text style={styles.loadingText}>Loading map data...</Text>
         </View>
-        <View style={styles.bottomNavBarContainer}>
-            <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem}>
-              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
-              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-            <View style={styles.sosGlowRing} />
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={userLocation} />
       </View>
     );
   }
@@ -1373,26 +1357,7 @@ const HomeScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNavBarContainer}>
-        <View style={styles.bottomNavBar}>
-          <TouchableOpacity style={styles.navBottomItem}>
-            <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-            <Text style={styles.navBottomLabel}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
-            <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
-            <Text style={styles.navBottomLabel}>Reports</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-          <View style={styles.sosGlowRing} />
-          <View style={styles.sosButtonInner}>
-            <Text style={styles.sosTextBottom}>SOS</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+      <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={userLocation} />
     </View>
 
     <SmoothModal

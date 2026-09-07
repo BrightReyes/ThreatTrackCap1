@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Linking,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,10 +12,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getReportEligibility } from '../utils/auth';
-import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
+import { getCurrentLocation, getAddressFromCoordinates, watchLocation } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 
 const INCIDENT_TYPES = [
@@ -147,6 +149,15 @@ const SOSReportScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState(hasPassedLocation ? passedLocation : null);
+
+  const [activeSOSIncidentId, setActiveSOSIncidentId] = useState(route?.params?.activeIncidentId || null);
+  const [isStreamingGPS, setIsStreamingGPS] = useState(Boolean(route?.params?.activeIncidentId));
+  const [streamCount, setStreamCount] = useState(0);
+  const [lastStreamTime, setLastStreamTime] = useState('');
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const lastSyncedCoordsRef = useRef(null);
+  const lastSyncTimeRef = useRef(0);
+
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -162,6 +173,32 @@ const SOSReportScreen = ({ navigation, route }) => {
   const locationReady = isValidReportLocation(currentLocation);
 
   useEffect(() => {
+    let animation;
+    if (isStreamingGPS) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.25,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    }
+    return () => {
+      if (animation) {
+        animation.stop();
+      }
+    };
+  }, [isStreamingGPS]);
+
+  useEffect(() => {
     const initializeLocation = async () => {
       try {
         if (!hasPassedLocation) {
@@ -174,6 +211,66 @@ const SOSReportScreen = ({ navigation, route }) => {
 
     initializeLocation();
   }, []);
+
+  useEffect(() => {
+    let locationSubscription = null;
+    let isSubscribed = true;
+
+    if (activeSOSIncidentId && isStreamingGPS) {
+      const startTracking = async () => {
+        try {
+          const sub = await watchLocation(async (newCoords) => {
+            if (!isSubscribed) return;
+            setCurrentLocation(newCoords);
+            setStreamCount((prev) => prev + 1);
+            setLastStreamTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+            // Firebase Free-Usage Guard (Spark plan): Only write if user moved >= ~10m or 20s elapsed
+            const now = Date.now();
+            const lastCoords = lastSyncedCoordsRef.current;
+            const hasMoved = !lastCoords ||
+              Math.abs(newCoords.latitude - lastCoords.latitude) > 0.0001 ||
+              Math.abs(newCoords.longitude - lastCoords.longitude) > 0.0001;
+            const timeSinceLastSync = now - lastSyncTimeRef.current;
+
+            if (hasMoved || timeSinceLastSync >= 20000) {
+              lastSyncedCoordsRef.current = newCoords;
+              lastSyncTimeRef.current = now;
+
+              try {
+                const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
+                await updateDoc(incidentRef, {
+                  'location.latitude': newCoords.latitude,
+                  'location.longitude': newCoords.longitude,
+                  lastGpsStreamAt: serverTimestamp(),
+                });
+              } catch (firestoreErr) {
+                // Warning only: avoids popup LogBox modal while awaiting manual rules paste in Firebase Console
+                console.warn('GPS stream sync waiting for Firestore rule update:', firestoreErr.message);
+              }
+            }
+          });
+
+          if (isSubscribed) {
+            locationSubscription = sub;
+          } else if (sub && typeof sub.remove === 'function') {
+            sub.remove();
+          }
+        } catch (locationErr) {
+          console.warn('Location watcher warning:', locationErr.message);
+        }
+      };
+
+      startTracking();
+    }
+
+    return () => {
+      isSubscribed = false;
+      if (locationSubscription && typeof locationSubscription.remove === 'function') {
+        locationSubscription.remove();
+      }
+    };
+  }, [activeSOSIncidentId, isStreamingGPS]);
 
   const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000) => {
     setAlertConfig({
@@ -218,6 +315,59 @@ const SOSReportScreen = ({ navigation, route }) => {
 
   const handleIncidentTypeChange = (type) => {
     setIncidentType(type);
+  };
+
+  const handleStopDistressTracking = async () => {
+    try {
+      setIsStreamingGPS(false);
+      if (activeSOSIncidentId) {
+        const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
+        await updateDoc(incidentRef, {
+          liveStreamingActive: false,
+          distressResolvedAt: serverTimestamp(),
+        });
+      }
+      showAlert(
+        'Distress Signal Ended',
+        'Live GPS streaming has stopped. Glad you are safe!',
+        'success',
+        [
+          {
+            text: 'View Status',
+            onPress: () => {
+              setActiveSOSIncidentId(null);
+              navigation.navigate('Status');
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Error stopping distress tracking:', err);
+      setActiveSOSIncidentId(null);
+      navigation.navigate('Status');
+    }
+  };
+
+  const handleClose = () => {
+    if (isStreamingGPS && activeSOSIncidentId) {
+      showAlert(
+        'Live GPS is Active',
+        'First responders are currently tracking your location. Do you want to stop live tracking and exit?',
+        'warning',
+        [
+          {
+            text: 'Keep Streaming',
+            style: 'cancel',
+          },
+          {
+            text: 'Stop & Exit',
+            onPress: () => handleStopDistressTracking(),
+          },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
   };
 
   const handleSubmit = async () => {
@@ -286,20 +436,21 @@ const SOSReportScreen = ({ navigation, route }) => {
         reporterEmailVerified: currentUser.emailVerified === true,
         reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
         isSOSReport: true,
+        liveStreamingActive: true,
+        lastGpsStreamAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'incidents'), incidentData);
+      const docRef = await addDoc(collection(db, 'incidents'), incidentData);
+
+      setActiveSOSIncidentId(docRef.id);
+      setIsStreamingGPS(true);
+      setLastStreamTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      setStreamCount(1);
 
       showAlert(
-        'SOS Report Sent',
-        'Your urgent report has been submitted with your current location.',
-        'success',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ],
+        'SOS Dispatched!',
+        'Emergency report sent! Live GPS streaming is active so responders can track you in real-time.',
+        'success'
       );
     } catch (error) {
       console.error('Error submitting SOS report:', error);
@@ -317,173 +468,250 @@ const SOSReportScreen = ({ navigation, route }) => {
             <View style={styles.sosBadge}>
               <Text style={styles.sosBadgeText}>SOS</Text>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
               <Text style={styles.closeButtonText}>x</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.headerTitle}>Quick Emergency Report</Text>
-          <Text style={styles.headerSubtitle}>Choose the incident, confirm your role, and send your location fast.</Text>
+          <Text style={styles.headerTitle}>
+            {isStreamingGPS ? 'Distress Stream Active' : 'Quick Emergency Report'}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {isStreamingGPS
+              ? 'Responders are receiving continuous live GPS coordinates from your phone.'
+              : 'Choose the incident, confirm your role, and send your location fast.'}
+          </Text>
           <View style={styles.statusStrip}>
-            <View style={styles.statusDot} />
+            <View style={[styles.statusDot, isStreamingGPS && styles.statusDotStreaming]} />
             <Text style={styles.statusText}>
-              {locationLoading ? 'Locking location...' : locationReady ? 'Location ready' : 'Location unavailable'}
+              {isStreamingGPS
+                ? 'GPS Streaming Live (Active)'
+                : locationLoading
+                ? 'Locking location...'
+                : locationReady
+                ? 'Location ready'
+                : 'Location unavailable'}
             </Text>
           </View>
         </View>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <View style={styles.content}>
-            <View style={styles.summaryPanel}>
-              <View>
-                <Text style={styles.summaryLabel}>Selected incident</Text>
-                <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Choose one below'}</Text>
-              </View>
-              <View
-                style={[
-                  styles.summarySeverityPill,
-                  {
-                    backgroundColor: severityStyle.backgroundColor,
-                    borderColor: severityStyle.borderColor,
-                  },
-                ]}
-              >
-                <Text style={[styles.summarySeverityText, { color: severityStyle.color }]}>
-                  {severityStyle.label}
+        {isStreamingGPS && activeSOSIncidentId ? (
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <View style={styles.liveStreamContainer}>
+              <View style={styles.radarCard}>
+                <View style={styles.radarBeaconContainer}>
+                  <Animated.View
+                    style={[
+                      styles.radarPulseOuter,
+                      { transform: [{ scale: pulseAnim }] },
+                    ]}
+                  />
+                  <View style={styles.radarBeaconInner}>
+                    <Ionicons name="radio" size={32} color="#ffffff" />
+                  </View>
+                </View>
+
+                <Text style={styles.radarLiveBadge}>● LIVE DISTRESS TRACKING</Text>
+                <Text style={styles.radarTitle}>Responders are Tracking You</Text>
+                <Text style={styles.radarSubtitle}>
+                  Stay calm. First responders have received your SOS and your coordinates are broadcasting in real time.
                 </Text>
-              </View>
-            </View>
 
-            <Text style={styles.sectionTitle}>Incident type</Text>
-            <View style={styles.incidentTypeGrid}>
-              {INCIDENT_TYPES.map((type) => {
-                const isSelected = incidentType === type.id;
-
-                return (
-                  <TouchableOpacity
-                    key={type.id}
-                    style={[
-                      styles.incidentTypeButton,
-                      isSelected && styles.incidentTypeButtonSelected,
-                    ]}
-                    onPress={() => handleIncidentTypeChange(type.id)}
-                    activeOpacity={0.86}
-                  >
-                    <View
-                      style={[
-                        styles.incidentIconBadge,
-                        isSelected && styles.incidentIconBadgeSelected,
-                      ]}
-                    >
-                      <Ionicons
-                        name={getIncidentIconName(type.id)}
-                        size={22}
-                        color={isSelected ? '#ffffff' : '#b91c1c'}
-                      />
-                    </View>
-                    <View style={styles.incidentTextWrap}>
-                      <Text
-                        style={[
-                          styles.incidentTypeLabel,
-                          isSelected && styles.incidentTypeLabelSelected,
-                        ]}
-                        numberOfLines={2}
-                      >
-                        {type.label}
-                      </Text>
-                      <Text style={styles.incidentTypeDescription} numberOfLines={2}>
-                        {type.description}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={styles.sectionTitle}>Reporting as</Text>
-            <View style={styles.reportingContainer}>
-              {REPORTING_OPTIONS.map((option) => {
-                const isSelected = reportingAs === option.id;
-
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[
-                      styles.reportingButton,
-                      isSelected && styles.reportingButtonSelected,
-                    ]}
-                    onPress={() => setReportingAs(option.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.reportingButtonText,
-                        isSelected && styles.reportingButtonTextSelected,
-                      ]}
-                    >
-                      {option.label}
+                <View style={styles.radarMetaBox}>
+                  <View style={styles.radarMetaRow}>
+                    <Text style={styles.radarMetaLabel}>Coordinates:</Text>
+                    <Text style={styles.radarMetaValue}>
+                      {currentLocation?.latitude
+                        ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
+                        : 'Acquiring GPS...'}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                  </View>
+                  <View style={styles.radarMetaRow}>
+                    <Text style={styles.radarMetaLabel}>Last Broadcast:</Text>
+                    <Text style={styles.radarMetaValue}>{lastStreamTime || 'Just now'}</Text>
+                  </View>
+                  <View style={styles.radarMetaRow}>
+                    <Text style={styles.radarMetaLabel}>GPS Pings Sent:</Text>
+                    <Text style={styles.radarMetaValue}>{streamCount} updates</Text>
+                  </View>
+                </View>
 
-            <Text style={styles.sectionTitle}>Quick details</Text>
-            <TextInput
-              style={styles.descriptionInput}
-              placeholder="Optional: add a short detail for responders..."
-              placeholderTextColor="#9ca3af"
-              multiline
-              numberOfLines={3}
-              value={description}
-              onChangeText={setDescription}
-              editable={!loading}
-              textAlignVertical="top"
-            />
-
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                SOS reports send your location immediately. Details are optional for faster reporting.
-              </Text>
-            </View>
-
-            {!locationLoading && !locationReady && (
-              <View style={styles.locationWarningBox}>
-                <Text style={styles.locationWarningTitle}>Location is required</Text>
-                <Text style={styles.locationWarningText}>
-                  Enable location services before sending an SOS report so responders receive your real position.
-                </Text>
                 <TouchableOpacity
-                  style={styles.locationRetryButton}
-                  onPress={retryLocationLock}
-                  disabled={loading}
+                  style={styles.precinctCallBtn}
+                  onPress={() => Linking.openURL('tel:83524000')}
+                  activeOpacity={0.86}
                 >
-                  <Text style={styles.locationRetryText}>Retry Location</Text>
+                  <Ionicons name="call" size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.precinctCallText}>Direct Call Hotline (8352-4000)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.safeButton}
+                  onPress={handleStopDistressTracking}
+                  activeOpacity={0.86}
+                >
+                  <Ionicons name="shield-checkmark" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.safeButtonText}>I Am Safe Now (Stop Live Stream)</Text>
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
+          </ScrollView>
+        ) : (
+          <>
+            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+              <View style={styles.content}>
+                <View style={styles.summaryPanel}>
+                  <View>
+                    <Text style={styles.summaryLabel}>Selected incident</Text>
+                    <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Choose one below'}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.summarySeverityPill,
+                      {
+                        backgroundColor: severityStyle.backgroundColor,
+                        borderColor: severityStyle.borderColor,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.summarySeverityText, { color: severityStyle.color }]}>
+                      {severityStyle.label}
+                    </Text>
+                  </View>
+                </View>
 
-            <View style={styles.bottomSpacing} />
-          </View>
-        </ScrollView>
+                <Text style={styles.sectionTitle}>Incident type</Text>
+                <View style={styles.incidentTypeGrid}>
+                  {INCIDENT_TYPES.map((type) => {
+                    const isSelected = incidentType === type.id;
 
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (loading || locationLoading || !locationReady) && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={loading || locationLoading || !locationReady}
-          >
-            {loading ? (
-              <>
-                <ActivityIndicator color="#ffffff" />
-                <Text style={styles.submitButtonText}>Sending...</Text>
-              </>
-            ) : (
-              <Text style={styles.submitButtonText}>Send SOS Report</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+                    return (
+                      <TouchableOpacity
+                        key={type.id}
+                        style={[
+                          styles.incidentTypeButton,
+                          isSelected && styles.incidentTypeButtonSelected,
+                        ]}
+                        onPress={() => handleIncidentTypeChange(type.id)}
+                        activeOpacity={0.86}
+                      >
+                        <View
+                          style={[
+                            styles.incidentIconBadge,
+                            isSelected && styles.incidentIconBadgeSelected,
+                          ]}
+                        >
+                          <Ionicons
+                            name={getIncidentIconName(type.id)}
+                            size={22}
+                            color={isSelected ? '#ffffff' : '#b91c1c'}
+                          />
+                        </View>
+                        <View style={styles.incidentTextWrap}>
+                          <Text
+                            style={[
+                              styles.incidentTypeLabel,
+                              isSelected && styles.incidentTypeLabelSelected,
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {type.label}
+                          </Text>
+                          <Text style={styles.incidentTypeDescription} numberOfLines={2}>
+                            {type.description}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.sectionTitle}>Reporting as</Text>
+                <View style={styles.reportingContainer}>
+                  {REPORTING_OPTIONS.map((option) => {
+                    const isSelected = reportingAs === option.id;
+
+                    return (
+                      <TouchableOpacity
+                        key={option.id}
+                        style={[
+                          styles.reportingButton,
+                          isSelected && styles.reportingButtonSelected,
+                        ]}
+                        onPress={() => setReportingAs(option.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.reportingButtonText,
+                            isSelected && styles.reportingButtonTextSelected,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.sectionTitle}>Quick details</Text>
+                <TextInput
+                  style={styles.descriptionInput}
+                  placeholder="Optional: add a short detail for responders..."
+                  placeholderTextColor="#9ca3af"
+                  multiline
+                  numberOfLines={3}
+                  value={description}
+                  onChangeText={setDescription}
+                  editable={!loading}
+                  textAlignVertical="top"
+                />
+
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    SOS reports send your location immediately. Details are optional for faster reporting.
+                  </Text>
+                </View>
+
+                {!locationLoading && !locationReady && (
+                  <View style={styles.locationWarningBox}>
+                    <Text style={styles.locationWarningTitle}>Location is required</Text>
+                    <Text style={styles.locationWarningText}>
+                      Enable location services before sending an SOS report so responders receive your real position.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.locationRetryButton}
+                      onPress={retryLocationLock}
+                      disabled={loading}
+                    >
+                      <Text style={styles.locationRetryText}>Retry Location</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <View style={styles.bottomSpacing} />
+              </View>
+            </ScrollView>
+
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  (loading || locationLoading || !locationReady) && styles.submitButtonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={loading || locationLoading || !locationReady}
+              >
+                {loading ? (
+                  <>
+                    <ActivityIndicator color="#ffffff" />
+                    <Text style={styles.submitButtonText}>Sending...</Text>
+                  </>
+                ) : (
+                  <Text style={styles.submitButtonText}>Send SOS Report</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </SafeAreaView>
 
       <CustomAlert

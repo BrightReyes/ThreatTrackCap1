@@ -6,6 +6,7 @@ import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
+import GlobalBottomBar from '../components/GlobalBottomBar';
 
 const NEARBY_RADIUS_KM = 5; // Alert for incidents within 5km
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
@@ -463,26 +464,7 @@ const AlertsScreen = ({ navigation }) => {
         </ScrollView>
 
         {/* Bottom Navigation Bar */}
-        <View style={styles.bottomNavBarContainer}>
-          <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
-              <Image source={require('../assets/icons/home.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
-              <Image source={require('../assets/icons/report.png')} style={styles.navBottomIconImage} />
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-            <View style={styles.sosGlowRing} />
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <GlobalBottomBar navigation={navigation} activeTab="Alerts" />
       </View>
 
       {/* Custom Alert Modal */}

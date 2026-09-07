@@ -16,6 +16,7 @@ import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
+import GlobalBottomBar from '../components/GlobalBottomBar';
 import { auth, db } from '../utils/firebase';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
@@ -418,26 +419,8 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           <View style={styles.bottomSpacer} />
         </ScrollView>
 
-        <View style={styles.bottomNavBarContainer}>
-          <View style={styles.bottomNavBar}>
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Home')}>
-              <Ionicons name="home-outline" size={27} color="#ffffff" style={styles.navBottomIcon} />
-              <Text style={styles.navBottomLabel}>Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.navBottomItem} onPress={() => navigation.replace('Status')}>
-              <Ionicons name="document-text-outline" size={27} color="#ffffff" style={styles.navBottomIcon} />
-              <Text style={styles.navBottomLabel}>Reports</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.sosButtonBottom} onPress={handleSOSPress}>
-            <View style={styles.sosGlowRing} />
-            <View style={styles.sosButtonInner}>
-              <Text style={styles.sosTextBottom}>SOS</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        {/* Bottom Navigation Bar */}
+        <GlobalBottomBar navigation={navigation} activeTab="Settings" />
       </View>
 
       <SmoothModal
