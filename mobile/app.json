@@ -20,6 +20,12 @@
           "cameraPermission": "Allow ThreatTrack to take evidence photos for incident reports.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ThreatTrack to access your location to track incidents and dispatch emergency assistance."
+        }
       ]
     ],
     "ios": {
@@ -33,6 +39,10 @@
     "android": {
       "package": "com.threattrack.mobile",
       "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "CAMERA",
         "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE"
@@ -40,6 +50,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "caebc918-4dd9-4907-8102-d9d7cab4d0c0"
+      }
     }
   }
 }

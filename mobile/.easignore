@@ -1,0 +1,7 @@
+# Ignored by EAS Build
+node_modules/
+.expo/
+npm-debug.*
+*.log
+android/
+ios/

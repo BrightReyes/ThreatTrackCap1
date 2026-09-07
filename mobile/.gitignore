@@ -1,0 +1,14 @@
+# Local environment variables
+.env
+.env.local
+.env.*.local
+
+# Native directories (Managed Expo Workflow)
+android/
+ios/
+
+# Dependencies
+node_modules/
+.expo/
+npm-debug.*
+*.log
