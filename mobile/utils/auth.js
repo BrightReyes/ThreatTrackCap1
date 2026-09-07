@@ -5,6 +5,8 @@ import {
   sendEmailVerification,
   updateProfile,
   reload,
+  signOut,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -102,7 +104,7 @@ export const handleLogin = async (email, password) => {
 
 export const handleSignup = async (email, password, userData = {}) => {
   console.log('[AUTH] handleSignup called with:', { email, userData });
-  
+
   // Validate inputs
   if (!email || !password) {
     console.log('[AUTH] Validation failed: missing email or password');
@@ -292,3 +294,48 @@ export const getReportEligibility = async () => {
     },
   };
 };
+
+/**
+ * Signs out the current Firebase user and terminates active session.
+ */
+export const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    return { success: true };
+  } catch (error) {
+    console.error('[AUTH] Sign out error:', error);
+    throw new Error(error.message || 'Failed to sign out');
+  }
+};
+
+/**
+ * Sends a password reset email via Firebase Auth.
+ * @param {string} email - Registered email address.
+ */
+export const handleResetPassword = async (email) => {
+  const cleanEmail = String(email || '').trim();
+  if (!cleanEmail) {
+    throw new Error('Please enter your email address');
+  }
+
+  if (!validateEmail(cleanEmail)) {
+    throw new Error('Please enter a valid email address');
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, cleanEmail);
+    return { success: true };
+  } catch (error) {
+    console.error('[AUTH] Password reset error:', error);
+    if (error.code === 'auth/user-not-found') {
+      throw new Error('No account registered with this email address');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Please enter a valid email address');
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many requests. Please try again in a few minutes');
+    } else {
+      throw new Error(error.message || 'Failed to send password reset email');
+    }
+  }
+};
+

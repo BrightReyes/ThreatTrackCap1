@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { enableFreeze, enableScreens } from 'react-native-screens';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './utils/firebase';
+import { handleLogout as authLogout } from './utils/auth';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
 import MainNavigator from './navigation/MainNavigator';
@@ -9,7 +12,7 @@ import MainNavigator from './navigation/MainNavigator';
 enableScreens(true);
 enableFreeze(true);
 
-// Simple Error Boundary Component
+// Simple Error Boundary Component to prevent unexpected unhandled crashes
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -39,18 +42,49 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  // Show login screen first - set to true to bypass authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('login');
+
+  useEffect(() => {
+    // Listen to Firebase authentication state changes.
+    // AsyncStorage persistence automatically checks for an existing session on app startup.
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+      setIsLoadingAuth(false);
+    });
+
+    // Clean up the auth subscription on unmount to prevent memory leaks
+    return () => unsubscribe();
+  }, []);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setCurrentScreen('login');
+  const handleLogout = async () => {
+    try {
+      await authLogout();
+    } catch (error) {
+      console.error('[AUTH] Sign out error:', error);
+    } finally {
+      setIsAuthenticated(false);
+      setCurrentScreen('login');
+    }
   };
+
+  if (isLoadingAuth) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#b91c1c" />
+        <Text style={styles.loadingText}>Initializing ThreatTrack...</Text>
+      </View>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -77,6 +111,18 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,

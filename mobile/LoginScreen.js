@@ -13,14 +13,18 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { handleLogin } from './utils/auth';
+import { handleLogin, handleResetPassword } from './utils/auth';
 import CustomAlert from './components/CustomAlert';
+import SmoothModal from './components/SmoothModal';
 
 const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotModalVisible, setForgotModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -28,6 +32,41 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
     type: 'info',
     buttons: [],
   });
+
+  const handleOpenForgotPassword = () => {
+    // If the user already typed an email in the login form, prefill it
+    setResetEmail(email ? email.trim() : '');
+    setForgotModalVisible(true);
+  };
+
+  const handleCloseForgotPassword = () => {
+    if (resetLoading) return;
+    setForgotModalVisible(false);
+  };
+
+  const onSubmitResetPassword = async () => {
+    const cleanEmail = resetEmail.trim();
+    if (!cleanEmail) {
+      showAlert('Email Required', 'Please enter your registered email address.', 'warning');
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      await handleResetPassword(cleanEmail);
+      setForgotModalVisible(false);
+      showAlert(
+        'Check Your Email',
+        `A password reset link has been sent to ${cleanEmail}. Please check your inbox or spam folder.`,
+        'success'
+      );
+      setResetEmail('');
+    } catch (error) {
+      showAlert('Reset Failed', error.message || 'Unable to send password reset email.', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const showAlert = (title, message, type = 'info', buttons = []) => {
     setAlertConfig({
@@ -154,7 +193,12 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.forgotPassword} disabled={loading}>
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={handleOpenForgotPassword}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot password?</Text>
               </TouchableOpacity>
 
@@ -184,6 +228,65 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </LinearGradient>
+
+      <SmoothModal
+        visible={forgotModalVisible}
+        onRequestClose={handleCloseForgotPassword}
+        position="bottom"
+        contentStyle={styles.forgotModalPanel}
+      >
+        <View style={styles.forgotModalHeader}>
+          <View style={styles.forgotIconContainer}>
+            <Ionicons name="key-outline" size={22} color="#991b1b" />
+          </View>
+          <View style={styles.forgotTitleWrap}>
+            <Text style={styles.forgotModalTitle}>Reset Password</Text>
+            <Text style={styles.forgotModalSubtitle}>
+              Enter your email to receive a password recovery link.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.forgotModalClose}
+            onPress={handleCloseForgotPassword}
+            disabled={resetLoading}
+            accessibilityLabel="Close password reset"
+          >
+            <Ionicons name="close" size={22} color="#64748b" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.label}>Registered email address</Text>
+        <View style={styles.inputContainer}>
+          <Ionicons name="mail-outline" size={20} color="#991b1b" />
+          <TextInput
+            style={styles.input}
+            placeholder="sample@email.com"
+            placeholderTextColor="#9ca3af"
+            value={resetEmail}
+            onChangeText={setResetEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!resetLoading}
+          />
+        </View>
+
+        <TouchableOpacity
+          style={[styles.loginButton, resetLoading && styles.loginButtonDisabled]}
+          onPress={onSubmitResetPassword}
+          disabled={resetLoading}
+          activeOpacity={0.86}
+        >
+          {resetLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.loginButtonText}>Send Reset Link</Text>
+              <Ionicons name="mail-outline" size={19} color="#ffffff" />
+            </>
+          )}
+        </TouchableOpacity>
+      </SmoothModal>
 
       <CustomAlert
         visible={alertConfig.visible}
@@ -384,6 +487,49 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     fontSize: 14,
     fontWeight: '800',
+  },
+  forgotModalPanel: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  forgotModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  forgotIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  forgotTitleWrap: {
+    flex: 1,
+  },
+  forgotModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  forgotModalSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  forgotModalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

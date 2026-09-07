@@ -9,6 +9,7 @@ import {
   StatusBar,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
@@ -132,6 +133,38 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
   const closeAboutModal = () => {
     setAboutVisible(false);
+  };
+
+  const handlePrecinctCall = async () => {
+    const phoneNumber = '83524000';
+    const telUrl = `tel:${phoneNumber}`;
+    try {
+      const supported = await Linking.canOpenURL(telUrl);
+      if (supported) {
+        await Linking.openURL(telUrl);
+      } else {
+        showAlert('Dialer Unavailable', `Unable to open dialer automatically. Please call ${phoneNumber} directly.`, 'info');
+      }
+    } catch (error) {
+      console.error('Precinct call error:', error);
+      showAlert('Dialer Error', 'Could not open the phone dialer.', 'error');
+    }
+  };
+
+  const handleSupportEmail = async () => {
+    const email = 'support@threattrack.local';
+    const mailUrl = `mailto:${email}?subject=ThreatTrack%20Support%20Request`;
+    try {
+      const supported = await Linking.canOpenURL(mailUrl);
+      if (supported) {
+        await Linking.openURL(mailUrl);
+      } else {
+        showAlert('Email Client Unavailable', `Please send your inquiries directly to ${email}.`, 'info');
+      }
+    } catch (error) {
+      console.error('Support email error:', error);
+      showAlert('Email Error', 'Could not open the email client.', 'error');
+    }
   };
 
   const closePasswordModal = () => {
@@ -597,7 +630,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.supportActionButton}
-                  onPress={() => showAlert('Call Precinct', 'Use the Home screen precinct tools to call the nearest station.', 'info')}
+                  onPress={handlePrecinctCall}
                   activeOpacity={0.86}
                 >
                   <Ionicons name="call-outline" size={21} color="#dc2626" />
@@ -633,13 +666,18 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               </View>
 
               <Text style={styles.supportSectionTitle}>Contact support</Text>
-              <View style={styles.supportContactCard}>
+              <TouchableOpacity
+                style={styles.supportContactCard}
+                onPress={handleSupportEmail}
+                activeOpacity={0.86}
+              >
                 <Ionicons name="mail-outline" size={20} color="#991b1b" />
                 <View style={styles.supportContactCopy}>
                   <Text style={styles.supportContactTitle}>ThreatTrack support</Text>
                   <Text style={styles.supportContactText}>support@threattrack.local</Text>
                 </View>
-              </View>
+                <Ionicons name="open-outline" size={18} color="#94a3b8" />
+              </TouchableOpacity>
 
               <View style={styles.supportSafetyNote}>
                 <Ionicons name="information-circle-outline" size={18} color="#991b1b" />
