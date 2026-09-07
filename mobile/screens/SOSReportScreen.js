@@ -323,8 +323,12 @@ const SOSReportScreen = ({ navigation, route }) => {
       if (activeSOSIncidentId) {
         const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
         await updateDoc(incidentRef, {
+          status: 'done',
+          responseStatus: 'completed',
           liveStreamingActive: false,
           distressResolvedAt: serverTimestamp(),
+          completedAt: serverTimestamp(),
+          resolutionReason: 'user_marked_safe',
         });
       }
       showAlert(
@@ -442,15 +446,16 @@ const SOSReportScreen = ({ navigation, route }) => {
 
       const docRef = await addDoc(collection(db, 'incidents'), incidentData);
 
-      setActiveSOSIncidentId(docRef.id);
-      setIsStreamingGPS(true);
-      setLastStreamTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setStreamCount(1);
-
       showAlert(
         'SOS Dispatched!',
-        'Emergency report sent! Live GPS streaming is active so responders can track you in real-time.',
-        'success'
+        'Emergency report sent! Live GPS tracking and distress stream are now active on your Home screen.',
+        'success',
+        [
+          {
+            text: 'View on Home',
+            onPress: () => navigation.navigate('Home'),
+          },
+        ]
       );
     } catch (error) {
       console.error('Error submitting SOS report:', error);
@@ -468,24 +473,18 @@ const SOSReportScreen = ({ navigation, route }) => {
             <View style={styles.sosBadge}>
               <Text style={styles.sosBadgeText}>SOS</Text>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
               <Text style={styles.closeButtonText}>x</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.headerTitle}>
-            {isStreamingGPS ? 'Distress Stream Active' : 'Quick Emergency Report'}
-          </Text>
+          <Text style={styles.headerTitle}>Quick Emergency Report</Text>
           <Text style={styles.headerSubtitle}>
-            {isStreamingGPS
-              ? 'Responders are receiving continuous live GPS coordinates from your phone.'
-              : 'Choose the incident, confirm your role, and send your location fast.'}
+            Choose the incident, confirm your role, and send your location fast.
           </Text>
           <View style={styles.statusStrip}>
-            <View style={[styles.statusDot, isStreamingGPS && styles.statusDotStreaming]} />
+            <View style={styles.statusDot} />
             <Text style={styles.statusText}>
-              {isStreamingGPS
-                ? 'GPS Streaming Live (Active)'
-                : locationLoading
+              {locationLoading
                 ? 'Locking location...'
                 : locationReady
                 ? 'Location ready'
@@ -494,69 +493,7 @@ const SOSReportScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {isStreamingGPS && activeSOSIncidentId ? (
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            <View style={styles.liveStreamContainer}>
-              <View style={styles.radarCard}>
-                <View style={styles.radarBeaconContainer}>
-                  <Animated.View
-                    style={[
-                      styles.radarPulseOuter,
-                      { transform: [{ scale: pulseAnim }] },
-                    ]}
-                  />
-                  <View style={styles.radarBeaconInner}>
-                    <Ionicons name="radio" size={32} color="#ffffff" />
-                  </View>
-                </View>
 
-                <Text style={styles.radarLiveBadge}>● LIVE DISTRESS TRACKING</Text>
-                <Text style={styles.radarTitle}>Responders are Tracking You</Text>
-                <Text style={styles.radarSubtitle}>
-                  Stay calm. First responders have received your SOS and your coordinates are broadcasting in real time.
-                </Text>
-
-                <View style={styles.radarMetaBox}>
-                  <View style={styles.radarMetaRow}>
-                    <Text style={styles.radarMetaLabel}>Coordinates:</Text>
-                    <Text style={styles.radarMetaValue}>
-                      {currentLocation?.latitude
-                        ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}`
-                        : 'Acquiring GPS...'}
-                    </Text>
-                  </View>
-                  <View style={styles.radarMetaRow}>
-                    <Text style={styles.radarMetaLabel}>Last Broadcast:</Text>
-                    <Text style={styles.radarMetaValue}>{lastStreamTime || 'Just now'}</Text>
-                  </View>
-                  <View style={styles.radarMetaRow}>
-                    <Text style={styles.radarMetaLabel}>GPS Pings Sent:</Text>
-                    <Text style={styles.radarMetaValue}>{streamCount} updates</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.precinctCallBtn}
-                  onPress={() => Linking.openURL('tel:83524000')}
-                  activeOpacity={0.86}
-                >
-                  <Ionicons name="call" size={18} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.precinctCallText}>Direct Call Hotline (8352-4000)</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.safeButton}
-                  onPress={handleStopDistressTracking}
-                  activeOpacity={0.86}
-                >
-                  <Ionicons name="shield-checkmark" size={20} color="#ffffff" style={{ marginRight: 8 }} />
-                  <Text style={styles.safeButtonText}>I Am Safe Now (Stop Live Stream)</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        ) : (
-          <>
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
               <View style={styles.content}>
                 <View style={styles.summaryPanel}>
@@ -691,27 +628,25 @@ const SOSReportScreen = ({ navigation, route }) => {
               </View>
             </ScrollView>
 
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  (loading || locationLoading || !locationReady) && styles.submitButtonDisabled,
-                ]}
-                onPress={handleSubmit}
-                disabled={loading || locationLoading || !locationReady}
-              >
-                {loading ? (
-                  <>
-                    <ActivityIndicator color="#ffffff" />
-                    <Text style={styles.submitButtonText}>Sending...</Text>
-                  </>
-                ) : (
-                  <Text style={styles.submitButtonText}>Send SOS Report</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              (loading || locationLoading || !locationReady) && styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={loading || locationLoading || !locationReady}
+          >
+            {loading ? (
+              <>
+                <ActivityIndicator color="#ffffff" />
+                <Text style={styles.submitButtonText}>Sending...</Text>
+              </>
+            ) : (
+              <Text style={styles.submitButtonText}>Send SOS Report</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
 
       <CustomAlert

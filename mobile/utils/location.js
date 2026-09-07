@@ -77,6 +77,56 @@ export const getCurrentLocation = async () => {
 };
 
 /**
+ * Get the user's location with extreme speed (checks cached position first < 50ms)
+ * @returns {Promise<Object|null>} Location object or null
+ */
+export const getFastLocation = async () => {
+  try {
+    const hasPermission = await checkLocationPermission();
+    if (!hasPermission) {
+      const granted = await requestLocationPermission();
+      if (!granted) return null;
+    }
+
+    // 1. Instant cached position (< 50ms)
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown && lastKnown.coords) {
+        return {
+          latitude: lastKnown.coords.latitude,
+          longitude: lastKnown.coords.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        };
+      }
+    } catch {
+      // Fall through to quick position check
+    }
+
+    // 2. Bounded current position (max 1.4s wait)
+    const positionPromise = Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 1400));
+    const location = await Promise.race([positionPromise, timeoutPromise]);
+
+    if (location && location.coords) {
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('Fast location check:', error.message);
+    return null;
+  }
+};
+
+/**
  * Watch user's location for changes
  * @param {Function} callback Function to call when location changes
  * @returns {Promise<Object>} Location subscription object

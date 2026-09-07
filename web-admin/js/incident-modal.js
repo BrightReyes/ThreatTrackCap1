@@ -161,6 +161,16 @@ function buildPriorityPanel(d) {
 }
 
 function buildResponsePanel(d) {
+    if (d.resolutionReason === "user_marked_safe" || (d.status === "done" && Boolean(d.distressResolvedAt) && !hasResponderAssigned(d))) {
+        return `<section class="incident-response-card incident-response-card--safe" style="border-color: #a7f3d0; background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%); box-shadow: 0 12px 28px rgba(16, 185, 129, 0.1); padding: 14px;">
+    <p class="incident-response-card__eyebrow" style="color: #047857; font-weight: 800; margin-bottom: 4px;">Resolved by Citizen</p>
+    <h3 style="color: #065f46; font-size: 1.05rem; margin: 0 0 6px 0;">Citizen Confirmed Safe</h3>
+    <p style="color: #047857; margin: 0 0 10px 0; font-size: 0.9rem;">The reporting citizen marked themselves safe and terminated distress tracking. No precinct dispatch is required.</p>
+    <div class="incident-response-card__meta">
+      <span style="color: #047857; font-weight: 700;">● Live GPS Stream Terminated</span>
+    </div>
+  </section>`;
+    }
     if (!hasResponderAssigned(d)) return "";
     const response = d.response || {};
     const responder = d.responder || response.responder || {};

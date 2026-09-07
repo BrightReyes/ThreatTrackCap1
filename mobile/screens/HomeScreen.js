@@ -13,11 +13,13 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { collection, query, where, getDocs, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, orderBy, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { Ionicons } from '@expo/vector-icons';
+import ActiveEmergencyModal from '../components/ActiveEmergencyModal';
 import MapView, { Marker, Polygon, Heatmap, Circle } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
-import { getCurrentLocation, requestLocationPermission, calculateDistance, formatDistance } from '../utils/location';
+import { getCurrentLocation, getFastLocation, requestLocationPermission, calculateDistance, formatDistance, watchLocation } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
@@ -256,9 +258,9 @@ const VALENZUELA_BOUNDARY = [
 
 const HomeScreen = ({ navigation }) => {
   // State management
-  const [userLocation, setUserLocation] = useState(null);
+  const [userLocation, setUserLocation] = useState(VALENZUELA_CENTER);
   const [incidents, setIncidents] = useState([]);
-  const [precincts, setPrecincts] = useState([]);
+  const [precincts, setPrecincts] = useState(VALENZUELA_POLICE_PRECINCTS);
   const [nearestPrecinct, setNearestPrecinct] = useState(null);
   const [riskStats, setRiskStats] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(true);
@@ -273,6 +275,9 @@ const HomeScreen = ({ navigation }) => {
   const heatmapRequestIdRef = useRef(0);
   const heatmapEndpointUnavailableRef = useRef(false);
   const rotationValue = useRef(new Animated.Value(0)).current;
+  const radarRipple1 = useRef(new Animated.Value(0)).current;
+  const radarRipple2 = useRef(new Animated.Value(0)).current;
+  const progressRunner = useRef(new Animated.Value(0)).current;
 
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
@@ -287,6 +292,190 @@ const HomeScreen = ({ navigation }) => {
     type: null,
     item: null,
   });
+
+  // Active Emergency Report & Distress Stream states
+  const [activeSOSIncident, setActiveSOSIncident] = useState(null);
+  const [emergencyModalVisible, setEmergencyModalVisible] = useState(false);
+  const [distressPingsCount, setDistressPingsCount] = useState(1);
+  const [lastDistressBroadcastTime, setLastDistressBroadcastTime] = useState('');
+  const stickyPulseAnim = useRef(new Animated.Value(1)).current;
+  const lastSyncedCoordsRef = useRef(null);
+  const lastSyncTimeRef = useRef(0);
+
+  // Pulse animation for sticky preview card
+  useEffect(() => {
+    let anim;
+    if (activeSOSIncident) {
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(stickyPulseAnim, {
+            toValue: 1.25,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(stickyPulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+    }
+    return () => {
+      if (anim) anim.stop();
+    };
+  }, [activeSOSIncident]);
+
+  // Real-time listener for user's active SOS report
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setActiveSOSIncident(null);
+      setEmergencyModalVisible(false);
+      return undefined;
+    }
+
+    const incidentsRef = collection(db, 'incidents');
+    const q = query(
+      incidentsRef,
+      where('reporterId', '==', currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const getDocMillis = (d) => {
+        if (!d) return 0;
+        if (d.timestamp?.toMillis) return d.timestamp.toMillis();
+        if (d.timestamp?.toDate) return d.timestamp.toDate().getTime();
+        if (d.timestamp) {
+          const t = new Date(d.timestamp).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        if (d.reportedAt?.toMillis) return d.reportedAt.toMillis();
+        if (d.reportedAt?.toDate) return d.reportedAt.toDate().getTime();
+        if (d.reportedAt) {
+          const t = new Date(d.reportedAt).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        if (d.clientTimestamp) {
+          const t = new Date(d.clientTimestamp).getTime();
+          if (!Number.isNaN(t)) return t;
+        }
+        return 0;
+      };
+
+      let latestSOSDoc = null;
+      let latestMillis = -1;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.isSOSReport === true) {
+          const m = getDocMillis(data);
+          if (m >= latestMillis) {
+            latestMillis = m;
+            latestSOSDoc = { id: docSnap.id, ...data };
+          }
+        }
+      });
+
+      if (latestSOSDoc) {
+        const rawStatus = String(latestSOSDoc.status || '').toLowerCase().trim();
+        const rawResponseStatus = String(
+          latestSOSDoc.responseStatus || latestSOSDoc.response?.status || ''
+        ).toLowerCase().trim();
+
+        const isTerminal =
+          ['done', 'completed', 'resolved', 'closed', 'rejected', 'spam', 'cancelled'].includes(rawStatus) ||
+          ['completed', 'resolved', 'closed', 'rejected'].includes(rawResponseStatus);
+
+        const isSafe =
+          latestSOSDoc.liveStreamingActive === false ||
+          Boolean(latestSOSDoc.distressResolvedAt);
+
+        // Discard if older than 24 hours
+        const isStale = latestMillis > 0 && Date.now() - latestMillis > 24 * 60 * 60 * 1000;
+
+        if (!isTerminal && !isSafe && !isStale) {
+          setActiveSOSIncident((prev) => {
+            if (!prev || prev.id !== latestSOSDoc.id) {
+              setEmergencyModalVisible(true);
+            }
+            return latestSOSDoc;
+          });
+        } else {
+          // Immediately vanish when marked done/completed or resolved
+          setActiveSOSIncident(null);
+          setEmergencyModalVisible(false);
+        }
+      } else {
+        setActiveSOSIncident(null);
+        setEmergencyModalVisible(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Background GPS streaming watcher while SOS report is active
+  useEffect(() => {
+    let locationSubscription = null;
+    let isSubscribed = true;
+
+    if (activeSOSIncident && activeSOSIncident.id && activeSOSIncident.liveStreamingActive !== false) {
+      const startStreaming = async () => {
+        try {
+          const sub = await watchLocation(async (newCoords) => {
+            if (!isSubscribed) return;
+            setUserLocation(newCoords);
+            setDistressPingsCount((prev) => prev + 1);
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            setLastDistressBroadcastTime(timeStr);
+
+            // Free-Tier Guard (Spark plan): Only write if moved >= ~10m or 20s elapsed
+            const now = Date.now();
+            const lastCoords = lastSyncedCoordsRef.current;
+            const hasMoved = !lastCoords ||
+              Math.abs(newCoords.latitude - lastCoords.latitude) > 0.0001 ||
+              Math.abs(newCoords.longitude - lastCoords.longitude) > 0.0001;
+            const timeSinceLastSync = now - lastSyncTimeRef.current;
+
+            if (hasMoved || timeSinceLastSync >= 20000) {
+              lastSyncedCoordsRef.current = newCoords;
+              lastSyncTimeRef.current = now;
+
+              try {
+                const incidentRef = doc(db, 'incidents', activeSOSIncident.id);
+                await updateDoc(incidentRef, {
+                  'location.latitude': newCoords.latitude,
+                  'location.longitude': newCoords.longitude,
+                  lastGpsStreamAt: serverTimestamp(),
+                });
+              } catch (syncErr) {
+                console.warn('GPS stream sync pending Firestore rules update:', syncErr.message);
+              }
+            }
+          });
+
+          if (isSubscribed) {
+            locationSubscription = sub;
+          } else if (sub && typeof sub.remove === 'function') {
+            sub.remove();
+          }
+        } catch (err) {
+          console.warn('Location streaming watcher warning:', err.message);
+        }
+      };
+
+      startStreaming();
+    }
+
+    return () => {
+      isSubscribed = false;
+      if (locationSubscription && typeof locationSubscription.remove === 'function') {
+        locationSubscription.remove();
+      }
+    };
+  }, [activeSOSIncident?.id]);
 
   const showAlert = (title, message, type = 'info', buttons = []) => {
     setAlertConfig({
@@ -382,21 +571,59 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [userLocation, precincts]);
 
-  // Rotate spinner while loading
+  // Radar ripple and progress animations while loading
   useEffect(() => {
+    let radarAnim1, radarAnim2, progressAnim;
+    let timer;
     if (loading) {
-      rotationValue.setValue(0);
-      Animated.loop(
-        Animated.timing(rotationValue, {
+      radarRipple1.setValue(0);
+      radarRipple2.setValue(0);
+      progressRunner.setValue(0);
+
+      radarAnim1 = Animated.loop(
+        Animated.timing(radarRipple1, {
           toValue: 1,
-          duration: 2000,
+          duration: 1800,
           useNativeDriver: true,
         })
-      ).start();
-    } else {
-      rotationValue.setValue(0);
+      );
+      radarAnim1.start();
+
+      timer = setTimeout(() => {
+        radarAnim2 = Animated.loop(
+          Animated.timing(radarRipple2, {
+            toValue: 1,
+            duration: 1800,
+            useNativeDriver: true,
+          })
+        );
+        radarAnim2.start();
+      }, 700);
+
+      progressAnim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(progressRunner, {
+            toValue: 1,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(progressRunner, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      progressAnim.start();
     }
-  }, [loading, rotationValue]);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (radarAnim1) radarAnim1.stop();
+      if (radarAnim2) radarAnim2.stop();
+      if (progressAnim) progressAnim.stop();
+    };
+  }, [loading, radarRipple1, radarRipple2, progressRunner]);
 
   // Refresh incidents when screen comes into focus (after reporting incident)
   useFocusEffect(
@@ -413,45 +640,61 @@ const HomeScreen = ({ navigation }) => {
     try {
       setLoading(true);
 
-      // Request location permission
-      const hasPermission = await requestLocationPermission();
-      
-      if (hasPermission) {
-        // Get user location
-        const location = await getCurrentLocation();
-        if (location) {
-          // Check if user is within or near Valenzuela, otherwise default to center
-          const isNearValenzuela = 
-            location.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
-            location.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
-            location.longitude >= VALENZUELA_BOUNDS.southWest.longitude - 0.05 &&
-            location.longitude <= VALENZUELA_BOUNDS.northEast.longitude + 0.05;
-          
-          setUserLocation(isNearValenzuela ? location : VALENZUELA_CENTER);
-        } else {
-          // Default to Valenzuela center if location fetch fails
-          setUserLocation(VALENZUELA_CENTER);
+      // Fast location acquisition (<50ms cached or 1400ms balanced timeout)
+      const fastLocPromise = (async () => {
+        try {
+          const loc = await getFastLocation();
+          if (loc) {
+            const isNearValenzuela =
+              loc.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
+              loc.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
+              loc.longitude >= VALENZUELA_BOUNDS.southWest.longitude - 0.05 &&
+              loc.longitude <= VALENZUELA_BOUNDS.northEast.longitude + 0.05;
+            const validLoc = isNearValenzuela ? loc : VALENZUELA_CENTER;
+            setUserLocation(validLoc);
+            return validLoc;
+          }
+        } catch (err) {
+          console.warn('Fast location check warning:', err.message);
         }
-      } else {
-        // Default to Valenzuela center if permission denied
-        setUserLocation(VALENZUELA_CENTER);
-      }
+        return VALENZUELA_CENTER;
+      })();
 
-      // Fetch data from Firestore
-      await Promise.all([
+      // Parallel data fetching
+      const dataPromise = Promise.all([
         fetchIncidents(),
         fetchPrecincts(),
       ]);
 
+      // Race against a 900ms ceiling so emergency app never blocks citizen
+      await Promise.race([
+        Promise.all([fastLocPromise, dataPromise]),
+        new Promise((resolve) => setTimeout(resolve, 900)),
+      ]);
+
       setLoading(false);
+
+      // Silent background high-accuracy GPS refinement without blocking the UI
+      getCurrentLocation()
+        .then((accurateLoc) => {
+          if (accurateLoc) {
+            const isNearValenzuela =
+              accurateLoc.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
+              accurateLoc.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
+              accurateLoc.longitude >= VALENZUELA_BOUNDS.southWest.longitude - 0.05 &&
+              accurateLoc.longitude <= VALENZUELA_BOUNDS.northEast.longitude + 0.05;
+            if (isNearValenzuela) {
+              setUserLocation(accurateLoc);
+            }
+          }
+        })
+        .catch(() => {});
     } catch (error) {
-      console.error('Error initializing app:', error);
-      // Ensure map shows even on error
+      console.warn('App initialization warning:', error.message);
       if (!userLocation) {
         setUserLocation(VALENZUELA_CENTER);
       }
       setLoading(false);
-      showAlert('Error', 'Failed to load data. Please try again.', 'error');
     }
   };
 
@@ -1065,13 +1308,27 @@ const HomeScreen = ({ navigation }) => {
   };
 
   if (loading) {
-    const loadingScale = rotationValue.interpolate({
+    const ring1Scale = radarRipple1.interpolate({
       inputRange: [0, 1],
-      outputRange: [0.96, 1.08],
+      outputRange: [1, 2.3],
     });
-    const loadingOpacity = rotationValue.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [0.72, 1, 0.72],
+    const ring1Opacity = radarRipple1.interpolate({
+      inputRange: [0, 0.4, 1],
+      outputRange: [0.55, 0.28, 0],
+    });
+
+    const ring2Scale = radarRipple2.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 2.3],
+    });
+    const ring2Opacity = radarRipple2.interpolate({
+      inputRange: [0, 0.4, 1],
+      outputRange: [0.55, 0.28, 0],
+    });
+
+    const runnerTranslateX = progressRunner.interpolate({
+      inputRange: [0, 1],
+      outputRange: [-60, 140],
     });
 
     return (
@@ -1079,18 +1336,45 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.headerNew}>
           <Text style={styles.headerNewTitle}>THREAT TRACK</Text>
         </View>
+
         <View style={styles.loadingContainer}>
-          <Animated.View style={[
-            styles.loadingLogoShell,
-            { opacity: loadingOpacity, transform: [{ scale: loadingScale }] },
-          ]}>
-            <Image
-              source={APP_LOGO}
-              style={styles.loadingSpinner}
+          {/* Radar Ripple Beacon */}
+          <View style={styles.radarContainer}>
+            <Animated.View
+              style={[
+                styles.radarRing,
+                { transform: [{ scale: ring1Scale }], opacity: ring1Opacity },
+              ]}
             />
-          </Animated.View>
-          <Text style={styles.loadingText}>Loading map data...</Text>
+            <Animated.View
+              style={[
+                styles.radarRing,
+                { transform: [{ scale: ring2Scale }], opacity: ring2Opacity },
+              ]}
+            />
+            <View style={styles.radarBeacon}>
+              <Ionicons name="shield" size={34} color="#ffffff" />
+            </View>
+          </View>
+
+          {/* Typography */}
+          <Text style={styles.loadingEyebrow}>● THREATTRACK SAFETY GRID</Text>
+          <Text style={styles.loadingTitle}>Connecting Safety Network</Text>
+          <Text style={styles.loadingSubtitle}>
+            Syncing Valenzuela telemetry & radar...
+          </Text>
+
+          {/* Sleek Progress Bar Track */}
+          <View style={styles.progressBarTrack}>
+            <Animated.View
+              style={[
+                styles.progressBarRunner,
+                { transform: [{ translateX: runnerTranslateX }] },
+              ]}
+            />
+          </View>
         </View>
+
         <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={userLocation} />
       </View>
     );
@@ -1123,6 +1407,50 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Sticky Active Emergency Report Preview (Fixed at top under header while scrolling) */}
+      {activeSOSIncident && (
+        <TouchableOpacity
+          style={styles.activeStickyPreview}
+          onPress={() => setEmergencyModalVisible(true)}
+          activeOpacity={0.88}
+        >
+          <View style={styles.activeStickyLeft}>
+            <Animated.View
+              style={[
+                styles.activeStickyPulseRing,
+                { transform: [{ scale: stickyPulseAnim }] },
+              ]}
+            />
+            <View style={styles.activeStickyBeacon}>
+              <Ionicons name="radio" size={15} color="#ffffff" />
+            </View>
+          </View>
+          <View style={styles.activeStickyBody}>
+            <View style={styles.activeStickyTopRow}>
+              <View style={styles.activeStickyBadgeRow}>
+                <Text style={styles.activeStickyEyebrow} numberOfLines={1}>
+                  ● LIVE DISTRESS
+                </Text>
+              </View>
+              <View style={styles.activeStickyStatusPill}>
+                <Text style={styles.activeStickyStatusText} numberOfLines={1}>
+                  {String(activeSOSIncident.status || '').toLowerCase() === 'responding' ? 'RESPONDING' : 'UNDER REVIEW'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.activeStickyTitle} numberOfLines={1}>
+              {activeSOSIncident.typeLabel || activeSOSIncident.type || 'Emergency Report'}
+            </Text>
+            <Text style={styles.activeStickyMeta} numberOfLines={1}>
+              Live GPS active • Tap to track
+            </Text>
+          </View>
+          <View style={styles.activeStickyArrowWrap}>
+            <Ionicons name="chevron-forward" size={18} color="#dc2626" />
+          </View>
+        </TouchableOpacity>
+      )}
 
       <ScrollView 
         style={styles.scrollView}
@@ -1370,6 +1698,20 @@ const HomeScreen = ({ navigation }) => {
       {renderHomeModalContent()}
     </SmoothModal>
 
+    {/* Active Emergency Tracking & Distress Stream Modal */}
+    <ActiveEmergencyModal
+      incident={activeSOSIncident}
+      visible={emergencyModalVisible}
+      onClose={() => setEmergencyModalVisible(false)}
+      onResolveSafe={() => {
+        setActiveSOSIncident(null);
+        setEmergencyModalVisible(false);
+      }}
+      distressPingsCount={distressPingsCount}
+      lastDistressBroadcastTime={lastDistressBroadcastTime}
+      currentLocation={userLocation}
+    />
+
     {/* Custom Alert Modal */}
     <CustomAlert
       visible={alertConfig.visible}
@@ -1489,32 +1831,74 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
+    paddingHorizontal: 32,
   },
-  loadingText: {
-    marginTop: 18,
-    fontSize: 16,
-    color: '#991b1b',
-    fontWeight: '800',
+  radarContainer: {
+    width: 140,
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 26,
+    position: 'relative',
   },
-  loadingLogoShell: {
-    width: 96,
-    height: 96,
-    borderRadius: 30,
-    backgroundColor: '#fff7f7',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
+  radarRing: {
+    position: 'absolute',
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 2,
+    borderColor: '#dc2626',
+    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+  },
+  radarBeacon: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 12,
   },
-  loadingSpinner: {
-    width: 72,
-    height: 82,
-    resizeMode: 'contain',
+  loadingEyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#dc2626',
+    letterSpacing: 2,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 6,
+    textAlign: 'center',
+    letterSpacing: 0.2,
+  },
+  loadingSubtitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 22,
+  },
+  progressBarTrack: {
+    width: 140,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#fee2e2',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  progressBarRunner: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#dc2626',
   },
   
   /* New Header Styles */
@@ -1617,6 +2001,106 @@ const styles = StyleSheet.create({
   },
   
   // Map Section
+  // Sticky Active Emergency Report Preview Styles
+  activeStickyPreview: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 100,
+  },
+  activeStickyLeft: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  activeStickyPulseRing: {
+    position: 'absolute',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(220, 38, 38, 0.22)',
+  },
+  activeStickyBeacon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeStickyBody: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 6,
+  },
+  activeStickyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  activeStickyBadgeRow: {
+    flex: 1,
+    minWidth: 0,
+  },
+  activeStickyEyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#dc2626',
+    letterSpacing: 0.6,
+  },
+  activeStickyStatusPill: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    flexShrink: 0,
+  },
+  activeStickyStatusText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#991b1b',
+    textTransform: 'uppercase',
+  },
+  activeStickyTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  activeStickyMeta: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  activeStickyArrowWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fef2f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+    flexShrink: 0,
+  },
+
   mapContainer: {
     paddingHorizontal: 16,
     paddingTop: 20,

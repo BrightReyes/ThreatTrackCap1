@@ -158,6 +158,10 @@ function reportSortMs(data = {}) {
 function isEligibleAlert(id, data = {}, options = {}) {
     if (options.preview === true) return true;
     if (!id || data.isSOSReport !== true) return false;
+    const status = String(data.status || "").toLowerCase().trim();
+    if (["done", "completed", "resolved", "closed", "rejected", "spam"].includes(status)) return false;
+    if (data.resolutionReason === "user_marked_safe") return false;
+    if (data.liveStreamingActive === false || Boolean(data.distressResolvedAt)) return false;
     if (!canRespondToIncident(data)) return false;
     if (isDismissed(id, data)) return false;
     if (wasActioned(id, data)) return false;
@@ -209,6 +213,9 @@ function enqueuePriorityAlert(id, data = {}, options = {}, queueOptions = {}) {
 }
 
 function removeQueuedAlert(id) {
+    if (activeAlertId === id) {
+        closeActiveAlert({showNext: true});
+    }
     if (!queuedAlertIds.has(id)) return;
     queuedAlertIds.delete(id);
     const index = alertQueue.findIndex((item) => item.id === id);
@@ -447,10 +454,25 @@ export function showSosAlertPreview() {
 
 function syncIncidentQueueFromDoc(docSnap, queueOptions = {}) {
     const data = docSnap.data() || {};
-    if (isEligibleAlert(docSnap.id, data)) {
-        enqueuePriorityAlert(docSnap.id, data, {}, queueOptions);
+    const id = docSnap.id;
+
+    if (activeAlertId === id && !isEligibleAlert(id, data)) {
+        closeActiveAlert({showNext: true});
+        if (data.resolutionReason === "user_marked_safe" || data.status === "done") {
+            toastSuccess("Citizen confirmed safe. Emergency alert closed.");
+        }
+        window.dispatchEvent(
+            new CustomEvent("incident:updated", {
+                detail: { id, status: data.status || "done" },
+            }),
+        );
+        return;
+    }
+
+    if (isEligibleAlert(id, data)) {
+        enqueuePriorityAlert(id, data, {}, queueOptions);
     } else {
-        removeQueuedAlert(docSnap.id);
+        removeQueuedAlert(id);
     }
 }
 

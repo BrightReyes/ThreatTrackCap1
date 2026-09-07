@@ -37,8 +37,12 @@ const mainPageOptions = {
 };
 
 const urgentFlowOptions = {
-  gestureDirection: 'vertical',
-  cardStyleInterpolator: CardStyleInterpolators.forModalPresentationIOS,
+  gestureEnabled: false,
+  cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS,
+  transitionSpec: {
+    open: TransitionSpecs.TransitionIOSSpec,
+    close: TransitionSpecs.TransitionIOSSpec,
+  },
 };
 
 // Stack Navigator with all screens

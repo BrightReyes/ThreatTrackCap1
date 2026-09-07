@@ -180,6 +180,22 @@ service cloud.firestore {
                request.resource.data.location.longitude <= 180));
     }
 
+    function isValidIncidentUserMarkSafeUpdate() {
+      let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return isOwner(resource.data.reporterId) &&
+             request.resource.data.reporterId == resource.data.reporterId &&
+             request.resource.data.status in ['done', 'completed'] &&
+             changedKeys.hasOnly([
+               'status',
+               'responseStatus',
+               'liveStreamingActive',
+               'distressResolvedAt',
+               'completedAt',
+               'resolutionReason',
+               'response'
+             ]);
+    }
+
     function hasNotExceededRateLimit() {
       // Simplified; production should enforce via Cloud Functions or server
       return true;
@@ -304,6 +320,9 @@ service cloud.firestore {
 
       // Allow distressed user to continuously stream GPS coordinates or resolve distress
       allow update: if isValidIncidentLiveGPSStreamUpdate();
+
+      // Allow distressed user to mark report resolved/done when safe
+      allow update: if isValidIncidentUserMarkSafeUpdate();
 
       // Barangay/Police admins can update or delete incidents for moderation and data tools.
       allow update, delete: if isAdmin() || isPoliceAdmin();
