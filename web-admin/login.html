@@ -3,15 +3,18 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Admin | Sign in</title>
+        <title>ThreatTrack | Admin Portal</title>
         <link
             rel="icon"
             type="image/png"
             sizes="32x32"
-            href="/assets/image 10.png"
+            href="/assets/favicon.png"
         />
+        <!-- Google Fonts: Plus Jakarta Sans & Material Symbols Outlined -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="/css/base.css" />
@@ -19,17 +22,30 @@
     </head>
     <body>
         <div id="page-login" class="login-screen">
+            <!-- Atmospheric Ambient Lighting Effects -->
+            <div class="ambient-glow ambient-glow-top" aria-hidden="true"></div>
+            <div class="ambient-glow ambient-glow-bottom" aria-hidden="true"></div>
+
             <div class="login-container">
                 <div class="form-container">
-                    <a href="/" class="back-home-link" title="Return to ThreatTrack Public Home">
-                        <span class="material-symbols-outlined">arrow_back</span>
-                        <span>Back to Public Website</span>
-                    </a>
-                    <div class="logo-wrapper">
-                        <img src="/assets/image 10.png" alt="ThreatTrack" />
+                    <div class="top-nav-bar">
+                        <a href="/" class="back-home-link" title="Return to ThreatTrack Public Home">
+                            <span class="material-symbols-outlined">arrow_back</span>
+                            <span>Back to Public Website</span>
+                        </a>
+                        <div class="admin-badge">
+                            <span class="badge-dot"></span>
+                            <span>Restricted Portal</span>
+                        </div>
                     </div>
-                    <h1 class="title">ThreatTrack</h1>
-                    <p class="subtitle">Admin Portal</p>
+
+                    <div class="brand-header">
+                        <div class="logo-wrapper">
+                            <img src="/assets/favicon.png" alt="ThreatTrack Shield" />
+                        </div>
+                        <h1 class="title">Threat<span>Track</span></h1>
+                        <p class="subtitle">Valenzuela City Law Enforcement &amp; Admin Dispatch</p>
+                    </div>
 
                     <form id="login-form">
                         <p
@@ -38,8 +54,9 @@
                             role="alert"
                             aria-live="polite"
                         ></p>
+
                         <div class="input-group">
-                            <label>Email</label>
+                            <label for="email">Administrator Email</label>
                             <div class="input-wrapper">
                                 <span
                                     class="input-icon material-symbols-outlined"
@@ -50,14 +67,15 @@
                                     type="email"
                                     id="email"
                                     class="input"
-                                    placeholder="sample@gmail.com"
+                                    placeholder="officer@valenzuela.gov.ph"
+                                    autocomplete="email"
                                     required
                                 />
                             </div>
                         </div>
 
                         <div class="input-group">
-                            <label>Password</label>
+                            <label for="password">Password</label>
                             <div class="input-wrapper">
                                 <span
                                     class="input-icon material-symbols-outlined"
@@ -68,33 +86,37 @@
                                     type="password"
                                     id="password"
                                     class="input"
-                                    placeholder="••••••••"
+                                    placeholder="••••••••••••"
+                                    autocomplete="current-password"
                                     required
                                 />
                             </div>
                         </div>
+
                         <div class="login-warning">
-                            <span class="warning-icon">⚠</span>
+                            <span class="material-symbols-outlined warning-icon">shield_lock</span>
                             <p>
-                                This portal is restricted to authorized law
-                                enforcement personnel only. Unauthorized access
-                                is prohibited and will be prosecuted.
+                                <strong>Official Security Notice:</strong> Access is restricted strictly to authorized PNP officers and Barangay administrators. Unauthorized access attempts are monitored and recorded.
                             </p>
                         </div>
+
                         <button
                             type="submit"
                             id="login-submit"
                             class="login-button"
                         >
-                            Login
+                            Sign In to Admin Portal
                         </button>
-                        <button
-                            type="button"
-                            id="forgot-password"
-                            class="forgot-password"
-                        >
-                            Forgot Password?
-                        </button>
+
+                        <div class="form-footer-actions">
+                            <button
+                                type="button"
+                                id="forgot-password"
+                                class="forgot-password"
+                            >
+                                Forgot Password?
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

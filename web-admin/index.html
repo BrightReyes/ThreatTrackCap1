@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ThreatTrack | Real-Time Crime Reporting & SOS </title>
+  <title>ThreatTrack </title>
   <meta name="description"
     content="ThreatTrack is Valenzuela City's official crime awareness, instant emergency SOS, and incident reporting mobile application." />
 
@@ -40,12 +40,12 @@
         <li><a href="#features" class="nav-link">Features</a></li>
         <li><a href="#heatmap" class="nav-link">Heatmap</a></li>
         <li><a href="#reporting" class="nav-link">Reporting</a></li>
-        <li><a href="#hotlines" class="nav-link">Hotlines</a></li>
+        <li><a href="#install-guide" class="nav-link">Setup &amp; Specs</a></li>
       </ul>
 
       <div class="nav-actions">
-        <!-- Links to the Admin Web Portal -->
-        <a href="/login.html" class="officer-btn" title="Police & Barangay Administrator Login">
+        <!-- Links to the Admin Web Portal (Triggers confirmation modal) -->
+        <a href="/login.html" class="officer-btn open-admin-modal" title="Police & Barangay Administrator Login">
           <span class="material-symbols-outlined">shield_person</span>
           <span>Admin Portal</span>
         </a>
@@ -116,7 +116,7 @@
           <div class="phone-ambient-glow"></div>
 
           <!-- Floating Telemetry Card 1: SOS Gateway -->
-          <div class="telemetry-badge telemetry-badge-1">
+          <div class="telemetry-badge telemetry-badge-4">
             <div class="telemetry-icon-box">
               <span class="material-symbols-outlined">e911_emergency</span>
             </div>
@@ -126,8 +126,8 @@
             </div>
           </div>
 
-          <!-- Floating Telemetry Card 2: Live Hotspot Radar (NEW) -->
-          <div class="telemetry-badge telemetry-badge-2">
+          <!-- Floating Telemetry Card 2: Live Hotspot Radar -->
+          <div class="telemetry-badge telemetry-badge-1">
             <div class="telemetry-icon-box" style="background: #fff7ed; color: #ea580c;">
               <span class="material-symbols-outlined">radar</span>
             </div>
@@ -149,7 +149,7 @@
           </div>
 
           <!-- Floating Telemetry Card 4: Nearest Precinct -->
-          <div class="telemetry-badge telemetry-badge-4">
+          <div class="telemetry-badge telemetry-badge-2">
             <div class="telemetry-icon-box" style="background: var(--blue-bg); color: var(--blue-trust);">
               <span class="material-symbols-outlined">local_police</span>
             </div>
@@ -182,10 +182,11 @@
       <div class="container">
         <div class="section-header reveal-on-scroll">
           <span class="section-eyebrow">BUILT FOR VALENZUELA CITIZENS</span>
-          <h2 class="section-title">Safety tools engineered for when seconds count.</h2>
+          <h2 class="section-title">When something happens, make it known.</h2>
           <p class="section-subtitle">
-            Designed in close collaboration with community stakeholders to provide frictionless, reliable communication
-            between residents and emergency personnel.
+            ThreatTrack gives residents the tools to report incidents, trigger SOS alerts, and share critical
+            information through one connected platform, helping emergency personnel better understand situations and
+            take informed action.
           </p>
         </div>
 
@@ -201,14 +202,19 @@
                 <span class="card-header-badge">3s Fail-Safe</span>
               </div>
               <div class="card-body-content">
-                <div class="sos-gauge-visual">
-                  <div class="gauge-circle">
-                    <div class="gauge-inner-counter">
-                      <span class="gauge-number">3s</span>
-                      <span class="gauge-label">Hold</span>
+                <div class="sos-interactive-container">
+                  <div class="sos-press-area" id="sos-press-area">
+                    <div class="sos-halo" id="sos-halo" aria-hidden="true"></div>
+                    <div class="sos-fill" id="sos-fill" aria-hidden="true"></div>
+                    <div class="sos-mobile-button" id="sos-button">
+                      <span class="sos-mobile-text">SOS</span>
+                      <span class="sos-mobile-hint">HOLD</span>
                     </div>
                   </div>
-                  <p class="gauge-caption">Press & Hold Rescue Trigger</p>
+                  <div class="sos-hold-status" id="sos-hold-status">
+                    <span class="sos-status-dot" id="sos-status-dot" aria-hidden="true"></span>
+                    <span class="sos-status-text" id="sos-status-text">3-Second Fail-Safe Hold Active</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -254,18 +260,137 @@
                 <span class="card-header-badge">Live Heatmap</span>
               </div>
               <div class="card-body-content">
-                <div class="heatmap-mock-visual">
-                  <div class="heatmap-zone zone-high"></div>
-                  <div class="heatmap-zone zone-medium"></div>
-                  <div class="heatmap-pin heatmap-pin-1">
-                    <span class="material-symbols-outlined"
-                      style="color: var(--red-primary); font-size: 16px;">crisis_alert</span>
-                    <span>Theft Hotspot</span>
+                <div class="heatmap-mock-visual" role="region" aria-label="Valenzuela Live Crime Radar Heatmap">
+                  <!-- Blurred Vector Street Map of Valenzuela -->
+                  <div class="heatmap-map-bg" aria-hidden="true">
+                    <svg class="valenzuela-vector-map" viewBox="0 0 540 330" preserveAspectRatio="xMidYMid slice"
+                      xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <pattern id="urbanGrid" width="30" height="30" patternUnits="userSpaceOnUse">
+                          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#cbd5e1" stroke-width="0.8"
+                            stroke-opacity="0.45" />
+                        </pattern>
+                      </defs>
+
+                      <!-- Base Background & Urban Grid -->
+                      <rect width="100%" height="100%" fill="#f1f5f9" />
+                      <rect width="100%" height="100%" fill="url(#urbanGrid)" />
+
+                      <!-- Tullahan River & Local Waterways -->
+                      <path
+                        d="M -10 245 C 70 235, 120 275, 190 255 C 260 235, 320 285, 420 270 C 480 260, 515 295, 555 290"
+                        fill="none" stroke="#bae6fd" stroke-width="12" stroke-linecap="round" opacity="0.75" />
+                      <path
+                        d="M -10 245 C 70 235, 120 275, 190 255 C 260 235, 320 285, 420 270 C 480 260, 515 295, 555 290"
+                        fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" opacity="0.85" />
+
+                      <!-- Local Road Network -->
+                      <path d="M 30 30 L 125 105 L 215 115 L 245 195" fill="none" stroke="#cbd5e1" stroke-width="3"
+                        stroke-linecap="round" />
+                      <path d="M 115 35 L 175 75 L 315 75 L 365 135" fill="none" stroke="#cbd5e1" stroke-width="3"
+                        stroke-linecap="round" />
+                      <path d="M 275 15 L 335 95 L 455 115" fill="none" stroke="#cbd5e1" stroke-width="2.5"
+                        stroke-linecap="round" />
+                      <path d="M 25 175 L 145 175 L 215 255 L 285 265" fill="none" stroke="#cbd5e1" stroke-width="2.5"
+                        stroke-linecap="round" />
+                      <path d="M 305 155 L 395 195 L 475 185 L 525 235" fill="none" stroke="#cbd5e1" stroke-width="2.5"
+                        stroke-linecap="round" />
+                      <path d="M 75 95 L 175 195 L 145 295" fill="none" stroke="#cbd5e1" stroke-width="2.5"
+                        stroke-linecap="round" />
+                      <path d="M 355 35 L 405 105 L 425 245" fill="none" stroke="#cbd5e1" stroke-width="2.5"
+                        stroke-linecap="round" />
+
+                      <!-- MacArthur Highway (Primary Spine - Reddish tint) -->
+                      <path d="M 65 -10 L 135 85 L 205 175 L 255 255 L 285 340" fill="none" stroke="#fecdd3"
+                        stroke-width="8" stroke-linecap="round" />
+                      <path d="M 65 -10 L 135 85 L 205 175 L 255 255 L 285 340" fill="none" stroke="#e11d48"
+                        stroke-width="3" stroke-linecap="round" opacity="0.75" />
+
+                      <!-- NLEX Corridor (Expressway - Amber tint) -->
+                      <path d="M 465 -10 L 415 85 L 365 185 L 335 265 L 315 340" fill="none" stroke="#fed7aa"
+                        stroke-width="7" stroke-linecap="round" />
+                      <path d="M 465 -10 L 415 85 L 365 185 L 335 265 L 315 340" fill="none" stroke="#ea580c"
+                        stroke-width="3" stroke-linecap="round" opacity="0.75" stroke-dasharray="8 5" />
+
+                      <!-- Gov. I. Santiago & Maysan Road Connector -->
+                      <path d="M 15 115 L 135 85 L 285 105 L 415 85 L 525 95" fill="none" stroke="#e2e8f0"
+                        stroke-width="5" stroke-linecap="round" />
+                      <path d="M 15 115 L 135 85 L 285 105 L 415 85 L 525 95" fill="none" stroke="#94a3b8"
+                        stroke-width="2" stroke-linecap="round" opacity="0.6" />
+
+                      <!-- Cartographic Road Labels -->
+                      <text x="100" y="55" transform="rotate(52 100 55)" fill="#64748b" font-size="8.5"
+                        font-weight="800" letter-spacing="1">MACARTHUR HWY</text>
+                      <text x="435" y="60" transform="rotate(-63 435 60)" fill="#64748b" font-size="8.5"
+                        font-weight="800" letter-spacing="1">NLEX</text>
+                      <text x="210" y="100" fill="#64748b" font-size="8" font-weight="800" letter-spacing="0.5">MAYSAN
+                        RD</text>
+
+                      <!-- Valenzuela District Labels -->
+                      <text x="135" y="145" fill="#475569" font-size="10" font-weight="900" letter-spacing="1.5"
+                        opacity="0.65">MALINTA</text>
+                      <text x="235" y="172" fill="#475569" font-size="9.5" font-weight="900" letter-spacing="1.5"
+                        opacity="0.65">KARUHATAN</text>
+                      <text x="175" y="278" fill="#475569" font-size="9.5" font-weight="900" letter-spacing="1.5"
+                        opacity="0.65">MARULAS</text>
+                      <text x="345" y="125" fill="#475569" font-size="9.5" font-weight="900" letter-spacing="1.5"
+                        opacity="0.65">PASO DE BLAS</text>
+                      <text x="325" y="235" fill="#475569" font-size="9" font-weight="900" letter-spacing="1.5"
+                        opacity="0.6">GEN. T. DE LEON</text>
+                    </svg>
+                    <!-- Frosted Glass Map Blur Overlay -->
+                    <div class="map-glass-overlay"></div>
                   </div>
-                  <div class="heatmap-pin heatmap-pin-2">
-                    <span class="material-symbols-outlined"
-                      style="color: var(--amber-hazard); font-size: 16px;">warning</span>
-                    <span>Street Hazard</span>
+
+                  <!-- Tactical Radar Grid Overlay -->
+                  <div class="radar-hud-grid" aria-hidden="true">
+                    <div class="radar-circle radar-circle-1"></div>
+                    <div class="radar-circle radar-circle-2"></div>
+                    <div class="radar-crosshair-h"></div>
+                    <div class="radar-crosshair-v"></div>
+                  </div>
+
+                  <!-- Prominently Pulsing Background Hotspot Clusters -->
+                  <div class="heatmap-zone zone-malinta">
+                    <div class="hotspot-core"></div>
+                    <div class="hotspot-wave"></div>
+                    <div class="hotspot-wave wave-delay"></div>
+                  </div>
+                  <div class="heatmap-zone zone-karuhatan">
+                    <div class="hotspot-core"></div>
+                    <div class="hotspot-wave"></div>
+                    <div class="hotspot-wave wave-delay"></div>
+                  </div>
+                  <div class="heatmap-zone zone-marulas">
+                    <div class="hotspot-core"></div>
+                    <div class="hotspot-wave"></div>
+                    <div class="hotspot-wave wave-delay"></div>
+                  </div>
+                  <div class="heatmap-zone zone-pasodeblas">
+                    <div class="hotspot-core"></div>
+                    <div class="hotspot-wave"></div>
+                    <div class="hotspot-wave wave-delay"></div>
+                  </div>
+
+                  <!-- Authentic ThreatTrack Crime Pins (Red Gradient Pills) -->
+                  <!-- 1. Robbery / Hold-up (Malinta Cluster) -->
+                  <div class="heatmap-pin pin-robbery">
+                    <span>Robbery / Hold-up</span>
+                  </div>
+
+                  <!-- 2. Theft / Snatching (Karuhatan Cluster) -->
+                  <div class="heatmap-pin pin-theft">
+                    <span>Theft / Snatching</span>
+                  </div>
+
+                  <!-- 3. Physical Assault / Injury (Marulas Cluster) -->
+                  <div class="heatmap-pin pin-assault">
+                    <span>Physical Assault</span>
+                  </div>
+
+                  <!-- 4. Traffic Accidents (MacArthur Hwy Cluster) -->
+                  <div class="heatmap-pin pin-accident">
+                    <span>Traffic Accident</span>
                   </div>
                 </div>
               </div>
@@ -310,28 +435,122 @@
                 <span class="card-header-badge">Geo-Tagged</span>
               </div>
               <div class="card-body-content">
-                <div style="display: flex; flex-direction: column; gap: 14px;">
-                  <div
-                    style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px;">
-                    <span style="font-weight: 800; font-size: 0.95rem; color: var(--text-slate);">New Incident
-                      Report</span>
-                    <span
-                      style="font-size: 0.75rem; background: var(--emerald-bg); color: #065f46; padding: 4px 10px; border-radius: 99px; font-weight: 700;">GPS
-                      Locked</span>
-                  </div>
-                  <div
-                    style="background: var(--bg-alt); padding: 12px; border-radius: 12px; font-size: 0.88rem; color: var(--text-body);">
-                    <strong>Category:</strong> Theft / Snatching<br />
-                    <strong>Location:</strong> MacArthur Highway, Karuhatan
-                  </div>
-                  <div style="display: flex; gap: 10px;">
-                    <div
-                      style="flex: 1; height: 75px; background: #e2e8f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.75rem; font-weight: 700;">
-                      Photo Attached
+                <div class="report-app-mock">
+                  <!-- 1. Mobile App 3-Step Progress Bar -->
+                  <div class="report-steps-card">
+                    <div class="report-steps-row">
+                      <div class="step-circle step-completed">
+                        <span class="material-symbols-outlined">check</span>
+                      </div>
+                      <div class="step-line step-line-active"></div>
+                      <div class="step-circle step-completed">
+                        <span class="material-symbols-outlined">check</span>
+                      </div>
+                      <div class="step-line step-line-active"></div>
+                      <div class="step-circle step-current">3</div>
                     </div>
-                    <div
-                      style="flex: 1; height: 75px; background: var(--rose-blush); border: 1px dashed var(--red-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--red-primary); font-size: 0.75rem; font-weight: 700;">
-                      Verified Status
+                    <div class="step-caption-row">
+                      <span class="step-caption">Step 3: Details &amp; Evidence</span>
+                    </div>
+                  </div>
+
+                  <!-- 2. Location Ready Strip -->
+                  <div class="report-location-strip">
+                    <div class="location-ready-badge">
+                      <span class="location-pulse-dot"></span>
+                      <span class="location-status-text">Location ready</span>
+                    </div>
+                    <span class="location-address">
+                      <span class="material-symbols-outlined"
+                        style="font-size: 14px; color: var(--red-primary);">location_on</span>
+                      MacArthur Hwy, Karuhatan, Valenzuela
+                    </span>
+                  </div>
+
+                  <!-- 3. Reporting Role: Victim (Selected) vs. Witness -->
+                  <div class="report-roles-container">
+                    <div class="role-card role-selected">
+                      <div class="role-card-top">
+                        <span class="material-symbols-outlined role-icon">person</span>
+                        <div class="role-check-badge">
+                          <span class="material-symbols-outlined">check</span>
+                        </div>
+                      </div>
+                      <span class="role-label">Victim</span>
+                      <span class="role-tag">Directly affected</span>
+                    </div>
+                    <div class="role-card">
+                      <div class="role-card-top">
+                        <span class="material-symbols-outlined role-icon">visibility</span>
+                      </div>
+                      <span class="role-label">Witness</span>
+                      <span class="role-tag">Observed incident</span>
+                    </div>
+                  </div>
+
+                  <!-- 4. Photo Evidence Attachment Box & Selected Category -->
+                  <div class="report-evidence-panel">
+                    <div class="evidence-header-row">
+                      <div class="evidence-header-title">
+                        <span class="material-symbols-outlined camera-header-icon">photo_camera</span>
+                        <span>Attach Photo Evidence</span>
+                      </div>
+                      <span class="evidence-camera-tag">Camera / Gallery</span>
+                    </div>
+
+                    <div class="evidence-main-content">
+                      <div class="evidence-photo-box">
+                        <!-- SVG Street Evidence Scene Representation -->
+                        <svg class="evidence-photo-svg" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+                          <rect width="100%" height="100%" fill="#1e293b" />
+                          <!-- Road / Street Perspective -->
+                          <polygon points="0,120 70,45 130,45 200,120" fill="#0f172a" />
+                          <line x1="100" y1="45" x2="100" y2="120" stroke="#f59e0b" stroke-width="2.5"
+                            stroke-dasharray="7 5" />
+                          <!-- Streetlights & Building Silhouettes -->
+                          <rect x="18" y="18" width="38" height="52" fill="#334155" rx="2" />
+                          <rect x="144" y="14" width="42" height="56" fill="#334155" rx="2" />
+                          <!-- Camera Crosshair Grid -->
+                          <circle cx="100" cy="65" r="16" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.2"
+                            stroke-dasharray="3 3" />
+                          <!-- Timestamp & Geotag Watermark in photo -->
+                          <rect x="6" y="8" width="84" height="13" rx="3" fill="rgba(0,0,0,0.65)" />
+                          <text x="9" y="17" fill="#f8fafc" font-size="7" font-family="monospace"
+                            font-weight="700">14.685°N, 120.978°E</text>
+                        </svg>
+                        <div class="photo-attached-pill">
+                          <span class="material-symbols-outlined">photo_camera</span>
+                          <span>Photo attached</span>
+                        </div>
+                      </div>
+                      <div class="evidence-meta">
+                        <div class="evidence-category-badge">
+                          <span class="material-symbols-outlined evidence-cat-icon">shopping_bag</span>
+                          <div class="evidence-cat-text">
+                            <span class="evidence-cat-label">Incident Type</span>
+                            <span class="evidence-category-title">Theft / Snatching</span>
+                          </div>
+                        </div>
+                        <div class="evidence-tags-row">
+                          <span class="evidence-severity-pill">Medium</span>
+                          <span class="evidence-secure-tag">
+                            <span class="material-symbols-outlined">verified_user</span>
+                            Encrypted
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Mobile App Photo Action Buttons (From ReportIncidentScreen.js) -->
+                    <div class="report-photo-actions">
+                      <div class="photo-action-btn action-camera">
+                        <span class="material-symbols-outlined">photo_camera</span>
+                        <span>Take Photo</span>
+                      </div>
+                      <div class="photo-action-btn action-gallery">
+                        <span class="material-symbols-outlined">add_photo_alternate</span>
+                        <span>Choose Photo</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -370,79 +589,177 @@
   </div><!-- /hero-features-wrapper -->
 
   <!-- ========================================================================
-       EMERGENCY HOTLINES DIRECTORY
+       INSTALLATION GUIDE & SYSTEM REQUIREMENTS
        ======================================================================== -->
-  <section class="hotlines-section" id="hotlines">
+  <section class="install-specs-section" id="install-guide">
     <div class="container">
       <div class="section-header reveal-on-scroll" style="margin-bottom: 48px;">
-        <span class="section-eyebrow">DIRECT CONTACTS</span>
-        <h2 class="section-title">Valenzuela City Emergency Hotlines</h2>
-        <p class="section-subtitle">Keep these numbers saved for immediate voice coordination during critical
-          situations.</p>
+        <span class="section-eyebrow">GETTING STARTED</span>
+        <h2 class="section-title">Installation Guide &amp; System Requirements</h2>
+        <p class="section-subtitle">
+          Follow our quick 3-step setup and check device specifications to run ThreatTrack reliably on your Android
+          smartphone.
+        </p>
       </div>
 
-      <div class="hotlines-grid">
-        <!-- Police Command -->
-        <div class="hotline-card reveal-on-scroll reveal-scale delay-1">
-          <div class="hotline-top-bar">
-            <span class="material-symbols-outlined" style="font-size: 15px;">local_police</span>
-            <span>Emergency Police Command</span>
-          </div>
-          <div class="hotline-card-body">
-            <div class="hotline-icon">
-              <span class="material-symbols-outlined">local_police</span>
+      <div class="install-specs-grid">
+        <!-- Column 1: 3-Step Installation & Setup Walkthrough -->
+        <div class="install-guide-card reveal-on-scroll reveal-left">
+          <div class="card-red-header">
+            <div class="card-red-header-title">
+              <span class="material-symbols-outlined">rocket_launch</span>
+              <div>
+                <div class="card-header-heading">3-Step Setup &amp; Onboarding</div>
+                <div class="card-header-sub">Get started in just a few steps</div>
+              </div>
             </div>
-            <div class="hotline-info">
-              <h4>Valenzuela Police Command</h4>
-              <p>Main Station Operations & Dispatch</p>
-              <a href="tel:0283524000" class="hotline-number">
-                <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
-                <span>(02) 8352-4000</span>
-              </a>
+            <span class="card-header-badge"> Quick & Easy Steps</span>
+          </div>
+
+          <div class="install-guide-body">
+            <div class="install-steps-list">
+              <!-- Step 1 -->
+              <div class="install-step-item">
+                <div class="install-step-number">1</div>
+                <div class="install-step-content">
+                  <div class="install-step-title-row">
+                    <span class="material-symbols-outlined install-step-icon">install_mobile</span>
+                    <h4>Download &amp; Open APK</h4>
+                  </div>
+                  <p>
+                    Download the lightweight ~35 MB APK directly from this page. If prompted by Android, tap
+                    <strong>Settings</strong> and enable <em>"Allow from this source"</em> to complete installation.
+                  </p>
+                  <div class="install-step-badge">
+                    <span class="material-symbols-outlined">verified</span>
+                    <span>Digitally Signed Android Package</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2 -->
+              <div class="install-step-item">
+                <div class="install-step-number">2</div>
+                <div class="install-step-content">
+                  <div class="install-step-title-row">
+                    <span class="material-symbols-outlined install-step-icon">mark_email_read</span>
+                    <h4>Verify Email to Authorize Reporting</h4>
+                  </div>
+                  <p>
+                    Register your resident account and confirm the verification link sent to your email. ThreatTrack
+                    mandates email verification to authorize accounts and prevent spam or fake incident reports before
+                    you can report.
+                  </p>
+                  <div class="install-step-badge">
+                    <span class="material-symbols-outlined">security</span>
+                    <span>Anti-Spam Gate • Verified Resident</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3 -->
+              <div class="install-step-item">
+                <div class="install-step-number">3</div>
+                <div class="install-step-content">
+                  <div class="install-step-title-row">
+                    <span class="material-symbols-outlined install-step-icon">verified_user</span>
+                    <h4>Grant Permissions &amp; Activate SOS</h4>
+                  </div>
+                  <p>
+                    Enable <strong>Precise Location (GPS)</strong> and <strong>Camera</strong> access, then log in. Your
+                    account is authorized to file verified reports and trigger the fail-safe <strong>3-Second Hold
+                      SOS</strong>.
+                  </p>
+                  <div class="install-step-badge">
+                    <span class="material-symbols-outlined">emergency</span>
+                    <span>Authorized Citizen • Instant Dispatch</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Disaster Risk Office -->
-        <div class="hotline-card reveal-on-scroll reveal-scale delay-2">
-          <div class="hotline-top-bar" style="background: linear-gradient(135deg, #b45309, #d97706);">
-            <span class="material-symbols-outlined" style="font-size: 15px;">emergency</span>
-            <span>Disaster & Rescue Command</span>
-          </div>
-          <div class="hotline-card-body">
-            <div class="hotline-icon"
-              style="color: var(--amber-hazard); background: var(--amber-bg); border-color: var(--amber-border);">
-              <span class="material-symbols-outlined">emergency</span>
+        <!-- Column 2: System & Hardware Requirements Matrix -->
+        <div class="specs-matrix-card reveal-on-scroll reveal-right">
+          <div class="card-red-header">
+            <div class="card-red-header-title">
+              <span class="material-symbols-outlined">tune</span>
+              <div>
+                <div class="card-header-heading">Device Compatibility Matrix</div>
+                <div class="card-header-sub">Optimized for everyday Android smartphones</div>
+              </div>
             </div>
-            <div class="hotline-info">
-              <h4>City Disaster Office (VCDRRMO)</h4>
-              <p>Rescue, Flood, & Medical Emergencies</p>
-              <a href="tel:0282921405" class="hotline-number" style="color: var(--amber-hazard);">
-                <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
-                <span>(02) 8292-1405</span>
-              </a>
-            </div>
+            <span class="card-header-badge">ANDROID SPECS</span>
           </div>
-        </div>
 
-        <!-- National 911 -->
-        <div class="hotline-card reveal-on-scroll reveal-scale delay-3">
-          <div class="hotline-top-bar" style="background: linear-gradient(135deg, #1d4ed8, #2563eb);">
-            <span class="material-symbols-outlined" style="font-size: 15px;">contact_phone</span>
-            <span>National Emergency Hotline</span>
-          </div>
-          <div class="hotline-card-body">
-            <div class="hotline-icon"
-              style="color: var(--blue-trust); background: var(--blue-bg); border-color: #bfdbfe;">
-              <span class="material-symbols-outlined">contact_phone</span>
-            </div>
-            <div class="hotline-info">
-              <h4>National Emergency Hotline</h4>
-              <p>Nationwide Police & Ambulance Assistance</p>
-              <a href="tel:911" class="hotline-number" style="color: var(--blue-trust);">
-                <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
-                <span>911</span>
-              </a>
+          <div class="specs-matrix-body">
+            <div class="specs-grid">
+              <!-- Spec 1: OS -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">android</span>
+                  <span class="spec-badge badge-green">Supported</span>
+                </div>
+                <span class="spec-label">Operating System</span>
+                <span class="spec-value">Android 8.0+</span>
+                <span class="spec-sub">Oreo or later (Rec: Android 11+)</span>
+              </div>
+
+              <!-- Spec 2: RAM -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">memory</span>
+                  <span class="spec-badge badge-blue">Lightweight</span>
+                </div>
+                <span class="spec-label">System Memory</span>
+                <span class="spec-value">2 GB RAM</span>
+                <span class="spec-sub">Minimum (Rec: 3 GB+)</span>
+              </div>
+
+              <!-- Spec 3: Storage -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">sd_storage</span>
+                  <span class="spec-badge badge-purple">Low Footprint</span>
+                </div>
+                <span class="spec-label">Free Storage</span>
+                <span class="spec-value">~120 MB</span>
+                <span class="spec-sub">App size ~35 MB + local cache</span>
+              </div>
+
+              <!-- Spec 4: Location -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">my_location</span>
+                  <span class="spec-badge badge-amber">Essential</span>
+                </div>
+                <span class="spec-label">Location Hardware</span>
+                <span class="spec-value">GPS / A-GPS</span>
+                <span class="spec-sub">Accuracy within 15 meters</span>
+              </div>
+
+              <!-- Spec 5: Camera -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">photo_camera</span>
+                  <span class="spec-badge badge-rose">Evidence</span>
+                </div>
+                <span class="spec-label">Camera Sensor</span>
+                <span class="spec-value">5 MP or Higher</span>
+                <span class="spec-sub">Rear camera with autofocus</span>
+              </div>
+
+              <!-- Spec 6: Network -->
+              <div class="spec-tile">
+                <div class="spec-tile-top">
+                  <span class="material-symbols-outlined spec-icon">wifi</span>
+                  <span class="spec-badge badge-green">Data Saver</span>
+                </div>
+                <span class="spec-label">Network Connection</span>
+                <span class="spec-value">2G / 3G / 4G / Wi-Fi</span>
+                <span class="spec-sub">Auto-compressed for low signal</span>
+              </div>
             </div>
           </div>
         </div>
@@ -463,16 +780,19 @@
             Valenzuela City Police command center.
           </p>
           <div class="download-btn-group">
-            <a href="#" class="btn btn-primary download-apk-btn">
+            <a href="#" class="btn btn-hero-white download-apk-btn">
               <span class="material-symbols-outlined">download</span>
               <span>Download APK (v1.0.0)</span>
             </a>
-            <button type="button" class="btn btn-outline open-qr-modal"
-              style="border-color: rgba(255,255,255,0.2); color: #ffffff; background: rgba(255,255,255,0.06);">
+            <button type="button" class="btn btn-hero-glass open-qr-modal">
               <span class="material-symbols-outlined">qr_code_scanner</span>
               <span>Show QR Code</span>
             </button>
           </div>
+          <p class="download-aux-note">
+            Have questions or suggestions? <button type="button" class="aux-feedback-link open-feedback-modal">Message
+              us directly &rarr;</button>
+          </p>
         </div>
 
         <div class="qr-box-container">
@@ -520,15 +840,103 @@
         <span>ThreatTrack Valenzuela</span>
       </div>
 
-      <p>© 2026 ThreatTrack Capstone Project.Pamantasan ng Lungsod ng Valenzuela.</p>
+      <p>© 2026 ThreatTrack Capstone Project | Pamantasan ng Lungsod ng Valenzuela.</p>
 
       <div class="footer-links">
         <a href="#features">Features</a>
-        <a href="#hotlines">Hotlines</a>
-        <a href="/login.html" style="color: var(--red-primary); font-weight: 700;">Admin Portal</a>
+        <a href="#install-guide">Setup &amp; Specs</a>
+        <button type="button" class="footer-link-btn open-feedback-modal">Message Us</button>
+        <a href="/login.html" class="open-admin-modal" style="color: var(--red-primary); font-weight: 700;">Admin
+          Portal</a>
       </div>
     </div>
   </footer>
+
+  <!-- Floating Back to Top Button -->
+  <button type="button" class="back-to-top-btn" id="back-to-top" aria-label="Back to top">
+    <span class="material-symbols-outlined">arrow_upward</span>
+  </button>
+
+  <!-- ========================================================================
+       MESSAGE US (FEEDBACK & CONCERNS) MODAL
+       ======================================================================== -->
+  <div class="modal-overlay" id="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+    <div class="modal-card feedback-modal-card">
+      <button type="button" class="modal-close" id="close-feedback-modal" aria-label="Close dialog">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <div class="feedback-modal-header">
+        <div class="feedback-icon-box">
+          <span class="material-symbols-outlined">support_agent</span>
+        </div>
+        <div>
+          <h3 class="modal-title" id="feedback-modal-title">Feedback &amp; Concerns</h3>
+          <p class="modal-subtitle" style="margin-bottom: 0;">Send questions, ideas, or feedback to the ThreatTrack
+            team.</p>
+        </div>
+      </div>
+
+      <!-- Feedback Form -->
+      <form class="feedback-form" id="feedback-form">
+        <div class="feedback-form-group">
+          <label for="feedback-name">Your Full Name</label>
+          <div class="input-with-icon">
+            <span class="material-symbols-outlined input-icon">person</span>
+            <input type="text" id="feedback-name" name="name" class="feedback-input" placeholder="Juan Dela Cruz"
+              required />
+          </div>
+        </div>
+
+        <div class="feedback-form-group">
+          <label for="feedback-email">Email Address</label>
+          <div class="input-with-icon">
+            <span class="material-symbols-outlined input-icon">mail</span>
+            <input type="email" id="feedback-email" name="email" class="feedback-input" placeholder="juan@example.com"
+              required />
+          </div>
+        </div>
+
+        <div class="feedback-form-group">
+          <label for="feedback-category">Topic / Category</label>
+          <div class="input-with-icon">
+            <span class="material-symbols-outlined input-icon">category</span>
+            <select id="feedback-category" name="category" class="feedback-select" required>
+              <option value="" disabled selected>Select a topic...</option>
+              <option value="General Feedback">General Feedback &amp; Suggestions</option>
+              <option value="Mobile App Concern">Mobile App Concern / Bug</option>
+              <option value="Barangay Coverage">Barangay Coverage &amp; Precinct Inquiry</option>
+              <option value="SOS System">SOS Alert Gateway Feedback</option>
+              <option value="Other">Other Inquiry</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="feedback-form-group">
+          <label for="feedback-message">Your Message</label>
+          <textarea id="feedback-message" name="message" class="feedback-textarea" rows="4"
+            placeholder="Describe your question, feedback, or concern in detail..." required></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary feedback-submit-btn">
+          <span class="material-symbols-outlined">send</span>
+          <span>Send Message</span>
+        </button>
+      </form>
+
+      <!-- Feedback Success View -->
+      <div class="feedback-success-state" id="feedback-success" style="display: none;">
+        <div class="success-icon-badge">
+          <span class="material-symbols-outlined">check_circle</span>
+        </div>
+        <h4>Message Sent Successfully!</h4>
+        <p>Thank you for reaching out. Your feedback has been logged and our administrative team will review it
+          promptly.</p>
+        <button type="button" class="btn btn-primary" id="btn-close-feedback-success"
+          style="margin-top: 16px;">Done</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ========================================================================
        INTERACTIVE QR CODE MODAL
@@ -572,6 +980,56 @@
       <p class="modal-note">
         Compatible with Android 10+ • Direct secure download
       </p>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       ADMIN & OFFICER ACCESS CONFIRMATION MODAL
+       ======================================================================== -->
+  <div class="modal-overlay" id="admin-auth-modal" role="dialog" aria-modal="true" aria-labelledby="admin-modal-title">
+    <div class="modal-card admin-modal-card">
+      <button type="button" class="modal-close" id="close-admin-modal" aria-label="Close dialog">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+
+      <div class="admin-modal-header">
+        <div class="admin-icon-box">
+          <span class="material-symbols-outlined">admin_panel_settings</span>
+        </div>
+        <div>
+          <h3 class="modal-title" id="admin-modal-title">Restricted Access</h3>
+          <p class="modal-subtitle" style="margin-bottom: 0;">Authorized Law Enforcement &amp; Barangay Admin</p>
+        </div>
+      </div>
+
+      <div class="admin-modal-notice">
+        <div class="admin-notice-row">
+          <span class="material-symbols-outlined">shield_person</span>
+          <p>This portal is exclusively reserved for verified Valenzuela City Police Officers and Barangay
+            Administrators.</p>
+        </div>
+        <div class="admin-notice-row">
+          <span class="material-symbols-outlined">smartphone</span>
+          <p>Public citizens wishing to report crimes or trigger emergency SOS alerts should use the official mobile
+            app.</p>
+        </div>
+        <div class="admin-notice-row">
+          <span class="material-symbols-outlined">policy</span>
+          <p>All sign-in attempts and administrator sessions are monitored and recorded for security and auditing
+            purposes.</p>
+        </div>
+      </div>
+
+      <div class="admin-modal-actions">
+        <button type="button" class="btn btn-primary admin-return-btn" id="btn-cancel-admin">
+          <span class="material-symbols-outlined">arrow_back</span>
+          <span>Return to Public Website</span>
+        </button>
+        <a href="/login.html" class="btn btn-outline admin-proceed-btn" id="btn-proceed-admin">
+          <span>I am an Authorized Admin</span>
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+      </div>
     </div>
   </div>
 
