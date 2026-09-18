@@ -6,9 +6,7 @@
     "build": "npm --prefix web-admin run build",
     "preview": "npm --prefix web-admin run preview",
     "admin:dev": "npm --prefix web-admin run dev",
-    "admin:build": "npm --prefix web-admin run build",
-    "landing:dev": "npm --prefix landing-page run dev",
-    "landing:build": "npm --prefix landing-page run build"
+    "admin:build": "npm --prefix web-admin run build"
   },
   "dependencies": {}
 }
