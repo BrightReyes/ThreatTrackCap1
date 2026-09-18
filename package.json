@@ -1,6 +1,9 @@
 {
   "name": "ThreatTrackCap1",
   "version": "1.0.0",
-  "scripts": {},
+  "scripts": {
+    "landing:dev": "npm --prefix landing-page run dev",
+    "landing:build": "npm --prefix landing-page run build"
+  },
   "dependencies": {}
 }

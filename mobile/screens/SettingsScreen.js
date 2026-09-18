@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { LinearGradient } from 'expo-linear-gradient';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
@@ -23,7 +24,7 @@ const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 
 const SettingsIcon = ({ name }) => (
   <View style={styles.settingIconWrapper}>
-    <Ionicons name={name} size={20} color="#991b1b" />
+    <Ionicons name={name} size={20} color="#dc2626" />
   </View>
 );
 
@@ -278,11 +279,22 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     <>
       <View style={styles.container}>
         <View style={styles.headerModern}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.headerTitle}>Settings</Text>
-            <Text style={styles.headerSubtitle}>Manage alerts, privacy, and account access.</Text>
+          <View style={styles.headerTitleRow}>
+            <View style={styles.headerIcon}>
+              <Ionicons name="settings-outline" size={24} color="#dc2626" />
+            </View>
+            <View style={styles.headerCopy}>
+              <Text style={styles.headerTitle}>Settings & Profile</Text>
+              <Text style={styles.headerSubtitle}>Manage your alerts, privacy, and account access.</Text>
+            </View>
           </View>
         </View>
+        <LinearGradient
+          colors={['transparent', 'rgba(220, 38, 38, 0.45)', 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.headerLaserLine}
+        />
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           <View style={styles.section}>
@@ -771,28 +783,45 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerModern: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: HEADER_TOP_PADDING,
     paddingBottom: 16,
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+  },
+  headerLaserLine: {
+    height: 1.5,
+    width: '100%',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 13,
   },
   headerCopy: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
-    color: '#111827',
+    color: '#0f172a',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    marginTop: 3,
+    marginTop: 4,
     color: '#64748b',
-    fontSize: 12.5,
-    fontWeight: '700',
+    fontSize: 13.5,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   section: {
     paddingHorizontal: 16,
@@ -800,22 +829,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748b',
+    marginBottom: 10,
     textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   settingsCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
   settingItem: {
@@ -853,29 +883,29 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
   },
   profileAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
     shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -1312,7 +1342,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   bottomSpacer: {
-    height: 120,
+    height: 140,
   },
   bottomNavBarContainer: {
     position: 'relative',
