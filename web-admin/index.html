@@ -44,13 +44,15 @@
       </ul>
 
       <div class="nav-actions">
-        <!-- Links to the Admin Web Portal (Triggers confirmation modal) -->
+        <!-- Links to the Admin Web Portal (Triggers confirmation modal - PC only) -->
         <a href="/login.html" class="officer-btn open-admin-modal" title="Police & Barangay Administrator Login">
           <span class="material-symbols-outlined">shield_person</span>
-          <span>Admin Portal</span>
+          <span class="officer-btn-text">Admin<span class="officer-btn-portal-word"> Portal</span></span>
         </a>
-        <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Toggle Menu">
-          <span class="material-symbols-outlined">menu</span>
+        <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Toggle Menu" aria-expanded="false">
+          <span class="hamburger-line line-1"></span>
+          <span class="hamburger-line line-2"></span>
+          <span class="hamburger-line line-3"></span>
         </button>
       </div>
     </div>
@@ -837,7 +839,7 @@
     <div class="container footer-content">
       <div class="footer-brand">
         <img src="/assets/logo-red.png" alt="ThreatTrack" class="footer-brand-logo" />
-        <span>ThreatTrack Valenzuela</span>
+        <span>ThreatTrack App</span>
       </div>
 
       <p>© 2026 ThreatTrack Capstone Project | Pamantasan ng Lungsod ng Valenzuela.</p>
@@ -846,7 +848,7 @@
         <a href="#features">Features</a>
         <a href="#install-guide">Setup &amp; Specs</a>
         <button type="button" class="footer-link-btn open-feedback-modal">Message Us</button>
-        <a href="/login.html" class="open-admin-modal" style="color: var(--red-primary); font-weight: 700;">Admin
+        <a href="/login.html" class="open-admin-modal footer-admin-link" style="color: var(--red-primary); font-weight: 700;">Admin
           Portal</a>
       </div>
     </div>

@@ -319,14 +319,48 @@ button {
 
 .menu-toggle {
   display: none;
-  font-size: 24px;
-  color: #ffffff;
-  padding: 8px;
-  transition: color 0.3s ease;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  z-index: 1002;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.site-header.scrolled .menu-toggle {
-  color: var(--text-slate);
+.hamburger-line {
+  display: block;
+  width: 22px;
+  height: 2.5px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, background-color 0.3s ease;
+  transform-origin: center;
+}
+
+.site-header.scrolled .hamburger-line {
+  background-color: var(--text-slate);
+}
+
+/* Morphing Burger-to-X Animation when clicked */
+.menu-toggle.is-active .line-1 {
+  transform: translateY(7.5px) rotate(45deg);
+  background-color: var(--red-primary);
+}
+
+.menu-toggle.is-active .line-2 {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.menu-toggle.is-active .line-3 {
+  transform: translateY(-7.5px) rotate(-45deg);
+  background-color: var(--red-primary);
 }
 
 /* ==========================================================================
@@ -467,6 +501,7 @@ button {
 }
 
 @keyframes pulse-dot {
+
   0%,
   100% {
     transform: scale(1);
@@ -1329,10 +1364,12 @@ button {
     transform: scale(0.96);
     opacity: 0.32;
   }
+
   50% {
     transform: scale(1.42);
     opacity: 0;
   }
+
   100% {
     transform: scale(0.96);
     opacity: 0;
@@ -1352,10 +1389,13 @@ button {
 }
 
 @keyframes sos-fill-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(0.74);
     opacity: 0.65;
   }
+
   50% {
     transform: scale(1.02);
     opacity: 1;
@@ -1380,10 +1420,13 @@ button {
 }
 
 @keyframes sos-button-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 10px 24px rgba(153, 27, 27, 0.35);
   }
+
   50% {
     transform: scale(1.04);
     box-shadow: 0 18px 38px rgba(220, 38, 38, 0.52), 0 0 0 8px rgba(254, 202, 202, 0.45);
@@ -1432,8 +1475,15 @@ button {
 }
 
 @keyframes dot-blink {
-  0% { transform: scale(0.85); opacity: 0.6; }
-  100% { transform: scale(1.3); opacity: 1; }
+  0% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
 }
 
 .sos-status-text {
@@ -1469,8 +1519,15 @@ button {
 }
 
 @keyframes dot-blink {
-  0% { transform: scale(0.85); opacity: 0.6; }
-  100% { transform: scale(1.3); opacity: 1; }
+  0% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+
+  100% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
 }
 
 .sos-status-text {
@@ -1622,44 +1679,36 @@ button {
 }
 
 .zone-malinta .hotspot-core {
-  background: radial-gradient(
-    circle,
-    rgba(239, 68, 68, 0.75) 0%,
-    rgba(249, 115, 22, 0.48) 42%,
-    rgba(234, 179, 8, 0.2) 74%,
-    transparent 100%
-  );
+  background: radial-gradient(circle,
+      rgba(239, 68, 68, 0.75) 0%,
+      rgba(249, 115, 22, 0.48) 42%,
+      rgba(234, 179, 8, 0.2) 74%,
+      transparent 100%);
   animation: hotspot-core-breathe-1 2.8s ease-in-out infinite alternate;
 }
 
 .zone-karuhatan .hotspot-core {
-  background: radial-gradient(
-    circle,
-    rgba(245, 158, 11, 0.72) 0%,
-    rgba(251, 191, 36, 0.44) 45%,
-    rgba(253, 224, 71, 0.18) 75%,
-    transparent 100%
-  );
+  background: radial-gradient(circle,
+      rgba(245, 158, 11, 0.72) 0%,
+      rgba(251, 191, 36, 0.44) 45%,
+      rgba(253, 224, 71, 0.18) 75%,
+      transparent 100%);
   animation: hotspot-core-breathe-2 3.2s ease-in-out 0.6s infinite alternate;
 }
 
 .zone-marulas .hotspot-core {
-  background: radial-gradient(
-    circle,
-    rgba(220, 38, 38, 0.72) 0%,
-    rgba(239, 68, 68, 0.42) 48%,
-    transparent 100%
-  );
+  background: radial-gradient(circle,
+      rgba(220, 38, 38, 0.72) 0%,
+      rgba(239, 68, 68, 0.42) 48%,
+      transparent 100%);
   animation: hotspot-core-breathe-3 2.6s ease-in-out 1.2s infinite alternate;
 }
 
 .zone-pasodeblas .hotspot-core {
-  background: radial-gradient(
-    circle,
-    rgba(234, 88, 12, 0.65) 0%,
-    rgba(251, 146, 60, 0.38) 50%,
-    transparent 100%
-  );
+  background: radial-gradient(circle,
+      rgba(234, 88, 12, 0.65) 0%,
+      rgba(251, 146, 60, 0.38) 50%,
+      transparent 100%);
   animation: hotspot-core-breathe-4 3.0s ease-in-out 0.3s infinite alternate;
 }
 
@@ -1668,6 +1717,7 @@ button {
     transform: scale(0.85);
     opacity: 0.65;
   }
+
   100% {
     transform: scale(1.3);
     opacity: 0.98;
@@ -1679,6 +1729,7 @@ button {
     transform: scale(0.88);
     opacity: 0.62;
   }
+
   100% {
     transform: scale(1.32);
     opacity: 0.95;
@@ -1690,6 +1741,7 @@ button {
     transform: scale(0.84);
     opacity: 0.68;
   }
+
   100% {
     transform: scale(1.28);
     opacity: 0.98;
@@ -1701,6 +1753,7 @@ button {
     transform: scale(0.88);
     opacity: 0.65;
   }
+
   100% {
     transform: scale(1.3);
     opacity: 0.95;
@@ -1762,9 +1815,11 @@ button {
     transform: translate(-50%, -50%) scale(0.35);
     opacity: 0.85;
   }
+
   50% {
     opacity: 0.45;
   }
+
   100% {
     transform: translate(-50%, -50%) scale(1.75);
     opacity: 0;
@@ -1945,6 +2000,7 @@ button {
     transform: scale(0.85);
     opacity: 0.6;
   }
+
   100% {
     transform: scale(1.3);
     opacity: 1;
@@ -3260,28 +3316,122 @@ button {
 }
 
 @media (max-width: 768px) {
+
+  /* Mobile container padding */
+  .container {
+    padding: 0 16px;
+  }
+
+  /* Header & Navigation */
+  .nav-wrap {
+    gap: 8px;
+  }
+
+  .nav-brand {
+    gap: 8px;
+    font-size: 1.15rem;
+  }
+
+  .nav-logo-img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nav-brand-text {
+    font-size: 1.22rem;
+    white-space: nowrap;
+  }
+
+  .nav-actions {
+    gap: 8px;
+  }
+
+  /* Admin Portal is restricted to PC/desktop monitors only — hide completely on mobile */
+  .officer-btn,
+  .footer-admin-link {
+    display: none !important;
+  }
+
   .nav-links {
-    display: none;
+    display: flex;
     position: absolute;
     top: var(--nav-height);
     left: 0;
     right: 0;
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     flex-direction: column;
-    padding: 24px;
-    border-bottom: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-lg);
-    gap: 18px;
+    padding: 24px 28px;
+    border-bottom: 1px solid rgba(220, 38, 38, 0.12);
+    box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.15);
+    gap: 16px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-16px);
+    transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s;
+    z-index: 999;
   }
 
   .nav-links.active {
-    display: flex;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  /* Staggered cascading slide-in for menu items */
+  .nav-links li {
+    opacity: 0;
+    transform: translateX(-14px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nav-links.active li {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .nav-links.active li:nth-child(1) {
+    transition-delay: 0.08s;
+  }
+
+  .nav-links.active li:nth-child(2) {
+    transition-delay: 0.14s;
+  }
+
+  .nav-links.active li:nth-child(3) {
+    transition-delay: 0.20s;
+  }
+
+  .nav-links.active li:nth-child(4) {
+    transition-delay: 0.26s;
+  }
+
+  /* Mobile menu links tap micro-interaction */
+  .nav-links .nav-link {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-slate);
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    padding: 6px 0;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .nav-links .nav-link:hover,
+  .nav-links .nav-link:active {
+    color: var(--red-primary);
+    transform: translateX(6px);
   }
 
   .menu-toggle {
-    display: block;
+    display: flex;
   }
 
+  /* Hero adjustments */
   .hero-title {
     font-size: 2.35rem;
   }
@@ -3291,37 +3441,287 @@ button {
   }
 
   .phone-chassis {
-    width: 280px;
-    height: 560px;
+    width: 250px;
+    height: 510px;
+    border-radius: 42px;
     transform: none;
     animation: none;
   }
 
+  .telemetry-badge {
+    padding: 5px 10px;
+    gap: 7px;
+    border-radius: 10px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .telemetry-badge .telemetry-icon-box {
+    width: 24px;
+    height: 24px;
+    font-size: 0.82rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .telemetry-badge .telemetry-info h4 {
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .telemetry-badge .telemetry-info p {
+    font-size: 0.58rem;
+    line-height: 1.2;
+  }
+
   .telemetry-badge-1 {
-    left: -16px;
-    top: 2%;
-    transform: scale(0.85);
-    transform-origin: left center;
+    top: 15%;
+    left: -15px;
   }
 
   .telemetry-badge-2 {
-    right: -16px;
-    top: 18%;
-    transform: scale(0.85);
-    transform-origin: right center;
+    top: 35%;
+    right: -15px;
   }
 
   .telemetry-badge-3 {
-    left: -16px;
-    bottom: 22%;
-    transform: scale(0.85);
-    transform-origin: left center;
+    bottom: 30%;
+    left: -15px;
   }
 
   .telemetry-badge-4 {
-    right: -16px;
-    bottom: 2%;
-    transform: scale(0.85);
-    transform-origin: right center;
+    bottom: 13%;
+    right: -15px;
+  }
+
+  /* Feature Showcase Cards mobile breathing room */
+  .card-body-content {
+    padding: 20px 16px;
+  }
+
+  .card-red-header {
+    padding: 12px 18px;
+  }
+
+  .card-red-header-title {
+    font-size: 0.82rem;
+    gap: 8px;
+  }
+
+  .card-header-badge {
+    font-size: 0.68rem;
+    padding: 3px 10px;
+  }
+
+  /* Footer responsiveness */
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  /* Floating back-to-top button */
+  .back-to-top-btn {
+    width: 42px;
+    height: 42px;
+    bottom: 18px;
+    right: 16px;
+  }
+
+  .back-to-top-btn .material-symbols-outlined {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav-brand-text {
+    font-size: 1.12rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-title {
+    font-size: 1.95rem;
+    line-height: 1.16;
+  }
+
+  .hero-subtitle {
+    font-size: 0.96rem;
+  }
+
+  .hero-cta-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .hero-cta-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Visual Card 3: Verified Incident Submission */
+  .card-body-content {
+    padding: 14px 10px;
+  }
+
+  .card-red-header {
+    padding: 10px 12px;
+  }
+
+  .card-red-header-title {
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+    gap: 5px;
+  }
+
+  .card-header-badge {
+    font-size: 0.62rem;
+    padding: 2px 7px;
+  }
+
+  /* Location Ready Strip: allow full address to wrap without truncation */
+  .report-location-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 8px 10px;
+  }
+
+  .location-address {
+    font-size: 0.74rem;
+    white-space: normal;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  /* Roles Container */
+  .report-roles-container {
+    gap: 8px;
+  }
+
+  .role-card {
+    padding: 8px 8px;
+  }
+
+  .role-label {
+    font-size: 0.8rem;
+  }
+
+  .role-tag {
+    font-size: 0.6rem;
+  }
+
+  /* Evidence Photo Panel */
+  .report-evidence-panel {
+    padding: 8px;
+  }
+
+  .evidence-main-content {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .evidence-photo-box {
+    height: 95px;
+  }
+
+  .report-photo-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .photo-action-btn {
+    padding: 8px 6px;
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+
+  .photo-action-btn .material-symbols-outlined {
+    font-size: 14px;
+  }
+
+  /* Visual Card 1: SOS Pulse scale for small screens */
+  .sos-interactive-container {
+    padding: 14px 0 8px;
+  }
+
+  .sos-press-area {
+    width: 175px;
+    height: 175px;
+  }
+
+  .sos-halo {
+    width: 145px;
+    height: 145px;
+  }
+
+  .sos-fill {
+    width: 135px;
+    height: 135px;
+  }
+
+  .sos-mobile-button {
+    width: 105px;
+    height: 105px;
+  }
+
+  .sos-button-icon {
+    font-size: 26px;
+  }
+
+  .sos-button-label {
+    font-size: 0.92rem;
+  }
+
+  /* Visual Card 2: Heatmap Visual */
+  .heatmap-mock-visual {
+    height: 270px;
+  }
+
+  /* Modals responsiveness */
+  .modal-card {
+    padding: 24px 16px;
+    margin: 0 10px;
+  }
+
+  .admin-modal-card,
+  .feedback-modal-card {
+    padding: 24px 16px;
+  }
+
+  .admin-modal-header {
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+  }
+
+  .admin-icon-box {
+    width: 42px;
+    height: 42px;
+    font-size: 24px;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+  }
+
+  .modal-subtitle {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .phone-wrapper {
+    transform: scale(0.9);
+    transform-origin: center top;
+  }
+
+  .nav-brand-text {
+    font-size: 1rem;
   }
 }

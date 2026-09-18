@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (menuToggle && navLinks) {
     menuToggle.addEventListener('click', () => {
+      menuToggle.classList.toggle('is-active');
       navLinks.classList.toggle('active');
       const isExpanded = navLinks.classList.contains('active');
       menuToggle.setAttribute('aria-expanded', isExpanded);
@@ -103,7 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Close mobile drawer if active
         if (navLinks) {
           navLinks.classList.remove('active');
-          if (menuToggle) menuToggle.setAttribute('aria-expanded', 'false');
+          if (menuToggle) {
+            menuToggle.classList.remove('is-active');
+            menuToggle.setAttribute('aria-expanded', 'false');
+          }
         }
       }
     });
