@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Linking, Image, StatusBar } from 'react-native';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, calculateDistance, formatDistance } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
@@ -383,14 +384,20 @@ const AlertsScreen = ({ navigation }) => {
           <View style={styles.headerNew}>
             <View style={styles.headerTitleRow}>
               <View style={styles.headerIcon}>
-                <Ionicons name="notifications-outline" size={24} color="#ffffff" />
+                <Ionicons name="notifications-outline" size={24} color="#dc2626" />
               </View>
               <View style={styles.headerCopy}>
-                <Text style={styles.headerNewTitle}>NOTIFICATIONS</Text>
-                <Text style={styles.headerSubtitle}>Review safety alerts and response updates.</Text>
+                <Text style={styles.headerNewTitle}>Safety Alerts</Text>
+                <Text style={styles.headerSubtitle}>Stay updated on local safety and community notices.</Text>
               </View>
             </View>
           </View>
+          <LinearGradient
+            colors={['transparent', 'rgba(220, 38, 38, 0.45)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.headerLaserLine}
+          />
 
           {/* Filter Tabs */}
           <View style={styles.tabsContainer}>
@@ -508,8 +515,10 @@ const styles = StyleSheet.create({
     paddingTop: HEADER_TOP_PADDING,
     paddingBottom: 16,
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+  },
+  headerLaserLine: {
+    height: 1.5,
+    width: '100%',
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -518,16 +527,13 @@ const styles = StyleSheet.create({
   headerIcon: {
     width: 46,
     height: 46,
-    borderRadius: 16,
-    backgroundColor: '#dc2626',
+    borderRadius: 15,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 4,
+    marginRight: 13,
   },
   headerCopy: {
     flex: 1,
@@ -535,52 +541,54 @@ const styles = StyleSheet.create({
   headerNewTitle: {
     fontSize: 24,
     fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 1.2,
+    color: '#0f172a',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
     marginTop: 4,
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '700',
-    lineHeight: 19,
+    fontSize: 13.5,
+    color: '#64748b',
+    fontWeight: '600',
+    lineHeight: 18,
   },
 
   // Tabs
   tabsContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f1f5f9',
   },
   tab: {
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 8,
     marginRight: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
   },
   tabActive: {
     borderColor: '#dc2626',
     backgroundColor: '#fef2f2',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: '#64748b',
   },
   tabTextActive: {
     color: '#dc2626',
+    fontWeight: '800',
   },
 
   // Content Area
   content: {
     paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 20,
   },
   notificationCard: {
@@ -886,7 +894,7 @@ const styles = StyleSheet.create({
 
   // Bottom Spacer
   bottomSpacer: {
-    height: 120,
+    height: 140,
   },
 
   // Bottom Navigation Bar Container

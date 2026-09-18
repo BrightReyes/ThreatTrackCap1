@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm --prefix web-admin run build",
+  "outputDirectory": "web-admin/dist",
+  "cleanUrls": true,
+  "trailingSlash": false
+}

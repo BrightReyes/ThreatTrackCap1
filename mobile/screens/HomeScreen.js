@@ -27,7 +27,7 @@ import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
 
 const { width, height } = Dimensions.get('window');
 
-const APP_LOGO = require('../assets/icons/Threat Track Logo Reversed.png');
+const APP_LOGO = require('../assets/icons/threattrack-logo-tight.png');
 const BELL_ICON = require('../assets/icons/bell.png');
 const CAMERA_ICON = require('../assets/icons/camera.png');
 const GEAR_ICON = require('../assets/icons/gear.png');
@@ -267,6 +267,8 @@ const HomeScreen = ({ navigation }) => {
   const [mapReady, setMapReady] = useState(false);
   const [heatmapData, setHeatmapData] = useState(null);
   const [heatmapLoading, setHeatmapLoading] = useState(false);
+  const [heatmapDays, setHeatmapDays] = useState(DEFAULT_HEATMAP_DAYS);
+  const [showHeatmap, setShowHeatmap] = useState(true);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const mapRef = useRef(null);
@@ -842,20 +844,31 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  const getIncidentIcon = (type) => {
+  const getIncidentIconName = (type) => {
     const icons = {
-      theft_snatching: '👜',
-      robbery_holdup: '🚨',
-      physical_assault_injury: '⚕️',
-      domestic_violence: '🏠',
-      drug_related_activity: '🔥',
-      public_disturbance: '⚠️',
-      vandalism_property_damage: '🧱',
-      traffic_accident: '🚗',
-      illegal_weapons: '🔒',
-      suspicious_activity: '👁️',
+      theft_snatching: 'bag-handle-outline',
+      robbery_holdup: 'alert-circle-outline',
+      physical_assault_injury: 'medkit-outline',
+      domestic_violence: 'home-outline',
+      drug_related_activity: 'flame-outline',
+      public_disturbance: 'megaphone-outline',
+      vandalism_property_damage: 'construct-outline',
+      traffic_accident: 'car-outline',
+      illegal_weapons: 'shield-outline',
+      suspicious_activity: 'eye-outline',
     };
-    return icons[type] || '!';
+    return icons[type?.toLowerCase()] || 'alert-outline';
+  };
+
+  const getIncidentIcon = (type) => getIncidentIconName(type);
+
+  const getSeverityBackground = (severity) => {
+    switch (severity) {
+      case 'high': return '#fef2f2';
+      case 'medium': return '#fffbeb';
+      case 'low': return '#ecfdf5';
+      default: return '#f8fafc';
+    }
   };
 
   const formatIncidentType = (incident) => {
@@ -1056,18 +1069,25 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  const handleSelectHeatmapDays = (days) => {
+    setHeatmapDays(days);
+    if (mapReady && mapRegion) {
+      fetchHeatmapData(mapRegion, days);
+    }
+  };
+
   // Auto-load heatmap data when map region changes
   useEffect(() => {
     if (mapReady && mapRegion) {
-      fetchHeatmapData(mapRegion, DEFAULT_HEATMAP_DAYS);
+      fetchHeatmapData(mapRegion, heatmapDays);
     }
   }, [mapReady]);
 
   useEffect(() => {
     if (mapReady && mapRegion) {
-      fetchHeatmapData(mapRegion, DEFAULT_HEATMAP_DAYS);
+      fetchHeatmapData(mapRegion, heatmapDays);
     }
-  }, [incidents, mapReady]);
+  }, [incidents, mapReady, heatmapDays]);
 
   // Get recent incidents for the list (top 3)
   const recentIncidents = incidents.slice(0, 3);
@@ -1104,7 +1124,7 @@ const HomeScreen = ({ navigation }) => {
       {renderModalHeader('PRECINCT CONTACT', 'Call Precinct', 'Valenzuela City Police Station')}
       <View style={styles.homeModalHeroCard}>
         <View style={styles.homeModalHeroIcon}>
-          <Text style={styles.homeModalHeroIconText}>☎️</Text>
+          <Ionicons name="call" size={24} color="#dc2626" />
         </View>
         <View style={styles.homeModalHeroCopy}>
           <Text style={styles.homeModalHeroTitle}>Select a direct line</Text>
@@ -1210,8 +1230,19 @@ const HomeScreen = ({ navigation }) => {
         style={styles.modalListCard}
         onPress={() => openHomeModal('incident', incident)}
       >
-        <View style={[styles.incidentModalIcon, { backgroundColor: severityColor }]}>
-          <Text style={styles.incidentModalIconText}>{getIncidentIcon(incident.type)}</Text>
+        <View style={[
+          styles.incidentModalIcon,
+          { 
+            backgroundColor: getSeverityBackground(incident.severity),
+            borderWidth: 1.5,
+            borderColor: severityColor,
+          }
+        ]}>
+          <Ionicons
+            name={getIncidentIconName(incident.type)}
+            size={22}
+            color={severityColor}
+          />
         </View>
         <View style={styles.modalListBody}>
           <View style={styles.modalListTopLine}>
@@ -1265,8 +1296,19 @@ const HomeScreen = ({ navigation }) => {
       <>
         {renderModalHeader('INCIDENT DETAIL', formatIncidentType(incident), formatTimeAgo(incident.timestamp))}
         <View style={styles.incidentDetailCard}>
-          <View style={[styles.incidentDetailIcon, { backgroundColor: severityColor }]}>
-            <Text style={styles.incidentDetailIconText}>{getIncidentIcon(incident.type)}</Text>
+          <View style={[
+            styles.incidentDetailIcon,
+            { 
+              backgroundColor: getSeverityBackground(incident.severity),
+              borderWidth: 1.5,
+              borderColor: severityColor,
+            }
+          ]}>
+            <Ionicons
+              name={getIncidentIconName(incident.type)}
+              size={30}
+              color={severityColor}
+            />
           </View>
           <View style={[styles.incidentDetailSeverity, { borderColor: severityColor }]}>
             <Text style={[styles.incidentDetailSeverityText, { color: severityColor }]}>
@@ -1334,7 +1376,12 @@ const HomeScreen = ({ navigation }) => {
     return (
       <View style={styles.container}>
         <View style={styles.headerNew}>
-          <Text style={styles.headerNewTitle}>THREAT TRACK</Text>
+          <View style={styles.headerBrandContainer}>
+            <Image source={APP_LOGO} style={styles.headerBrandLogo} />
+            <Text style={styles.headerNewTitle}>
+              Threat<Text style={styles.headerNewTitleRed}>Track</Text>
+            </Text>
+          </View>
         </View>
 
         <View style={styles.loadingContainer}>
@@ -1385,17 +1432,32 @@ const HomeScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.headerNew}>
-        <Text style={styles.headerNewTitle}>THREAT TRACK</Text>
+        <View style={styles.headerBrandContainer}>
+          <Image source={APP_LOGO} style={styles.headerBrandLogo} />
+          <Text style={styles.headerNewTitle}>
+            Threat<Text style={styles.headerNewTitleRed}>Track</Text>
+          </Text>
+        </View>
         <View style={styles.headerIconsContainer}>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.headerIconButton}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Settings')} 
+            style={styles.headerIconButton}
+            activeOpacity={0.75}
+            accessibilityLabel="Settings"
+          >
             <View style={styles.settingsIconWrapper}>
-              <Image source={GEAR_ICON} style={styles.headerActionIcon} />
+              <Ionicons name="settings-outline" size={20} color="#334155" />
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity onPress={() => navigation.navigate('Alerts')} style={styles.headerIconButton}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Alerts')} 
+            style={styles.headerIconButton}
+            activeOpacity={0.75}
+            accessibilityLabel="Alerts"
+          >
             <View style={styles.notificationBellWrapper}>
-              <Image source={BELL_ICON} style={styles.headerActionIcon} />
+              <Ionicons name="notifications-outline" size={20} color="#334155" />
               {unreadNotifications > 0 && (
                 <View style={styles.redBadge}>
                   <Text style={styles.redBadgeText}>
@@ -1407,6 +1469,12 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
+      <LinearGradient
+        colors={['transparent', 'rgba(220, 38, 38, 0.45)', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerLaserLine}
+      />
 
       {/* Sticky Active Emergency Report Preview (Fixed at top under header while scrolling) */}
       {activeSOSIncident && (
@@ -1456,10 +1524,77 @@ const HomeScreen = ({ navigation }) => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
+        {/* Safety & Hotspot Radar Controls (Top of Map) */}
+        <View style={styles.hotspotAdvisoryCard}>
+          {/* Header: Full width, spacious text layout */}
+          <View style={styles.hotspotAdvisoryHeader}>
+            <View style={styles.hotspotAdvisoryIconWrap}>
+              <Ionicons name="shield-checkmark" size={18} color="#dc2626" />
+            </View>
+            <View style={styles.hotspotAdvisoryCopy}>
+              <Text style={styles.hotspotAdvisoryTitle}>Safety & Hotspot Radar</Text>
+              <Text style={styles.hotspotAdvisorySubtitle}>
+                {showHeatmap
+                  ? `${heatmapData?.length || 0} active cluster${heatmapData?.length === 1 ? '' : 's'} mapped in Valenzuela`
+                  : 'Hotspot radar is currently on standby'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Controls Bar: Prominent Hotspot Toggle + Timeframe Quick-Chips */}
+          <View style={styles.hotspotControlsRow}>
+            <TouchableOpacity
+              style={[
+                styles.hotspotToggleBtn,
+                showHeatmap ? styles.hotspotToggleBtnActive : styles.hotspotToggleBtnInactive,
+              ]}
+              onPress={() => setShowHeatmap((prev) => !prev)}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={showHeatmap ? 'flame' : 'flame-outline'}
+                size={14}
+                color={showHeatmap ? '#ffffff' : '#64748b'}
+              />
+              <Text
+                style={[
+                  styles.hotspotToggleBtnText,
+                  showHeatmap ? styles.hotspotToggleBtnTextActive : styles.hotspotToggleBtnTextInactive,
+                ]}
+              >
+                {showHeatmap ? 'HOTSPOTS ON' : 'HOTSPOTS OFF'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.hotspotTimeFilters}>
+              <Text style={styles.hotspotTimeFiltersLabel}>TIME:</Text>
+              {[
+                { label: '24h', days: 1 },
+                { label: '7d', days: 7 },
+                { label: '30d', days: 30 },
+              ].map((filter) => {
+                const isActive = heatmapDays === filter.days;
+                return (
+                  <TouchableOpacity
+                    key={`filter-${filter.days}`}
+                    style={[styles.hotspotTimeChip, isActive && styles.hotspotTimeChipActive]}
+                    onPress={() => handleSelectHeatmapDays(filter.days)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.hotspotTimeChipText, isActive && styles.hotspotTimeChipTextActive]}>
+                      {filter.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
         {/* Map Container */}
         <View style={styles.mapContainer}>
           {userLocation ? (
-            <>
+            <View style={styles.mapWrapper}>
               <MapView
                 ref={mapRef}
                 style={styles.map}
@@ -1483,37 +1618,49 @@ const HomeScreen = ({ navigation }) => {
                 {/* Valenzuela City Boundary Outline */}
                 <Polygon
                   coordinates={VALENZUELA_BOUNDARY}
-                  strokeColor="#6a8eef"
-                  strokeWidth={3}
-                  fillColor="rgba(106, 142, 239, 0.1)"
+                  strokeColor="#38bdf8"
+                  strokeWidth={2.5}
+                  fillColor="rgba(56, 189, 248, 0.08)"
                   tappable={false}
                 />
 
-                {/* Heatmap Layer - Always Visible with 7-Day Span */}
-                {heatmapData && heatmapData.length > 0 && (
+                {/* Heatmap Layer - Toggled with time span */}
+                {showHeatmap && heatmapData && heatmapData.length > 0 && (
                   <>
                     <Heatmap
                       points={heatmapData}
                       radius={HEATMAP_NATIVE_RADIUS}
-                      opacity={0.78}
+                      opacity={0.8}
                       maxIntensity={1}
                       gradient={HEATMAP_GRADIENT}
                     />
 
-                    {getHeatmapMarkerPoints(heatmapData).map((point, index) => (
+                    {getHeatmapMarkerPoints(heatmapData).map((point, index) => [
                       <Circle
-                        key={`heatmap-marker-${index}-${point.latitude}-${point.longitude}`}
+                        key={`hotspot-aura-${index}-${point.latitude}-${point.longitude}`}
                         center={{
                           latitude: point.latitude,
                           longitude: point.longitude,
                         }}
                         radius={getHeatmapMarkerRadius(point.weight)}
-                        strokeColor="#ffffff"
-                        strokeWidth={2}
-                        fillColor="rgba(239, 45, 19, 0.9)"
+                        strokeColor="rgba(220, 38, 38, 0.35)"
+                        strokeWidth={1}
+                        fillColor="rgba(220, 38, 38, 0.16)"
                         zIndex={2}
+                      />,
+                      <Circle
+                        key={`hotspot-core-${index}-${point.latitude}-${point.longitude}`}
+                        center={{
+                          latitude: point.latitude,
+                          longitude: point.longitude,
+                        }}
+                        radius={getHeatmapMarkerRadius(point.weight) * 0.42}
+                        strokeColor="rgba(255, 255, 255, 0.65)"
+                        strokeWidth={1}
+                        fillColor="rgba(220, 38, 38, 0.52)"
+                        zIndex={3}
                       />
-                    ))}
+                    ])}
                   </>
                 )}
 
@@ -1541,16 +1688,23 @@ const HomeScreen = ({ navigation }) => {
                   );
                 })}
               </MapView>
+
+              {/* Floating Futuristic Radar Badge */}
+              <View style={styles.radarLiveBadge} pointerEvents="none">
+                <View style={styles.radarLiveDot} />
+                <Text style={styles.radarLiveText}>VALENZUELA LIVE RADAR</Text>
+              </View>
+
               {heatmapLoading && (
                 <View style={styles.heatmapLoadingBadge}>
                   <ActivityIndicator size="small" color="#ffffff" />
                   <Text style={styles.heatmapLoadingText}>Updating heatmap</Text>
                 </View>
               )}
-            </>
+            </View>
           ) : (
             <View style={styles.mapPlaceholder}>
-              <Text style={styles.mapPlaceholderText}>📍</Text>
+              <Ionicons name="location-outline" size={38} color="#dc2626" style={{ marginBottom: 6 }} />
               <Text style={styles.mapPlaceholderLabel}>Location Required</Text>
               <Text style={styles.mapPlaceholderSubtext}>Enable location to view map</Text>
               <TouchableOpacity 
@@ -1565,30 +1719,61 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Report Incident Button */}
         <TouchableOpacity
-          style={styles.reportButtonWire}
+          style={styles.reportButtonTouch}
           onPress={() => navigation.navigate('ReportIncident')}
+          activeOpacity={0.9}
         >
-          <View style={styles.reportButtonIconWrap}>
-            <Image source={CAMERA_ICON} style={styles.reportButtonWireIcon} />
-          </View>
-          <Text style={styles.reportButtonWireText}>Report an Incident</Text>
+          <LinearGradient
+            colors={['#dc2626', '#991b1b']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.reportButtonGradient}
+          >
+            <View style={styles.reportButtonLeft}>
+              <View style={styles.reportButtonIconWrap}>
+                <Ionicons name="camera" size={20} color="#ffffff" />
+              </View>
+              <View style={styles.reportButtonTextGroup}>
+                <Text style={styles.reportButtonEyebrow}>COMMUNITY SAFETY</Text>
+                <Text style={styles.reportButtonTitle}>Report an Incident</Text>
+              </View>
+            </View>
+            <View style={styles.reportButtonArrowPill}>
+              <Ionicons name="arrow-forward" size={16} color="#ffffff" />
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Quick Action Cards: Nearest Precinct + Call 911 */}
         <View style={styles.quickCardsRow}>
-          <TouchableOpacity style={styles.quickCard} onPress={() => openHomeModal('nearest')}>
-            <Image 
-              source={require('../assets/icons/police-station.png')}
-              style={styles.quickCardIconImage}
-            />
+          <TouchableOpacity 
+            style={styles.quickCard} 
+            onPress={() => openHomeModal('nearest')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.quickCardTopRow}>
+              <View style={styles.quickCardIconBadge}>
+                <Ionicons name="shield-checkmark" size={18} color="#dc2626" />
+              </View>
+              <Text style={styles.quickCardChip}>POLICE</Text>
+            </View>
             <View style={styles.quickCardTextWrap}>
               <Text style={styles.quickCardNumber}>{nearestPrecinct ? formatDistance(nearestPrecinct.distance) : '—'}</Text>
               <Text style={styles.quickCardLabel}>Nearest Station</Text>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickCard} onPress={handleCallPrecinct}>
-            <Text style={styles.quickCardIcon}>☎️</Text>
+          <TouchableOpacity 
+            style={styles.quickCard} 
+            onPress={handleCallPrecinct}
+            activeOpacity={0.85}
+          >
+            <View style={styles.quickCardTopRow}>
+              <View style={styles.quickCardIconBadge}>
+                <Ionicons name="call" size={18} color="#dc2626" />
+              </View>
+              <Text style={styles.quickCardChip}>24/7 HELP</Text>
+            </View>
             <View style={styles.quickCardTextWrap}>
               <Text style={styles.quickCardNumber}>Hotline</Text>
               <Text style={styles.quickCardLabel}>Call Precinct</Text>
@@ -1608,18 +1793,12 @@ const HomeScreen = ({ navigation }) => {
 
             <View style={styles.precinctCard}>
               <View style={styles.precinctIcon}>
-                <Image 
-                  source={require('../assets/icons/police-station.png')}
-                  style={styles.precinctIconImage}
-                />
+                <Ionicons name="shield" size={24} color="#dc2626" />
               </View>
               <View style={styles.precinctInfo}>
                 <Text style={styles.precinctName}>{nearestPrecinct.name}</Text>
                 <View style={styles.precinctLocation}>
-                  <Image 
-                    source={require('../assets/icons/police-station.png')}
-                    style={styles.precinctLocationIcon}
-                  />
+                  <Ionicons name="location" size={14} color="#dc2626" style={{ marginRight: 4 }} />
                   <Text style={styles.precinctAddress} numberOfLines={2}>
                     {nearestPrecinct.address} • {formatDistance(nearestPrecinct.distance)}
                   </Text>
@@ -1630,8 +1809,9 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => {
                   confirmPrecinctNavigation(nearestPrecinct);
                 }}
+                activeOpacity={0.8}
               >
-                <Text style={styles.navigateIconText}>▶️</Text>
+                <Ionicons name="navigate-circle" size={32} color="#dc2626" />
               </TouchableOpacity>
             </View>
           </View>
@@ -1655,9 +1835,17 @@ const HomeScreen = ({ navigation }) => {
               >
                 <View style={[
                   styles.incidentIcon,
-                  { backgroundColor: getMarkerColor(incident.severity) }
+                  { 
+                    backgroundColor: getSeverityBackground(incident.severity),
+                    borderWidth: 1.5,
+                    borderColor: getMarkerColor(incident.severity),
+                  }
                 ]}>
-                  <Text style={styles.incidentIconText}>{getIncidentIcon(incident.type)}</Text>
+                  <Ionicons
+                    name={getIncidentIconName(incident.type)}
+                    size={22}
+                    color={getMarkerColor(incident.severity)}
+                  />
                 </View>
                 <View style={styles.incidentInfo}>
                   <Text style={styles.incidentTitle}>
@@ -1669,7 +1857,7 @@ const HomeScreen = ({ navigation }) => {
                   <Text style={styles.incidentTime}>{formatTimeAgo(incident.timestamp)}</Text>
                 </View>
                 <View style={styles.incidentArrow}>
-                  <Text style={styles.incidentArrowText}>→</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
                 </View>
               </TouchableOpacity>
             ))
@@ -1913,23 +2101,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
+  headerLaserLine: {
+    height: 1.5,
+    width: '100%',
+  },
+  headerBrandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerBrandLogo: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
+  },
   headerNewTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.3,
+  },
+  headerNewTitleRed: {
+    color: '#dc2626',
   },
   notificationBellWrapper: {
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: '#fff7f7',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   bellIcon: {
     fontSize: 24,
@@ -1948,15 +2152,14 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   settingsIconWrapper: {
-    position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: '#fff7f7',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   settingsIcon: {
     fontSize: 22,
@@ -2103,23 +2306,181 @@ const styles = StyleSheet.create({
 
   mapContainer: {
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
     backgroundColor: '#ffffff',
     position: 'relative',
+  },
+  mapWrapper: {
+    position: 'relative',
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#0f172a',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 8,
   },
   map: {
     width: '100%',
     height: 320,
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    borderRadius: 22,
+  },
+  radarLiveBadge: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    zIndex: 30,
+    elevation: 10,
+  },
+  radarLiveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  radarLiveText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  // Hotspot Advisory & Time Filter Card (Above Map)
+  hotspotAdvisoryCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 0,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  hotspotAdvisoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  hotspotAdvisoryIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+  hotspotAdvisoryCopy: {
+    flex: 1,
+  },
+  hotspotAdvisoryTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.2,
+  },
+  hotspotAdvisorySubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  // Prominent Hotspot Toggle & Controls Row
+  hotspotControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  hotspotToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  hotspotToggleBtnActive: {
+    backgroundColor: '#dc2626',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  hotspotToggleBtnInactive: {
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  hotspotToggleBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  hotspotToggleBtnTextActive: {
+    color: '#ffffff',
+  },
+  hotspotToggleBtnTextInactive: {
+    color: '#64748b',
+  },
+  hotspotTimeFilters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  hotspotTimeFiltersLabel: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.6,
+  },
+  hotspotTimeChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  hotspotTimeChipActive: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fef2f2',
+  },
+  hotspotTimeChipText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  hotspotTimeChipTextActive: {
+    color: '#dc2626',
+    fontWeight: '800',
   },
   mapPlaceholder: {
     width: '100%',
@@ -2165,20 +2526,20 @@ const styles = StyleSheet.create({
   },
   heatmapLoadingBadge: {
     position: 'absolute',
-    top: 32,
-    right: 28,
+    top: 14,
+    right: 14,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(17, 24, 39, 0.82)',
     borderRadius: 16,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   heatmapLoadingText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   customMarker: {
     width: 40,
@@ -2222,41 +2583,63 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   
-  // Report Button - Red Button Style
-  reportButtonWire: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#dc2626',
+  // Report Button - Gradient Card Style
+  reportButtonTouch: {
     marginHorizontal: 16,
     marginBottom: 20,
-    paddingVertical: 18,
-    borderRadius: 16,
+    borderRadius: 18,
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  reportButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 18,
+  },
+  reportButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   reportButtonIconWrap: {
-    width: 34,
-    height: 34,
-    backgroundColor: 'transparent',
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  reportButtonWireIcon: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
-    tintColor: '#ffffff',
+  reportButtonTextGroup: {
+    justifyContent: 'center',
   },
-  reportButtonWireText: {
+  reportButtonEyebrow: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  reportButtonTitle: {
     color: '#ffffff',
     fontSize: 17,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
+  },
+  reportButtonArrowPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Quick cards row
@@ -2265,49 +2648,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 24,
-    gap: 14,
+    gap: 12,
   },
   quickCard: {
     flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 18,
-    padding: 18,
+    padding: 16,
     flexDirection: 'column',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  quickCardTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  quickCardIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#fef2f2',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#dc2626',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
-  quickCardIcon: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
-  quickCardIconImage: {
-    width: 36,
-    height: 36,
-    marginBottom: 12,
-    resizeMode: 'contain',
+  quickCardChip: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.5,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   quickCardTextWrap: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   quickCardNumber: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#dc2626',
-    marginBottom: 6,
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 2,
+    letterSpacing: -0.2,
   },
   quickCardLabel: {
-    fontSize: 14,
-    color: '#374151',
-    textAlign: 'center',
-    fontWeight: '700',
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
   },
   
   // Risk Cards
@@ -2380,24 +2776,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
     padding: 14,
-    shadowColor: '#000',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     elevation: 3,
   },
   precinctIcon: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     backgroundColor: '#fef2f2',
-    borderRadius: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
   precinctIconText: {
     fontSize: 26,
@@ -2451,24 +2849,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   incidentIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 13,
   },
   incidentIconText: {
     color: '#ffffff',
@@ -2481,19 +2879,19 @@ const styles = StyleSheet.create({
   incidentTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#111827',
+    color: '#0f172a',
     marginBottom: 3,
   },
   incidentDetails: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13.5,
+    color: '#64748b',
     marginBottom: 3,
     fontWeight: '500',
   },
   incidentTime: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '500',
+    fontSize: 12.5,
+    color: '#94a3b8',
+    fontWeight: '600',
   },
   incidentArrow: {
     padding: 10,
@@ -2926,7 +3324,7 @@ const styles = StyleSheet.create({
   
   // Bottom Spacer
   bottomSpacer: {
-    height: 120,
+    height: 140,
   },
   
   // Bottom Navigation Bar Container

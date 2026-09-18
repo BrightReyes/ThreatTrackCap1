@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
@@ -618,9 +619,15 @@ const StatusScreen = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.headerNew}>
-            <Text style={styles.headerNewTitle}>REPORT STATUS</Text>
+            <Text style={styles.headerNewTitle}>Report Status</Text>
             <Text style={styles.headerSubtitle}>Track your submitted reports and review response progress.</Text>
           </View>
+          <LinearGradient
+            colors={['transparent', 'rgba(220, 38, 38, 0.45)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.headerLaserLine}
+          />
 
           {/* Statistics Cards */}
           <View style={styles.statsContainer}>
@@ -754,23 +761,25 @@ const styles = StyleSheet.create({
   headerNew: {
     paddingHorizontal: 20,
     paddingTop: HEADER_TOP_PADDING,
-    paddingBottom: 14,
+    paddingBottom: 12,
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+  },
+  headerLaserLine: {
+    height: 1.5,
+    width: '100%',
   },
   headerNewTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#111827',
-    letterSpacing: 1.2,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#0f172a',
+    letterSpacing: -0.3,
+    marginBottom: 4,
   },
   headerSubtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '700',
-    lineHeight: 19,
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+    lineHeight: 18,
   },
 
   // Statistics Cards
@@ -785,28 +794,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 10,
-    marginHorizontal: 5,
+    marginHorizontal: 4,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#fee2e2',
-    shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   statNumber: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#dc2626',
-    marginBottom: 6,
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '700',
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
     textAlign: 'center',
   },
   assuranceBanner: {

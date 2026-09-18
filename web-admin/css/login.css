@@ -240,3 +240,25 @@ input:-webkit-autofill:active {
         transform: rotate(360deg);
     }
 }
+
+/* Return to Public Website link */
+.back-home-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.back-home-link:hover {
+    color: #ef4444;
+    transform: translateX(-3px);
+}
+
+.back-home-link .material-symbols-outlined {
+    font-size: 18px;
+}
