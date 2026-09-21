@@ -275,6 +275,7 @@ const HomeScreen = ({ navigation }) => {
   const unsubscribeRef = useRef(null);
   const notificationsUnsubscribeRef = useRef(null);
   const heatmapRequestIdRef = useRef(0);
+  const heatmapDebounceTimerRef = useRef(null);
   const heatmapEndpointUnavailableRef = useRef(false);
   const rotationValue = useRef(new Animated.Value(0)).current;
   const radarRipple1 = useRef(new Animated.Value(0)).current;
@@ -560,6 +561,9 @@ const HomeScreen = ({ navigation }) => {
       if (notificationsUnsubscribeRef.current) {
         notificationsUnsubscribeRef.current();
         notificationsUnsubscribeRef.current = null;
+      }
+      if (heatmapDebounceTimerRef.current) {
+        clearTimeout(heatmapDebounceTimerRef.current);
       }
     };
   }, []);
@@ -1606,8 +1610,13 @@ const HomeScreen = ({ navigation }) => {
                 onRegionChangeComplete={(region) => {
                   setMapRegion(region);
                   handleRegionChange(region);
-                  // Refresh heatmap when region changes (7-day span)
-                  fetchHeatmapData(region, DEFAULT_HEATMAP_DAYS);
+                  // Debounce heatmap fetch (450ms) to avoid lagging and rapid API calls while panning
+                  if (heatmapDebounceTimerRef.current) {
+                    clearTimeout(heatmapDebounceTimerRef.current);
+                  }
+                  heatmapDebounceTimerRef.current = setTimeout(() => {
+                    fetchHeatmapData(region, DEFAULT_HEATMAP_DAYS);
+                  }, 450);
                 }}
                 minZoomLevel={12}
                 maxZoomLevel={17}
@@ -1624,44 +1633,15 @@ const HomeScreen = ({ navigation }) => {
                   tappable={false}
                 />
 
-                {/* Heatmap Layer - Toggled with time span */}
+                {/* Heatmap Layer - Hardware-accelerated GPU overlay */}
                 {showHeatmap && heatmapData && heatmapData.length > 0 && (
-                  <>
-                    <Heatmap
-                      points={heatmapData}
-                      radius={HEATMAP_NATIVE_RADIUS}
-                      opacity={0.8}
-                      maxIntensity={1}
-                      gradient={HEATMAP_GRADIENT}
-                    />
-
-                    {getHeatmapMarkerPoints(heatmapData).map((point, index) => [
-                      <Circle
-                        key={`hotspot-aura-${index}-${point.latitude}-${point.longitude}`}
-                        center={{
-                          latitude: point.latitude,
-                          longitude: point.longitude,
-                        }}
-                        radius={getHeatmapMarkerRadius(point.weight)}
-                        strokeColor="rgba(220, 38, 38, 0.35)"
-                        strokeWidth={1}
-                        fillColor="rgba(220, 38, 38, 0.16)"
-                        zIndex={2}
-                      />,
-                      <Circle
-                        key={`hotspot-core-${index}-${point.latitude}-${point.longitude}`}
-                        center={{
-                          latitude: point.latitude,
-                          longitude: point.longitude,
-                        }}
-                        radius={getHeatmapMarkerRadius(point.weight) * 0.42}
-                        strokeColor="rgba(255, 255, 255, 0.65)"
-                        strokeWidth={1}
-                        fillColor="rgba(220, 38, 38, 0.52)"
-                        zIndex={3}
-                      />
-                    ])}
-                  </>
+                  <Heatmap
+                    points={heatmapData}
+                    radius={HEATMAP_NATIVE_RADIUS}
+                    opacity={0.8}
+                    maxIntensity={1}
+                    gradient={HEATMAP_GRADIENT}
+                  />
                 )}
 
                 {/* Precinct Markers */}
@@ -1678,6 +1658,7 @@ const HomeScreen = ({ navigation }) => {
                       description={precinct.address}
                       anchor={{ x: 0.5, y: 1 }}
                       zIndex={20}
+                      tracksViewChanges={false}
                     >
                       <Image
                         source={require('../assets/icons/police-station.png')}
