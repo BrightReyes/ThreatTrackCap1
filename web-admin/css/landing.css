@@ -2764,10 +2764,12 @@ button {
   margin-bottom: 14px;
 }
 
+.qr-image-wrapper img,
 .qr-image-wrapper svg {
   width: 140px;
   height: 140px;
   display: block;
+  object-fit: contain;
 }
 
 .qr-box-container p {
@@ -2916,10 +2918,12 @@ button {
   box-shadow: 0 8px 24px rgba(220, 38, 38, 0.08);
 }
 
+.modal-qr-frame img,
 .modal-qr-frame svg {
   width: 180px;
   height: 180px;
   display: block;
+  object-fit: contain;
 }
 
 /* ==========================================================================
