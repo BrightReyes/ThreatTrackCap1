@@ -97,8 +97,8 @@ const getStatusIconName = (status) => {
 const getSeverityColor = (severity) => {
   const lower = String(severity || '').toLowerCase();
   if (lower === 'high') return '#dc2626';
-  if (lower === 'medium') return '#b45309';
-  if (lower === 'low') return '#047857';
+  if (lower === 'medium') return '#f97316';
+  if (lower === 'low') return '#eab308';
   return '#dc2626';
 };
 

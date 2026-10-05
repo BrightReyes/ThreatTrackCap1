@@ -579,8 +579,8 @@ initAdminPage({
             type: normText(document.getElementById('map-marker-type')?.value) || 'dot',
             clustering: normText(document.getElementById('map-marker-clustering')?.value) || 'off',
             severityColors: {
-              low: '#22c55e',
-              medium: '#facc15',
+              low: '#eab308',
+              medium: '#f97316',
               high: '#ef4444',
             },
           },
@@ -623,8 +623,8 @@ initAdminPage({
           })),
           severity: {
             colors: {
-              low: normText(document.getElementById('sev-low-color')?.value) || '#22c55e',
-              medium: normText(document.getElementById('sev-med-color')?.value) || '#facc15',
+              low: normText(document.getElementById('sev-low-color')?.value) || '#eab308',
+              medium: normText(document.getElementById('sev-med-color')?.value) || '#f97316',
               high: normText(document.getElementById('sev-high-color')?.value) || '#ef4444',
             },
             defaultSeverity: normText(document.getElementById('inc-default-severity')?.value) || 'medium',
@@ -769,8 +769,8 @@ initAdminPage({
         const el = document.getElementById(id);
         if (el) el.value = v ?? '';
       };
-      setValueRaw('sev-low-color', sevColors.low ?? '#22c55e');
-      setValueRaw('sev-med-color', sevColors.medium ?? '#facc15');
+      setValueRaw('sev-low-color', sevColors.low ?? '#eab308');
+      setValueRaw('sev-med-color', sevColors.medium ?? '#f97316');
       setValueRaw('sev-high-color', sevColors.high ?? '#ef4444');
       setValueRaw('inc-default-severity', sev.defaultSeverity ?? 'medium');
 
@@ -924,7 +924,7 @@ initAdminPage({
             enabled: true,
             type: 'dot',
             clustering: 'off',
-            severityColors: { low: '#22c55e', medium: '#facc15', high: '#ef4444' },
+            severityColors: { low: '#eab308', medium: '#f97316', high: '#ef4444' },
           },
           pcp: { enabled: false, highlightNearest: false, markerStyle: 'icon' },
           interaction: { zoomControl: true, dragging: true, scrollZoom: true, doubleClickZoom: true, minZoom: 10, maxZoom: 19 },
@@ -940,7 +940,7 @@ initAdminPage({
             { key: 'vandalism', name: 'Vandalism', enabled: true, color: '#f59e0b' },
           ],
           severity: {
-            colors: { low: '#22c55e', medium: '#facc15', high: '#ef4444' },
+            colors: { low: '#eab308', medium: '#f97316', high: '#ef4444' },
             defaultSeverity: 'medium',
           },
           inputRules: {

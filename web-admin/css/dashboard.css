@@ -1086,12 +1086,12 @@ html.sidebar-collapsed-initial
 }
 
 .legend-dot--medium {
-    background: #f59e0b;
+    background: #f97316;
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
 }
 
 .legend-dot--low {
-    background: #16a34a;
+    background: #eab308;
     box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 

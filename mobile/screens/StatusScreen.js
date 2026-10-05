@@ -90,13 +90,13 @@ const STATUS_META = {
     assurance: 'Your report is active for responder coordination.',
   },
   rejected: {
-    label: 'Needs Attention',
-    shortLabel: 'Attention',
-    color: '#991b1b',
+    label: 'Report Rejected',
+    shortLabel: 'Rejected',
+    color: '#dc2626',
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
     step: 1,
-    assurance: 'This report needs more information before it can move forward.',
+    assurance: 'This report was reviewed and rejected by the administration team.',
   },
   spam: {
     label: 'Needs Attention',
@@ -380,7 +380,7 @@ const StatusScreen = ({ navigation }) => {
     switch (severity) {
       case 'high': return '#dc2626';
       case 'medium': return '#f59e0b';
-      case 'low': return '#10b981';
+      case 'low': return '#eab308';
       default: return '#6b7280';
     }
   };
@@ -389,7 +389,7 @@ const StatusScreen = ({ navigation }) => {
     switch (severity) {
       case 'high': return '#fef2f2';
       case 'medium': return '#fffbeb';
-      case 'low': return '#ecfdf5';
+      case 'low': return '#fefce8';
       default: return '#f3f4f6';
     }
   };
@@ -504,6 +504,30 @@ const StatusScreen = ({ navigation }) => {
               </View>
 
               {renderTrackingSteps(displayStatus)}
+
+              {(displayStatus === 'rejected' || !!selectedIncident.rejectionReason) && (
+                <View style={styles.rejectionCard}>
+                  <View style={styles.rejectionHeader}>
+                    <View style={styles.rejectionIconWrap}>
+                      <Ionicons name="close-circle" size={24} color="#dc2626" />
+                    </View>
+                    <View style={styles.rejectionTitleBlock}>
+                      <Text style={styles.rejectionEyebrow}>STATUS UPDATE</Text>
+                      <Text style={styles.rejectionTitle}>Report Rejected</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.rejectionReasonHeading}>Reason for Rejection:</Text>
+                  <Text style={styles.rejectionMessage}>
+                    {selectedIncident.rejectionReason || selectedIncident.response?.message || 'This report was reviewed and could not be validated or did not meet submission guidelines.'}
+                  </Text>
+                  <View style={styles.rejectionAdvice}>
+                    <Ionicons name="help-circle-outline" size={16} color="#6b7280" />
+                    <Text style={styles.rejectionAdviceText}>
+                      For active emergencies, please call emergency services immediately or submit a new report with complete street details.
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {hasResponse && (
                 <View style={styles.responderCard}>
@@ -692,6 +716,15 @@ const StatusScreen = ({ navigation }) => {
                     {renderTrackingSteps(displayStatus, true)}
 
                     <Text style={styles.incidentBody} numberOfLines={3}>{incident.description}</Text>
+
+                    {displayStatus === 'rejected' && (
+                      <View style={styles.cardRejectionSnippet}>
+                        <Ionicons name="alert-circle-outline" size={15} color="#dc2626" />
+                        <Text style={styles.cardRejectionSnippetText} numberOfLines={2}>
+                          Rejected: {incident.rejectionReason || incident.response?.message || 'Report not accepted'}
+                        </Text>
+                      </View>
+                    )}
 
                     <View style={styles.incidentRowBottom}>
                       <Text style={styles.incidentLocation} numberOfLines={2}>{getLocationDisplay(incident.location)}</Text>
@@ -1393,6 +1426,91 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 3,
+  },
+  rejectionCard: {
+    backgroundColor: '#fff5f5',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    borderRadius: 16,
+    padding: 16,
+    marginVertical: 14,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  rejectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  rejectionIconWrap: {
+    marginRight: 10,
+  },
+  rejectionTitleBlock: {
+    flex: 1,
+  },
+  rejectionEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#dc2626',
+    letterSpacing: 1,
+  },
+  rejectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#991b1b',
+  },
+  rejectionReasonHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7f1d1d',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  rejectionMessage: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+    fontWeight: '500',
+    backgroundColor: '#ffffff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+  },
+  rejectionAdvice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 10,
+    gap: 6,
+  },
+  rejectionAdviceText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 16,
+  },
+  cardRejectionSnippet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    marginVertical: 6,
+    gap: 6,
+  },
+  cardRejectionSnippetText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#b91c1c',
+    lineHeight: 16,
   },
 });
 

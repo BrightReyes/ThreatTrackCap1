@@ -113,18 +113,54 @@ let focusPopupTimer = null;
 let visibleIncidentMarkers = new Map();
 let visibleIncidentPoints = new Map();
 
+function hexToRgb(hex) {
+    const str = String(hex || "").trim();
+    let m = /^#([0-9a-f]{6})$/i.exec(str);
+    if (m) {
+        const n = parseInt(m[1], 16);
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+    m = /^#([0-9a-f]{3})$/i.exec(str);
+    if (m) {
+        const x = m[1];
+        return {
+            r: parseInt(x[0] + x[0], 16),
+            g: parseInt(x[1] + x[1], 16),
+            b: parseInt(x[2] + x[2], 16),
+        };
+    }
+    return { r: 107, g: 114, b: 128 };
+}
+
+function isGreenish(color) {
+    const s = String(color || "").trim().toLowerCase();
+    if (!s) return false;
+    if (s.includes("green") || s.includes("lime") || s.includes("emerald")) return true;
+    const { r, g, b } = hexToRgb(s);
+    return g > 105 && g >= r * 0.95 && g >= b * 1.1;
+}
+
 function severityColor(sev) {
+    const s = String(sev || "").toLowerCase();
     const custom = settings?.mapSettings?.markers?.severityColors;
     if (custom) {
-        const s = String(sev || "").toLowerCase();
         if (s === "high") return custom.high || "#ef4444";
-        if (s === "medium") return custom.medium || "#facc15";
-        if (s === "low") return custom.low || "#22c55e";
+        if (s === "medium") {
+            if (isGreenish(custom.medium) || custom.medium === "#22c55e" || custom.medium === "#16a34a") {
+                return "#f97316";
+            }
+            return custom.medium || "#f97316";
+        }
+        if (s === "low") {
+            if (isGreenish(custom.low) || custom.low === "#22c55e" || custom.low === "#16a34a" || !custom.low) {
+                return "#eab308";
+            }
+            return custom.low;
+        }
     }
-    const s = String(sev || "").toLowerCase();
     if (s === "high") return "#ef4444";
-    if (s === "medium") return "#f59e0b";
-    if (s === "low") return "#22c55e";
+    if (s === "medium") return "#f97316";
+    if (s === "low") return "#eab308";
     return "#6b7280";
 }
 
@@ -282,28 +318,13 @@ function buildIncidentTooltipHtml(p) {
       `;
 }
 
-function hexToRgb(hex) {
-    const str = String(hex || "").trim();
-    let m = /^#([0-9a-f]{6})$/i.exec(str);
-    if (m) {
-        const n = parseInt(m[1], 16);
-        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-    }
-    m = /^#([0-9a-f]{3})$/i.exec(str);
-    if (m) {
-        const x = m[1];
-        return {
-            r: parseInt(x[0] + x[0], 16),
-            g: parseInt(x[1] + x[1], 16),
-            b: parseInt(x[2] + x[2], 16),
-        };
-    }
-    return { r: 107, g: 114, b: 128 };
-}
-
 /** Single-hue ramp for leaflet.heat (intensity → same color, higher alpha). */
 function monoHeatGradient(hex) {
-    const { r, g, b } = hexToRgb(hex);
+    let cleanHex = String(hex || "").trim().toLowerCase();
+    if (isGreenish(cleanHex) || cleanHex === "#22c55e" || cleanHex === "#16a34a" || cleanHex === "#10b981") {
+        cleanHex = "#eab308";
+    }
+    const { r, g, b } = hexToRgb(cleanHex);
     return {
         0.15: `rgba(${r},${g},${b},0.14)`,
         0.4: `rgba(${r},${g},${b},0.38)`,
@@ -834,6 +855,15 @@ async function loadMapSettings() {
     try {
         const snap = await getDoc(doc(db, "settings", "system"));
         settings = snap.exists() ? snap.data() : null;
+        if (settings?.mapSettings?.markers?.severityColors) {
+            const sc = settings.mapSettings.markers.severityColors;
+            if (isGreenish(sc.low) || sc.low === "#22c55e" || sc.low === "#16a34a") {
+                sc.low = "#eab308";
+            }
+            if (isGreenish(sc.medium) || sc.medium === "#22c55e" || sc.medium === "#16a34a") {
+                sc.medium = "#f97316";
+            }
+        }
     } catch (err) {
         console.warn("[admin-map] settings load failed", err);
         settings = null;

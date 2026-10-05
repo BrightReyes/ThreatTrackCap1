@@ -1,11 +1,16 @@
 import {
+    addDoc,
     collection,
+    doc,
     limit,
     onSnapshot,
     orderBy,
     query,
+    serverTimestamp,
+    updateDoc,
 } from "firebase/firestore";
-import { db } from "../../shared/firebase.js";
+import { auth, db } from "../../shared/firebase.js";
+import { logAudit } from "./audit.js";
 import { toastError, toastSuccess } from "./alerts.js";
 import {
     closeAdminCustomSelects,
@@ -42,6 +47,15 @@ function escapeAttr(text) {
         .replace(/&/g, "&amp;")
         .replace(/"/g, "&quot;")
         .replace(/</g, "&lt;");
+}
+
+function formatIncidentCode(docId) {
+    let hash = 0;
+    const s = String(docId || "");
+    for (let i = 0; i < s.length; i += 1) {
+        hash = (hash * 31 + s.charCodeAt(i)) % 10000;
+    }
+    return `TR-${String(hash).padStart(4, "0")}`;
 }
 
 function formatReportedAt(data = {}) {
@@ -160,6 +174,7 @@ function isEligibleAlert(id, data = {}, options = {}) {
     if (!id || data.isSOSReport !== true) return false;
     const status = String(data.status || "").toLowerCase().trim();
     if (["done", "completed", "resolved", "closed", "rejected", "spam"].includes(status)) return false;
+    if (data.adminDismissed === true) return false;
     if (data.resolutionReason === "user_marked_safe") return false;
     if (data.liveStreamingActive === false || Boolean(data.distressResolvedAt)) return false;
     if (!canRespondToIncident(data)) return false;
@@ -258,6 +273,117 @@ function closeActiveAlert({showNext = true} = {}) {
     if (showNext) {
         window.setTimeout(processPriorityQueue, 0);
     }
+}
+
+function promptSosDismissalReason(incidentCode = "") {
+    return new Promise((resolve) => {
+        let modalEl = document.getElementById("sos-dismissal-dialog");
+        if (!modalEl) {
+            modalEl = document.createElement("div");
+            modalEl.id = "sos-dismissal-dialog";
+            modalEl.className = "admin-priority-alert";
+            modalEl.setAttribute("role", "dialog");
+            modalEl.setAttribute("aria-modal", "true");
+            modalEl.style.zIndex = "10001";
+            modalEl.innerHTML = `
+              <div class="admin-priority-alert__backdrop" data-sos-dismiss-cancel></div>
+              <section class="admin-priority-alert__panel" style="max-width:500px;background:#ffffff;color:#1e293b;border-top:4px solid #ef4444;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <h3 id="sos-dismissal-dialog-title" style="margin:0;font-size:1.15rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px;">
+                    <span class="material-symbols-outlined" style="font-size:24px;color:#ef4444;">notifications_off</span>
+                    Dismiss SOS Alert
+                  </h3>
+                  <button type="button" class="admin-priority-alert__close" data-sos-dismiss-cancel aria-label="Cancel" style="font-size:1.4rem;line-height:1;border:none;background:transparent;cursor:pointer;color:#64748b;">×</button>
+                </div>
+                <form id="sos-dismissal-form" style="display:flex;flex-direction:column;gap:14px;">
+                  <p style="margin:0;font-size:0.875rem;color:#475569;line-height:1.45;">
+                    Dismissing an active SOS alert requires an operational reason. This action is <strong>permanently logged in the audit trail</strong> and clears the urgent alert queue.
+                  </p>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <label for="sos-dismissal-category" style="font-size:0.825rem;font-weight:700;color:#334155;">
+                      Dismissal Reason <span style="color:#ef4444;">*</span>
+                    </label>
+                    <select id="sos-dismissal-category" required style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;background:#ffffff;color:#0f172a;">
+                      <option value="" disabled selected>Select a reason...</option>
+                      <option value="Handled via Radio / Phone / Direct Dispatch">Handled via Radio / Hotline / Direct Dispatch</option>
+                      <option value="Accidental Trigger / Confirmed Safe">Accidental Trigger / Citizen Confirmed Safe</option>
+                      <option value="False Alarm / Checked & Cleared">False Alarm / Area Checked & Cleared</option>
+                      <option value="Duplicate Alert">Duplicate Alert (Already Actioned)</option>
+                      <option value="System Test / Training Drill">System Test / Training Drill</option>
+                      <option value="Other">Other Operational Reason</option>
+                    </select>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <label for="sos-dismissal-notes" style="font-size:0.825rem;font-weight:700;color:#334155;">
+                      Operational Notes / Details <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea id="sos-dismissal-notes" required rows="3" placeholder="Explain how this distress call was addressed or verified..." style="width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.875rem;font-family:inherit;color:#0f172a;resize:vertical;box-sizing:border-box;"></textarea>
+                  </div>
+                  <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:4px;">
+                    <button type="button" class="admin-priority-alert__btn" data-sos-dismiss-cancel style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Cancel</button>
+                    <button type="submit" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" style="background:#ef4444;color:#ffffff;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;">Confirm Dismissal</button>
+                  </div>
+                </form>
+              </section>
+            `;
+            document.body.appendChild(modalEl);
+        }
+
+        const titleEl = modalEl.querySelector("#sos-dismissal-dialog-title");
+        if (titleEl) {
+            titleEl.innerHTML = `
+              <span class="material-symbols-outlined" style="font-size:24px;color:#ef4444;">notifications_off</span>
+              Dismiss SOS Alert ${escapeHtml(incidentCode ? `(${incidentCode})` : "")}
+            `;
+        }
+
+        const form = modalEl.querySelector("#sos-dismissal-form");
+        const categorySelect = modalEl.querySelector("#sos-dismissal-category");
+        const notesTextarea = modalEl.querySelector("#sos-dismissal-notes");
+
+        categorySelect.value = "";
+        notesTextarea.value = "";
+
+        const onCategoryChange = () => {
+            const val = categorySelect.value;
+            if (val === "Handled via Radio / Phone / Direct Dispatch" && !notesTextarea.value) {
+                notesTextarea.value = "Dispatched and coordinated directly via police radio/hotline.";
+            } else if (val === "Accidental Trigger / Confirmed Safe" && !notesTextarea.value) {
+                notesTextarea.value = "Citizen contacted and confirmed distress button was pressed accidentally; confirmed safe.";
+            } else if (val === "False Alarm / Checked & Cleared" && !notesTextarea.value) {
+                notesTextarea.value = "Patrol unit investigated reported coordinates; no emergency found, area clear.";
+            } else if (val === "Duplicate Alert" && !notesTextarea.value) {
+                notesTextarea.value = "Duplicate distress trigger for incident already being handled by responders.";
+            } else if (val === "System Test / Training Drill" && !notesTextarea.value) {
+                notesTextarea.value = "Operational system test / training drill alert.";
+            }
+        };
+        categorySelect.addEventListener("change", onCategoryChange);
+
+        const cancelButtons = modalEl.querySelectorAll("[data-sos-dismiss-cancel]");
+
+        function cleanup() {
+            modalEl.remove();
+        }
+
+        function onCancel(e) {
+            e?.preventDefault?.();
+            cleanup();
+            resolve(null);
+        }
+
+        function onSubmit(e) {
+            e.preventDefault();
+            const category = categorySelect.value.trim();
+            const notes = notesTextarea.value.trim();
+            if (!category || !notes) return;
+            cleanup();
+            resolve({ category, notes });
+        }
+
+        form.addEventListener("submit", onSubmit);
+        cancelButtons.forEach((b) => b.addEventListener("click", onCancel));
+    });
 }
 
 async function showPriorityAlert(id, data, options = {}) {
@@ -406,8 +532,73 @@ async function showPriorityAlert(id, data, options = {}) {
         }
 
         if (action === "dismiss") {
-            if (!isPreview) dismiss(id, data);
-            closeActiveAlert();
+            if (isPreview) {
+                closeActiveAlert();
+                return;
+            }
+            const code = formatIncidentCode(id);
+            const dismissal = await promptSosDismissalReason(code);
+            if (!dismissal) return;
+
+            root.querySelectorAll(
+                "[data-priority-action], [data-priority-responder-select]",
+            ).forEach((el) => {
+                el.disabled = true;
+            });
+            if (feedback) {
+                feedback.textContent = "Recording dismissal and clearing alert...";
+            }
+
+            try {
+                const incidentRef = doc(db, "incidents", id);
+                await updateDoc(incidentRef, {
+                    adminDismissed: true,
+                    adminDismissalReason: `${dismissal.category}: ${dismissal.notes}`,
+                    adminDismissalCategory: dismissal.category,
+                    adminDismissalNotes: dismissal.notes,
+                    adminDismissedAt: serverTimestamp(),
+                    adminDismissedBy: auth.currentUser?.uid || null,
+                    adminDismissedByEmail: auth.currentUser?.email || null,
+                });
+
+                await logAudit("sos_alert_dismissed", {
+                    incidentId: id,
+                    incidentCode: code,
+                    category: dismissal.category,
+                    notes: dismissal.notes,
+                });
+
+                if (data.userId) {
+                    try {
+                        await addDoc(collection(db, "notifications"), {
+                            userId: data.userId,
+                            title: "Emergency Alert Cleared",
+                            message: `Your SOS alert was reviewed and dismissed by dispatch: ${dismissal.category} - ${dismissal.notes}`,
+                            type: "sos_dismissed",
+                            incidentId: id,
+                            read: false,
+                            createdAt: serverTimestamp(),
+                        });
+                    } catch (notifErr) {
+                        console.warn("[admin-sos-alerts] notification failed", notifErr);
+                    }
+                }
+
+                dismiss(id, data);
+                toastSuccess("SOS alert dismissed with audit record.");
+                closeActiveAlert();
+            } catch (err) {
+                console.error("[admin-sos-alerts] dismiss error", err);
+                toastError("Failed to record dismissal: " + (err?.message || "Unknown error"));
+                if (feedback) {
+                    feedback.textContent = err?.message || "Failed to record dismissal.";
+                }
+                root.querySelectorAll(
+                    "[data-priority-action], [data-priority-responder-select]",
+                ).forEach((el) => {
+                    el.disabled = false;
+                });
+            }
             return;
         }
 

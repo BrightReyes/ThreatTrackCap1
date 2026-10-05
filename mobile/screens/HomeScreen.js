@@ -160,8 +160,8 @@ const SEVERITY_ORDER = {
 };
 
 const HEATMAP_GRADIENT = {
-  colors: ['#39ff14', '#a7ff00', '#ffe600', '#ff9f00', '#ff2f00'],
-  startPoints: [0.08, 0.34, 0.56, 0.78, 1],
+  colors: ['#fbbf24', '#f59e0b', '#f97316', '#ef4444', '#991b1b'],
+  startPoints: [0.01, 0.25, 0.55, 0.8, 1.0],
   colorMapSize: 256,
 };
 
@@ -833,8 +833,8 @@ const HomeScreen = ({ navigation }) => {
   const getMarkerColor = (severity) => {
     switch (severity) {
       case 'high': return '#dc2626';
-      case 'medium': return '#f59e0b';
-      case 'low': return '#10b981';
+      case 'medium': return '#f97316';
+      case 'low': return '#eab308';
       default: return '#6b7280';
     }
   };
@@ -869,8 +869,8 @@ const HomeScreen = ({ navigation }) => {
   const getSeverityBackground = (severity) => {
     switch (severity) {
       case 'high': return '#fef2f2';
-      case 'medium': return '#fffbeb';
-      case 'low': return '#ecfdf5';
+      case 'medium': return '#fff7ed';
+      case 'low': return '#fefce8';
       default: return '#f8fafc';
     }
   };
@@ -2330,8 +2330,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
-    shadowColor: '#10b981',
+    backgroundColor: '#eab308',
+    shadowColor: '#eab308',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
@@ -2714,7 +2714,7 @@ const styles = StyleSheet.create({
   },
   riskLowCard: {
     backgroundColor: '#1a2d52',
-    borderColor: '#10b981',
+    borderColor: '#eab308',
   },
   riskNumber: {
     fontSize: 32,

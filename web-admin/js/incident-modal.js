@@ -1,4 +1,6 @@
 import {
+    addDoc,
+    collection,
     deleteField,
     deleteDoc,
     doc,
@@ -17,6 +19,7 @@ import {
     hasResponderAssigned,
     respondToIncident,
 } from "./admin-response.js";
+import { logAudit } from "./audit.js";
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -274,7 +277,7 @@ function buildResponderSelect(options = null) {
     </label>`;
 }
 
-function buildStatusUpdatePayload(nextStatus, currentData = {}) {
+function buildStatusUpdatePayload(nextStatus, currentData = {}, options = {}) {
     const moderatedBy = auth.currentUser?.uid || null;
     const hasInlineEvidence = Boolean(currentData.photoDataUrl);
     const firestore = {
@@ -340,16 +343,29 @@ function buildStatusUpdatePayload(nextStatus, currentData = {}) {
     }
 
     if (nextStatus === "rejected") {
+        const fullReason = options?.rejectionReason || "Report rejected by administrator.";
         Object.assign(firestore, {
             responseStatus: "rejected",
+            rejectionReason: fullReason,
+            rejectionCategory: options?.rejectionCategory || "other",
+            rejectionNotes: options?.rejectionNotes || "",
+            rejectedBy: moderatedBy,
+            rejectedAt: serverTimestamp(),
             "response.status": "rejected",
+            "response.message": fullReason,
             "response.updatedAt": serverTimestamp(),
         });
         Object.assign(local, {
             responseStatus: "rejected",
+            rejectionReason: fullReason,
+            rejectionCategory: options?.rejectionCategory || "other",
+            rejectionNotes: options?.rejectionNotes || "",
+            rejectedBy: moderatedBy,
+            rejectedAt: null,
             response: {
                 ...(local.response || {}),
                 status: "rejected",
+                message: fullReason,
                 updatedAt: null,
             },
         });
@@ -420,6 +436,15 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
         ["Address", escapeHtml(loc.address || "—")],
         ["Reporter", escapeHtml(reporterSummary(d))],
     ];
+
+    if (d.status === "rejected" || d.rejectionReason) {
+        rows.push([
+            "Rejection Reason",
+            `<div style="color:#991b1b;font-weight:600;background:#fef2f2;padding:8px 12px;border-radius:6px;border:1px solid #fecaca;line-height:1.4;">
+                ${escapeHtml(d.rejectionReason || d.response?.message || "Report was rejected by administration.")}
+            </div>`,
+        ]);
+    }
 
     const actionStatus = d.status || "under_review";
     return `<div class="incident-review-layout">
@@ -529,6 +554,129 @@ export function initIncidentModal() {
         closeRowMenu();
     });
 
+    function promptRejectionReason(incidentCode = "") {
+        return new Promise((resolve) => {
+            let modalEl = document.getElementById("rejection-reason-dialog");
+            if (!modalEl) {
+                modalEl = document.createElement("div");
+                modalEl.id = "rejection-reason-dialog";
+                modalEl.className = "incident-modal";
+                modalEl.setAttribute("role", "dialog");
+                modalEl.setAttribute("aria-modal", "true");
+                modalEl.setAttribute("aria-hidden", "true");
+                modalEl.hidden = true;
+                modalEl.innerHTML = `
+                  <div class="incident-modal__backdrop" data-rejection-cancel tabindex="-1"></div>
+                  <div class="incident-modal__panel" style="max-width:480px;width:92%;margin:auto;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,0.25);overflow:hidden;background:#ffffff;">
+                    <header class="incident-modal__header" style="background:#fef2f2;border-bottom:1px solid #fee2e2;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+                      <h2 id="rejection-reason-dialog-title" class="incident-modal__title" style="color:#b91c1c;font-size:1.1rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+                        <span class="material-symbols-outlined" style="font-size:22px;color:#dc2626;">cancel</span>
+                        Reject Incident Report
+                      </h2>
+                      <button type="button" class="incident-modal__close" data-rejection-cancel aria-label="Close" style="font-size:1.5rem;line-height:1;border:none;background:transparent;cursor:pointer;color:#9ca3af;">×</button>
+                    </header>
+                    <form id="rejection-reason-dialog-form" style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+                      <p style="margin:0;font-size:0.875rem;color:#4b5563;line-height:1.45;">
+                        Please select a category and provide an explanation. This message is required, logged in audit records, and <strong>displayed to the resident</strong> on their mobile app.
+                      </p>
+                      <div style="display:flex;flex-direction:column;gap:6px;">
+                        <label for="rejection-category-input" style="font-size:0.825rem;font-weight:700;color:#374151;">
+                          Primary Reason <span style="color:#dc2626;">*</span>
+                        </label>
+                        <select id="rejection-category-input" required style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9rem;background:#ffffff;color:#1f2937;">
+                          <option value="" disabled selected>Select a reason...</option>
+                          <option value="Insufficient Information">Insufficient or Unclear Information / Photos</option>
+                          <option value="Duplicate Report">Duplicate Report (Incident already logged)</option>
+                          <option value="False Alarm / Unverified">False Alarm / Area Checked, No Incident Found</option>
+                          <option value="Spam / Inappropriate">Spam, Prank, or Inappropriate Content</option>
+                          <option value="Outside Jurisdiction">Outside Valenzuela City Coverage</option>
+                          <option value="Other">Other (Custom explanation)</option>
+                        </select>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:6px;">
+                        <label for="rejection-notes-input" style="font-size:0.825rem;font-weight:700;color:#374151;">
+                          Explanation for Resident <span style="color:#dc2626;">*</span>
+                        </label>
+                        <textarea id="rejection-notes-input" required rows="3" placeholder="Provide specific feedback so the citizen understands why the report was not accepted..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.875rem;font-family:inherit;color:#1f2937;resize:vertical;box-sizing:border-box;"></textarea>
+                      </div>
+                      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px;">
+                        <button type="button" class="incident-action-btn" data-rejection-cancel style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Cancel</button>
+                        <button type="submit" class="incident-action-btn incident-action-btn--danger" style="background:#dc2626;color:#ffffff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Confirm Rejection</button>
+                      </div>
+                    </form>
+                  </div>
+                `;
+                document.body.appendChild(modalEl);
+            }
+
+            const titleEl = modalEl.querySelector("#rejection-reason-dialog-title");
+            if (titleEl) {
+                titleEl.innerHTML = `
+                  <span class="material-symbols-outlined" style="font-size:22px;color:#dc2626;">cancel</span>
+                  Reject Report ${escapeHtml(incidentCode || "")}
+                `;
+            }
+
+            const form = modalEl.querySelector("#rejection-reason-dialog-form");
+            const categorySelect = modalEl.querySelector("#rejection-category-input");
+            const notesTextarea = modalEl.querySelector("#rejection-notes-input");
+
+            categorySelect.value = "";
+            notesTextarea.value = "";
+
+            const onCategoryChange = () => {
+                const val = categorySelect.value;
+                if (val === "Insufficient Information" && !notesTextarea.value) {
+                    notesTextarea.value = "The submitted report lacks sufficient location or evidence details to dispatch assistance.";
+                } else if (val === "Duplicate Report" && !notesTextarea.value) {
+                    notesTextarea.value = "This incident has already been reported and is currently being handled by local authorities.";
+                } else if (val === "False Alarm / Unverified" && !notesTextarea.value) {
+                    notesTextarea.value = "Responders checked the reported coordinates and confirmed no active incident or threat.";
+                } else if (val === "Outside Jurisdiction" && !notesTextarea.value) {
+                    notesTextarea.value = "This location falls outside Valenzuela City boundaries. Please contact your local municipal hotline.";
+                }
+            };
+            categorySelect.addEventListener("change", onCategoryChange);
+
+            const cancelButtons = modalEl.querySelectorAll("[data-rejection-cancel]");
+
+            function cleanup() {
+                modalEl.hidden = true;
+                modalEl.setAttribute("aria-hidden", "true");
+                categorySelect.removeEventListener("change", onCategoryChange);
+                form.removeEventListener("submit", onSubmit);
+                cancelButtons.forEach((b) => b.removeEventListener("click", onCancel));
+            }
+
+            function onCancel() {
+                cleanup();
+                resolve(null);
+            }
+
+            function onSubmit(e) {
+                e.preventDefault();
+                const category = categorySelect.value.trim();
+                const notes = notesTextarea.value.trim();
+                if (!category || !notes) return;
+
+                const fullReason = category === "Other" ? notes : `${category}: ${notes}`;
+                cleanup();
+                resolve({
+                    category,
+                    notes,
+                    fullReason,
+                });
+            }
+
+            cancelButtons.forEach((b) => b.addEventListener("click", onCancel));
+            form.addEventListener("submit", onSubmit);
+
+            modalEl.hidden = false;
+            modalEl.setAttribute("aria-hidden", "false");
+            notesTextarea.focus();
+        });
+    }
+
     function bindActionHandlers() {
         const feedback = document.getElementById("incident-actions-feedback");
         body.querySelector("[data-action-respond]")?.addEventListener("click", async () => {
@@ -556,6 +704,99 @@ export function initIncidentModal() {
                 if (!nextStatus) return;
                 const needsSync = needsTerminalResponseSync(currentData, nextStatus);
                 if (currentData.status === nextStatus && !needsSync) return;
+
+                // If rejecting, require reason and explanation
+                if (nextStatus === "rejected") {
+                    const code = formatIncidentCode(currentIncidentId);
+                    const rejectionData = await promptRejectionReason(code);
+                    if (!rejectionData) {
+                        return; // Admin cancelled
+                    }
+
+                    const previous = currentData.status;
+                    if (feedback) feedback.textContent = "Recording rejection...";
+                    body.querySelectorAll("[data-action-status]").forEach((b) => (b.disabled = true));
+
+                    try {
+                        const statusUpdate = buildStatusUpdatePayload(nextStatus, currentData, {
+                            rejectionReason: rejectionData.fullReason,
+                            rejectionCategory: rejectionData.category,
+                            rejectionNotes: rejectionData.notes,
+                        });
+
+                        await updateDoc(
+                            doc(db, "incidents", currentIncidentId),
+                            statusUpdate.firestore,
+                        );
+
+                        // In-app notification for citizen
+                        if (currentData.reporterId) {
+                            try {
+                                await addDoc(collection(db, "notifications"), {
+                                    userId: currentData.reporterId,
+                                    incidentId: currentIncidentId,
+                                    title: "Report Status: Rejected",
+                                    body: `Your report was rejected: ${rejectionData.fullReason}`,
+                                    type: "report_rejected",
+                                    severity: "medium",
+                                    priority: "normal",
+                                    readAt: null,
+                                    sentAt: serverTimestamp(),
+                                    timestamp: serverTimestamp(),
+                                    rejectionReason: rejectionData.fullReason,
+                                });
+                            } catch (notifyErr) {
+                                console.warn("[incident-modal] reporter notification failed", notifyErr);
+                            }
+                        }
+
+                        // Audit log
+                        await logAudit("incident_rejected", {
+                            incidentId: currentIncidentId,
+                            reason: rejectionData.fullReason,
+                            category: rejectionData.category,
+                            notes: rejectionData.notes,
+                            reporterId: currentData.reporterId || null,
+                        });
+
+                        currentData = {
+                            ...currentData,
+                            ...statusUpdate.local,
+                            response: {
+                                ...(currentData.response || {}),
+                                ...(statusUpdate.local.response || {}),
+                            },
+                        };
+                        body.innerHTML = renderIncidentDetail(
+                            currentIncidentId,
+                            currentData,
+                        );
+                        bindActionHandlers();
+                        updateStatusCell(currentIncidentId, nextStatus);
+                        if (feedback)
+                            feedback.textContent = `Report rejected and reason recorded.`;
+                        toastSuccess(`Report rejected. Reason logged.`);
+                        window.dispatchEvent(
+                            new CustomEvent("incident:updated", {
+                                detail: {
+                                    id: currentIncidentId,
+                                    status: nextStatus,
+                                },
+                            }),
+                        );
+                    } catch (err) {
+                        console.error("[incident-modal] update status error", err);
+                        currentData = { ...currentData, status: previous };
+                        if (feedback)
+                            feedback.textContent =
+                                err?.message || "Failed to update status.";
+                        toastError(err?.message || "Failed to update status");
+                        body.querySelectorAll("[data-action-status]").forEach(
+                            (b) => (b.disabled = false),
+                        );
+                    }
+                    return;
+                }
 
                 const previous = currentData.status;
                 if (feedback) {

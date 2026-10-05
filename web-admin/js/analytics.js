@@ -1001,8 +1001,8 @@ function renderSeverityDonut(rows) {
         </div>
         <div class="analytics-donut__legend">
             <span title="High severity: ${high} report${high === 1 ? "" : "s"} (${highPct}%)"><i style="background:#dc2626"></i> High ${high}</span>
-            <span title="Medium severity: ${medium} report${medium === 1 ? "" : "s"} (${mediumPct}%)"><i style="background:#f59e0b"></i> Medium ${medium}</span>
-            <span title="Low severity: ${low} report${low === 1 ? "" : "s"} (${lowPct}%)"><i style="background:#16a34a"></i> Low ${low}</span>
+            <span title="Medium severity: ${medium} report${medium === 1 ? "" : "s"} (${mediumPct}%)"><i style="background:#f97316"></i> Medium ${medium}</span>
+            <span title="Low severity: ${low} report${low === 1 ? "" : "s"} (${lowPct}%)"><i style="background:#eab308"></i> Low ${low}</span>
             <span title="Weighted risk points based on severity"><i style="background:#0f172a"></i> Risk points ${score}</span>
         </div>
     `;
