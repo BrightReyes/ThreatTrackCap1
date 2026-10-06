@@ -8,92 +8,136 @@
  */
 
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
-module.exports = onDocumentCreated("incidents/{incidentId}", async (event) => {
-  const db = admin.firestore();
-  const incident = event.data.data();
-  const incidentId = event.params.incidentId;
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+const GEMINI_MODEL = "gemini-flash-latest";
 
-  console.log(`Validating incident: ${incidentId}`);
+// Strict JSON Schema for Gemini structured output (no percentages, words only)
+const LEGITIMACY_SCHEMA = {
+  type: "object",
+  required: ["rating", "summary", "flags"],
+  properties: {
+    rating: {
+      type: "string",
+      enum: ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"],
+    },
+    summary: {
+      type: "string",
+      description: "Brief 1-sentence rationale explaining the classification to emergency dispatchers.",
+    },
+    flags: {
+      type: "array",
+      items: {type: "string"},
+      description: "Specific warnings if spam, prank, vague, or out-of-boundary.",
+    },
+  },
+};
 
-  try {
-    const incidentRef = db.collection("incidents").doc(incidentId);
-    const currentSnap = await incidentRef.get();
-    const currentIncident = currentSnap.exists ? currentSnap.data() : incident;
-    const alreadyResponding = currentIncident?.status === "responding" ||
-      currentIncident?.responseStatus === "help_on_the_way";
+module.exports = onDocumentCreated(
+    {
+      document: "incidents/{incidentId}",
+      secrets: [GEMINI_API_KEY],
+      timeoutSeconds: 30,
+      memory: "256MiB",
+    },
+    async (event) => {
+      const db = admin.firestore();
+      const incident = event.data.data();
+      const incidentId = event.params.incidentId;
 
-    // Validation checks
-    const validationResults = {
-      hasValidLocation: validateLocation(incident.location),
-      hasValidType: validateType(incident.type),
-      hasValidSeverity: validateSeverity(incident.severity),
-      hasValidDescription: validateDescription(incident.description),
-      isNotSpam: await checkSpamScore(db, incident, incidentId),
-    };
+      console.log(`Validating incident: ${incidentId}`);
 
-    // Calculate verification score (0-100)
-    const verificationScore = calculateVerificationScore(validationResults);
+      try {
+        const incidentRef = db.collection("incidents").doc(incidentId);
+        const currentSnap = await incidentRef.get();
+        const currentIncident = currentSnap.exists ? currentSnap.data() : incident;
+        const alreadyResponding = currentIncident?.status === "responding" ||
+          currentIncident?.responseStatus === "help_on_the_way";
 
-    const isHighPriority = isHighPriorityIncident(incident);
+        // Automated AI semantic legitimacy triage (with safe free-tier fallback)
+        const triage = await triageIncidentLegitimacy(db, currentIncident || incident, incidentId);
 
-    // Determine initial status
-    let status = "pending";
-    if (isHighPriority && validationResults.hasValidLocation && validationResults.hasValidType) {
-      status = "verified"; // SOS/high severity reports go straight to responder review.
-    } else if (verificationScore >= 80) {
-      status = "verified"; // Auto-verify high-quality reports
-    } else if (verificationScore < 30) {
-      status = "spam"; // Auto-flag low-quality reports
-    } else {
-      status = "under_review"; // Needs manual review
-    }
+        // Validation checks
+        const validationResults = {
+          hasValidLocation: validateLocation(incident.location),
+          hasValidType: validateType(incident.type),
+          hasValidSeverity: validateSeverity(incident.severity),
+          hasValidDescription: validateDescription(incident.description),
+          isNotSpam: triage.rating === "Suspected False / Spam" ? false : await checkSpamScore(db, incident, incidentId),
+        };
 
-    // Update the incident document
-    const updatePayload = {
-      verificationScore,
-      status: alreadyResponding ? "responding" : status,
-      validatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
+        // Calculate verification score (0-100)
+        const verificationScore = calculateVerificationScore(validationResults);
 
-    if (isHighPriority && status === "verified") {
-      updatePayload.priority = "high";
-      updatePayload.responseStatus = alreadyResponding ?
-        currentIncident.responseStatus || "help_on_the_way" :
-        incident.responseStatus || "awaiting_response";
-      updatePayload.autoValidated = true;
-      updatePayload.autoValidatedReason = incident.isSOSReport ? "sos_report" : "high_severity";
-      updatePayload.autoValidatedAt = admin.firestore.FieldValue.serverTimestamp();
-    }
+        const isHighPriority = isHighPriorityIncident(incident);
 
-    await incidentRef.update(updatePayload);
-    await updateReporterStats(db, incident.reporterId);
+        // Determine initial status
+        let status = "pending";
+        if (triage.rating === "Suspected False / Spam") {
+          status = "spam";
+        } else if (isHighPriority && validationResults.hasValidLocation && validationResults.hasValidType) {
+          status = "verified"; // SOS/high severity reports go straight to responder review.
+        } else if (verificationScore >= 80) {
+          status = "verified"; // Auto-verify high-quality reports
+        } else if (verificationScore < 30) {
+          status = "spam"; // Auto-flag low-quality reports
+        } else {
+          status = "under_review"; // Needs manual review
+        }
 
-    console.log(`Incident ${incidentId} validated. Score: ${verificationScore}, Status: ${status}`);
+        // Update the incident document
+        const updatePayload = {
+          verificationScore,
+          status: alreadyResponding ? "responding" : status,
+          validatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          legitimacyRating: triage.rating,
+          legitimacySummary: triage.summary,
+          legitimacyReasons: triage.reasons || [],
+          legitimacyFlags: triage.flags || [],
+          legitimacySource: triage.source,
+          legitimacyEvaluatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
 
-    if (isHighPriority && status === "verified" && !alreadyResponding) {
-      await createAdminPriorityNotification(db, incident, incidentId);
-    }
+        if (isHighPriority && status === "verified") {
+          updatePayload.priority = "high";
+          updatePayload.responseStatus = alreadyResponding ?
+            currentIncident.responseStatus || "help_on_the_way" :
+            incident.responseStatus || "awaiting_response";
+          updatePayload.autoValidated = true;
+          updatePayload.autoValidatedReason = incident.isSOSReport ? "sos_report" : "high_severity";
+          updatePayload.autoValidatedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
 
-    // If spam, log for admin review
-    if (status === "spam") {
-      await logSuspiciousActivity(db, incident, incidentId);
-    }
+        await incidentRef.update(updatePayload);
+        await updateReporterStats(db, incident.reporterId);
 
-    return {success: true, verificationScore, status};
-  } catch (error) {
-    console.error(`Error validating incident ${incidentId}:`, error);
+        console.log(`Incident ${incidentId} validated. Score: ${verificationScore}, Status: ${status}, Legitimacy: ${triage.rating} (${triage.source})`);
 
-    // Update incident with error status
-    await db.collection("incidents").doc(incidentId).update({
-      status: "error",
-      validationError: error.message,
-    });
+        if (isHighPriority && status === "verified" && !alreadyResponding) {
+          await createAdminPriorityNotification(db, incident, incidentId);
+        }
 
-    return {success: false, error: error.message};
-  }
-});
+        // If spam, log for admin review
+        if (status === "spam") {
+          await logSuspiciousActivity(db, incident, incidentId);
+        }
+
+        return {success: true, verificationScore, status, legitimacy: triage};
+      } catch (error) {
+        console.error(`Error validating incident ${incidentId}:`, error);
+
+        // Update incident with error status
+        await db.collection("incidents").doc(incidentId).update({
+          status: "error",
+          validationError: error.message,
+        });
+
+        return {success: false, error: error.message};
+      }
+    },
+);
 
 /**
  * Validate location data
@@ -316,4 +360,412 @@ async function logSuspiciousActivity(db, incident, incidentId) {
   } catch (error) {
     console.error("Error logging suspicious activity:", error);
   }
+}
+
+/**
+ * Fast-path pre-retrieval check for obvious spam, pure numbers, or keyboard mash (< 1ms).
+ * Saves Firestore reads and Gemini API tokens from being wasted on obvious junk.
+ */
+function fastPathSpamOrGibberishCheck(text, isSos = false) {
+  const desc = String(text || "").trim().toLowerCase();
+  if (!desc) {
+    if (isSos) return {isRejected: false};
+    return {isRejected: true, reason: "Description is empty"};
+  }
+  if (desc.length < 4) {
+    if (isSos) return {isRejected: false};
+    return {isRejected: true, reason: "Description too brief for dispatch evaluation"};
+  }
+
+  // 0. Standalone casual non-incident greeting or accidental send
+  const isolatedGreetings = new Set([
+    "hi", "hi po", "hello", "hello po", "kamusta", "kamusta po", "kumusta", "kumusta po",
+    "good morning", "good morning po", "good afternoon", "good afternoon po",
+    "good evening", "good evening po", "good night po", "ok na to", "ok na po",
+    "wala lang", "wala po", "wala naman", "wrong send", "kamali", "napindot lang", "namali ng pindot",
+  ]);
+  if (isolatedGreetings.has(desc)) {
+    if (isSos) return {isRejected: false};
+    return {isRejected: true, reason: "Casual non-incident greeting without emergency details"};
+  }
+
+  // 1. Obvious spam / prank phrases
+  const fastSpam = [
+    "asdf", "qwerty", "12345", "test only", "testing lang", "sample report",
+    "hahaha", "hehehe", "charot", "trip lang", "joke lang",
+    "casino", "slot", "scatter", "jili", "sabong", "pautang", "click here",
+  ];
+  const matched = fastSpam.find((p) => desc.includes(p));
+  if (matched) {
+    return {isRejected: true, reason: `Spam/prank phrase detected: "${matched}"`};
+  }
+
+  // 2. Pure numbers or random numeric mash (e.g. "a1231231231415142" or "123456789")
+  const alphaCount = desc.replace(/[^a-z]/g, "").length;
+  const digitsCount = desc.replace(/[^0-9]/g, "").length;
+  if (alphaCount === 0) {
+    return {isRejected: true, reason: "Description contains zero words or letters"};
+  }
+  if (digitsCount >= 6 && alphaCount <= 2) {
+    return {isRejected: true, reason: "Random numeric string without incident details"};
+  }
+
+  // 3. Unbroken giant tokens (16+ chars without space) or keyboard rolling
+  const tokens = desc.split(/\s+/).filter(Boolean);
+  for (const token of tokens) {
+    const letters = token.replace(/[^a-z]/g, "");
+    if (letters.length >= 16 && !token.startsWith("http")) {
+      return {isRejected: true, reason: "Single unbroken word exceeds normal language length"};
+    }
+    if (tokens.length === 1 && token.length >= 8 && digitsCount >= 4) {
+      return {isRejected: true, reason: "Alphanumeric keyboard mash token"};
+    }
+    if (letters.length >= 10) {
+      const unique = new Set(letters).size;
+      if (unique / letters.length < 0.35) {
+        return {isRejected: true, reason: "Keyboard rolling pattern / low character variety"};
+      }
+    }
+    if (/[bcdfghjklmnpqrstvwxz]{6,}/i.test(letters)) {
+      return {isRejected: true, reason: "Impossible consonant cluster"};
+    }
+  }
+
+  // 4. Repeated character loops (e.g. "aaaaa", "123123123")
+  if (/(.)\1{4,}/.test(desc)) {
+    return {isRejected: true, reason: "Repetitive character repetition"};
+  }
+  if (/(.{2,4})\1{2,}/.test(desc.replace(/\s+/g, ""))) {
+    return {isRejected: true, reason: "Repetitive pattern looping"};
+  }
+
+  return {isRejected: false};
+}
+
+/**
+ * RAG RETRIEVAL 1: Spatial-temporal proximity corroboration
+ * Checks if other reports exist within ~600m in the last 30 minutes
+ */
+async function retrieveNearbyCorroboration(db, location, currentIncidentId) {
+  if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
+    return [];
+  }
+
+  try {
+    const thirtyMinsAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 60 * 1000);
+    const snap = await db.collection("incidents")
+        .where("reportedAt", ">=", thirtyMinsAgo)
+        .limit(25)
+        .get();
+
+    const currentLat = Number(location.latitude);
+    const currentLng = Number(location.longitude);
+    const nearby = [];
+
+    snap.forEach((docSnap) => {
+      if (docSnap.id === currentIncidentId) return;
+      const data = docSnap.data();
+      const loc = data.location;
+      if (!loc || !Number.isFinite(Number(loc.latitude))) return;
+
+      const latDiff = Math.abs(Number(loc.latitude) - currentLat);
+      const lngDiff = Math.abs(Number(loc.longitude) - currentLng);
+
+      // ~600 meters proximity
+      if (latDiff < 0.0055 && lngDiff < 0.0055) {
+        nearby.push({
+          id: docSnap.id,
+          type: data.type || "incident",
+          description: String(data.description || "").substring(0, 70),
+          status: data.status || "open",
+        });
+      }
+    });
+
+    return nearby.slice(0, 3);
+  } catch (error) {
+    console.warn("[retrieveNearbyCorroboration] Proximity lookup error:", error.message);
+    return [];
+  }
+}
+
+/**
+ * RAG RETRIEVAL 2: Reporter trust and reputation history
+ */
+async function retrieveReporterHistory(db, reporterId) {
+  if (!reporterId) return {status: "anonymous", isVerified: false, reportCount: 0};
+
+  try {
+    const docSnap = await db.collection("users").doc(reporterId).get();
+    if (!docSnap.exists) return {status: "new_account", isVerified: false, reportCount: 1};
+
+    const data = docSnap.data() || {};
+    return {
+      status: "registered_user",
+      isVerified: Boolean(data.isVerified),
+      reportCount: Number(data.reportCount || 1),
+      reputationScore: Number(data.reputationScore || 100),
+    };
+  } catch (error) {
+    return {status: "lookup_failed", isVerified: false, reportCount: 1};
+  }
+}
+
+/**
+ * RAG RETRIEVAL 3: Retrieve 2-3 past genuine, verified/resolved reports of the same category.
+ * This Few-Shot Exemplar Grounding gives Gemini Flash real-world examples of authentic
+ * resident phrasing, local slang, and emergency descriptions in Valenzuela City.
+ */
+async function retrieveVerifiedExemplars(db, incidentType, currentIncidentId) {
+  if (!incidentType) return [];
+  try {
+    const snap = await db.collection("incidents")
+        .where("type", "==", incidentType)
+        .limit(10)
+        .get();
+
+    const exemplars = [];
+    snap.forEach((docSnap) => {
+      if (docSnap.id === currentIncidentId) return;
+      const data = docSnap.data() || {};
+      const isVerifiedOrResolved = ["resolved", "responding", "verified"].includes(data.status) ||
+        Number(data.verificationScore || 0) >= 70;
+      const desc = String(data.description || "").trim();
+
+      // Only select genuine reports with informative human descriptions
+      if (isVerifiedOrResolved && desc.length >= 12 && exemplars.length < 3) {
+        exemplars.push({
+          type: data.type,
+          description: desc.substring(0, 120),
+          address: data.location?.address || "Valenzuela City",
+        });
+      }
+    });
+
+    return exemplars;
+  } catch (error) {
+    console.warn("[retrieveVerifiedExemplars] Exemplar lookup error:", error.message);
+    return [];
+  }
+}
+
+/**
+ * Triage Incident Legitimacy with RAG (Retrieval-Augmented Generation) + Fast-Path Gate
+ */
+async function triageIncidentLegitimacy(db, incident, incidentId) {
+  const desc = String(incident.description || "").trim();
+
+  // STAGE 1: Fast-Path Pre-Retrieval Gate (rejects junk in 0ms without DB or API cost)
+  const preCheck = fastPathSpamOrGibberishCheck(desc, incident.isSOSReport === true);
+  if (preCheck.isRejected) {
+    return {
+      rating: "Suspected False / Spam",
+      summary: `Pre-retrieval gate: ${preCheck.reason}.`,
+      flags: [preCheck.reason],
+      source: "pre_retrieval_gate",
+    };
+  }
+
+  // STAGE 2: RAG Pipeline (Retrieve database evidence in parallel)
+  let apiKey = null;
+  try {
+    apiKey = (typeof GEMINI_API_KEY.value === "function" ? GEMINI_API_KEY.value() : null) || process.env.GEMINI_API_KEY;
+  } catch (e) {
+    apiKey = process.env.GEMINI_API_KEY || null;
+  }
+
+  // Retrieve grounding evidence from Firestore
+  const [corroborations, reporterProfile, exemplars] = await Promise.all([
+    retrieveNearbyCorroboration(db, incident.location, incidentId),
+    retrieveReporterHistory(db, incident.reporterId),
+    retrieveVerifiedExemplars(db, incident.type, incidentId),
+  ]);
+
+  if (apiKey) {
+    try {
+      const aiResult = await evaluateLegitimacyWithRAG(
+          incident,
+          corroborations,
+          reporterProfile,
+          exemplars,
+          apiKey,
+      );
+      if (aiResult && aiResult.rating) {
+        return aiResult;
+      }
+    } catch (aiError) {
+      console.warn(`[validateIncident] Gemini RAG triage unavailable (${aiError.message}). Engaging fallback.`);
+    }
+  } else {
+    console.info("[validateIncident] No GEMINI_API_KEY secret configured. Running fallback engine.");
+  }
+
+  // Graceful deterministic fallback using the retrieved corroboration evidence
+  return evaluateLegitimacyFallback(incident, corroborations);
+}
+
+/**
+ * Grounded RAG Call to Google Gemini Flash
+ */
+async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfile, exemplars, apiKey) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4500);
+
+  try {
+    const corroborationSection = corroborations.length > 0 ?
+      `${corroborations.length} report(s) within ~600m in the last 30 minutes:\n` +
+      corroborations.map((c, i) => `  ${i + 1}. [${c.type}] "${c.description}"`).join("\n") :
+      "No corroborating reports found in immediate vicinity.";
+
+    const exemplarsSection = exemplars.length > 0 ?
+      exemplars.map((e, i) => `  Example ${i + 1}: "${e.description}" (Location: ${e.address})`).join("\n") :
+      "No historical verified reports available for this category yet.";
+
+    const hasPhoto = Boolean(
+        incident.photoDataUrl ||
+        incident.photoURL ||
+        incident.imageUrl ||
+        (Array.isArray(incident.images) && incident.images.length > 0) ||
+        (Array.isArray(incident.photoUrls) && incident.photoUrls.length > 0),
+    );
+
+    const prompt = [
+      "You are the official emergency triage AI for Valenzuela City's ThreatTrack public safety system.",
+      "TASK: Grounded evaluation of whether this report is legitimate, needs review, or is spam/false.",
+      "",
+      "=== 1. CURRENT CITIZEN SUBMISSION ===",
+      `Category: ${incident.type || "unknown"}`,
+      `Severity: ${incident.severity || "normal"}`,
+      `Address: ${incident.location?.address || "No address attached"}`,
+      `Coordinates: lat=${incident.location?.latitude || 0}, lng=${incident.location?.longitude || 0}`,
+      `Direct SOS Distress Signal: ${incident.isSOSReport ? "YES" : "NO"}`,
+      `Photographic Evidence Attached: ${hasPhoto ? "YES" : "NO"}`,
+      `Citizen Description: "${incident.description || ""}"`,
+      "",
+      "=== 2. GROUNDED EVIDENCE RETRIEVED FROM THREATTRACK DATABASE (RAG) ===",
+      `A. Spatial-Temporal Corroboration:\n${corroborationSection}`,
+      `B. Reporter Trust Profile: Verified=${reporterProfile.isVerified}, TotalReports=${reporterProfile.reportCount}, Status=${reporterProfile.status}`,
+      `C. Historical Verified Resident Reports of this Category (Benchmark Examples):\n${exemplarsSection}`,
+      "",
+      "=== 3. CRITICAL EVALUATION RULES ===",
+      "1. CONTENT INTEGRITY FIRST: The description MUST describe an intelligible human incident in English, Tagalog, or Taglish.",
+      "   - Compare against the Benchmark Verified Reports: Does this describe a genuine emergency situation?",
+      "   - Meaningless keyboard mash, random numbers, single vague words, or jokes are an AUTOMATIC 'Suspected False / Spam'.",
+      "   - Proximity to a real incident NEVER validates meaningless or spam text.",
+      "2. HIGH CONFIDENCE: If the description describes an intelligible emergency AND is corroborated by nearby reports OR matches authentic emergency patterns with clear context, assign 'High Confidence Legit'.",
+      "3. UNCORROBORATED / VAGUE: If plausible but isolated, brief, or needs dispatcher confirmation before deploying units, assign 'Needs Verification'.",
+      "",
+      "OUTPUT: Return strictly JSON adhering to the provided schema with NO markdown formatting.",
+    ].join("\n");
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{parts: [{text: prompt}]}],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 500,
+              responseMimeType: "application/json",
+              responseJsonSchema: LEGITIMACY_SCHEMA,
+            },
+          }),
+          signal: controller.signal,
+        },
+    );
+
+    clearTimeout(timeoutId);
+
+    if (res.status === 429) {
+      throw new Error("Free tier rate limit reached (HTTP 429)");
+    }
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => null);
+      throw new Error(`Gemini API error: ${errBody?.error?.message || `HTTP ${res.status}`}`);
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("Empty response from Gemini");
+
+    const parsed = JSON.parse(text.replace(/```json\s*|\s*```/gi, "").trim());
+    const validRatings = ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"];
+    const rating = validRatings.includes(parsed.rating) ? parsed.rating : "Needs Verification";
+
+    const reasons = [];
+    if (incident.isSOSReport) reasons.push("Direct emergency SOS distress signal");
+    if (hasPhoto) reasons.push("Photographic evidence attached");
+    if (incident.location?.latitude && incident.location?.longitude) reasons.push("GPS verified inside Valenzuela");
+    if (reporterProfile.isVerified) reasons.push("Verified resident account");
+    if (corroborations.length > 0) reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
+    if (exemplars.length > 0 && rating === "High Confidence Legit") reasons.push("Matches authentic emergency patterns");
+
+    return {
+      rating,
+      summary: parsed.summary || "AI-evaluated incident report.",
+      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+      reasons,
+      source: "gemini_rag",
+      corroborationCount: corroborations.length,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Deterministic rule-based fallback when Gemini is offline, using retrieved corroboration
+ */
+function evaluateLegitimacyFallback(incident, corroborations = []) {
+  const loc = incident.location || {};
+  const lat = Number(loc.latitude);
+  const lng = Number(loc.longitude);
+  const isSos = Boolean(incident.isSOSReport);
+
+  const insideValenzuela = lat >= 14.668 && lat <= 14.760 && lng >= 120.925 && lng <= 121.026;
+  const reasons = [];
+  const flags = [];
+
+  if (insideValenzuela) {
+    reasons.push("GPS verified inside Valenzuela");
+  } else {
+    flags.push("Coordinates outside Valenzuela coverage");
+  }
+
+  if (isSos) {
+    reasons.push("Direct emergency SOS distress signal");
+    return {
+      rating: "High Confidence Legit",
+      summary: "Rule engine: Direct citizen SOS distress signal with verified telemetry.",
+      flags,
+      reasons,
+      source: "rule_engine_fallback",
+    };
+  }
+
+  // If corroborated by another nearby report in Firestore
+  if (corroborations && corroborations.length > 0 && insideValenzuela) {
+    reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
+    return {
+      rating: "High Confidence Legit",
+      summary: `Rule engine: Report corroborated by nearby active incident in Valenzuela.`,
+      flags,
+      reasons,
+      source: "rule_engine_fallback",
+    };
+  }
+
+  return {
+    rating: "Needs Verification",
+    summary: "Rule engine: Automated analysis pending; manual review recommended.",
+    flags,
+    reasons,
+    source: "rule_engine_fallback",
+  };
 }

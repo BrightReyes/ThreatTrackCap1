@@ -20,6 +20,10 @@ import {
     respondToIncident,
 } from "./admin-response.js";
 import { logAudit } from "./audit.js";
+import {
+    evaluateIncidentLegitimacy,
+    renderLegitimacyBadge,
+} from "./incident-legitimacy.js";
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -407,6 +411,12 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
 
     const code = formatIncidentCode(docId);
 
+    const legitimacy = evaluateIncidentLegitimacy(d);
+    const legitimacyBadge = renderLegitimacyBadge(legitimacy);
+    const legitimacyDetails = legitimacy.level === "low"
+        ? (legitimacy.flags.length ? `<div style="margin-top:4px;font-size:0.8rem;color:#b91c1c;">${legitimacy.flags.map((f) => `⚠ ${escapeHtml(f)}`).join(" · ")}</div>` : "")
+        : (legitimacy.reasons.length ? `<div style="margin-top:4px;font-size:0.8rem;color:#15803d;">${legitimacy.reasons.slice(0, 2).map((r) => `✓ ${escapeHtml(r)}`).join(" · ")}</div>` : "");
+
     const rows = [
         ["Incident code", escapeHtml(code)],
         [
@@ -416,6 +426,10 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
         [
             "Severity",
             `<span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>`,
+        ],
+        [
+            "Legitimacy Rating",
+            `<div>${legitimacyBadge}${legitimacyDetails}</div>`,
         ],
         ["Type", escapeHtml(getIncidentTypeLabel(d))],
         [

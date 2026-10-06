@@ -23,6 +23,10 @@ import {
     getIncidentTypeLabel,
     respondToIncident,
 } from "./admin-response.js";
+import {
+    evaluateIncidentLegitimacy,
+    renderLegitimacyBanner,
+} from "./incident-legitimacy.js";
 
 const LISTEN_LIMIT = 30;
 const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
@@ -90,15 +94,16 @@ function formatEtaMinutes(etaMinutes, trafficLevel = null) {
     return `${Math.round(n)} min ETA${trafficText}`;
 }
 
-function renderResponderSelect(options = []) {
+function renderResponderSelect(options = [], autoSelectNearest = false) {
     const selectOptions = options.length
         ? [
-              `<option value="">Choose precinct to dispatch</option>`,
+              `<option value="" ${autoSelectNearest ? "" : "selected"}>Choose precinct to dispatch</option>`,
               ...options.map((option, index) => {
                   const name = getPrecinctDisplayName(option);
                   const rank = index === 0 ? "Nearest" : `Option ${index + 1}`;
                   const meta = `${formatDistanceKm(option.distanceKm)} / ${formatEtaMinutes(option.etaMinutes, option.trafficLevel)}`;
-                  return `<option value="${escapeAttr(option.precinctId)}" data-rank="${escapeAttr(rank)}" data-title="${escapeAttr(name)}" data-meta="${escapeAttr(meta)}">${escapeHtml(`${rank}: ${name} - ${meta}`)}</option>`;
+                  const isSelected = autoSelectNearest && index === 0;
+                  return `<option value="${escapeAttr(option.precinctId)}" ${isSelected ? "selected" : ""} data-rank="${escapeAttr(rank)}" data-title="${escapeAttr(name)}" data-meta="${escapeAttr(meta)}">${escapeHtml(`${rank}: ${name} - ${meta}`)}</option>`;
               }),
           ].join("")
         : `<option value="">No precinct options loaded</option>`;
@@ -402,6 +407,10 @@ async function showPriorityAlert(id, data, options = {}) {
             ? `${Number(data.location.latitude).toFixed(4)}, ${Number(data.location.longitude).toFixed(4)}`
             : "Location attached");
     const urgencyLabel = data.isSOSReport ? "SOS REPORT" : "HIGH PRIORITY";
+    const legitimacy = evaluateIncidentLegitimacy(data);
+    const legitimacyBannerHtml = renderLegitimacyBanner(legitimacy);
+    const isHighConfidence = legitimacy.level === "high";
+    const canAutoDispatch = isHighConfidence && Boolean(closestOption);
 
     const root = document.createElement("div");
     root.className = "admin-priority-alert";
@@ -418,9 +427,8 @@ async function showPriorityAlert(id, data, options = {}) {
                 </div>
                 <button type="button" class="admin-priority-alert__close" data-priority-action="dismiss" aria-label="Dismiss">X</button>
             </div>
-            <p class="admin-priority-alert__body">
-                This report was auto-validated and needs responder acknowledgement.
-            </p>
+            ${legitimacyBannerHtml}
+            ${data.description ? `<div style="margin:0 0 12px 0;font-size:0.875rem;color:#334155;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;line-height:1.4;"><strong>Report Note:</strong> ${escapeHtml(data.description)}</div>` : ""}
             <div class="admin-priority-alert__grid">
                 <div>
                     <span>Reported</span>
@@ -440,14 +448,14 @@ async function showPriorityAlert(id, data, options = {}) {
                 </div>
             </div>
             <div class="admin-priority-alert__responders" aria-label="Choose responder precinct">
-                ${renderResponderSelect(responderOptions)}
+                ${renderResponderSelect(responderOptions, canAutoDispatch)}
             </div>
             <div class="admin-priority-alert__actions">
                 <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
                 <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
-                <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond" data-priority-respond-button disabled>Respond</button>
+                <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond" data-priority-respond-button ${canAutoDispatch ? "" : "disabled"}>Respond</button>
             </div>
-            <p class="admin-priority-alert__feedback" aria-live="polite"></p>
+            <p class="admin-priority-alert__feedback" aria-live="polite">${canAutoDispatch ? `✓ High Confidence: Nearest responder (${escapeHtml(getPrecinctDisplayName(closestOption))}) pre-selected for instant dispatch.` : ""}</p>
         </section>
     `;
 
@@ -622,13 +630,14 @@ async function showPriorityAlert(id, data, options = {}) {
     activeAlert = root;
 }
 
-export function showSosAlertPreview() {
+export function showSosAlertPreview(overrides = {}) {
     enqueuePriorityAlert(
         `preview-${Date.now()}`,
         {
             isSOSReport: true,
             type: "robbery_holdup",
             typeLabel: "Robbery / Hold-up",
+            description: "May snatcher sa overpass ng Karuhatan tumakbo papuntang palengke.",
             severity: "high",
             priority: "high",
             status: "under_review",
@@ -636,11 +645,20 @@ export function showSosAlertPreview() {
             location: {
                 latitude: 14.6991,
                 longitude: 120.982,
-                address: "MacArthur Highway, Valenzuela City",
+                address: "MacArthur Highway, Karuhatan, Valenzuela City",
             },
+            legitimacyRating: "High Confidence Legit",
+            legitimacySummary: "Verified emergency report with active SOS telemetry matching authentic incidents.",
+            legitimacySource: "gemini_rag",
+            ...overrides,
         },
         { preview: true },
     );
+}
+
+// Expose on window for easy manual browser testing
+if (typeof window !== "undefined") {
+    window.showSosAlertPreview = showSosAlertPreview;
 }
 
 function syncIncidentQueueFromDoc(docSnap, queueOptions = {}) {

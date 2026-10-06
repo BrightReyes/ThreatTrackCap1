@@ -6,6 +6,10 @@ import {
   query,
 } from 'firebase/firestore';
 import { db } from '../../shared/firebase.js';
+import {
+  evaluateIncidentLegitimacy,
+  renderLegitimacyBadge,
+} from './incident-legitimacy.js';
 
 const LIST_LIMIT = 150;
 const PAGE_SIZE = 12;
@@ -102,12 +106,16 @@ function buildRow(docSnap) {
     ? 'incidents-code incidents-code--cell'
     : 'incidents-code incidents-code--cell incidents-code--unopened';
 
+  const legitimacy = evaluateIncidentLegitimacy(d);
+  const legitimacyBadgeHtml = renderLegitimacyBadge(legitimacy);
+
   return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
     <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>
     <td>${escapeHtml(reported)}</td>
     <td>${escapeHtml(typeLabel)}</td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
+    <td>${legitimacyBadgeHtml}</td>
     <td>
       <div class="incidents-row-actions">
         <button type="button" class="incidents-more-btn incidents-action-btn" title="More options" aria-label="More options" aria-expanded="false" data-incident-menu-toggle>
@@ -297,7 +305,7 @@ function renderFilteredTable() {
 
   if (!allDocs.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="6">No incidents yet.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="7">No incidents yet.</td></tr>';
     if (meta) meta.textContent = '0 incidents';
     renderPagination(0, 1);
     return;
@@ -305,7 +313,7 @@ function renderFilteredTable() {
 
   if (!filtered.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="6">No incidents match your search or filters.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="7">No incidents match your search or filters.</td></tr>';
     if (meta) {
       meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
     }
@@ -410,7 +418,7 @@ export async function loadIncidentsTable() {
   if (!tbody) return;
 
   tbody.innerHTML =
-    '<tr class="incidents-table__empty"><td colspan="6">Loading…</td></tr>';
+    '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
   if (meta) meta.textContent = 'Loading…';
 
   const q = query(
