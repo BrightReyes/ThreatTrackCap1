@@ -183,7 +183,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
         }
 
         const isAi = data.legitimacySource === "gemini_ai" || data.legitimacySource === "gemini_rag";
-        const defaultReasons = isAi ? ["AI semantic triage verified"] : ["Verified report details"];
+        const defaultReasons = isAi ? ["AI check confirmed"] : ["Verified report details"];
 
         return {
             rating: data.legitimacyRating,
@@ -318,11 +318,11 @@ export function evaluateIncidentLegitimacy(data = {}) {
         reasons.push("Specific street or landmark address attached");
     }
 
-    // 6. SOS & Hardware Telemetry
+    // 6. SOS & Device Signals
     if (isSos) {
         reasons.push("Direct emergency SOS distress signal");
         if (data.liveStreamingActive || data.lastDistressPingAt) {
-            reasons.push("Active live telemetry / device ping");
+            reasons.push("Active device GPS signal / live alert");
         }
     }
 
@@ -352,18 +352,18 @@ export function evaluateIncidentLegitimacy(data = {}) {
             rating: "High Confidence Legit",
             level: "high",
             badgeClass: "legit-badge--high",
-            summary: "Verified report location with corroborating telemetry or photographic evidence.",
+            summary: "Verified report location with matching device GPS or photo evidence.",
             reasons,
             flags,
         };
     }
 
-    // Clean report without spam, awaiting backend RAG triage or dispatcher review
+    // Clean report without spam, awaiting automated check or dispatcher review
     return {
         rating: "Needs Verification",
         level: "moderate",
         badgeClass: "legit-badge--moderate",
-        summary: "Awaiting AI triage or dispatcher confirmation.",
+        summary: "Waiting for automated check or dispatcher review.",
         reasons,
         flags,
     };

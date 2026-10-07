@@ -648,7 +648,7 @@ export function showSosAlertPreview(overrides = {}) {
                 address: "MacArthur Highway, Karuhatan, Valenzuela City",
             },
             legitimacyRating: "High Confidence Legit",
-            legitimacySummary: "Verified emergency report with active SOS telemetry matching authentic incidents.",
+            legitimacySummary: "Verified emergency report with active SOS signal matching authentic incidents.",
             legitimacySource: "gemini_rag",
             ...overrides,
         },

@@ -434,7 +434,7 @@ const SITUATIONAL_SOLUTION_RULES = {
     },
     sosCluster: {
         actionId: "sos_triage_review",
-        title: "Triage SOS reports before routine actions",
+        title: "Review SOS reports before routine actions",
         reason: "SOS reports should be checked first because they may represent urgent or active safety risks.",
         timeframe: "Start immediately",
     },
@@ -473,7 +473,7 @@ const SITUATIONAL_SOLUTION_RULES = {
 const AI_OPERATIONAL_REFERENCE = {
     decisionRules: [
         "Match recommendations to the hotspot's dominant crime type, severity, SOS count, and peak hours.",
-        "High severity and SOS reports should be treated as urgent triage signals, not routine monitoring.",
+        "High severity and SOS reports should be treated as urgent priority signals, not routine monitoring.",
         "Use peak hours for patrol timing only when the data shows a clear time pattern.",
         "If the hotspot has many reports but no clear peak time, recommend verification and rotating checks instead of guessing.",
         "For repeat street-level hotspots, recommend a case file so actions and outcomes can be tracked.",
@@ -575,13 +575,27 @@ function hourLabel(hour) {
 }
 
 function rangeStart(range) {
-    if (range === "all") return null;
-    const days = range === "7d" ? 7 : range === "90d" ? 90 : 30;
-    return Date.now() - days * 24 * 60 * 60 * 1000;
+    if (range === "24h") return Date.now() - 24 * 60 * 60 * 1000;
+    if (range === "7d") return Date.now() - 7 * 24 * 60 * 60 * 1000;
+    if (range === "90d") return Date.now() - 90 * 24 * 60 * 60 * 1000;
+    if (range === "all" || range === "custom") return null;
+    return Date.now() - 30 * 24 * 60 * 60 * 1000;
 }
 
 function getSelectedRangeRows() {
     const range = document.getElementById("analytics-range")?.value || "30d";
+    if (range === "custom") {
+        const startVal = document.getElementById("analytics-custom-start")?.value;
+        const endVal = document.getElementById("analytics-custom-end")?.value;
+        if (!startVal && !endVal) return incidentRows;
+        const startMs = startVal ? new Date(`${startVal}T00:00:00+08:00`).getTime() : 0;
+        const endMs = endVal ? new Date(`${endVal}T23:59:59.999+08:00`).getTime() : Infinity;
+        return incidentRows.filter((row) => {
+            if (!row.date) return false;
+            const t = row.date.getTime();
+            return t >= startMs && t <= endMs;
+        });
+    }
     const start = rangeStart(range);
     if (start == null) return incidentRows;
     return incidentRows.filter((row) => row.date && row.date.getTime() >= start);
@@ -641,6 +655,72 @@ function getStatusWorkloadConfig(status) {
 }
 
 function renderStatusWorkload(rows) {
+    // 1. Update workload breakdown summary cards
+    const underReview = rows.filter((r) => {
+        const s = String(r.data?.status || "").toLowerCase();
+        return s === "under_review" || s === "pending";
+    }).length;
+    const verified = rows.filter((r) => String(r.data?.status || "").toLowerCase() === "verified").length;
+    const responded = rows.filter((r) => {
+        const s = String(r.data?.status || "").toLowerCase();
+        return s === "responding" || s === "done";
+    }).length;
+
+    const highOpen = rows.filter((r) => {
+        const sev = String(r.data?.severity || "").toLowerCase();
+        const s = String(r.data?.status || "").toLowerCase();
+        return sev === "high" && OPEN_STATUSES.has(s);
+    }).length;
+
+    setText("workload-under-review-val", String(underReview));
+    setText("workload-verified-val", String(verified));
+    setText("workload-responded-val", String(responded));
+    setText("workload-high-open-val", String(highOpen));
+
+    const alertEl = document.getElementById("workload-priority-alert");
+    if (alertEl) {
+        if (highOpen === 0) {
+            alertEl.style.background = "#f0fdf4";
+            alertEl.style.borderColor = "#bbf7d0";
+            alertEl.style.color = "#166534";
+            const icon = alertEl.querySelector(".workload-priority-icon");
+            if (icon) {
+                icon.textContent = "check_circle";
+                icon.style.color = "#16a34a";
+            }
+            const title = alertEl.querySelector(".workload-priority-title");
+            if (title) {
+                title.innerHTML = `<strong>0</strong> High Severity Open`;
+                title.style.color = "#166534";
+            }
+            const hint = alertEl.querySelector(".workload-priority-hint");
+            if (hint) {
+                hint.textContent = "All high severity reports have been verified or resolved.";
+                hint.style.color = "#15803d";
+            }
+        } else {
+            alertEl.style.background = "#fef2f2";
+            alertEl.style.borderColor = "#fecaca";
+            alertEl.style.color = "#991b1b";
+            const icon = alertEl.querySelector(".workload-priority-icon");
+            if (icon) {
+                icon.textContent = "warning";
+                icon.style.color = "#dc2626";
+            }
+            const title = alertEl.querySelector(".workload-priority-title");
+            if (title) {
+                title.innerHTML = `<strong id="workload-high-open-val">${highOpen}</strong> High Severity Still Open`;
+                title.style.color = "#991b1b";
+            }
+            const hint = alertEl.querySelector(".workload-priority-hint");
+            if (hint) {
+                hint.textContent = "Immediate dispatcher action recommended.";
+                hint.style.color = "#b91c1c";
+            }
+        }
+    }
+
+    // 2. Render status cards
     const el = document.getElementById("analytics-status-chart");
     if (!el) return;
 
@@ -695,8 +775,17 @@ function renderStatusWorkload(rows) {
 
 function selectedRangeDayCount() {
     const range = document.getElementById("analytics-range")?.value || "30d";
+    if (range === "24h") return 1;
     if (range === "7d") return 7;
     if (range === "90d") return 90;
+    if (range === "custom") {
+        const startVal = document.getElementById("analytics-custom-start")?.value;
+        const endVal = document.getElementById("analytics-custom-end")?.value;
+        if (startVal && endVal) {
+            const diff = new Date(endVal).getTime() - new Date(startVal).getTime();
+            return Math.max(1, Math.ceil(diff / (24 * 60 * 60 * 1000)) + 1);
+        }
+    }
     if (range === "all") {
         const dated = incidentRows
             .map((row) => row.date)
@@ -710,7 +799,12 @@ function selectedRangeDayCount() {
 }
 
 function getTrendKeys(range) {
-    const days = range === "7d" ? 7 : range === "90d" ? 14 : 30;
+    let days = 30;
+    if (range === "24h" || range === "7d") days = 7;
+    else if (range === "90d") days = 14;
+    else if (range === "custom") {
+        days = Math.min(30, selectedRangeDayCount());
+    }
     const keys = [];
     const now = new Date();
     for (let i = days - 1; i >= 0; i -= 1) {
@@ -719,6 +813,67 @@ function getTrendKeys(range) {
         keys.push(dayKey(d));
     }
     return keys;
+}
+
+function calculatePeriodComparison(range, currentRows, allRows) {
+    const now = Date.now();
+    let currentStart = 0;
+    let priorStart = 0;
+    let priorEnd = 0;
+
+    if (range === "24h") {
+        currentStart = now - 24 * 3600 * 1000;
+        priorStart = now - 48 * 3600 * 1000;
+        priorEnd = currentStart;
+    } else if (range === "7d") {
+        currentStart = now - 7 * 86400 * 1000;
+        priorStart = now - 14 * 86400 * 1000;
+        priorEnd = currentStart;
+    } else if (range === "custom") {
+        const startVal = document.getElementById("analytics-custom-start")?.value;
+        const endVal = document.getElementById("analytics-custom-end")?.value;
+        if (startVal && endVal) {
+            const startMs = new Date(`${startVal}T00:00:00+08:00`).getTime();
+            const endMs = new Date(`${endVal}T23:59:59.999+08:00`).getTime();
+            const duration = endMs - startMs;
+            currentStart = startMs;
+            priorStart = startMs - duration;
+            priorEnd = startMs;
+        } else {
+            currentStart = now - 30 * 86400 * 1000;
+            priorStart = now - 60 * 86400 * 1000;
+            priorEnd = currentStart;
+        }
+    } else {
+        currentStart = now - 30 * 86400 * 1000;
+        priorStart = now - 60 * 86400 * 1000;
+        priorEnd = currentStart;
+    }
+
+    const currentCount = currentRows.length;
+    const priorCount = allRows.filter((r) => {
+        if (!r.date) return false;
+        const t = r.date.getTime();
+        return t >= priorStart && t < priorEnd;
+    }).length;
+
+    if (priorCount === 0) {
+        if (currentCount === 0) {
+            return { text: "No data in period", tone: "neutral" };
+        }
+        return { text: `+${currentCount} vs prior period`, tone: "up" };
+    }
+
+    const diff = currentCount - priorCount;
+    const pct = Math.round((diff / priorCount) * 100);
+
+    if (pct > 0) {
+        return { text: `+${pct}% vs prior period`, tone: "up" };
+    } else if (pct < 0) {
+        return { text: `${pct}% vs prior period`, tone: "down" };
+    } else {
+        return { text: "0% vs prior period", tone: "neutral" };
+    }
 }
 
 function createTrendDayStats(key) {
@@ -805,6 +960,14 @@ function renderTrend(rows) {
         "analytics-trend-meta",
         `${rows.length} report${rows.length === 1 ? "" : "s"} in range`,
     );
+
+    // Update period-over-period trend badge
+    const comparison = calculatePeriodComparison(range, rows, incidentRows);
+    const trendBadge = document.getElementById("analytics-trend-comparison");
+    if (trendBadge) {
+        trendBadge.textContent = comparison.text;
+        trendBadge.className = `trend-badge trend-badge--${comparison.tone}`;
+    }
 }
 
 function hotspotLabel(row) {
@@ -831,8 +994,8 @@ function hotspotLabel(row) {
 }
 
 function renderHotspots(rows) {
+    const listEl = document.getElementById("analytics-hotspot-ranked-list");
     const body = document.getElementById("analytics-hotspots");
-    if (!body) return;
 
     const grouped = new Map();
     rows.forEach((row) => {
@@ -845,20 +1008,53 @@ function renderHotspots(rows) {
         grouped.set(key, current);
     });
 
-    const rowsHtml = [...grouped.entries()]
+    const sorted = [...grouped.entries()]
         .sort((a, b) => b[1].total - a[1].total)
-        .slice(0, 8)
-        .map(
+        .slice(0, 5);
+
+    // Count priority hotspots (hotspots with high severity > 0)
+    const priorityHotspotsCount = [...grouped.values()].filter((s) => s.high > 0).length;
+    setText("attention-hotspots", String(priorityHotspotsCount));
+
+    if (listEl) {
+        if (!sorted.length) {
+            listEl.innerHTML = '<li class="analytics-empty">No hotspot data in this range.</li>';
+        } else {
+            listEl.innerHTML = sorted
+                .map(([area, stats], index) => {
+                    const rankNum = index + 1;
+                    const isTop = rankNum <= 3;
+                    const highBadge = stats.high > 0
+                        ? `<span class="hotspot-severity-badge"><span class="material-symbols-outlined" style="font-size:12px;">warning</span>${stats.high} high severity</span>`
+                        : "";
+
+                    return `<li class="hotspot-ranked-item">
+                        <div class="hotspot-ranked-left">
+                            <span class="hotspot-rank-num ${isTop ? "hotspot-rank-num--top" : ""}">${rankNum}</span>
+                            <span class="hotspot-rank-name" title="${escapeHtml(area)}">${escapeHtml(area)}</span>
+                        </div>
+                        <div class="hotspot-ranked-right">
+                            <span class="hotspot-report-count">${stats.total} report${stats.total === 1 ? "" : "s"}</span>
+                            ${highBadge}
+                        </div>
+                    </li>`;
+                })
+                .join("");
+        }
+    }
+
+    if (body) {
+        const rowsHtml = sorted.map(
             ([area, stats]) => `<tr>
                 <td>${escapeHtml(area)}</td>
                 <td>${stats.total}</td>
                 <td>${stats.high}</td>
             </tr>`,
         );
-
-    body.innerHTML = rowsHtml.length
-        ? rowsHtml.join("")
-        : '<tr><td colspan="3" class="analytics-empty">No hotspot data in this range.</td></tr>';
+        body.innerHTML = rowsHtml.length
+            ? rowsHtml.join("")
+            : '<tr><td colspan="3" class="analytics-empty">No hotspot data in this range.</td></tr>';
+    }
 }
 
 function getPhtHour(date) {
@@ -881,6 +1077,25 @@ function renderHourlyChart(rows) {
         const hour = getPhtHour(row.date);
         if (hour != null) counts[hour] += 1;
     });
+
+    let maxHour = -1;
+    let maxHourCount = 0;
+    counts.forEach((count, hour) => {
+        if (count > maxHourCount) {
+            maxHourCount = count;
+            maxHour = hour;
+        }
+    });
+
+    const takeawayEl = document.getElementById("peak-busiest-hours");
+    if (takeawayEl) {
+        if (maxHourCount > 0 && maxHour !== -1) {
+            const nextHour = (maxHour + 1) % 24;
+            takeawayEl.textContent = `${hourLabel(maxHour)} – ${hourLabel(nextHour)} (${maxHourCount} report${maxHourCount === 1 ? "" : "s"})`;
+        } else {
+            takeawayEl.textContent = "No data";
+        }
+    }
 
     const max = Math.max(...counts, 1);
     el.innerHTML = counts
@@ -1522,7 +1737,8 @@ let perHotspotLoadingSet = new Set();
 
 function getSavedGeminiKey() {
     return sessionStorage.getItem(GEMINI_DEMO_KEY_STORAGE) ||
-           localStorage.getItem(GEMINI_DEMO_KEY_STORAGE) || "";
+           localStorage.getItem(GEMINI_DEMO_KEY_STORAGE) ||
+           (typeof import.meta !== "undefined" && import.meta.env?.VITE_GEMINI_API_KEY) || "";
 }
 
 function updateGeminiKeyButtonUI() {
@@ -2775,6 +2991,96 @@ async function handleFeedbackSubmit() {
     }
 }
 
+function updateLastUpdatedTimestamp() {
+    const now = new Date();
+    const timeStr = new Intl.DateTimeFormat("en-PH", {
+        timeZone: "Asia/Manila",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+    }).format(now);
+    setText("analytics-last-updated", `Last updated: ${timeStr}`);
+}
+
+function exportFilteredIncidentsCSV() {
+    const rows = getSelectedRangeRows();
+    if (!rows.length) {
+        alert("No incidents to export in the selected range.");
+        return;
+    }
+
+    const headers = [
+        "Incident ID",
+        "Date (PHT)",
+        "Type",
+        "Severity",
+        "Status",
+        "Is SOS",
+        "Location",
+        "Latitude",
+        "Longitude",
+        "Description",
+    ];
+
+    const csvRows = [headers.join(",")];
+
+    rows.forEach((row) => {
+        const d = row.data || {};
+        const dateStr = row.date
+            ? new Intl.DateTimeFormat("en-PH", {
+                  timeZone: "Asia/Manila",
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+              }).format(row.date)
+            : "N/A";
+
+        const loc = hotspotLabel(row).replace(/"/g, '""');
+        const desc = String(d.description || d.details || "")
+            .replace(/"/g, '""')
+            .replace(/[\r\n]+/g, " ");
+        const type = humanize(d.type || "unknown");
+        const severity = humanize(d.severity || "low");
+        const status = humanize(d.status || "unknown");
+        const isSOS = d.isSOSReport ? "Yes" : "No";
+        const lat = d.location?.latitude ?? "";
+        const lng = d.location?.longitude ?? "";
+
+        csvRows.push(
+            [
+                `"${row.id}"`,
+                `"${dateStr}"`,
+                `"${type}"`,
+                `"${severity}"`,
+                `"${status}"`,
+                `"${isSOS}"`,
+                `"${loc}"`,
+                `"${lat}"`,
+                `"${lng}"`,
+                `"${desc}"`,
+            ].join(","),
+        );
+    });
+
+    const csvContent =
+        "data:text/csv;charset=utf-8,\uFEFF" +
+        encodeURIComponent(csvRows.join("\n"));
+    const link = document.createElement("a");
+    const range = document.getElementById("analytics-range")?.value || "30d";
+    link.setAttribute("href", csvContent);
+    link.setAttribute(
+        "download",
+        `threattrack-incidents-${range}-${dayKey(new Date())}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 function renderAnalytics() {
     const rows = getSelectedRangeRows();
     const today = dayKey(new Date());
@@ -2784,6 +3090,11 @@ function renderAnalytics() {
     const pending = rows.filter((row) =>
         OPEN_STATUSES.has(String(row.data?.status || "").toLowerCase()),
     ).length;
+    const highOpen = rows.filter((row) => {
+        const sev = String(row.data?.severity || "").toLowerCase();
+        const s = String(row.data?.status || "").toLowerCase();
+        return sev === "high" && OPEN_STATUSES.has(s);
+    }).length;
     const sos = rows.filter((row) => row.data?.isSOSReport === true).length;
     const verified = rows.filter((row) =>
         VERIFIED_STATUSES.has(String(row.data?.status || "").toLowerCase()),
@@ -2800,6 +3111,11 @@ function renderAnalytics() {
         ? `${Math.round((withLocation / rows.length) * 100)}%`
         : "0%";
 
+    // Attention Required Panel
+    setText("attention-pending", String(pending));
+    setText("attention-high-open", String(highOpen));
+
+    // Primary Overview KPIs
     setText("analytics-today", String(todayCount));
     setText("analytics-high", String(high));
     setText("analytics-pending", String(pending));
@@ -2807,6 +3123,9 @@ function renderAnalytics() {
     setText("analytics-verified-rate", verifiedRate);
     setText("analytics-daily-average", dailyAverage.toFixed(1));
     setText("analytics-location-coverage", locationCoverage);
+    setText("analytics-mappable-count", String(withLocation));
+
+    updateLastUpdatedTimestamp();
 
     renderTrend(rows);
     renderCrimeTypeSeverityBars(rows);
@@ -2871,9 +3190,33 @@ async function loadAnalytics() {
     }
 }
 
-document.getElementById("analytics-range")?.addEventListener("change", () => {
+document.getElementById("analytics-range")?.addEventListener("change", (e) => {
+    const customBox = document.getElementById("analytics-custom-inputs");
+    if (e.target.value === "custom") {
+        if (customBox) customBox.style.display = "flex";
+        const startInput = document.getElementById("analytics-custom-start");
+        const endInput = document.getElementById("analytics-custom-end");
+        if (startInput && !startInput.value) {
+            const d = new Date(Date.now() - 7 * 86400 * 1000);
+            startInput.value = dayKey(d);
+        }
+        if (endInput && !endInput.value) {
+            endInput.value = dayKey(new Date());
+        }
+    } else {
+        if (customBox) customBox.style.display = "none";
+    }
     perHotspotDecisionPlans.clear();
     renderAnalytics();
+});
+
+document.getElementById("analytics-custom-apply")?.addEventListener("click", () => {
+    perHotspotDecisionPlans.clear();
+    renderAnalytics();
+});
+
+document.getElementById("btn-analytics-export")?.addEventListener("click", () => {
+    exportFilteredIncidentsCSV();
 });
 
 document.getElementById("btn-generate-ai-summary")?.addEventListener("click", () => {

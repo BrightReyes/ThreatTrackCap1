@@ -32,6 +32,7 @@ const VAL_BOUNDS_LATLNG = [
     [14.6686, 120.9256],
     [14.7585, 121.0247],
 ];
+const VAL_MIN_ZOOM =13;
 
 const VAL_BOUNDARY_LATLNG = [
     [14.7199238, 120.959539],
@@ -935,14 +936,19 @@ function applyInteractionSettings() {
         ? mapInstance.doubleClickZoom.enable()
         : mapInstance.doubleClickZoom.disable();
 
-    const minZ = Number.isFinite(Number(inter.minZoom))
+    const configuredMinZ = Number.isFinite(Number(inter.minZoom))
         ? Number(inter.minZoom)
-        : 10;
+        : VAL_MIN_ZOOM;
+    const minZ = Math.max(VAL_MIN_ZOOM, configuredMinZ);
     const maxZ = Number.isFinite(Number(inter.maxZoom))
         ? Number(inter.maxZoom)
         : 19;
     mapInstance.setMinZoom(Math.min(minZ, maxZ));
     mapInstance.setMaxZoom(Math.max(minZ, maxZ));
+
+    const cityBoundsPadded = L.latLngBounds(VAL_BOUNDS_LATLNG).pad(0.18);
+    mapInstance.setMaxBounds(cityBoundsPadded);
+    mapInstance.options.maxBoundsViscosity = 1.0;
 }
 
 function applyBoundaryOverlay() {
@@ -986,7 +992,14 @@ export function initAdminMap() {
                 : VAL_CENTER;
         const z = Number.isFinite(zoom) ? zoom : 13;
 
-        mapInstance = L.map(el, { scrollWheelZoom: true }).setView(center, z);
+        const cityBoundsPadded = L.latLngBounds(VAL_BOUNDS_LATLNG).pad(0.18);
+        mapInstance = L.map(el, {
+            scrollWheelZoom: true,
+            minZoom: VAL_MIN_ZOOM,
+            maxZoom: 12,
+            maxBounds: cityBoundsPadded,
+            maxBoundsViscosity: 1.0,
+        }).setView(center, Math.max(z, VAL_MIN_ZOOM));
         applyBaseLayers();
         applyInteractionSettings();
         applyBoundaryOverlay();

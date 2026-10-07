@@ -880,7 +880,7 @@ initAdminPage({
       setChecked('map-dragging', inter.dragging, true);
       setChecked('map-scroll-zoom', inter.scrollZoom, true);
       setChecked('map-doubleclick-zoom', inter.doubleClickZoom, true);
-      setValue('map-min-zoom', inter.minZoom ?? 10, 10);
+      setValue('map-min-zoom', inter.minZoom ?? 12, 12);
       setValue('map-max-zoom', inter.maxZoom ?? 19, 19);
 
       setValue('map-theme', app.theme, 'light');
@@ -927,7 +927,7 @@ initAdminPage({
             severityColors: { low: '#eab308', medium: '#f97316', high: '#ef4444' },
           },
           pcp: { enabled: false, highlightNearest: false, markerStyle: 'icon' },
-          interaction: { zoomControl: true, dragging: true, scrollZoom: true, doubleClickZoom: true, minZoom: 10, maxZoom: 19 },
+          interaction: { zoomControl: true, dragging: true, scrollZoom: true, doubleClickZoom: true, minZoom: 12, maxZoom: 19 },
           appearance: { theme: 'light', tiles: 'street', boundaryOverlay: true },
           performance: { markerLimit: 250, refreshMode: 'realtime', refreshIntervalSec: 30, lazyLoad: true },
           filters: { defaultTimeRangeDays: 30, defaultCrimeType: 'all', defaultSeverity: 'all' },

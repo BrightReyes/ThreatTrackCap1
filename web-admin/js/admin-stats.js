@@ -55,6 +55,30 @@ export async function loadAdminStats() {
         setText("stat-total-incidents", "—");
     }
 
+    try {
+        const sosQ = query(
+            collection(db, "incidents"),
+            where("isSOSReport", "==", true),
+        );
+        const sosSnap = await getCountFromServer(sosQ);
+        setText("stat-sos-alerts", String(sosSnap.data().count));
+    } catch (e) {
+        console.error("[admin-stats] sos alerts", e);
+        setText("stat-sos-alerts", "0");
+    }
+
+    try {
+        const pendingQ = query(
+            collection(db, "incidents"),
+            where("status", "==", "pending"),
+        );
+        const pendingSnap = await getCountFromServer(pendingQ);
+        setText("stat-pending-review", String(pendingSnap.data().count));
+    } catch (e) {
+        console.error("[admin-stats] pending review", e);
+        setText("stat-pending-review", "0");
+    }
+
     onSnapshot(
         collection(db, "users"),
         (snap) => {

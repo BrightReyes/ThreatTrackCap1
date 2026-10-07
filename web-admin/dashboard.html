@@ -4,8 +4,14 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Admin | Dashboard</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -51,7 +57,7 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
@@ -144,170 +150,128 @@
             <div class="admin-dashboard__shell">
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
+                        <div class="admin-dashboard__eyebrow">
+                            <span class="eyebrow-beacon" aria-hidden="true"></span>
+                            <span>Valenzuela City · Dispatch Command Center</span>
+                        </div>
                         <h1 class="admin-dashboard__title">Welcome Admin</h1>
                         <p class="admin-dashboard__tagline">
-                            Monitor incidents, track activity, and manage
-                            reports in real time
+                            Real-time incident dispatch, emergency tracking, and city-wide incident monitoring
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__status-pill"
+                            title="Emergency dispatch system is active"
+                        >
+                            <span class="status-pill__beacon" aria-hidden="true"></span>
+                            <span class="status-pill__label">Dispatch Active</span>
+                        </div>
                         <div
                             class="admin-dashboard__clock"
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
+                                >--:--:--</time>
                                 <span
                                     class="admin-dashboard__clock-sep"
                                     aria-hidden="true"
+                                    style="display: none;"
                                     >·</span
                                 >
-                                <span class="admin-dashboard__clock-tz"
+                                <span
+                                    class="admin-dashboard__clock-tz"
+                                    style="display: none;"
                                     >PHT</span
                                 >
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
 
                 <main class="admin-dashboard__main">
+                    <!-- 1. TODAY'S REPORTS (Attention layer directly above the map) -->
                     <section
-                        class="admin-dashboard__stats"
-                        aria-label="Key metrics"
+                        class="dashboard-today-reports"
+                        id="dashboard-today-reports"
+                        aria-label="Today's reports requiring attention"
                     >
-                        <article class="stat-card" id="card-open-incidents">
-                            <div class="stat-card__summary">
-                                <span
-                                    class="stat-card__icon material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >warning</span
-                                >
-                                <div class="stat-card__content">
-                                    <p class="stat-card__label">
-                                        Open incidents
-                                    </p>
-                                    <p
-                                        id="stat-open-incidents"
-                                        class="stat-card__value"
-                                    >
-                                        …
-                                    </p>
+                        <div class="today-reports__header">
+                            <div class="today-reports__title-group">
+                                <div class="today-reports__title-row">
+                                    <span class="material-symbols-outlined today-reports__icon" aria-hidden="true">crisis_alert</span>
+                                    <h2 class="today-reports__title">Today's Reports</h2>
+                                    <span id="today-reports-badge" class="today-reports__badge">0 requiring attention</span>
                                 </div>
+                                <p class="today-reports__subtitle">Reports requiring attention today</p>
                             </div>
-                            <p class="stat-card__hint">
-                                Pending + under review
-                            </p>
-                        </article>
-                        <article class="stat-card" id="card-reports-24h">
-                            <div class="stat-card__summary">
-                                <span
-                                    class="stat-card__icon material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >schedule</span
-                                >
-                                <div class="stat-card__content">
-                                    <p class="stat-card__label">
-                                        Reports (24h)
-                                    </p>
-                                    <p
-                                        id="stat-reports-24h"
-                                        class="stat-card__value"
-                                    >
-                                        …
-                                    </p>
-                                </div>
+                            <a href="incidents.html?filter=today" class="today-reports__view-all" title="View all today's incidents">
+                                <span>All Today's Reports</span>
+                                <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+                            </a>
+                        </div>
+                        <div class="today-reports__body" id="today-reports-container">
+                            <div class="today-reports__loading">
+                                <span class="material-symbols-outlined today-reports__spinner">progress_activity</span>
+                                <span>Checking today's incident queue…</span>
                             </div>
-                            <p class="stat-card__hint">By incident timestamp</p>
-                        </article>
-                        <article class="stat-card" id="card-users">
-                            <div class="stat-card__summary">
-                                <span
-                                    class="stat-card__icon material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >group</span
-                                >
-                                <div class="stat-card__content">
-                                    <p class="stat-card__label">
-                                        Registered users
-                                    </p>
-                                    <p
-                                        id="stat-active-users"
-                                        class="stat-card__value"
-                                    >
-                                        …
-                                    </p>
-                                </div>
-                            </div>
-                            <p class="stat-card__hint">Documents in users</p>
-                        </article>
-                        <article class="stat-card" id="card-total-incidents">
-                            <div class="stat-card__summary">
-                                <span
-                                    class="stat-card__icon material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >analytics</span
-                                >
-                                <div class="stat-card__content">
-                                    <p class="stat-card__label">
-                                        Total incidents
-                                    </p>
-                                    <p
-                                        id="stat-total-incidents"
-                                        class="stat-card__value"
-                                    >
-                                        …
-                                    </p>
-                                </div>
-                            </div>
-                            <p class="stat-card__hint">All time</p>
-                        </article>
+                        </div>
                     </section>
 
+                    <!-- 2. INCIDENT MAP (Main workspace, visually dominant) -->
                     <section
                         class="admin-dashboard__map-block"
                         aria-label="Coverage map"
                     >
                         <div class="admin-map__header">
-                            <div>
-                                <h2 class="admin-dashboard__section-title">
-                                    Incident Map
-                                </h2>
+                            <div class="admin-map__title-group">
+                                <div class="admin-map__title-row">
+                                    <span class="material-symbols-outlined admin-map__title-icon" aria-hidden="true">radar</span>
+                                    <h2 class="admin-dashboard__section-title">
+                                        Incident Map
+                                    </h2>
+                                    <span class="admin-map__live-tag">Live Map</span>
+                                </div>
                                 <p class="admin-dashboard__map-caption">
-                                    Real-time incident visualization across
-                                    Valenzuela City.
+                                    Real-time incident visualization &amp; precinct coverage across Valenzuela City.
                                 </p>
                             </div>
                             <div
                                 class="admin-map__legend"
                                 aria-label="Map severity legend"
                             >
-                                <span
-                                    ><i class="legend-dot legend-dot--high"></i
+                                <span class="legend-pill legend-pill--high"
+                                    ><i class="legend-dot legend-dot--high" aria-hidden="true"></i
                                     >High</span
                                 >
-                                <span
+                                <span class="legend-pill legend-pill--medium"
                                     ><i
                                         class="legend-dot legend-dot--medium"
+                                        aria-hidden="true"
                                     ></i
                                     >Medium</span
                                 >
-                                <span
-                                    ><i class="legend-dot legend-dot--low"></i
+                                <span class="legend-pill legend-pill--low"
+                                    ><i class="legend-dot legend-dot--low" aria-hidden="true"></i
                                     >Low</span
                                 >
                             </div>
                         </div>
+
                         <div class="admin-map__filters">
                             <div class="admin-map__filter">
-                                <label for="map-filter-type">Type</label>
+                                <label for="map-filter-type">Incident Type</label>
                                 <select
                                     id="map-filter-type"
                                     class="admin-map__select"
@@ -317,21 +281,21 @@
                             </div>
                             <div class="admin-map__filter">
                                 <label for="map-filter-severity"
-                                    >Severity</label
+                                    >Severity Level</label
                                 >
                                 <select
                                     id="map-filter-severity"
                                     class="admin-map__select"
                                 >
                                     <option value="all">All severities</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
+                                    <option value="high">High Severity</option>
+                                    <option value="medium">Medium Severity</option>
+                                    <option value="low">Low Severity</option>
                                 </select>
                             </div>
                             <div class="admin-map__filter">
                                 <label for="map-filter-timeframe"
-                                    >Time Range</label
+                                    >Timeframe</label
                                 >
                                 <select
                                     id="map-filter-timeframe"
@@ -348,7 +312,8 @@
                                 type="button"
                                 class="admin-map__filter-reset"
                             >
-                                Clear Filters
+                                <span class="material-symbols-outlined" style="font-size:16px;">restart_alt</span>
+                                <span>Reset Filters</span>
                             </button>
                         </div>
                         <div
@@ -359,25 +324,236 @@
                         ></div>
                     </section>
 
+                    <!-- 3. CURRENT OPERATIONAL STATISTICS (Supporting the map) -->
                     <section
-                        class="admin-dashboard__activity"
-                        aria-label="Recent activity"
+                        class="admin-dashboard__stats dashboard-operational-stats"
+                        aria-label="Operational metrics"
                     >
-                        <h2 class="admin-dashboard__section-title">
-                            Recent activity
-                        </h2>
-                        <ul
-                            id="dashboard-activity-list"
-                            class="admin-dashboard__activity-list"
-                        >
-                            <li
-                                class="admin-dashboard__activity-item muted"
-                                role="status"
-                            >
-                                Loading activity…
-                            </li>
-                        </ul>
+                        <!-- Open Incidents -->
+                        <article class="stat-card stat-card--open-incidents" id="card-open-incidents" tabindex="0" role="button" aria-label="View open incidents">
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >warning</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Open Incidents
+                                    </p>
+                                    <p
+                                        id="stat-open-incidents"
+                                        class="stat-card__value"
+                                    >
+                                        …
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">
+                                    Pending &amp; under review
+                                </span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                            </div>
+                        </article>
+
+                        <!-- Today's Reports -->
+                        <article class="stat-card stat-card--reports-24h" id="card-reports-24h" tabindex="0" role="button" aria-label="View today's reports">
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >schedule</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Today's Reports
+                                    </p>
+                                    <p
+                                        id="stat-reports-24h"
+                                        class="stat-card__value"
+                                    >
+                                        …
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">Reports logged today</span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                            </div>
+                        </article>
+
+                        <!-- SOS Alerts -->
+                        <article class="stat-card stat-card--sos" id="card-sos-alerts" tabindex="0" role="button" aria-label="View SOS alerts">
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >crisis_alert</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        SOS Alerts
+                                    </p>
+                                    <p
+                                        id="stat-sos-alerts"
+                                        class="stat-card__value"
+                                    >
+                                        …
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">Emergency citizen alerts</span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                            </div>
+                        </article>
+
+                        <!-- Pending Review -->
+                        <article class="stat-card stat-card--pending" id="card-pending-review" tabindex="0" role="button" aria-label="View pending review">
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >rate_review</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Pending Review
+                                    </p>
+                                    <p
+                                        id="stat-pending-review"
+                                        class="stat-card__value"
+                                    >
+                                        …
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">Waiting for review</span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                            </div>
+                        </article>
                     </section>
+
+                    <!-- 4 & 5. LOWER SUPPORTING SECTION: Recent Activity + General/Historical Statistics -->
+                    <div class="dashboard-lower-grid">
+                        <!-- 4. RECENT ACTIVITY -->
+                        <section
+                            class="admin-dashboard__activity"
+                            aria-label="Recent activity"
+                        >
+                            <div class="admin-activity__header">
+                                <div class="admin-activity__title-row">
+                                    <span class="material-symbols-outlined admin-activity__title-icon" aria-hidden="true">history</span>
+                                    <h2 class="admin-dashboard__section-title">
+                                        Recent Activity
+                                    </h2>
+                                    <span class="admin-activity__live-tag">Live Audit Trail</span>
+                                </div>
+                                <span class="admin-activity__badge">Officer Logs</span>
+                            </div>
+                            <ul
+                                id="dashboard-activity-list"
+                                class="admin-dashboard__activity-list"
+                            >
+                                <li
+                                    class="admin-dashboard__activity-item muted"
+                                    role="status"
+                                >
+                                    Loading activity…
+                                </li>
+                            </ul>
+                        </section>
+
+                        <!-- 5. GENERAL/HISTORICAL STATISTICS (Visually secondary) -->
+                        <section
+                            class="dashboard-secondary-stats"
+                            aria-label="General statistics"
+                        >
+                            <div class="secondary-stats__header">
+                                <div class="secondary-stats__title-row">
+                                    <span class="material-symbols-outlined secondary-stats__icon" aria-hidden="true">monitoring</span>
+                                    <h2 class="admin-dashboard__section-title">
+                                        Overall Statistics
+                                    </h2>
+                                </div>
+                                <span class="secondary-stats__subtitle">All-time total counts</span>
+                            </div>
+
+                            <div class="secondary-stats__grid">
+                                <!-- Registered Users -->
+                                <article class="stat-card stat-card--secondary stat-card--users" id="card-users" tabindex="0" role="button" aria-label="View registered users">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >group</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Registered Users
+                                            </p>
+                                            <p
+                                                id="stat-active-users"
+                                                class="stat-card__value"
+                                            >
+                                                …
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Active citizen profiles</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Total Incidents -->
+                                <article class="stat-card stat-card--secondary stat-card--total-incidents" id="card-total-incidents" tabindex="0" role="button" aria-label="View all total incidents">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >analytics</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Total Incidents
+                                            </p>
+                                            <p
+                                                id="stat-total-incidents"
+                                                class="stat-card__value"
+                                            >
+                                                …
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">All-time logged reports</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+                            </div>
+                        </section>
+                    </div>
                 </main>
             </div>
         </div>
