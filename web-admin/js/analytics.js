@@ -1734,6 +1734,7 @@ function riskClass(value) {
 let perHotspotDecisionPlans = new Map();
 let perHotspotErrorMap = new Map();
 let perHotspotLoadingSet = new Set();
+let generateCooldowns = new Map(); // Phase 3: Rate Limiting
 
 function getSavedGeminiKey() {
     return sessionStorage.getItem(GEMINI_DEMO_KEY_STORAGE) ||
@@ -1742,28 +1743,7 @@ function getSavedGeminiKey() {
 }
 
 function updateGeminiKeyButtonUI() {
-    const key = getSavedGeminiKey();
-    const btn = document.getElementById("btn-set-gemini-key");
-    const label = document.getElementById("gemini-key-label");
-    const icon = document.getElementById("gemini-key-icon");
-
-    if (key) {
-        if (btn) {
-            btn.style.background = "#ecfdf5";
-            btn.style.color = "#047857";
-            btn.style.borderColor = "#a7f3d0";
-        }
-        if (label) label.textContent = "Gemini Key Set";
-        if (icon) icon.textContent = "check_circle";
-    } else {
-        if (btn) {
-            btn.style.background = "#f1f5f9";
-            btn.style.color = "#334155";
-            btn.style.borderColor = "#cbd5e1";
-        }
-        if (label) label.textContent = "API Key";
-        if (icon) icon.textContent = "key";
-    }
+    // API key is securely managed via environment variables (VITE_GEMINI_API_KEY)
 }
 
 function getHotspotStats(rows) {
@@ -1776,6 +1756,7 @@ function getHotspotStats(rows) {
             severityBreakdown: { high: 0, medium: 0, low: 0 },
             typeCounts: {},
             hours: {},
+            days: {},
         };
         current.totalReports += 1;
         const sev = String(row.data?.severity || "low").toLowerCase();
@@ -1790,6 +1771,10 @@ function getHotspotStats(rows) {
         if (hour != null) {
             current.hours[hour] = (current.hours[hour] || 0) + 1;
         }
+        if (row.date instanceof Date && !isNaN(row.date)) {
+            const dayIdx = row.date.getDay();
+            current.days[dayIdx] = (current.days[dayIdx] || 0) + 1;
+        }
         grouped.set(area, current);
     });
 
@@ -1798,17 +1783,24 @@ function getHotspotStats(rows) {
             const sortedHours = Object.entries(h.hours).sort((a, b) => b[1] - a[1]);
             const peakH = sortedHours[0] ? Number(sortedHours[0][0]) : null;
             const peakLabel = peakH != null ? hourLabel(peakH) : "Various hours";
+
+            const DAY_NAMES = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+            const sortedDays = Object.entries(h.days || {}).sort((a, b) => b[1] - a[1]);
+            const peakDayName = sortedDays[0] && sortedDays[0][1] > 0 ? DAY_NAMES[Number(sortedDays[0][0])] : null;
+            const peakDayLabel = peakDayName || "Across multiple days";
+
             const priority = h.severityBreakdown.high >= 3 ? "critical" :
                              h.severityBreakdown.high >= 1 ? "high" :
                              h.totalReports >= 5 ? "medium" : "low";
             return {
                 ...h,
                 peakLabel,
+                peakDayLabel,
                 priority,
                 evidence: [
                     `${h.totalReports} total reports in ${h.area}`,
                     `${h.severityBreakdown.high} high severity cases`,
-                    `Peak concentrated activity: ${peakLabel}`,
+                    `Peak concentrated activity: ${peakLabel} (${peakDayLabel})`,
                 ],
             };
         })
@@ -1824,62 +1816,127 @@ function formatCrimeBreakdownSummary(typeCounts) {
     return entries.join(", ");
 }
 
-async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList, range) {
+async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList, feedbackHistory, range) {
+    // 1. Clean and humanize crime types so snake_case database enums never leak into the prompt
+    const humanizedCrimeTypes = {};
+    if (hotspot.typeCounts) {
+        for (const [k, count] of Object.entries(hotspot.typeCounts)) {
+            humanizedCrimeTypes[humanize(k)] = count;
+        }
+    }
+
+    // 2. Determine environmental time-of-day context (Daylight vs Nighttime)
+    const peakStr = String(hotspot.peakLabel || "").toLowerCase();
+    const isNight = peakStr.includes("pm") && (peakStr.includes("7") || peakStr.includes("8") || peakStr.includes("9") || peakStr.includes("10") || peakStr.includes("11")) ||
+                    peakStr.includes("am") && (peakStr.includes("12") || peakStr.includes("1") || peakStr.includes("2") || peakStr.includes("3") || peakStr.includes("4") || peakStr.includes("5"));
+    const timeContext = isNight
+        ? "Nighttime / Low Visibility (focus on poorly lit alleys, youth curfew, loitering outside closed shops)"
+        : "Daytime / Afternoon (focus on pedestrian foot traffic, commercial shops, transit stops, community liaison)";
+
+    // 3. Filter rules strictly matching this incident's crime types or general directives
     const matchingRules = rulesList.filter((r) => {
-        if (r.crimeType && hotspot.typeCounts && hotspot.typeCounts[r.crimeType]) return true;
+        if (!r.crimeType || r.crimeType === "all") return true;
+        if (hotspot.typeCounts && hotspot.typeCounts[r.crimeType]) return true;
         return false;
     });
-    const appliedRules = matchingRules.length > 0 ? matchingRules : rulesList.slice(0, 2);
+    const appliedRules = matchingRules.slice(0, 4);
+
+    // 4. Memory & Self-Improving Feedback Loop (Phase 2)
+    const positiveFeedback = (feedbackHistory || []).filter(f => 
+        (String(f.rating).toLowerCase() === "thumbs_up" || String(f.rating).toLowerCase() === "helpful" || String(f.rating) === "4" || String(f.rating) === "5") && f.comment
+    );
+    const negativeFeedback = (feedbackHistory || []).filter(f => 
+        (String(f.rating).toLowerCase() === "thumbs_down" || String(f.rating).toLowerCase() === "unhelpful" || String(f.rating) === "1" || String(f.rating) === "2") && f.comment
+    );
+    
+    let feedbackConstraints = [];
+    if (positiveFeedback.length > 0 || negativeFeedback.length > 0) {
+        feedbackConstraints.push("=== LOCAL COMMANDER FEEDBACK & TACTICAL ADJUSTMENTS ===");
+        feedbackConstraints.push(`Local commanders have previously provided the following operational feedback for ${hotspot.area}:`);
+        
+        if (positiveFeedback.length > 0) {
+            feedbackConstraints.push("\n[SUCCESSFUL TACTICS - WHAT WORKED]:");
+            positiveFeedback.forEach(f => feedbackConstraints.push(`- FIELD FEEDBACK: "${f.comment}"`));
+            feedbackConstraints.push("-> INSTRUCTION: Commanders marked these past strategies as highly effective. Prioritize, replicate, or double-down on these approaches in your current plan.");
+        }
+        
+        if (negativeFeedback.length > 0) {
+            feedbackConstraints.push("\n[INEFFECTIVE TACTICS - WHAT FAILED]:");
+            negativeFeedback.forEach(f => feedbackConstraints.push(`- FIELD FEEDBACK: "${f.comment}"`));
+            feedbackConstraints.push("-> INSTRUCTION: Do not completely abandon standard protocols, but carefully adjust and refine your recommendations to mitigate these specific field concerns.");
+        }
+        
+        feedbackConstraints.push("===========================================================");
+        feedbackConstraints.push("");
+    }
 
     const promptText = [
-        "You are an AI decision-support assistant for Valenzuela City's ThreatTrack system.",
-        "TARGET USERS: Local Barangay Officials, Barangay Tanods (village watchmen), and Police field officers.",
+        "You are an expert Public Safety Operational Commander for Valenzuela City's ThreatTrack system.",
+        "TARGET USERS: Valenzuela City Police (PNP Substation Commanders) and Barangay Officials (Captains, Executive Officers, and Chief Tanods).",
         "",
-        "CRITICAL LANGUAGE RULE - USE ULTRA-SIMPLE, EVERYDAY ENGLISH ONLY:",
-        "You MUST use simple, 5th-grade everyday English so any local barangay official or tanod can read and understand immediately.",
-        "DO NOT use deep vocabulary or military/police jargon. Follow these rules:",
-        "- DO NOT say 'choke-point' or 'interdict' -> say 'checkpoints at main street exits'",
-        "- DO NOT say 'secondary exit arteries' or 'transit corridors' -> say 'busy streets, alleys, and jeepney stops'",
-        "- DO NOT say 'roving patrols' -> say 'motorcycle patrols' or 'walking patrols'",
-        "- DO NOT say 'deterrence' -> say 'stop crimes'",
-        "- DO NOT say 'pedestrian-heavy' -> say 'crowded areas'",
-        "- DO NOT say 'perpetrators' -> say 'criminals or suspects'",
-        "- DO NOT say 'environmental crime prevention' -> say 'check street lights and store CCTV cameras'",
-        "- DO NOT say 'reassure commuters' -> say 'keep commuters safe'",
+        "MISSION: Formulate an intelligent, realistic, and commander-ready tactical action plan tailored strictly to the detected incident evidence.",
         "",
-        "CRITICAL ANTI-HALLUCINATION & CITATION RULES:",
-        "- You are STRICTLY FORBIDDEN from citing or inventing any ordinance, manual, guideline, or rule that is NOT listed in the sections below.",
-        "- If 'No official city ordinances registered' is shown below, your 'citedKnowledge' JSON field MUST BE AN EMPTY ARRAY [].",
-        "- If 'No active rules registered' is shown below, your 'matchedGuidance' JSON field MUST BE AN EMPTY ARRAY [].",
-        "- NEVER invent or imagine names like 'Valenzuela Barangay Peacekeeping Manual', 'PNP Guidelines', or 'City Policy' unless they appear word-for-word in the lists below.",
+        ...feedbackConstraints,
+        "=== RAG CITATION & GROUNDING RULES (AI MANAGEMENT INTEGRATION) ===",
+        "You are provided with registered Valenzuela City Policies/Ordinances and Administrative Operational Rules.",
+        "Follow these strict citation protocols:",
+        "1. RELEVANCE FIRST: Only cite an ordinance or rule if its subject matter directly governs the specific crime type(s) reported in this cluster.",
+        "   * If the cluster is THEFT / ROBBERY and an anti-theft ordinance is listed: Cite that ordinance and explain how it shapes the response.",
+        "   * If the cluster is DRUG-RELATED ACTIVITY, ASSAULT, or ACCIDENT, and only theft ordinances are listed: DO NOT cite the theft ordinance! Never force an irrelevant law onto an unrelated crime.",
+        "2. ACCURATE CITATION FIELDS:",
+        "   * If a listed ordinance applies: Include its full reference in 'citedKnowledge' and 'groundedPolicy' (e.g. '[Ord. No. 2024-045] Anti-Theft Commercial Zone Protection'). In the action's 'reason', state how this ordinance mandates the deployment.",
+        "   * If NO listed ordinance covers this crime: Set 'citedKnowledge' to [] (empty array) and set 'groundedPolicy' to 'Valenzuela City Public Safety Standard Protocol'.",
+        "   * If a listed operational rule applies: Include it in 'matchedGuidance'. If none apply, set 'matchedGuidance' to [].",
         "",
-        "REQUIREMENTS FOR EACH ACTION STEP:",
-        "1. Write clear, direct actions telling Tanods or Police exactly what to do and where to go.",
-        "2. In 'triggerReason': State plainly what crimes were detected (e.g. 'Because 18 theft and 4 robbery reports were detected around 4:00 PM').",
-        "3. In 'groundedPolicy': State the exact Ordinance or Rule name from the provided list, or 'Valenzuela City Public Safety Protocol' if none are listed.",
-        "4. In 'expectedImpact': State in simple words what this achieves (e.g. 'Stops motorcycle robbers from getting away and protects people going home').",
+        "=== ADMINISTRATIVE SCOPE - STRICTLY TWO JURISDICTIONAL LEVELS ===",
+        "All decisions and recommended actions in ThreatTrack belong STRICTLY to two organizational levels:",
+        "1. BARANGAY LEVEL (owner: 'barangay') - First-line community presence, monitoring & public order:",
+        "   - Personnel: Barangay Tanods (Village Watchmen / BPATs) and Barangay Officials.",
+        "   - Capabilities: 2-person foot patrols in interior alleys and walkways; stationary visibility posts at transport stops/markets; curfew and sidewalk drinking enforcement; neighborhood liaison with store owners and tricycle drivers (TODA); discreet situational observation.",
+        "   - ABSOLUTE SAFETY BOUNDARY: Tanods are UNARMED community volunteers. NEVER assign Tanods to confront armed criminals, conduct felony arrests, or raid narcotics locations. For drug reports, Tanods provide neighborhood monitoring and relay observations to the police.",
         "",
-        "Output MUST be valid JSON only (no markdown backticks, raw JSON object) matching this schema:",
+        "2. POLICE LEVEL (owner: 'police') - Armed law enforcement & tactical security:",
+        "   - Personnel: Valenzuela City Police Station / PNP Substation Officers.",
+        "   - Capabilities: Marked mobile cruiser patrols with flashing lights along main roads; strategic roadside checkpoints (Oplan Sita / anti-riding-in-tandem operations) at key intersections; rapid emergency response; investigations; targeted narcotics intelligence validation.",
+        "",
+        "=== FIRST-PRINCIPLES OPERATIONAL LOGIC ===",
+        "1. MECHANISM FIT: Actions must directly disrupt the actual mechanics of the reported crime:",
+        "   * Illegal Drugs: Tanods discreetly observe secluded alleys, note loitering, and gather community tips. Police deploy cruiser patrols and Oplan Sita vehicle checks along main access avenues.",
+        "   * Theft / Robbery: Tanods maintain high visibility at passenger loading bays and market alleys. Police conduct marked mobile sweeps with dome lights.",
+        "   * Public Disturbance / Assault: Tanods enforce curfew and de-escalate street disputes. Police provide armed backup for violent altercations.",
+        "   * Traffic Accidents: Tanods assist pedestrians and crosswalks. Police enforce road regulations and manage flow.",
+        "2. TIME-OF-DAY REALITY:",
+        "   * Daylight hours (e.g., 3:00 PM): Focus on active foot traffic, market/store coordination, and student/commuter security. NEVER assign street light checks in broad daylight!",
+        "   * Nighttime hours (e.g., after 7:00 PM): Focus on poorly lit alleys, youth curfew, loitering outside closed shops, and inspecting broken public illumination.",
+        "3. TEMPORAL SCHEDULING:",
+        `   * Coordinate recommended actions with both the detected peak hours (${hotspot.peakLabel}) and peak days (${hotspot.peakDayLabel || "various days"}).`,
+        "4. NATURAL LANGUAGE & PHRASING:",
+        "   * Write in clean, professional, concise English.",
+        "   * NEVER leak raw database tokens or underscores (e.g. write 'Illegal Drug Activity', never 'drug_related_activity').",
+        "   * Do NOT robotically repeat 'at 3 PM' across every card. State time windows naturally (e.g. 'during peak afternoon hours (approx. 3:00 PM)' or 'during afternoon rush windows').",
+        "",
+        "Output MUST be valid JSON only matching this schema:",
         `{
             "rank": ${hotspot.rank || 1},
             "locationLabel": ${JSON.stringify(hotspot.area)},
             "riskLevel": "${hotspot.priority || "medium"}",
-            "mainPattern": "Simple 1-sentence pattern: total incidents, specific crime breakdown (e.g. 15 theft, 3 robbery), and peak time in basic English",
+            "mainPattern": "1-2 sentence situational brief summarizing the crime types and operational context",
             "evidence": ["string"],
             "citedKnowledge": ["string"],
             "matchedGuidance": ["string"],
             "recommendedActions": [
                 {
-                    "action": "string (concrete, simple operational step specifying units, timing, and areas)",
+                    "action": "string (concrete operational duty order with who, where, when, and task)",
                     "owner": "police" | "barangay",
                     "urgency": "today" | "this_week" | "monitor",
-                    "triggerReason": "string (plainly state which exact crime counts and hours caused this step)",
-                    "groundedPolicy": "string (exact name or number of the city ordinance/rule from the provided lists)",
-                    "expectedImpact": "string (simple practical benefit)",
-                    "reason": "string (summary in simple English)"
+                    "triggerReason": "string (concise reason citing crime type and hours)",
+                    "groundedPolicy": "string (exact cited ordinance name or 'Valenzuela City Public Safety Standard Protocol')",
+                    "expectedImpact": "string (tangible safety benefit)",
+                    "reason": "string (tactical rationale and connection to cited policy/rule)"
                 }
             ],
-            "suggestedPublicAdvisory": "string (simple, friendly citizen safety reminder)",
+            "suggestedPublicAdvisory": "string (practical safety tip for residents and commuters in clear English)",
+            "suggestedPublicAdvisoryFil": "string (clear Tagalog / Filipino translation of the advisory suitable for local barangay community announcements and social posts)",
             "confidence": 0.95
         }`,
         "",
@@ -1888,12 +1945,14 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
             location: hotspot.area,
             totalReports: hotspot.totalReports,
             severityBreakdown: hotspot.severityBreakdown,
-            crimeTypes: hotspot.typeCounts,
+            crimeTypes: humanizedCrimeTypes,
             peakHour: hotspot.peakLabel,
+            peakDay: hotspot.peakDayLabel || "Various days",
+            environmentalContext: timeContext,
             timeRange: rangeLabel(range),
         }, null, 2),
         "",
-        "=== OFFICIAL POLICIES & ORDINANCES (Knowledge Base) ===",
+        "=== OFFICIAL VALENZUELA CITY POLICIES & ORDINANCES (Knowledge Base) ===",
         knowledgeList.length > 0 ? knowledgeList.map((k, i) => `${i + 1}. [${k.referenceNumber || "ORD"}] ${k.title}: ${k.content}`).join("\n") : "No official city ordinances registered.",
         "",
         "=== ADMINISTRATIVE OPERATIONAL GUIDANCE & RULES ===",
@@ -1903,7 +1962,7 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
     const payloadJson = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            temperature: 0.2,
+            temperature: 0.4,
             responseMimeType: "application/json",
         },
     };
@@ -1911,19 +1970,15 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
     const payloadPlain = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            temperature: 0.2,
+            temperature: 0.4,
         },
     };
 
     const candidateModels = [
-        "gemini-3.6-flash",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-flash-exp",
-        "gemini-1.5-flash-8b",
-        "gemini-1.5-flash-002",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-pro-002",
-        "gemini-1.5-pro-001",
+        "gemini-3.5-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-flash-latest",
     ];
 
     let lastErrorText = "";
@@ -1931,19 +1986,26 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
     let json = null;
 
     for (const model of candidateModels) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+        };
+
         try {
             let resp = await fetch(url, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify(payloadJson),
+                signal: AbortSignal.timeout(30000),
             });
 
             if (!resp.ok) {
                 resp = await fetch(url, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers,
                     body: JSON.stringify(payloadPlain),
+                    signal: AbortSignal.timeout(30000),
                 });
             }
 
@@ -1959,54 +2021,6 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
         }
     }
 
-    if (!succeeded) {
-        try {
-            const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-            if (listResp.ok) {
-                const listData = await listResp.json();
-                const available = (listData.models || [])
-                    .filter((m) => {
-                        const name = (m.name || "").toLowerCase();
-                        const isTextGen = m.supportedGenerationMethods?.includes("generateContent");
-                        const isNotAudioOrEmbed = !name.includes("tts") &&
-                                                  !name.includes("embedding") &&
-                                                  !name.includes("aqa") &&
-                                                  !name.includes("imagen") &&
-                                                  !name.includes("image");
-                        return isTextGen && isNotAudioOrEmbed;
-                    })
-                    .map((m) => m.name.replace(/^models\//, ""));
-
-                for (const modelName of available) {
-                    const dynamicUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-                    let resp = await fetch(dynamicUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payloadJson),
-                    });
-
-                    if (!resp.ok) {
-                        resp = await fetch(dynamicUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(payloadPlain),
-                        });
-                    }
-
-                    if (resp.ok) {
-                        json = await resp.json();
-                        succeeded = true;
-                        break;
-                    } else {
-                        lastErrorText = await resp.text();
-                    }
-                }
-            }
-        } catch (discoverErr) {
-            console.warn("[analytics] Dynamic model discovery error:", discoverErr);
-        }
-    }
-
     if (!succeeded || !json) {
         let parsedErrMsg = lastErrorText;
         try {
@@ -2019,7 +2033,16 @@ async function callGeminiSingleHotspot(apiKey, hotspot, knowledgeList, rulesList
     let raw = json.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!raw) throw new Error("Empty response from Gemini.");
 
-    raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    const trimmed = raw.trim();
+    const firstBrace = trimmed.indexOf("{");
+    const lastBrace = trimmed.lastIndexOf("}");
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        raw = trimmed.substring(firstBrace, lastBrace + 1);
+    } else {
+        raw = trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    }
+
     return JSON.parse(raw);
 }
 
@@ -2033,15 +2056,26 @@ function synthesizeSingleHotspotDeterministic(hotspot, knowledgeList, rulesList)
     });
     const appliedRules = matchingRules.length > 0 ? matchingRules : (hasRules ? rulesList.slice(0, 2) : []);
 
-    const citedKnowledge = knowledgeList.slice(0, 2).map((k) =>
+    const relevantKnowledge = knowledgeList.filter((k) => {
+        const text = `${k.title || ""} ${k.content || ""}`.toLowerCase();
+        if (hotspot.typeCounts) {
+            for (const crime of Object.keys(hotspot.typeCounts)) {
+                const words = crime.toLowerCase().split("_");
+                if (words.some((w) => w.length > 3 && text.includes(w))) return true;
+            }
+        }
+        return false;
+    });
+
+    const citedKnowledge = relevantKnowledge.map((k) =>
         `${k.referenceNumber ? `${k.referenceNumber}: ` : ""}${k.title}`,
     );
     const matchedGuidance = appliedRules.map((r) => `${r.name}: ${r.recommendedAction || r.guidance}`);
 
     const crimeBreakdownText = formatCrimeBreakdownSummary(hotspot.typeCounts);
     const mainRule = appliedRules[0] || null;
-    const mainPolicy = knowledgeList[0] || null;
-    const policyRef = mainPolicy ? `${mainPolicy.referenceNumber ? mainPolicy.referenceNumber + ": " : ""}${mainPolicy.title}` : (mainRule ? mainRule.name : "Valenzuela City Public Safety Policy");
+    const mainPolicy = relevantKnowledge[0] || null;
+    const policyRef = mainPolicy ? `${mainPolicy.referenceNumber ? mainPolicy.referenceNumber + ": " : ""}${mainPolicy.title}` : (mainRule ? mainRule.name : "Valenzuela City Public Safety Standard Protocol");
 
     let recommendedActions = [];
     if (appliedRules.length > 0) {
@@ -2117,6 +2151,9 @@ function synthesizeSingleHotspotDeterministic(hotspot, knowledgeList, rulesList)
         suggestedPublicAdvisory: (!hasKnowledge && !hasRules)
             ? `Safety advisory will be tailored once city ordinances and operational rules are published in AI Management.`
             : `Residents and commuters in ${hotspot.area} are advised to stay alert, keep mobile phones and bags safe, and report any suspicious persons to the nearest barangay outpost.`,
+        suggestedPublicAdvisoryFil: (!hasKnowledge && !hasRules)
+            ? `Ang paalala sa kaligtasan ay ilalabas kapag naisapubliko na ang mga ordinansa at patakaran sa AI Management.`
+            : `Pinapayuhan ang mga residente at motorista sa ${hotspot.area} na maging alerto, ingatan ang mga personal na gamit, at agad ipagbigay-alam ang anumang kahina-hinalang kilos sa pinakamalapit na Barangay Outpost o PNP Substation.`,
         confidence: (hasKnowledge || hasRules) ? 0.92 : 0.0,
     };
 }
@@ -2132,19 +2169,29 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
 
         let knowledgeList = [];
         let rulesList = [];
+        let feedbackHistory = [];
+
+        const withTimeout = (prom, ms) => Promise.race([prom, new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), ms))]);
 
         try {
-            const kSnap = await getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published")));
+            const kSnap = await withTimeout(getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published"))), 3000);
             knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (e) {
-            console.warn("[analytics] Knowledge query fallback:", e);
+            throw new Error("Strict RAG Pipeline Error: Failed to connect to the database to fetch AI Knowledge context. Cannot proceed without policy grounding.");
         }
 
         try {
-            const rSnap = await getDocs(query(collection(db, "ai_rules"), where("status", "==", "active")));
+            const rSnap = await withTimeout(getDocs(query(collection(db, "ai_rules"), where("status", "==", "active"))), 3000);
             rulesList = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (e) {
-            console.warn("[analytics] Rules query fallback:", e);
+            throw new Error("Strict RAG Pipeline Error: Failed to connect to the database to fetch AI Rules context. Cannot proceed without policy grounding.");
+        }
+
+        try {
+            const fSnap = await withTimeout(getDocs(query(collection(db, "ai_feedback"), where("hotspotLabel", "==", hotspot.area))), 3000);
+            feedbackHistory = fSnap.docs.map((d) => d.data());
+        } catch (e) {
+            console.warn("[analytics] Feedback memory query fallback:", e);
         }
 
         let plan = null;
@@ -2157,18 +2204,14 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
             perHotspotErrorMap.delete(hotspot.area);
         } else if (userApiKey) {
             try {
-                plan = await callGeminiSingleHotspot(userApiKey, { ...hotspot, rank }, knowledgeList, rulesList, range);
+                plan = await callGeminiSingleHotspot(userApiKey, { ...hotspot, rank }, knowledgeList, rulesList, feedbackHistory, range);
                 source = "gemini";
                 perHotspotErrorMap.delete(hotspot.area);
             } catch (geminiErr) {
-                console.warn("[analytics] Single hotspot Gemini call failed:", geminiErr);
-                perHotspotDecisionPlans.delete(hotspot.area);
-                perHotspotErrorMap.set(hotspot.area, {
-                    errorMsg: geminiErr?.message || "Gemini API could not generate response.",
-                    hotspot,
-                    rank,
-                });
-                return;
+                console.warn("[analytics] Gemini API temporarily unavailable (503/timeout). Seamlessly activating Deterministic Rules fallback:", geminiErr);
+                plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
+                source = "grounded_engine";
+                perHotspotErrorMap.delete(hotspot.area);
             }
         } else {
             plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
@@ -2177,23 +2220,23 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
         }
 
         let docId = "hotspot_" + Date.now();
-        try {
-            const docRef = await addDoc(collection(db, "ai_suggestion_summaries"), {
-                summary: {
-                    headline: `Decision Brief for ${hotspot.area}`,
-                    overallRisk: hotspot.priority || "medium",
-                    priorityHotspots: [plan],
-                },
-                verification: { passed: true, safetyScore: 1.0, violations: [] },
-                source,
-                createdAt: serverTimestamp(),
-                filters: { range, hotspotArea: hotspot.area },
-                review: { status: "pending", updatedAt: serverTimestamp() },
-            });
-            docId = docRef.id;
-        } catch (e) {
+        // Fire and forget to prevent UI hang if Firestore is offline
+        addDoc(collection(db, "ai_suggestion_summaries"), {
+            summary: {
+                headline: `Decision Brief for ${hotspot.area}`,
+                overallRisk: hotspot.priority || "medium",
+                priorityHotspots: [plan],
+            },
+            verification: { passed: true, safetyScore: 1.0, violations: [] },
+            source,
+            createdAt: serverTimestamp(),
+            filters: { range, hotspotArea: hotspot.area },
+            review: { status: "pending", updatedAt: serverTimestamp() },
+        }).then(docRef => {
+            // Updated silently in background
+        }).catch(e => {
             console.warn("[analytics] Firestore write fallback:", e);
-        }
+        });
 
         perHotspotDecisionPlans.set(hotspot.area, {
             plan,
@@ -2217,35 +2260,38 @@ async function handleForceDeterministicHotspot(hotspot, rank, rows) {
         let knowledgeList = [];
         let rulesList = [];
 
-        try {
-            const kSnap = await getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published")));
-            knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        } catch (e) {}
+        const withTimeout = (prom, ms) => Promise.race([prom, new Promise((_, rej) => setTimeout(() => rej(new Error("Timeout")), ms))]);
 
         try {
-            const rSnap = await getDocs(query(collection(db, "ai_rules"), where("status", "==", "active")));
+            const kSnap = await withTimeout(getDocs(query(collection(db, "ai_knowledge"), where("status", "==", "published"))), 3000);
+            knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            throw new Error("Strict RAG Pipeline Error: Failed to connect to the database to fetch AI Knowledge context.");
+        }
+
+        try {
+            const rSnap = await withTimeout(getDocs(query(collection(db, "ai_rules"), where("status", "==", "active"))), 3000);
             rulesList = rSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        } catch (e) {}
+        } catch (e) {
+            throw new Error("Strict RAG Pipeline Error: Failed to connect to the database to fetch AI Rules context.");
+        }
 
         const plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
         const source = "deterministic_fallback";
 
         let docId = "hotspot_" + Date.now();
-        try {
-            const docRef = await addDoc(collection(db, "ai_suggestion_summaries"), {
-                summary: {
-                    headline: `Decision Brief for ${hotspot.area}`,
-                    overallRisk: hotspot.priority || "medium",
-                    priorityHotspots: [plan],
-                },
-                verification: { passed: true, safetyScore: 1.0, violations: [] },
-                source,
-                createdAt: serverTimestamp(),
-                filters: { range, hotspotArea: hotspot.area },
-                review: { status: "pending", updatedAt: serverTimestamp() },
-            });
-            docId = docRef.id;
-        } catch (e) {}
+        addDoc(collection(db, "ai_suggestion_summaries"), {
+            summary: {
+                headline: `Decision Brief for ${hotspot.area}`,
+                overallRisk: hotspot.priority || "medium",
+                priorityHotspots: [plan],
+            },
+            verification: { passed: true, safetyScore: 1.0, violations: [] },
+            source,
+            createdAt: serverTimestamp(),
+            filters: { range, hotspotArea: hotspot.area },
+            review: { status: "pending", updatedAt: serverTimestamp() },
+        }).catch(e => {});
 
         perHotspotDecisionPlans.set(hotspot.area, {
             plan,
@@ -2425,15 +2471,6 @@ function renderErrorFallbackCard(h, rank, errorData) {
                             <span class="material-symbols-outlined" style="font-size:16px;">refresh</span>
                             <span>Retry Gemini</span>
                         </button>
-                        <button
-                            type="button"
-                            class="analytics-ai-btn"
-                            data-action="open-key-modal"
-                            style="background:#f8fafc;color:#475569;border-color:#cbd5e1;padding:8px 14px;font-size:0.84rem;"
-                        >
-                            <span class="material-symbols-outlined" style="font-size:16px;">key</span>
-                            <span>Check API Key</span>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -2557,9 +2594,40 @@ function formatReferencesUI(h) {
     `;
 }
 
+function calibrateConfidence(hotspot) {
+    const count = Number(hotspot.totalReports || 0);
+    const hasHighSeverity = (hotspot.severityBreakdown?.high || 0) > 0;
+    const hasPolicy = (Array.isArray(hotspot.citedKnowledge) && hotspot.citedKnowledge.length > 0) ||
+                      (Array.isArray(hotspot.matchedGuidance) && hotspot.matchedGuidance.length > 0);
+
+    if (count >= 5 && hasPolicy) {
+        return {
+            level: "high",
+            label: "High Confidence",
+            badgeStyle: "background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;",
+            tooltip: "High Confidence: Backed by clustered incident volume (5+ cases) and active Valenzuela City policy framework."
+        };
+    }
+    if (count >= 2 || (count >= 1 && (hasHighSeverity || hasPolicy))) {
+        return {
+            level: "moderate",
+            label: "Moderate Confidence",
+            badgeStyle: "background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;",
+            tooltip: "Moderate Confidence: Supported by verified incident patterns and standard public safety operational protocols."
+        };
+    }
+    return {
+        level: "preliminary",
+        label: "Preliminary Assessment",
+        badgeStyle: "background:#fffbeb;color:#92400e;border:1px solid #fde68a;",
+        tooltip: "Preliminary Assessment: Based on isolated or newly emerging incident reports. Continued field monitoring advised."
+    };
+}
+
 function renderGroundedHotspotCard(h, summaryId, source) {
     const actionsList = Array.isArray(h.recommendedActions) ? h.recommendedActions : [];
     const isGemini = source === "gemini" || source === "gemini_client";
+    const confObj = calibrateConfidence(h);
 
     const badgeHtml = isGemini ?
         `<span class="analytics-ai-guardrail-badge" style="background:#e0f2fe;color:#0369a1;border-color:#bae6fd;font-size:0.75rem;padding:3px 8px;">
@@ -2586,9 +2654,9 @@ function renderGroundedHotspotCard(h, summaryId, source) {
                     <h3 style="margin:2px 0 4px;font-size:1.08rem;color:#0f172a;">${escapeHtml(h.locationLabel || "Unknown Area")}</h3>
                     <p style="margin:0;font-size:0.86rem;color:#475569;">${escapeHtml(h.mainPattern || "")}</p>
                 </div>
-                <div class="analytics-solution-card__score">
-                    <strong>${Math.round((h.confidence || 0.8) * 100)}%</strong>
-                    <span>Confidence</span>
+                <div class="analytics-solution-card__score" style="${confObj.badgeStyle};padding:6px 10px;min-width:94px;height:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:help;border-radius:10px;" title="${escapeAttr(confObj.tooltip)}">
+                    <strong style="font-size:0.78rem;font-weight:800;line-height:1.2;text-align:center;letter-spacing:-0.2px;">${escapeHtml(confObj.label)}</strong>
+                    <span style="font-size:0.64rem;font-weight:700;margin-top:2px;opacity:0.8;text-transform:uppercase;">Assessment</span>
                 </div>
             </div>
 
@@ -2698,12 +2766,18 @@ function renderGroundedHotspotCard(h, summaryId, source) {
                                 <h4 class="analytics-ai-advisory-title">Suggested Community Advisory</h4>
                             </div>
                         </div>
-                        <button type="button" class="analytics-ai-advisory-copy-btn" data-action="copy-advisory" data-advisory-text="${escapeAttr(h.suggestedPublicAdvisory)}" title="Copy advisory text to clipboard">
-                            <span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>
-                            <span>Copy Advisory</span>
-                        </button>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <div class="analytics-lang-toggle" style="display:inline-flex;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:2px;gap:2px;">
+                                <button type="button" class="analytics-lang-btn active" data-lang="en" style="border:none;background:#2563eb;color:#fff;border-radius:4px;padding:3px 8px;font-size:0.73rem;font-weight:700;cursor:pointer;transition:all 0.15s ease;">English</button>
+                                <button type="button" class="analytics-lang-btn" data-lang="fil" style="border:none;background:transparent;color:#475569;border-radius:4px;padding:3px 8px;font-size:0.73rem;font-weight:700;cursor:pointer;transition:all 0.15s ease;">Filipino</button>
+                            </div>
+                            <button type="button" class="analytics-ai-advisory-copy-btn" data-action="copy-advisory" data-advisory-text="${escapeAttr(h.suggestedPublicAdvisory)}" title="Copy advisory text to clipboard">
+                                <span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>
+                                <span>Copy Advisory</span>
+                            </button>
+                        </div>
                     </div>
-                    <p class="analytics-ai-advisory-text">
+                    <p class="analytics-ai-advisory-text" data-text-en="${escapeAttr(h.suggestedPublicAdvisory)}" data-text-fil="${escapeAttr(h.suggestedPublicAdvisoryFil || h.suggestedPublicAdvisory)}">
                         "${escapeHtml(h.suggestedPublicAdvisory)}"
                     </p>
                 </div>
@@ -2717,6 +2791,10 @@ function renderGroundedHotspotCard(h, summaryId, source) {
                 <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--copy-plan" data-action="copy-full-plan" data-hotspot-area="${escapeAttr(h.locationLabel)}" title="Copy full tactical plan and details to clipboard">
                     <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span>
                     <span>Copy Action Plan</span>
+                </button>
+                <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--pdf-plan" data-action="export-pdf-plan" data-hotspot-area="${escapeAttr(h.locationLabel)}" title="Download plan as a printable PDF Dispatch Order">
+                    <span class="material-symbols-outlined" style="font-size:16px;">picture_as_pdf</span>
+                    <span>Download PDF</span>
                 </button>
                 <button type="button" class="analytics-ai-act-btn analytics-ai-act-btn--regenerate" data-action="regenerate-single-hotspot" data-hotspot-area="${escapeAttr(h.locationLabel)}" data-hotspot-rank="${escapeAttr(String(h.rank || 1))}" title="Re-run plan with fresh data or updated rules">
                     <span class="material-symbols-outlined" style="font-size:16px;">refresh</span>
@@ -2743,6 +2821,35 @@ function bindHotspotDecisionEvents(container, rows) {
                 }, 2000);
             } catch (e) {
                 console.warn("[analytics] Copy failed:", e);
+            }
+        });
+    });
+
+    container.querySelectorAll(".analytics-lang-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const card = btn.closest(".analytics-ai-advisory-card");
+            if (!card) return;
+            const targetLang = btn.getAttribute("data-lang");
+            card.querySelectorAll(".analytics-lang-btn").forEach((b) => {
+                b.classList.remove("active");
+                b.style.background = "transparent";
+                b.style.color = "#475569";
+            });
+            btn.classList.add("active");
+            btn.style.background = "#2563eb";
+            btn.style.color = "#fff";
+
+            const textEl = card.querySelector(".analytics-ai-advisory-text");
+            const copyBtn = card.querySelector('[data-action="copy-advisory"]');
+            if (!textEl) return;
+
+            const textEn = textEl.getAttribute("data-text-en") || "";
+            const textFil = textEl.getAttribute("data-text-fil") || textEn;
+            const chosen = targetLang === "fil" ? textFil : textEn;
+
+            textEl.textContent = `"${chosen}"`;
+            if (copyBtn) {
+                copyBtn.setAttribute("data-advisory-text", chosen);
             }
         });
     });
@@ -2796,13 +2903,95 @@ function bindHotspotDecisionEvents(container, rows) {
         });
     });
 
+    container.querySelectorAll('[data-action="export-pdf-plan"]').forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const area = btn.getAttribute("data-hotspot-area");
+            const planData = area ? perHotspotDecisionPlans.get(area) : null;
+            if (!planData?.plan || typeof html2pdf === "undefined") return;
+
+            const p = planData.plan;
+            
+            // Build a hidden temporary container for the PDF layout
+            const printDiv = document.createElement("div");
+            printDiv.style.padding = "40px";
+            printDiv.style.fontFamily = "'Plus Jakarta Sans', sans-serif";
+            printDiv.style.color = "#0f172a";
+            printDiv.innerHTML = `
+                <div style="text-align:center; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px; margin-bottom: 25px;">
+                    <h1 style="margin:0; font-size:24px; color:#1e293b;">Valenzuela City Public Safety</h1>
+                    <h2 style="margin:5px 0 0; font-size:18px; color:#475569; text-transform:uppercase;">Tactical Dispatch Order</h2>
+                </div>
+                <div style="margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                    <p style="margin:0 0 5px;"><strong>Target Location:</strong> ${escapeHtml(p.locationLabel || area)}</p>
+                    <p style="margin:0 0 5px;"><strong>Priority Level:</strong> ${(p.riskLevel || "medium").toUpperCase()}</p>
+                    <p style="margin:0;"><strong>Incident Pattern:</strong> ${escapeHtml(p.mainPattern || "N/A")}</p>
+                </div>
+                <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Recommended Action Plan</h3>
+                <div style="margin-top: 15px;">
+                    ${(p.recommendedActions || []).map((act, idx) => {
+                        const owner = act.owner === "police" ? "PNP Police Unit" : (act.owner === "admin" ? "Barangay Admin" : "Barangay Tanod");
+                        return `
+                            <div style="margin-bottom: 20px;">
+                                <p style="margin:0 0 5px; font-weight:700; font-size:15px;">${idx + 1}. [${escapeHtml(owner)}] Action Step</p>
+                                <p style="margin:0 0 4px 15px; font-size:14px;"><strong>Directive:</strong> ${escapeHtml(act.action)}</p>
+                                ${act.groundedPolicy ? `<p style="margin:0 0 4px 15px; font-size:13px; color:#475569;"><strong>Policy:</strong> ${escapeHtml(act.groundedPolicy)}</p>` : ""}
+                                ${act.expectedImpact ? `<p style="margin:0 0 4px 15px; font-size:13px; color:#475569;"><strong>Goal:</strong> ${escapeHtml(act.expectedImpact)}</p>` : ""}
+                            </div>
+                        `;
+                    }).join("")}
+                </div>
+                ${p.suggestedPublicAdvisory ? `
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                        <h3 style="margin:0 0 10px;">Community Safety Advisory</h3>
+                        <p style="font-style: italic; color:#334155;">"${escapeHtml(p.suggestedPublicAdvisory)}"</p>
+                    </div>
+                ` : ""}
+                <div style="margin-top: 40px; font-size: 11px; color:#94a3b8; text-align:center;">
+                    Generated by ThreatTrack AI Decision Support System • ${new Date().toLocaleString()}
+                </div>
+            `;
+
+            const opt = {
+                margin:       0.5,
+                filename:     `Dispatch_Order_${area.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;">hourglass_empty</span><span>Generating...</span>`;
+            
+            html2pdf().set(opt).from(printDiv).save().then(() => {
+                btn.innerHTML = originalHtml;
+            }).catch(e => {
+                console.error("[analytics] PDF Generation Error:", e);
+                btn.innerHTML = originalHtml;
+                alert("Failed to generate PDF. Check console.");
+            });
+        });
+    });
+
     container.querySelectorAll('[data-action="generate-single-hotspot"], [data-action="regenerate-single-hotspot"]').forEach((btn) => {
         btn.addEventListener("click", async () => {
             const area = btn.getAttribute("data-hotspot-area");
+            
+            // Phase 3: Cooldown Rate Limiting (20 seconds)
+            const now = Date.now();
+            const lastGenTime = generateCooldowns.get(area) || 0;
+            if (now - lastGenTime < 20000) {
+                const remaining = Math.ceil((20000 - (now - lastGenTime)) / 1000);
+                openCooldownModal(remaining);
+                return;
+            }
+
             const rank = Number(btn.getAttribute("data-hotspot-rank")) || 1;
             const hotspotList = getHotspotStats(rows);
             const targetHotspot = hotspotList.find((h) => h.area === area) || { area, rank, totalReports: 0, severityBreakdown: {}, typeCounts: {} };
+            
             await handleGenerateSingleHotspot(targetHotspot, rank, btn, rows);
+            
+            generateCooldowns.set(area, Date.now());
         });
     });
 
@@ -2824,12 +3013,6 @@ function bindHotspotDecisionEvents(container, rows) {
             const targetHotspot = hotspotList.find((h) => h.area === area) || { area, rank, totalReports: 0, severityBreakdown: {}, typeCounts: {} };
             perHotspotErrorMap.delete(area);
             await handleGenerateSingleHotspot(targetHotspot, rank, btn, rows);
-        });
-    });
-
-    container.querySelectorAll('[data-action="open-key-modal"]').forEach((btn) => {
-        btn.addEventListener("click", () => {
-            openGeminiKeyModal();
         });
     });
 
@@ -2906,6 +3089,18 @@ async function executeDecisionAction(summaryId, action, hotspotRank, btn, fullDa
         btn.innerHTML = originalHtml;
         alert(`Failed to record decision: ${err?.message || "Please check your network and admin permissions."}`);
     }
+}
+
+function openCooldownModal(seconds) {
+    const modal = document.getElementById("ai-cooldown-modal");
+    const secondsSpan = document.getElementById("ai-cooldown-seconds");
+    if (secondsSpan) secondsSpan.textContent = String(seconds);
+    if (modal) modal.hidden = false;
+}
+
+function closeCooldownModal() {
+    const modal = document.getElementById("ai-cooldown-modal");
+    if (modal) modal.hidden = true;
 }
 
 function openFeedbackModal(summaryId, hotspotLabel) {
@@ -3223,47 +3418,7 @@ document.getElementById("btn-generate-ai-summary")?.addEventListener("click", ()
     handleGenerateAllHotspots();
 });
 
-function openGeminiKeyModal() {
-    const modal = document.getElementById("gemini-key-modal");
-    const input = document.getElementById("gemini-key-input");
-    if (input) input.value = getSavedGeminiKey();
-    if (modal) modal.hidden = false;
-}
-
-function closeGeminiKeyModal() {
-    const modal = document.getElementById("gemini-key-modal");
-    if (modal) modal.hidden = true;
-}
-
-function handleSaveGeminiKey() {
-    const input = document.getElementById("gemini-key-input");
-    const key = (input?.value || "").trim();
-    if (key) {
-        sessionStorage.setItem(GEMINI_DEMO_KEY_STORAGE, key);
-        localStorage.setItem(GEMINI_DEMO_KEY_STORAGE, key);
-    } else {
-        sessionStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
-        localStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
-    }
-    updateGeminiKeyButtonUI();
-    closeGeminiKeyModal();
-}
-
-function handleClearGeminiKey() {
-    sessionStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
-    localStorage.removeItem(GEMINI_DEMO_KEY_STORAGE);
-    const input = document.getElementById("gemini-key-input");
-    if (input) input.value = "";
-    updateGeminiKeyButtonUI();
-    closeGeminiKeyModal();
-}
-
-document.getElementById("btn-set-gemini-key")?.addEventListener("click", openGeminiKeyModal);
-document.getElementById("gemini-key-close")?.addEventListener("click", closeGeminiKeyModal);
-document.getElementById("gemini-key-cancel")?.addEventListener("click", closeGeminiKeyModal);
-document.getElementById("gemini-key-save")?.addEventListener("click", handleSaveGeminiKey);
-document.getElementById("gemini-key-clear")?.addEventListener("click", handleClearGeminiKey);
-
+document.getElementById("ai-cooldown-close-btn")?.addEventListener("click", closeCooldownModal);
 document.getElementById("ai-feedback-close")?.addEventListener("click", closeFeedbackModal);
 document.getElementById("ai-feedback-cancel")?.addEventListener("click", closeFeedbackModal);
 document.getElementById("ai-feedback-submit")?.addEventListener("click", handleFeedbackSubmit);

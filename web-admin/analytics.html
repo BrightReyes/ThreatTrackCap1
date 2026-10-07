@@ -29,6 +29,7 @@
         <link rel="stylesheet" href="/css/dashboard.css" />
         <link rel="stylesheet" href="/css/analytics.css" />
         <link rel="stylesheet" href="/css/admin-readability.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     </head>
     <body>
         <div id="page-analytics" class="admin-dashboard" hidden>
@@ -449,17 +450,7 @@
                                     <h2>AI Decision-Support Intelligence</h2>
                                     <span>Grounded in incident evidence, official city ordinances, &amp; operational guidance</span>
                                 </div>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <button
-                                        type="button"
-                                        id="btn-set-gemini-key"
-                                        class="analytics-ai-btn"
-                                        style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;"
-                                        title="Configure Gemini API Key"
-                                    >
-                                        <span class="material-symbols-outlined" id="gemini-key-icon">key</span>
-                                        <span id="gemini-key-label">API Key</span>
-                                    </button>
+                                <div>
                                     <button
                                         type="button"
                                         id="btn-generate-ai-summary"
@@ -557,49 +548,19 @@
         </div>
 
         <!-- ============================================================
-             MODAL: Gemini API Key Dialog
+             MODAL: AI Cooldown Rate Limit
              ============================================================ -->
-        <div id="gemini-key-modal" class="analytics-modal" hidden>
+        <div id="ai-cooldown-modal" class="analytics-modal" hidden>
             <div class="analytics-modal__backdrop"></div>
-            <div class="analytics-modal__dialog" role="dialog" aria-labelledby="gemini-key-title" aria-modal="true">
-                <div class="analytics-modal__header">
-                    <div>
-                        <h3 id="gemini-key-title">Gemini API Key</h3>
-                        <p class="analytics-modal__subtitle">Paste your Google Gemini API key to enable live AI reasoning.</p>
-                    </div>
-                    <button type="button" id="gemini-key-close" class="analytics-modal__close" aria-label="Close dialog">
-                        <span class="material-symbols-outlined">close</span>
-                    </button>
-                </div>
-                <div class="analytics-modal__body">
-                    <div class="analytics-form-group">
-                        <label for="gemini-key-input" class="analytics-form-label">Google AI Studio API Key</label>
-                        <input
-                            type="password"
-                            id="gemini-key-input"
-                            class="analytics-form-input"
-                            style="width:100%;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;"
-                            placeholder="AIzaSy..."
-                            autocomplete="off"
-                        />
-                        <p style="font-size:0.8rem;color:#64748b;margin-top:6px;">
-                            Key is saved in your browser session for live client generation. If no key is set, the system automatically uses the Deterministic Grounded Rule Engine.
-                        </p>
-                    </div>
-                </div>
-                <div class="analytics-modal__footer" style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
-                    <button type="button" id="gemini-key-clear" class="analytics-btn analytics-btn--ghost" style="color:#ef4444;">
-                        Remove Key
-                    </button>
-                    <div style="display:flex;gap:8px;">
-                        <button type="button" id="gemini-key-cancel" class="analytics-btn analytics-btn--ghost">
-                            Cancel
-                        </button>
-                        <button type="button" id="gemini-key-save" class="analytics-btn analytics-btn--primary">
-                            Save Key
-                        </button>
-                    </div>
-                </div>
+            <div class="analytics-modal__dialog" role="dialog" aria-labelledby="ai-cooldown-title" aria-modal="true" style="max-width: 420px; text-align: center; padding: 32px 24px;">
+                <span class="material-symbols-outlined" style="font-size: 48px; color: #f59e0b; margin-bottom: 16px; display: inline-block;">hourglass_top</span>
+                <h3 id="ai-cooldown-title" style="margin-bottom: 12px; color: #0f172a; font-size: 1.25rem;">Rate Limit Active</h3>
+                <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 24px;">
+                    Please wait <strong id="ai-cooldown-seconds" style="color: #ef4444; font-size: 1.1rem;">20</strong> seconds before re-generating to prevent API spam and allow time to read the current plan.
+                </p>
+                <button type="button" id="ai-cooldown-close-btn" class="analytics-btn analytics-btn--primary" style="width: 100%; justify-content: center;">
+                    Okay, Got It
+                </button>
             </div>
         </div>
 
