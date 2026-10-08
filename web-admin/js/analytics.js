@@ -2168,6 +2168,7 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
         const userApiKey = getSavedGeminiKey();
 
         let knowledgeList = [];
+        let nationalLawsList = [];
         let rulesList = [];
         let feedbackHistory = [];
 
@@ -2178,6 +2179,13 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
             knowledgeList = kSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
         } catch (e) {
             throw new Error("Strict RAG Pipeline Error: Failed to connect to the database to fetch AI Knowledge context. Cannot proceed without policy grounding.");
+        }
+
+        try {
+            const nSnap = await withTimeout(getDocs(collection(db, "national_laws")), 3000);
+            nationalLawsList = nSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.warn("[analytics] Failed to fetch national laws context:", e);
         }
 
         try {
@@ -2197,24 +2205,26 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
         let plan = null;
         let source = "grounded_engine";
 
-        if (knowledgeList.length === 0 && rulesList.length === 0) {
+        const combinedKnowledge = [...knowledgeList, ...nationalLawsList];
+
+        if (combinedKnowledge.length === 0 && rulesList.length === 0) {
             // All knowledge & rules are currently unpublished/inactive in AI Management
             plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, [], []);
             source = "grounded_engine";
             perHotspotErrorMap.delete(hotspot.area);
         } else if (userApiKey) {
             try {
-                plan = await callGeminiSingleHotspot(userApiKey, { ...hotspot, rank }, knowledgeList, rulesList, feedbackHistory, range);
+                plan = await callGeminiSingleHotspot(userApiKey, { ...hotspot, rank }, combinedKnowledge, rulesList, feedbackHistory, range);
                 source = "gemini";
                 perHotspotErrorMap.delete(hotspot.area);
             } catch (geminiErr) {
                 console.warn("[analytics] Gemini API temporarily unavailable (503/timeout). Seamlessly activating Deterministic Rules fallback:", geminiErr);
-                plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
+                plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, combinedKnowledge, rulesList);
                 source = "grounded_engine";
                 perHotspotErrorMap.delete(hotspot.area);
             }
         } else {
-            plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, knowledgeList, rulesList);
+            plan = synthesizeSingleHotspotDeterministic({ ...hotspot, rank }, combinedKnowledge, rulesList);
             source = "grounded_engine";
             perHotspotErrorMap.delete(hotspot.area);
         }

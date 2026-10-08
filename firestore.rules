@@ -397,6 +397,14 @@ service cloud.firestore {
       allow delete: if false; // Soft-delete via status field
     }
 
+    // === NATIONAL LAWS COLLECTION ===
+    // Immutable national laws used as base RAG context.
+    match /national_laws/{lawId} {
+      allow read: if isAdmin() || isPoliceAdmin();
+      allow create: if isAdmin() || isPoliceAdmin();
+      allow update, delete: if false; // Immutable database
+    }
+
     // === AI RULES COLLECTION ===
     // Admin-managed operational rules for AI decision-support.
     // Structured rules that the AI context builder will query in later phases.

@@ -16,6 +16,7 @@ import {
     serverTimestamp,
     query,
     orderBy,
+    writeBatch
 } from "firebase/firestore";
 import { db } from "../../shared/firebase.js";
 import { toastSuccess, toastError, confirmDanger } from "./alerts.js";
@@ -1416,3 +1417,30 @@ function escapeAttr(str) {
 function capitalize(str) {
     return String(str || "").charAt(0).toUpperCase() + String(str || "").slice(1);
 }
+
+// HIDDEN ADMIN TOOL: Seed National Laws to Database
+window.seedNationalLaws = async function() {
+    try {
+        console.log("Downloading ph_laws_seed.json...");
+        const res = await fetch("/ph_laws_seed.json");
+        const laws = await res.json();
+        
+        console.log(`Injecting ${laws.length} laws into Firestore 'national_laws' collection...`);
+        const batch = writeBatch(db);
+        
+        laws.forEach(law => {
+            const docRef = doc(collection(db, "national_laws"));
+            batch.set(docRef, {
+                ...law,
+                isImmutable: true,
+                version: 1,
+                createdAt: serverTimestamp()
+            });
+        });
+        
+        await batch.commit();
+        console.log("%c✅ SUCCESS! 34 National Laws have been permanently written to the database.", "color: #10b981; font-size: 16px; font-weight: bold;");
+    } catch (e) {
+        console.error("❌ Seeding failed:", e);
+    }
+};

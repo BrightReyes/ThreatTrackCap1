@@ -1,0 +1,317 @@
+[
+  {
+    "title": "The Revised Penal Code - Theft",
+    "referenceNumber": "Act No. 3815, Art. 308",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "theft_snatching",
+    "content": "Art. 308. Who are liable for theft. — Theft is committed by any person who, with intent to gain but without violence against or intimidation of persons nor force upon things, shall take personal property of another without the latter's consent. Operational Directive: First responders must secure the perimeter to prevent the escape of the suspect and immediately retrieve stolen items if the suspect is apprehended in flagrante delicto."
+  },
+  {
+    "title": "Anti-Fencing Law of 1979",
+    "referenceNumber": "Presidential Decree No. 1612",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "theft_snatching",
+    "content": "Section 2. Definition of Terms. - Fencing is the act of any person who, with intent to gain for himself or for another, shall buy, receive, possess, keep, acquire, conceal, sell or dispose of, or shall buy and sell, or in any other manner deal in any article, item, object or anything of value which he knows, or should be known to him, to have been derived from the proceeds of the crime of robbery or theft. Operational Directive: Pawnshops and second-hand dealers in the vicinity must be inspected for recently stolen goods."
+  },
+  {
+    "title": "Access Devices Regulation Act of 1998",
+    "referenceNumber": "Republic Act No. 8484",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "theft_snatching",
+    "content": "Section 9. Prohibited Acts. - The following acts shall constitute access device fraud: (a) producing, using, trafficking in one or more counterfeit access devices; (b) obtaining money or anything of value through the use of an access device, with intent to defraud. Operational Directive: If wallets or ATMs are snatched, instruct victims to immediately call banks to block cards to prevent secondary access device fraud."
+  },
+  {
+    "title": "Anti-Cattle Rustling Law of 1974",
+    "referenceNumber": "Presidential Decree No. 533",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "theft_snatching",
+    "content": "Section 2. Cattle rustling is the taking away by any means, methods or scheme, without the consent of the owner/raiser, of any of the abovementioned animals whether or not for profit or gain. Operational Directive: In rural or boundary barangays, monitor transport trucks and require livestock clearance certificates."
+  },
+  {
+    "title": "The Revised Penal Code - Robbery",
+    "referenceNumber": "Act No. 3815, Art. 293",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "robbery_holdup",
+    "content": "Art. 293. Who are guilty of robbery. — Any person who, with intent to gain, shall take any personal property belonging to another, by means of violence against or intimidation of any person, or using force upon anything, shall be guilty of robbery. Operational Directive: Immediate deployment of armed police units is required. Barangay Tanods should act strictly as perimeter support and crowd control to avoid engaging armed suspects."
+  },
+  {
+    "title": "New Anti-Carnapping Act of 2016",
+    "referenceNumber": "Republic Act No. 10883",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "robbery_holdup",
+    "content": "Section 3. Carnapping is the taking, with intent to gain, of a motor vehicle belonging to another without the latter's consent, or by means of violence against or intimidation of persons, or by using force upon things. Operational Directive: Establish immediate checkpoints on major exit routes in coordination with the Highway Patrol Group (HPG)."
+  },
+  {
+    "title": "Highway Robbery/Brigandage Law (Anti-Piracy)",
+    "referenceNumber": "Presidential Decree No. 532",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "robbery_holdup",
+    "content": "Section 2(e). Highway Robbery/Brigandage. - The seizure of any person for ransom, extortion or other unlawful purposes, or the taking away of the property of another by means of violence against or intimidation of person or force upon things or other unlawful means, committed by any person on any Philippine Highway. Operational Directive: Coordinate with transport groups and dispatch mobile patrol units on major city avenues and expressways."
+  },
+  {
+    "title": "The Revised Penal Code - Physical Injuries",
+    "referenceNumber": "Act No. 3815, Art. 262-266",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "physical_assault_injury",
+    "content": "Art. 265. Less serious physical injuries. — Any person who shall inflict upon another physical injuries not described in the preceding articles, but which shall incapacitate the offended party for labor for ten days or more, or shall require medical assistance for the same period, shall be guilty of less serious physical injuries. Operational Directive: Priority is securing medical assistance (EMS/Ambulance) for the victim before pursuing suspects."
+  },
+  {
+    "title": "Safe Spaces Act (Bawal Bastos Law)",
+    "referenceNumber": "Republic Act No. 11313",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "physical_assault_injury",
+    "content": "An Act Defining Gender-Based Sexual Harassment in Streets, Public Spaces, Online, Workplaces, and Educational or Training Institutions. Sec. 11: Specific Acts and Penalties for Gender-Based Streets and Public Spaces Sexual Harassment. Operational Directive: First responders must separate the victim from the offender immediately and ensure a gender-sensitive approach when taking statements."
+  },
+  {
+    "title": "Special Protection of Children Against Abuse, Exploitation and Discrimination Act",
+    "referenceNumber": "Republic Act No. 7610",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "physical_assault_injury",
+    "content": "Section 10. Other Acts of Neglect, Abuse, Cruelty or Exploitation and other Conditions Prejudicial to the Child's Development. Operational Directive: If a minor is involved in an assault, immediately turn over custody to the Women and Children Protection Desk (WCPD) of the PNP and contact local DSWD."
+  },
+  {
+    "title": "Anti-Sexual Harassment Act of 1995",
+    "referenceNumber": "Republic Act No. 7877",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "physical_assault_injury",
+    "content": "Section 3. Work, Education or Training-Related, Sexual Harassment Defined. Operational Directive: Intervene promptly in incidents occurring near schools or workplaces; ensure victim safety and report to authorities."
+  },
+  {
+    "title": "Anti-Violence Against Women and Their Children Act of 2004",
+    "referenceNumber": "Republic Act No. 9262",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "domestic_violence",
+    "content": "Section 3. Violence Against Women and Their Children (VAWC) refers to any act or a series of acts committed by any person against a woman who is his wife, former wife, or against a woman with whom the person has or had a sexual or dating relationship. Operational Directive: Barangay officials must immediately issue a Barangay Protection Order (BPO) if requested and secure the victims in a safe house or DSWD facility."
+  },
+  {
+    "title": "The Anti-Rape Law of 1997",
+    "referenceNumber": "Republic Act No. 8353",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "domestic_violence",
+    "content": "An Act Expanding the Definition of the Crime of Rape, Reclassifying the Same as a Crime Against Persons. Section 2. Rape is committed... Operational Directive: Officers must handle the situation with utmost discretion. Bring the victim directly to a hospital with a Medico-Legal officer and notify the WCPD immediately."
+  },
+  {
+    "title": "Family Code of the Philippines",
+    "referenceNumber": "Executive Order No. 209",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "domestic_violence",
+    "content": "Pertaining to the mutual obligations of spouses and parental authority. Operational Directive: De-escalate domestic disputes carefully. While civil matters are for Lupon Tagapamayapa, physical threats must be escalated to the police immediately."
+  },
+  {
+    "title": "Comprehensive Dangerous Drugs Act - Sale and Trading",
+    "referenceNumber": "Republic Act No. 9165, Sec 5",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "drug_related_activity",
+    "content": "Section 5. Sale, Trading, Administration, Dispensation, Delivery, Distribution and Transportation of Dangerous Drugs. Operational Directive: Barangay Tanods must NOT engage directly to avoid compromising PDEA/PNP buy-bust operations. Report all intel strictly to the local PNP Drug Enforcement Unit."
+  },
+  {
+    "title": "Comprehensive Dangerous Drugs Act - Possession",
+    "referenceNumber": "Republic Act No. 9165, Sec 11",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "drug_related_activity",
+    "content": "Section 11. Possession of Dangerous Drugs. The penalty of life imprisonment to death and a fine ranging from Five hundred thousand pesos (P500,000.00) to Ten million pesos (P10,000,000.00) shall be imposed. Operational Directive: Any drug paraphernalia or suspected substances found must not be touched by untrained personnel. Secure the area for Scene of the Crime Operatives (SOCO)."
+  },
+  {
+    "title": "Comprehensive Dangerous Drugs Act - Use",
+    "referenceNumber": "Republic Act No. 9165, Sec 15",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "drug_related_activity",
+    "content": "Section 15. Use of Dangerous Drugs. A person apprehended or arrested, who is found to be positive for use of any dangerous drug, after a confirmatory test. Operational Directive: For suspected users, coordinate with the Barangay Anti-Drug Abuse Council (BADAC) for community-based rehabilitation profiling rather than immediate tactical assault."
+  },
+  {
+    "title": "The Revised Penal Code - Tumults and Disturbances",
+    "referenceNumber": "Act No. 3815, Art. 153",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "public_disturbance",
+    "content": "Art. 153. Tumults and other disturbances of public order. — The penalty of arresto mayor in its medium period to prision correccional in its minimum period and a fine not exceeding 1,000 pesos shall be imposed upon any person who shall cause any serious disturbance in a public place, office, or establishment. Operational Directive: Barangay Tanods are authorized to use maximum tolerance and de-escalation techniques before requesting police intervention."
+  },
+  {
+    "title": "The Public Assembly Act of 1985",
+    "referenceNumber": "Batas Pambansa Blg. 880",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "public_disturbance",
+    "content": "Section 9. Law enforcement agencies shall not interfere with the holding of a public assembly. However, to adequately ensure public safety, a law enforcement contingent under the command of a responsible police officer may be detailed and stationed in a place at least one hundred (100) meters away from the area of activity. Operational Directive: Ensure civil rights are respected; police should maintain a 100-meter distance unless violence erupts."
+  },
+  {
+    "title": "The Revised Penal Code - Alarms and Scandals",
+    "referenceNumber": "Act No. 3815, Art. 155",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "public_disturbance",
+    "content": "Art. 155. Alarms and scandals. — The penalty of arresto menor or a fine not exceeding 200 pesos shall be imposed upon: Any person who within any town or public place, shall discharge any firearm, rocket, firecracker, or other explosives calculated to cause alarm or danger. Operational Directive: Issue verbal warnings first for loud noise/karaoke. If firearms are discharged, armed police response is immediately required."
+  },
+  {
+    "title": "Civil Code of the Philippines - Nuisance",
+    "referenceNumber": "Republic Act No. 386, Art. 694",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "public_disturbance",
+    "content": "Art. 694. A nuisance is any act, omission, establishment, business, condition of property, or anything else which: (1) Injures or endangers the health or safety of others; or (2) Annoys or offends the senses. Operational Directive: Barangay officials should serve abatement notices to establishments repeatedly causing public noise or obstruction."
+  },
+  {
+    "title": "The Revised Penal Code - Malicious Mischief",
+    "referenceNumber": "Act No. 3815, Art. 327",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "vandalism_property_damage",
+    "content": "Art. 327. Who are liable for malicious mischief. — Any person who shall deliberately cause to the property of another any damage not falling within the terms of the next preceding chapter shall be guilty of malicious mischief. Operational Directive: Document the extent of the damage with photographs before cleanup or repair begins. Utilize local CCTV to identify perpetrators."
+  },
+  {
+    "title": "National Cultural Heritage Act of 2009",
+    "referenceNumber": "Republic Act No. 10066",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "vandalism_property_damage",
+    "content": "Section 48. Prohibited Acts. - To intentionally destroy, demolish, mutilate or damage any world heritage site, national cultural treasures, important cultural property and archaeological and anthropological sites. Operational Directive: If vandalism occurs on city monuments or heritage sites, file higher-level charges immediately and preserve the scene."
+  },
+  {
+    "title": "Anti-Vandalism Act",
+    "referenceNumber": "Local Government Code Mandate",
+    "type": "standard_protocol",
+    "status": "published",
+    "source": "Philippine Law / LGU Ordinance Standard",
+    "crimeType": "vandalism_property_damage",
+    "content": "Defacing public property via graffiti, destruction of signs, or breaking of municipal property. Operational Directive: Direct barangay personnel to immediately paint over gang-related graffiti to prevent territory signaling among rival groups."
+  },
+  {
+    "title": "Land Transportation and Traffic Code",
+    "referenceNumber": "Republic Act No. 4136",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "traffic_accident",
+    "content": "Section 55. Duty of driver in case of accident. — In the event that any accident should occur as a result of the operation of a motor vehicle upon a highway, the driver shall stop immediately, and, if requested by any person present, shall show his driver's license. Operational Directive: Local traffic enforcers must secure the crash site with early warning devices and divert traffic to prevent secondary collisions."
+  },
+  {
+    "title": "Anti-Drunk and Drugged Driving Act of 2013",
+    "referenceNumber": "Republic Act No. 10586",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "traffic_accident",
+    "content": "Section 5. Punishable Act. - It shall be unlawful for any person to drive a motor vehicle while under the influence of alcohol, dangerous drugs and/or other similar substances. Operational Directive: If intoxication is suspected, immediately request a Breathalyzer from the responding PNP Traffic Investigator."
+  },
+  {
+    "title": "Anti-Distracted Driving Act",
+    "referenceNumber": "Republic Act No. 10913",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "traffic_accident",
+    "content": "Section 4. Distracted Driving. - It shall be unlawful for a person to use mobile communications devices to write, send, or read a text-based communication or to make or receive calls. Operational Directive: In post-accident investigations, inquire witnesses if the driver was seen using a mobile device prior to the collision."
+  },
+  {
+    "title": "Motorcycle Helmet Act of 2009",
+    "referenceNumber": "Republic Act No. 10054",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "traffic_accident",
+    "content": "Section 3. Mandatory Use of Motorcycle Helmets. - All motorcycle riders, including drivers and back riders, shall at all times wear standard protective motorcycle helmets while driving. Operational Directive: First responders must not forcibly remove the helmet of an injured rider if neck/spinal injury is suspected. Wait for EMS."
+  },
+  {
+    "title": "Children's Safety on Motorcycles Act of 2015",
+    "referenceNumber": "Republic Act No. 10666",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "traffic_accident",
+    "content": "Section 4. Prohibition. - It shall be unlawful for any person to drive a two (2)-wheeled motorcycle with a child on board on public roads where there is heavy volume of vehicles. Operational Directive: If minors are involved in a motorcycle accident, flag this violation and prioritize pediatric medical response."
+  },
+  {
+    "title": "Comprehensive Firearms and Ammunition Regulation Act",
+    "referenceNumber": "Republic Act No. 10591",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "illegal_weapons",
+    "content": "Section 28. Penalties for Illegal Possession of Firearms. — The penalty of prision mayor in its medium period shall be imposed upon any person who shall unlawfully acquire or possess a small arm. Operational Directive: Unarmed barangay officials must retreat and immediately escalate to the PNP SWAT or armed response units. Do not attempt apprehension without firearms."
+  },
+  {
+    "title": "Illegal Possession of Bladed, Pointed or Blunt Weapons",
+    "referenceNumber": "Batas Pambansa Blg. 6",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "illegal_weapons",
+    "content": "Section 1. It is unlawful for any person to carry outside of his residence any bladed, pointed or blunt weapon such as knife, spear, pana, dagger, bolo, barong, kris, or chako, except where such articles are being used as necessary tools for legitimate business. Operational Directive: Confiscate weapons using safe disarming techniques. If the suspect resists, maintain distance and call police."
+  },
+  {
+    "title": "Laws on Illegal Possession of Explosives",
+    "referenceNumber": "Republic Act No. 9516",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "illegal_weapons",
+    "content": "Section 1. Illegal Manufacture, Sales, Acquisition, Disposition, Importation or Possession of Explosives or Incendiary Devices. Operational Directive: If explosives/grenades are found, evacuate the area within a 100-meter radius instantly. Call the PNP Explosive Ordnance Disposal (EOD) unit. Do not touch or move the device."
+  },
+  {
+    "title": "PNP Standard Operational Procedure (SOP) on Spot Checks",
+    "referenceNumber": "PNP POP Rule 10",
+    "type": "standard_protocol",
+    "status": "published",
+    "source": "Philippine National Police Manual",
+    "crimeType": "suspicious_activity",
+    "content": "Rule 10. Spot Checks / Accosting and Pat-Down Searches. Justifiable Circumstances: The police officer must observe unusual conduct which leads him reasonably to conclude in light of his experience that criminal activity may be afoot. Operational Directive: Approach suspects non-aggressively, ask for identification politely, and only conduct a pat-down (Terry Stop) if there is reasonable suspicion they are armed and dangerous."
+  },
+  {
+    "title": "Local Government Code of 1991 - General Welfare",
+    "referenceNumber": "Republic Act No. 7160, Sec 16",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "suspicious_activity",
+    "content": "Section 16. General Welfare. Every local government unit shall exercise the powers expressly granted... within their respective territorial jurisdictions, ensure and support, among other things, the preservation and enrichment of culture, promote health and safety... and preserve the comfort and convenience of their inhabitants. Operational Directive: Barangay Tanods have the full legal mandate to conduct foot patrols and question suspicious individuals loitering in unlit or restricted areas."
+  },
+  {
+    "title": "Philippine Constitution - Bill of Rights (Search and Seizure)",
+    "referenceNumber": "1987 Constitution, Art. III, Sec 2",
+    "type": "national_law",
+    "status": "published",
+    "source": "Official Gazette",
+    "crimeType": "suspicious_activity",
+    "content": "Section 2. The right of the people to be secure in their persons, houses, papers, and effects against unreasonable searches and seizures of whatever nature and for any purpose shall be inviolable. Operational Directive: Officers cannot force a search of bags or vehicles during a routine spot-check of a suspicious person without a warrant or probable cause (plain view doctrine)."
+  }
+]

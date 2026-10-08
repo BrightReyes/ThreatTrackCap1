@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seed National Laws</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 40px; background: #0f172a; color: white; }
+        button { padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:hover { background: #2563eb; }
+        #status { margin-top: 20px; font-family: monospace; color: #10b981; }
+    </style>
+</head>
+<body>
+    <h1>Initialize Philippine National Laws (Backend)</h1>
+    <p>This will securely upload the 34 immutable Philippine Laws directly into the hidden `national_laws` database collection.</p>
+    <p>These laws will NOT appear in the AI Management UI, but the AI will use them secretly in the background.</p>
+    
+    <button id="seedBtn">Push Laws to Database</button>
+    <div id="status"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, writeBatch, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // We fetch the config dynamically if possible, or user must replace this.
+        // But since this runs on the same server, we can fetch from config.js
+        import { firebaseConfig } from './js/config.js';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        document.getElementById("seedBtn").addEventListener("click", async () => {
+            const btn = document.getElementById("seedBtn");
+            const status = document.getElementById("status");
+            btn.disabled = true;
+            btn.textContent = "Uploading...";
+            status.textContent = "Reading ph_laws_seed.json...";
+
+            try {
+                const response = await fetch('./ph_laws_seed.json');
+                const laws = await response.json();
+                
+                status.textContent = `Found ${laws.length} laws. Writing to database...`;
+
+                const batch = writeBatch(db);
+                laws.forEach(law => {
+                    const docRef = doc(collection(db, "national_laws"));
+                    batch.set(docRef, {
+                        ...law,
+                        isImmutable: true,
+                        version: 1,
+                        createdAt: serverTimestamp()
+                    });
+                });
+
+                await batch.commit();
+                status.textContent = "✅ Success! 34 National Laws have been permanently written to the 'national_laws' collection.";
+                btn.textContent = "Done";
+            } catch (error) {
+                console.error(error);
+                status.textContent = "❌ Error: " + error.message;
+                status.style.color = "#ef4444";
+                btn.disabled = false;
+                btn.textContent = "Retry";
+            }
+        });
+    </script>
+</body>
+</html>
