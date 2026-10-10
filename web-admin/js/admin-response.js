@@ -27,10 +27,15 @@ let precinctCache = {
 };
 
 export function isPriorityIncident(data = {}) {
+    if (data.isSOSReport === true) return true;
+    const severity = String(data.severity || "").toLowerCase().trim();
+    const priority = String(data.priority || "").toLowerCase().trim();
     return (
-        data.isSOSReport === true ||
-        String(data.severity || "").toLowerCase() === "high" ||
-        String(data.priority || "").toLowerCase() === "high"
+        severity === "high" ||
+        priority === "high" ||
+        severity === "medium" ||
+        severity === "low" ||
+        Boolean(data.type || data.reportType)
     );
 }
 

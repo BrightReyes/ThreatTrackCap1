@@ -16,6 +16,7 @@ import {
 } from "firebase/auth";
 import primaryApp, { db } from "../../shared/firebase.js";
 import { toastError, toastSuccess } from "./alerts.js";
+import { getBarangayNameById } from "../../shared/barangays.js";
 
 const LIST_LIMIT = 200;
 const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police"];
@@ -146,7 +147,12 @@ function buildRow(docSnap, index) {
     const d = docSnap.data();
     const email = d.email || "—";
     const name = displayName(d);
-    const roleLabel = humanizeRole(d.role);
+    const baseRole = humanizeRole(d.role);
+    const assignedB =
+        d.role === "admin" && (d.barangayName || d.barangayId)
+            ? ` (${getBarangayNameById(d.barangayId) || d.barangayName})`
+            : "";
+    const roleLabel = `${baseRole}${assignedB}`;
     const joined = formatJoined(d);
     const status = userStatus(d);
 
@@ -542,10 +548,20 @@ function bindAddUserModal() {
         document.body.style.overflow = "";
     };
 
+    const roleSelect = form.elements.role;
+    const barangayWrap = form.querySelector("#user-add-barangay-wrap");
+    const syncBarangayVisibility = () => {
+        if (!barangayWrap) return;
+        const isBrgyAdmin = roleSelect?.value === "admin";
+        barangayWrap.style.display = isBrgyAdmin ? "block" : "none";
+    };
+    roleSelect?.addEventListener("change", syncBarangayVisibility);
+
     const open = () => {
         modal.hidden = false;
         modal.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
+        syncBarangayVisibility();
         form.querySelector("#user-add-first")?.focus();
     };
 
@@ -587,6 +603,7 @@ function bindAddUserModal() {
             return;
         }
 
+        const barangayId = String(form.elements.barangayId?.value || "").trim();
         const payload = {
             email,
             firstName,
@@ -599,6 +616,13 @@ function bindAddUserModal() {
             suspended: status === "suspended",
             createdAt: serverTimestamp(),
             createdByAdmin: true,
+            ...(role === "admin" && barangayId
+                ? {
+                      barangayId,
+                      assignedBarangay: barangayId,
+                      barangayName: getBarangayNameById(barangayId),
+                  }
+                : {}),
         };
         let createdAuthUser = null;
         let secondaryApp = null;

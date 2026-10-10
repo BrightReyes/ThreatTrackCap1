@@ -175,10 +175,10 @@ const generateAdminAISummaryFunction = onCall(
       }
 
       const db = admin.firestore();
-      await assertAdminAccess(db, uid);
+      const adminProfile = await assertAdminAccess(db, uid);
 
-      const filters = normalizeFilters(request.data || {});
-      const incidents = await loadIncidentRows(db, filters);
+      const filters = normalizeFilters(request.data || {}, adminProfile);
+      const incidents = await loadIncidentRows(db, filters, adminProfile);
       const precincts = await loadPrecincts(db);
       const analyticsPayload = buildAnalyticsPayload(
           incidents,
@@ -272,10 +272,20 @@ const generateAdminAISummaryFunction = onCall(
 
 async function assertAdminAccess(db, uid) {
   const snap = await db.collection("users").doc(uid).get();
-  const role = normalizeRole(snap.data() && snap.data().role);
+  const userData = snap.data() || {};
+  const role = normalizeRole(userData.role);
   if (!ADMIN_ROLES.has(role)) {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
+  const isPolice = role === "police" || role === "police_admin";
+  const barangayId = userData.barangayId || userData.assignedBarangay || null;
+  const barangayName = userData.barangayName || null;
+  return {
+    role,
+    isPolice,
+    barangayId,
+    barangayName,
+  };
 }
 
 function normalizeRole(role) {
@@ -285,7 +295,7 @@ function normalizeRole(role) {
       .replace(/[\s-]+/g, "_");
 }
 
-function normalizeFilters(data) {
+function normalizeFilters(data, adminProfile = {}) {
   const range = ["7d", "30d", "90d", "all"].includes(data.range) ?
     data.range :
     "30d";
@@ -296,17 +306,26 @@ function normalizeFilters(data) {
     new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000) :
     null;
 
+  let barangay = normalizeText(data.barangay || "", 60);
+  if (!adminProfile.isPolice && adminProfile.barangayName) {
+    barangay = adminProfile.barangayName;
+  }
+
   return {
     range,
     days,
     startDate,
     endDate,
-    barangay: normalizeText(data.barangay || "", 60),
+    barangay,
     crimeType: normalizeText(data.crimeType || "", 60),
+    barangayId: !adminProfile.isPolice ? adminProfile.barangayId : null,
+    jurisdictionScope: !adminProfile.isPolice && adminProfile.barangayName ?
+      `Barangay ${adminProfile.barangayName}` :
+      (barangay ? `Barangay ${barangay}` : "Valenzuela City (All Covered Jurisdictions)"),
   };
 }
 
-async function loadIncidentRows(db, filters) {
+async function loadIncidentRows(db, filters, adminProfile = {}) {
   let query = db.collection("incidents");
   if (filters.startDate) {
     query = query.where("createdAt", ">=", filters.startDate);
@@ -314,11 +333,23 @@ async function loadIncidentRows(db, filters) {
 
   const snapshot = await query.limit(MAX_INCIDENTS).get();
   const rows = [];
+  const requiredBarangayId = !adminProfile.isPolice ? (adminProfile.barangayId || null) : null;
 
   snapshot.forEach((docSnap) => {
     const data = docSnap.data() || {};
     const status = normalizeText(data.status).toLowerCase();
     if (status && !VISIBLE_STATUSES.has(status)) return;
+
+    if (requiredBarangayId) {
+      const docBarangayId = data.barangayId ? String(data.barangayId).toLowerCase() : null;
+      if (docBarangayId) {
+        if (docBarangayId !== requiredBarangayId.toLowerCase()) return;
+      } else {
+        const bText = getBarangay(data).toLowerCase();
+        const normReq = requiredBarangayId.toLowerCase().replace(/_/g, " ");
+        if (!bText || !bText.includes(normReq)) return;
+      }
+    }
 
     const barangay = getBarangay(data);
     if (filters.barangay && barangay.toLowerCase() !== filters.barangay.toLowerCase()) {
@@ -419,6 +450,7 @@ function buildAnalyticsPayload(incidents, precincts, filters) {
     topCrimeTypes: sortObjectByValue(typeCounts),
     peakHours: formatPeakHours(hourCounts, incidents.length),
     barangayDistribution: sortObjectByValue(barangayCounts),
+    jurisdictionScope: filters.jurisdictionScope || "Valenzuela City",
     hotspots,
     priorityHotspots: hotspots,
   };

@@ -10,6 +10,8 @@ import {
   evaluateIncidentLegitimacy,
   renderLegitimacyBadge,
 } from './incident-legitimacy.js';
+import { hasIncidentAccess, resolveIncidentBarangayId } from './admin-auth.js';
+import { getBarangayNameById } from '../../shared/barangays.js';
 
 const LIST_LIMIT = 150;
 const PAGE_SIZE = 12;
@@ -108,11 +110,16 @@ function buildRow(docSnap) {
 
   const legitimacy = evaluateIncidentLegitimacy(d);
   const legitimacyBadgeHtml = renderLegitimacyBadge(legitimacy);
+  const resolvedBId = resolveIncidentBarangayId(d);
+  const resolvedBName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null);
 
   return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
     <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>
     <td>${escapeHtml(reported)}</td>
-    <td>${escapeHtml(typeLabel)}</td>
+    <td>
+      <div>${escapeHtml(typeLabel)}</div>
+      ${resolvedBName ? `<div style="font-size: 0.74rem; color: #475569; font-weight: 600; margin-top: 2px;">📍 ${escapeHtml(resolvedBName)}</div>` : ''}
+    </td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
     <td>${legitimacyBadgeHtml}</td>
@@ -428,7 +435,7 @@ export async function loadIncidentsTable() {
   );
 
   const snap = await getDocs(q);
-  allDocs = snap.docs;
+  allDocs = snap.docs.filter((docSnap) => hasIncidentAccess(docSnap.data()));
 
   bindToolbar();
   bindIncidentUpdates();

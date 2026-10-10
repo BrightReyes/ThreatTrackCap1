@@ -1,4 +1,5 @@
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { findNearestCoveredBarangay, getBarangayNameById } from "../../shared/barangays.js";
 import { auth, db } from "../../shared/firebase.js";
 import {
     refreshSidebarSystemName,
@@ -14,6 +15,8 @@ applyCachedSidebarSystemName();
 
 const DASHBOARD_CLOCK_TZ = "Asia/Manila";
 const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
+const ADMIN_BARANGAY_ID_CACHE_KEY = "tt_admin_barangay_id";
+const ADMIN_BARANGAY_NAME_CACHE_KEY = "tt_admin_barangay_name";
 const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
 const ADMIN_SESSION_STORAGE_PREFIXES = ["tt_hotspot_ai_plan:"];
 const UNAUTHORIZED_ADMIN_MESSAGE =
@@ -74,6 +77,158 @@ function isAllowedAdminRole(role) {
     return ["admin", "police"].includes(normalizeAdminRole(role));
 }
 
+/**
+ * Returns the current active admin role ("admin" | "police" | "user").
+ *
+ * @returns {string}
+ */
+export function getCurrentAdminRole() {
+    try {
+        return normalizeAdminRole(
+            localStorage.getItem(ADMIN_ROLE_CACHE_KEY)
+        ) || "admin";
+    } catch {
+        return "admin";
+    }
+}
+
+/**
+ * Returns the current Barangay Admin's assigned barangayId (e.g. "balangkas", "mapulang_lupa").
+ * Returns null if the user is a Police Admin or has no specific assigned jurisdiction.
+ *
+ * @returns {string | null}
+ */
+export function getCurrentAdminBarangayId() {
+    try {
+        const val = localStorage.getItem(ADMIN_BARANGAY_ID_CACHE_KEY);
+        return val ? String(val).trim().toLowerCase() : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Returns the human-readable name of the admin's assigned barangay (e.g. "Balangkas").
+ *
+ * @returns {string | null}
+ */
+export function getCurrentAdminBarangayName() {
+    try {
+        return localStorage.getItem(ADMIN_BARANGAY_NAME_CACHE_KEY) || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Resolves the assigned covered barangay ID for an incident report.
+ * Evaluates: (1) explicit barangayId, (2) location.barangay, (3) address keywords,
+ * and (4) geographic proximity via GPS coordinates (Haversine formula).
+ *
+ * @param {object} incidentData
+ * @returns {string | null} 'balangkas' | 'mapulang_lupa' | null
+ */
+export function resolveIncidentBarangayId(incidentData = {}) {
+    if (!incidentData) return null;
+
+    // 1. Direct explicit property
+    const directId = String(
+        incidentData.barangayId || incidentData.assignedBarangayId || ""
+    ).trim().toLowerCase();
+    if (directId) {
+        if (directId.includes("mapulang")) return "mapulang_lupa";
+        if (directId.includes("balangkas")) return "balangkas";
+        return directId;
+    }
+
+    // 2. Direct string field: location.barangay or incidentData.barangay
+    const textBarangay = String(
+        incidentData.location?.barangay || incidentData.barangay || ""
+    ).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (textBarangay) {
+        if (textBarangay.includes("mapulang")) return "mapulang_lupa";
+        if (textBarangay.includes("balangkas")) return "balangkas";
+        return textBarangay;
+    }
+
+    // 3. Address text scan
+    const addressText = String(
+        incidentData.location?.address || incidentData.address || ""
+    ).toLowerCase();
+    if (addressText.includes("mapulang")) return "mapulang_lupa";
+    if (addressText.includes("balangkas")) return "balangkas";
+
+    // 4. GPS Coordinates fallback using Haversine calculation
+    const lat = Number(
+        incidentData.location?.latitude ??
+        incidentData.latitude ??
+        incidentData.lat
+    );
+    const lng = Number(
+        incidentData.location?.longitude ??
+        incidentData.longitude ??
+        incidentData.lng
+    );
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const nearest = findNearestCoveredBarangay(lat, lng);
+        if (nearest?.barangayId && nearest.barangayId !== "unknown") {
+            return nearest.barangayId;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Role-Based Access Control (RBAC) jurisdiction gate.
+ * Determines if the current administrator is authorized to view or manage an incident.
+ *
+ * Rules:
+ * 1. Police Admin: Has city-wide oversight (authorized for all covered barangays).
+ * 2. Barangay Admin: Authorized ONLY for reports assigned to their barangay jurisdiction.
+ *
+ * @param {object} incidentData - Incident document fields
+ * @returns {boolean} Whether access is permitted
+ */
+export function hasIncidentAccess(incidentData = {}) {
+    const role = getCurrentAdminRole();
+    if (role === "police") return true;
+
+    const currentBarangayId = getCurrentAdminBarangayId();
+    if (!currentBarangayId) {
+        // Fallback if an admin is not yet assigned a specific barangay
+        return true;
+    }
+
+    const resolvedBarangayId = resolveIncidentBarangayId(incidentData);
+    if (resolvedBarangayId) {
+        return resolvedBarangayId === currentBarangayId;
+    }
+
+    // Strict boundary: reports without matching jurisdiction are hidden from Barangay Admin
+    return false;
+}
+
+export function cacheAdminJurisdiction(profile) {
+    if (!profile) {
+        localStorage.removeItem(ADMIN_BARANGAY_ID_CACHE_KEY);
+        localStorage.removeItem(ADMIN_BARANGAY_NAME_CACHE_KEY);
+        return;
+    }
+    const bId = profile.barangayId || profile.assignedBarangayId || null;
+    const bName = profile.assignedBarangay || profile.barangayName || profile.barangay || null;
+    if (bId) {
+        localStorage.setItem(ADMIN_BARANGAY_ID_CACHE_KEY, String(bId).trim().toLowerCase());
+    } else {
+        localStorage.removeItem(ADMIN_BARANGAY_ID_CACHE_KEY);
+    }
+    if (bName) {
+        localStorage.setItem(ADMIN_BARANGAY_NAME_CACHE_KEY, String(bName).trim());
+    } else {
+        localStorage.removeItem(ADMIN_BARANGAY_NAME_CACHE_KEY);
+    }
+}
+
 function humanizeAdminRole(role) {
     const normalized = normalizeAdminRole(role);
     if (normalized === "admin") return "Barangay Admin";
@@ -86,11 +241,30 @@ async function loadAdminProfile(user) {
     if (!user?.uid) return null;
     try {
         const snap = await getDoc(doc(db, "users", user.uid));
-        if (!snap.exists()) return null;
+        const data = snap.exists() ? (snap.data() || {}) : {};
+
+        let bId = data.barangayId || data.assignedBarangayId || null;
+        if (!bId && data.assignedBarangay) bId = String(data.assignedBarangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (!bId && data.barangayName) bId = String(data.barangayName).trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (!bId && data.barangay) bId = String(data.barangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (bId && bId.includes("mapulang")) bId = "mapulang_lupa";
+        if (bId && bId.includes("balangkas")) bId = "balangkas";
+
+        // Fallback: Infer jurisdiction from email address if unpopulated
+        const emailLower = String(user.email || data.email || "").toLowerCase();
+        if (!bId) {
+            if (emailLower.includes("mapulang")) bId = "mapulang_lupa";
+            else if (emailLower.includes("balangkas")) bId = "balangkas";
+        }
+        const bName = data.assignedBarangay || data.barangayName || (bId ? getBarangayNameById(bId) : null);
+
         return {
-            id: snap.id,
-            ...snap.data(),
-            role: normalizeAdminRole(snap.data()?.role),
+            id: user.uid,
+            ...data,
+            role: normalizeAdminRole(data.role),
+            barangayId: bId,
+            assignedBarangay: bName,
+            barangayName: bName,
         };
     } catch (err) {
         console.warn("[admin-auth] profile load failed", err);
@@ -101,7 +275,15 @@ async function loadAdminProfile(user) {
 function applySidebarRoleLabel(profile) {
     const badge = document.querySelector(".sidebar__badge");
     if (!badge) return;
-    badge.textContent = humanizeAdminRole(profile?.role);
+    const normalizedRole = normalizeAdminRole(profile?.role);
+    if (normalizedRole === "admin") {
+        const barangayName = profile?.assignedBarangay || profile?.barangayName || profile?.barangay;
+        badge.textContent = barangayName
+            ? `Barangay Admin (${barangayName})`
+            : "Barangay Admin";
+    } else {
+        badge.textContent = humanizeAdminRole(profile?.role);
+    }
 }
 
 function applyRoleNavigation(profile) {
@@ -109,6 +291,7 @@ function applyRoleNavigation(profile) {
     if (!nav) return;
 
     cacheAdminRole(profile?.role);
+    cacheAdminJurisdiction(profile);
 
     const operationHref = "operation.html";
     let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
@@ -242,6 +425,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
                 try {
                     await signOut(auth);
                     cacheAdminRole(null);
+                    cacheAdminJurisdiction(null);
                     clearAdminSessionCaches();
                 } catch {}
                 toastError("Session timed out due to inactivity");
@@ -256,6 +440,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
     onAuthStateChanged(auth, async (user) => {
         if (!user) {
             cacheAdminRole(null);
+            cacheAdminJurisdiction(null);
             clearAdminSessionCaches();
             window.location.replace("login.html");
             return;
@@ -269,6 +454,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
 
         if (!isAllowedAdminRole(profile?.role)) {
             cacheAdminRole(null);
+            cacheAdminJurisdiction(null);
             clearAdminSessionCaches();
             toastError(UNAUTHORIZED_ADMIN_MESSAGE);
             sessionStorage.setItem(
@@ -372,6 +558,7 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         try {
             await signOut(auth);
             cacheAdminRole(null);
+            cacheAdminJurisdiction(null);
             clearAdminSessionCaches();
             toastSuccess("Signed out");
             // eslint-disable-next-line no-void

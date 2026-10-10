@@ -10,6 +10,7 @@
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const {findNearestCoveredBarangay} = require("./barangays");
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 const GEMINI_MODEL = "gemini-flash-latest";
@@ -87,11 +88,22 @@ module.exports = onDocumentCreated(
           status = "under_review"; // Needs manual review
         }
 
+        // Compute nearest covered barangay jurisdiction assignment
+        const loc = currentIncident?.location || incident?.location || {};
+        const lat = Number(loc.latitude ?? currentIncident?.latitude ?? incident?.latitude);
+        const lng = Number(loc.longitude ?? currentIncident?.longitude ?? incident?.longitude);
+        const assignedBarangay = findNearestCoveredBarangay(lat, lng);
+
         // Update the incident document
         const updatePayload = {
           verificationScore,
           status: alreadyResponding ? "responding" : status,
           validatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          barangayId: assignedBarangay.barangayId,
+          barangayName: assignedBarangay.barangayName,
+          assignedBarangayDistanceKm: assignedBarangay.distanceKm,
+          assignmentType: "nearest_covered_scope",
+          notificationAudience: determineNotificationAudience(incident),
           legitimacyRating: triage.rating,
           legitimacySummary: triage.summary,
           legitimacyReasons: triage.reasons || [],
@@ -115,8 +127,10 @@ module.exports = onDocumentCreated(
 
         console.log(`Incident ${incidentId} validated. Score: ${verificationScore}, Status: ${status}, Legitimacy: ${triage.rating} (${triage.source})`);
 
-        if (isHighPriority && status === "verified" && !alreadyResponding) {
-          await createAdminPriorityNotification(db, incident, incidentId);
+        // All verified incidents notify their target admin audience (Police or Barangay)
+        if (status === "verified" && !alreadyResponding) {
+          const enrichedIncident = Object.assign({}, incident, updatePayload);
+          await createAdminPriorityNotification(db, enrichedIncident, incidentId);
         }
 
         // If spam, log for admin review
@@ -297,6 +311,36 @@ function calculateVerificationScore(results) {
 }
 
 /**
+ * Determines which admin dashboard should receive the notification/popup alert.
+ * SOS always overrides severity — emergency distress goes to Police Admin.
+ * High severity incidents also go to Police Admin.
+ * Low and medium severity incidents route to Barangay Admin.
+ *
+ * @param {object} incident - The incident document data.
+ * @returns {"police" | "barangay"} The target admin audience.
+ */
+function determineNotificationAudience(incident) {
+  // Rule 1: SOS ALWAYS goes to police, regardless of severity
+  if (incident?.isSOSReport === true) {
+    return "police";
+  }
+
+  // Rule 2: High severity or high priority goes to police
+  const severity = String(incident?.severity || "").toLowerCase().trim();
+  if (severity === "high") {
+    return "police";
+  }
+
+  const priority = String(incident?.priority || "").toLowerCase().trim();
+  if (priority === "high") {
+    return "police";
+  }
+
+  // Rule 3: Low and medium severity go to barangay
+  return "barangay";
+}
+
+/**
  * SOS and high severity reports must surface immediately to admin response.
  */
 function isHighPriorityIncident(incident) {
@@ -306,28 +350,48 @@ function isHighPriorityIncident(incident) {
 }
 
 /**
- * Create/refresh a deterministic admin notification for urgent reports.
+ * Create/refresh a deterministic admin notification for incident reports,
+ * routed to the appropriate audience ("police" or "barangay").
  */
 async function createAdminPriorityNotification(db, incident, incidentId) {
   try {
     const notificationId = `admin_priority_${incidentId}`;
     const typeLabel = incident.typeLabel || humanizeType(incident.type);
     const isSos = incident.isSOSReport === true;
+    const audience = determineNotificationAudience(incident);
+    const severity = String(incident?.severity || "medium").toLowerCase();
+
+    let title;
+    let notificationType;
+    if (isSos) {
+      title = "SOS report needs response";
+      notificationType = "admin_sos_report";
+    } else if (audience === "police") {
+      title = "High priority report needs response";
+      notificationType = "admin_high_priority_report";
+    } else {
+      title = "New incident report received";
+      notificationType = "admin_standard_report";
+    }
 
     await db.collection("notifications").doc(notificationId).set({
       userId: "admin",
-      audience: "admin",
+      audience,
       incidentId,
-      title: isSos ? "SOS report needs response" : "High priority report needs response",
-      body: `${typeLabel} was auto-validated. Click Respond to notify the reporter that help is on the way.`,
-      type: isSos ? "admin_sos_report" : "admin_high_priority_report",
-      severity: "high",
-      priority: "high",
+      title,
+      body: isSos
+        ? `${typeLabel} SOS was triggered. Immediate dispatch required.`
+        : `${typeLabel} was received. Click to review details and coordinate response.`,
+      type: notificationType,
+      severity: isSos ? "high" : severity,
+      priority: audience === "police" ? "high" : "normal",
       readAt: null,
       sentAt: admin.firestore.FieldValue.serverTimestamp(),
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       location: incident.location || null,
       reportType: incident.type || null,
+      barangayId: incident.barangayId || null,
+      barangayName: incident.barangayName || null,
     }, {merge: true});
   } catch (error) {
     console.error(`Error creating admin priority notification for ${incidentId}:`, error);

@@ -1,4 +1,4 @@
-import { initAdminPage } from "./admin-auth.js";
+import { initAdminPage, hasIncidentAccess } from "./admin-auth.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { initAdminMap } from "./admin-map.js";
 import { loadAdminStats } from "./admin-stats.js";
@@ -217,6 +217,7 @@ function startTodayReportsListener() {
 
             snap.forEach((docSnap) => {
                 const data = docSnap.data() || {};
+                if (!hasIncidentAccess(data)) return;
                 const date = toIncidentDate(data.timestamp ?? data.reportedAt);
                 if (!date) return;
 

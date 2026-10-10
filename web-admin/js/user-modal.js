@@ -2,6 +2,7 @@ import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../shared/firebase.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
+import { COVERED_BARANGAYS, getBarangayNameById } from "../../shared/barangays.js";
 
 const EDIT_ROLES = ["user", "admin", "police"];
 const EDIT_STATUSES = ["active", "inactive", "suspended"];
@@ -160,6 +161,7 @@ function renderUserDetail(userId, d) {
       <dl class="user-profile__details">
         <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
         <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
+        ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd>📍 ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
         <div><dt>Status</dt><dd>${escapeHtml(humanizeStatus(status))}</dd></div>
         <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
@@ -236,6 +238,23 @@ function renderUserEditForm(userId, d) {
           </div>
         </div>
       </div>
+      <div class="user-modal-form__grid" id="user-edit-barangay-grid" style="${cur === "admin" ? "margin-top:10px;" : "display:none;margin-top:10px;"}">
+        <div class="user-modal-form__field user-modal-form__field--full">
+          <label class="user-modal-form__label" for="user-edit-barangay">Assigned Barangay (Jurisdiction)</label>
+          <div class="user-modal-form__select-wrap">
+            <select id="user-edit-barangay" name="barangayId" class="incidents-select" aria-label="Assigned Barangay">
+              <option value="">Unassigned</option>
+              ${COVERED_BARANGAYS.map((b) => {
+                  const sel = (String(d.barangayId || d.assignedBarangay || "").toLowerCase() === b.id.toLowerCase()) ? " selected" : "";
+                  return `<option value="${escapeAttr(b.id)}"${sel}>${escapeHtml(b.name)} (${escapeHtml(b.code)})</option>`;
+              }).join("")}
+            </select>
+          </div>
+          <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
+            Restricts incident report views and AI decision support to this barangay.
+          </small>
+        </div>
+      </div>
     </section>
 
     <section class="user-edit-card">
@@ -266,7 +285,12 @@ function patchUsersTableRow(userId, d) {
     if (!row || row.children.length < 6) return;
     const email = d.email || "—";
     const name = displayName(d);
-    const roleLabel = humanizeRole(d.role);
+    const baseRole = humanizeRole(d.role);
+    const assignedB =
+        d.role === "admin" && (d.barangayName || d.barangayId)
+            ? ` (${getBarangayNameById(d.barangayId) || d.barangayName})`
+            : "";
+    const roleLabel = `${baseRole}${assignedB}`;
     const badge = roleBadgeClass(d.role);
     const joined = formatTimestamp(d.createdAt);
     const status = userStatus(d);
@@ -394,6 +418,14 @@ export function initUserModal() {
         const cancelBtn = body.querySelector('[data-user-action="cancel-edit"]');
         const saveBtn = body.querySelector('[data-user-action="save-profile"]');
 
+        const roleEl = body.querySelector("#user-edit-role");
+        const barangayGrid = body.querySelector("#user-edit-barangay-grid");
+        roleEl?.addEventListener("change", () => {
+            if (barangayGrid) {
+                barangayGrid.style.display = roleEl.value === "admin" ? "" : "none";
+            }
+        });
+
         cancelBtn?.addEventListener("click", () => {
             if (feedback) feedback.textContent = "";
             showView();
@@ -405,14 +437,17 @@ export function initUserModal() {
 
             const fnEl = body.querySelector("#user-edit-first");
             const lnEl = body.querySelector("#user-edit-last");
-            const roleEl = body.querySelector("#user-edit-role");
             const statusEl = body.querySelector("#user-edit-status");
+            const barangayEl = body.querySelector("#user-edit-barangay");
             const firstName = String(fnEl?.value ?? "").trim();
             const lastName = String(lnEl?.value ?? "").trim();
             let role = normalizeRole(roleEl?.value ?? "user");
             if (!EDIT_ROLES.includes(role)) role = "user";
             let status = String(statusEl?.value ?? "active").toLowerCase();
             if (!EDIT_STATUSES.includes(status)) status = "active";
+
+            const barangayId = String(barangayEl?.value ?? "").trim();
+            const barangayName = barangayId ? getBarangayNameById(barangayId) : null;
 
             if (feedback) feedback.textContent = "Saving…";
             saveBtn && (saveBtn.disabled = true);
@@ -428,6 +463,16 @@ export function initUserModal() {
                 disabled: status === "inactive",
                 suspended: status === "suspended",
             };
+
+            if (role === "admin" && barangayId) {
+                payload.barangayId = barangayId;
+                payload.assignedBarangay = barangayId;
+                payload.barangayName = barangayName;
+            } else {
+                payload.barangayId = null;
+                payload.assignedBarangay = null;
+                payload.barangayName = null;
+            }
 
             try {
                 await updateDoc(doc(db, "users", currentUserId), payload);

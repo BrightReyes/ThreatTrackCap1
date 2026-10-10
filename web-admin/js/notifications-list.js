@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../shared/firebase.js';
 import { confirmDanger, toastError, toastSuccess } from './alerts.js';
+import { getCurrentAdminBarangayId, getCurrentAdminRole } from './admin-auth.js';
 
 const LIST_LIMIT = 200;
 
@@ -120,6 +121,7 @@ function buildCard(docSnap) {
       </div>
       <div class="notification-card__meta">
         <span class="notification-pill notification-pill--type">${escapeHtml(type)}</span>
+        ${d.barangayName ? `<span class="notification-pill" style="color:#1d4ed8;background:#eff6ff;font-weight:600;">📍 ${escapeHtml(d.barangayName)}</span>` : ''}
         <span class="notification-pill" title="Recipient userId">User: <span class="incidents-table__desc">${escapeHtml(truncate(userId, 18))}</span></span>
         <span class="notification-pill ${isRead ? 'notification-pill--read' : 'notification-pill--unread'}">${escapeHtml(isRead ? 'Read' : 'Unread')}</span>
         <time class="notification-card__time" title="${escapeAttr(sentFull)}">${escapeHtml(sentRel)}</time>
@@ -160,7 +162,26 @@ export async function loadNotificationsTable() {
   );
 
   const snap = await getDocs(q);
-  const visibleDocs = snap.docs.filter((docSnap) => !docSnap.data()?.archivedAt);
+  const currentRole = getCurrentAdminRole();
+  const visibleDocs = snap.docs.filter((docSnap) => {
+    const d = docSnap.data();
+    if (d?.archivedAt) return false;
+
+    // Role-based notification filtering:
+    // - Police Admin ("police") sees "police" audience notifications (SOS / high priority)
+    // - Barangay Admin ("admin") sees "barangay" audience notifications (standard / low / medium)
+    const audience = String(d?.audience || '').toLowerCase().trim();
+    if (audience === 'police' && currentRole !== 'police') return false;
+    if (audience === 'barangay' && currentRole === 'police') return false;
+
+    // Jurisdiction filtering for Barangay Admin
+    const adminBarangayId = getCurrentAdminBarangayId();
+    if (currentRole !== 'police' && adminBarangayId && d?.barangayId) {
+      if (String(d.barangayId).toLowerCase() !== adminBarangayId.toLowerCase()) return false;
+    }
+
+    return true;
+  });
   syncNotificationStatsFromDocs(visibleDocs);
 
   if (!visibleDocs.length) {

@@ -18,6 +18,8 @@ import icon from "leaflet/dist/images/marker-icon.png";
 import icon2x from "leaflet/dist/images/marker-icon-2x.png";
 import shadowImg from "leaflet/dist/images/marker-shadow.png";
 import { db } from "../../shared/firebase.js";
+import { getCurrentAdminBarangayId, hasIncidentAccess } from "./admin-auth.js";
+import { COVERED_BARANGAYS } from "../../shared/barangays.js";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -496,7 +498,9 @@ function populateMapTypeFilter(snap) {
     const current = typeEl.value;
     const types = new Set(["all"]);
     snap.forEach((docSnap) => {
-        const type = String(docSnap.data()?.type || "")
+        const d = docSnap.data?.() || {};
+        if (!hasIncidentAccess(d)) return;
+        const type = String(d.type || "")
             .trim()
             .toLowerCase();
         if (type) types.add(type);
@@ -562,11 +566,13 @@ async function resolveFocusedIncidentPoint(id, snap) {
     if (visiblePoint) return visiblePoint;
 
     const snapDoc = findDocInSnapshot(snap, id);
+    if (snapDoc && !hasIncidentAccess(snapDoc.data?.() || {})) return null;
     const snapPoint = incidentPointFromDocSnap(snapDoc);
     if (snapPoint) return snapPoint;
 
     try {
         const fetched = await getDoc(doc(db, "incidents", id));
+        if (fetched.exists() && !hasIncidentAccess(fetched.data() || {})) return null;
         return incidentPointFromDocSnap(fetched);
     } catch (err) {
         console.error("[admin-map] focus incident fetch", err);
@@ -658,6 +664,7 @@ function startIncidentRender(snap) {
               : 0.0035;
 
     snap.forEach((docSnap) => {
+        if (!hasIncidentAccess(docSnap.data?.() || {})) return;
         if (!incidentMatchesFilters(docSnap, filters)) return;
         const p = incidentPointFromDocSnap(docSnap);
         if (!p) return;
@@ -986,11 +993,18 @@ export function initAdminMap() {
         const lng = Number(settings?.location?.defaultCoordinates?.lng);
         const zoom = Number(settings?.location?.defaultZoom);
 
-        const center =
-            Number.isFinite(lat) && Number.isFinite(lng)
-                ? [lat, lng]
-                : VAL_CENTER;
-        const z = Number.isFinite(zoom) ? zoom : 13;
+        const currentBarangayId = getCurrentAdminBarangayId();
+        const assignedBarangay = COVERED_BARANGAYS.find((b) => b.id === currentBarangayId);
+
+        let center = VAL_CENTER;
+        let z = Number.isFinite(zoom) ? zoom : 13;
+
+        if (assignedBarangay) {
+            center = [assignedBarangay.latitude, assignedBarangay.longitude];
+            z = 15;
+        } else if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            center = [lat, lng];
+        }
 
         const cityBoundsPadded = L.latLngBounds(VAL_BOUNDS_LATLNG).pad(0.18);
         mapInstance = L.map(el, {
@@ -1029,13 +1043,20 @@ export function initAdminMap() {
         };
         centerControl.addTo(mapInstance);
 
-        L.marker(center)
-            .addTo(mapInstance)
-            .bindPopup(
-                "<strong>Valenzuela City</strong><br>Admin map — connect Firestore for live incidents.",
-            );
-
-        centerMapToCity();
+        if (!assignedBarangay) {
+            L.marker(center)
+                .addTo(mapInstance)
+                .bindPopup(
+                    "<strong>Valenzuela City</strong><br>Admin map — connect Firestore for live incidents.",
+                );
+            centerMapToCity();
+        } else {
+            L.marker(center)
+                .addTo(mapInstance)
+                .bindPopup(
+                    `<strong>Barangay ${escapeHtml(assignedBarangay.name)}</strong><br>${escapeHtml(assignedBarangay.address)}`,
+                );
+        }
         setTimeout(() => mapInstance.invalidateSize(), 100);
         bindMapFilters();
         startIncidentListener();

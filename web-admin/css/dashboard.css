@@ -2778,6 +2778,97 @@ html.sidebar-collapsed-initial
     }
 }
 
+/* ── Barangay Admin: Low / Medium Severity Alert Theme (Amber / Gold Accent) ── */
+.admin-priority-alert--barangay .admin-priority-alert__backdrop {
+    background:
+        radial-gradient(
+            circle at 50% 18%,
+            rgba(245, 158, 11, 0.22),
+            transparent 36%
+        ),
+        rgba(15, 23, 42, 0.72);
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__panel {
+    border: 1px solid rgba(251, 191, 36, 0.65);
+    background: linear-gradient(180deg, #ffffff 0%, #fffdf5 100%);
+    box-shadow:
+        0 30px 80px rgba(15, 23, 42, 0.34),
+        0 0 0 1px rgba(217, 119, 6, 0.55),
+        0 0 28px rgba(245, 158, 11, 0.24),
+        0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+    animation: admin-priority-border-glow-barangay 2.4s ease-in-out infinite;
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__signal {
+    background: #f59e0b;
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__eyebrow {
+    color: #b45309;
+    background: #fef3c7;
+    border-color: #fde68a;
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__eyebrow::before {
+    background: #f59e0b;
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.16);
+    animation: admin-priority-pulse-barangay 1.8s ease-in-out infinite;
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__btn--primary {
+    border-color: #d97706;
+    background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+    box-shadow:
+        0 14px 28px rgba(217, 119, 6, 0.28),
+        0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+}
+
+.admin-priority-alert--barangay .admin-priority-alert__btn--primary:hover:not(:disabled) {
+    border-color: #b45309;
+    background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+    box-shadow: 0 16px 32px rgba(217, 119, 6, 0.36);
+}
+
+@keyframes admin-priority-border-glow-barangay {
+    0% {
+        box-shadow:
+            0 30px 80px rgba(15, 23, 42, 0.34),
+            0 0 0 1px rgba(217, 119, 6, 0.5),
+            0 0 18px rgba(245, 158, 11, 0.2),
+            0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+    }
+    50% {
+        box-shadow:
+            0 30px 80px rgba(15, 23, 42, 0.34),
+            0 0 0 2px rgba(217, 119, 6, 0.78),
+            0 0 38px rgba(245, 158, 11, 0.42),
+            0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+    }
+    100% {
+        box-shadow:
+            0 30px 80px rgba(15, 23, 42, 0.34),
+            0 0 0 1px rgba(217, 119, 6, 0.5),
+            0 0 18px rgba(245, 158, 11, 0.2),
+            0 0 0 1px rgba(255, 255, 255, 0.72) inset;
+    }
+}
+
+@keyframes admin-priority-pulse-barangay {
+    0%,
+    100% {
+        box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.16);
+    }
+    50% {
+        box-shadow: 0 0 0 9px rgba(245, 158, 11, 0.05);
+    }
+}
+
+/* ── Police Admin: SOS / High Severity Alert Theme (Urgent Red Accent) ── */
+.admin-priority-alert--police .admin-priority-alert__panel {
+    border-color: rgba(248, 113, 113, 0.55);
+}
+
 @media (max-width: 560px) {
     .admin-priority-alert {
         padding: 14px;

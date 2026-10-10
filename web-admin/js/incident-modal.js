@@ -24,6 +24,8 @@ import {
     evaluateIncidentLegitimacy,
     renderLegitimacyBadge,
 } from "./incident-legitimacy.js";
+import { hasIncidentAccess, resolveIncidentBarangayId } from "./admin-auth.js";
+import { getBarangayNameById } from "../../shared/barangays.js";
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -448,6 +450,17 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
                 : "—",
         ],
         ["Address", escapeHtml(loc.address || "—")],
+        [
+            "Assigned Barangay",
+            (() => {
+                const resolvedBId = resolveIncidentBarangayId(d);
+                const bName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null) || d.location?.barangay || "—";
+                const dist = d.assignedBarangayDistanceKm != null ? ` (${d.assignedBarangayDistanceKm} km)` : "";
+                return `<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:#1e3a8a;background:#eff6ff;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;">
+                    📍 ${escapeHtml(bName)}${escapeHtml(dist)}
+                </span>`;
+            })(),
+        ],
         ["Reporter", escapeHtml(reporterSummary(d))],
     ];
 
@@ -974,6 +987,16 @@ export function initIncidentModal() {
                 return;
             }
             const d = snap.data();
+            if (!hasIncidentAccess(d)) {
+                body.innerHTML = `<div class="incident-modal__error" style="padding: 32px 16px; text-align: center;">
+                    <span class="material-symbols-outlined" style="font-size: 48px; color: #dc2626; display: block; margin: 0 auto 12px auto;">lock</span>
+                    <h3 style="margin: 0 0 8px 0; font-size: 1.15rem; color: #991b1b; font-weight: 700;">Jurisdiction Access Restricted</h3>
+                    <p style="margin: 0 auto; max-width: 440px; color: #4b5563; font-size: 0.9rem; line-height: 1.5;">
+                        This incident report is assigned to another barangay jurisdiction. Your account permissions are restricted to your assigned coverage area.
+                    </p>
+                </div>`;
+                return;
+            }
             currentData = d;
             currentResponderOptions = [];
             if (!isIncidentOpened(d)) {

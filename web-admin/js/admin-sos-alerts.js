@@ -27,6 +27,7 @@ import {
     evaluateIncidentLegitimacy,
     renderLegitimacyBanner,
 } from "./incident-legitimacy.js";
+import { getCurrentAdminRole, hasIncidentAccess } from "./admin-auth.js";
 
 const LISTEN_LIMIT = 30;
 const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
@@ -174,14 +175,143 @@ function reportSortMs(data = {}) {
     return 0;
 }
 
+/**
+ * Determines whether an incident belongs to "police" or "barangay".
+ * Mirror of the Cloud Function routing logic:
+ * - SOS emergencies ALWAYS route to Police (emergency override).
+ * - High severity incidents route to Police.
+ * - Low and medium severity incidents route to Barangay.
+ *
+ * @param {object} data - Incident data object
+ * @returns {"police" | "barangay"} Target admin audience
+ */
+export function determineAlertAudience(data = {}) {
+    // Rule 1: Emergency SOS always routes to police
+    if (data?.isSOSReport === true) return "police";
+
+    // Rule 2: Explicit notificationAudience stamped by Cloud Function
+    const audience = String(data?.notificationAudience || "").toLowerCase().trim();
+    if (audience === "police" || audience === "barangay") return audience;
+
+    // Rule 3: High severity or high priority routes to police
+    const severity = String(data?.severity || "").toLowerCase().trim();
+    if (severity === "high") return "police";
+
+    const priority = String(data?.priority || "").toLowerCase().trim();
+    if (priority === "high") return "police";
+
+    // Rule 4: Low and medium severity default to barangay
+    return "barangay";
+}
+
+/**
+ * Web Audio API synthesizer for distinct alert tones:
+ * - police_sos: Rapid alternating dual-pitch siren (emergency tone)
+ * - police_high: Urgent double-beep (high priority)
+ * - barangay: Melodic 2-tone chime (standard notification)
+ */
+function playAlertSound(data = {}) {
+    const audience = determineAlertAudience(data);
+    const isSos = data?.isSOSReport === true;
+
+    let soundType = "barangay";
+    if (isSos) {
+        soundType = "police_sos";
+    } else if (audience === "police") {
+        soundType = "police_high";
+    } else {
+        soundType = "barangay";
+    }
+
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === "suspended") {
+            ctx.resume().catch(() => {});
+        }
+        const now = ctx.currentTime;
+
+        if (soundType === "police_sos") {
+            // Rapid emergency siren (880Hz <-> 660Hz alternating)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sawtooth";
+            gain.gain.setValueAtTime(0.18, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.setValueAtTime(660, now + 0.2);
+            osc.frequency.setValueAtTime(880, now + 0.4);
+            osc.frequency.setValueAtTime(660, now + 0.6);
+            osc.frequency.setValueAtTime(880, now + 0.8);
+            osc.frequency.setValueAtTime(660, now + 1.0);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 1.2);
+        } else if (soundType === "police_high") {
+            // Urgent double-beep (750Hz)
+            [0, 0.22].forEach((offset) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(750, now + offset);
+                gain.gain.setValueAtTime(0.2, now + offset);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.16);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + offset);
+                osc.stop(now + offset + 0.16);
+            });
+        } else {
+            // Barangay standard chime: C5 (523Hz) -> E5 (659Hz)
+            const notes = [
+                { freq: 523.25, offset: 0, dur: 0.22 },
+                { freq: 659.25, offset: 0.16, dur: 0.38 },
+            ];
+            notes.forEach(({ freq, offset, dur }) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(freq, now + offset);
+                gain.gain.setValueAtTime(0.22, now + offset);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + offset + dur);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + offset);
+                osc.stop(now + offset + dur);
+            });
+        }
+    } catch (err) {
+        console.warn("[admin-sos-alerts] sound playback failed", err);
+    }
+}
+
 function isEligibleAlert(id, data = {}, options = {}) {
     if (options.preview === true) return true;
-    if (!id || data.isSOSReport !== true) return false;
+    if (!id) return false;
+
+    // Filter by audience against current admin role:
+    // - Barangay Admin ("admin") only sees "barangay" audience (low / medium severity)
+    // - Police Admin ("police") only sees "police" audience (SOS / high severity)
+    const audience = determineAlertAudience(data);
+    const currentRole = getCurrentAdminRole();
+    const isPolice = currentRole === "police";
+    const isForPolice = audience === "police";
+
+    if (isPolice && !isForPolice) return false;
+    if (!isPolice && isForPolice) return false;
+
+    // Enforce jurisdiction: Barangay Admins only receive alerts for their assigned coverage
+    if (!hasIncidentAccess(data)) return false;
+
     const status = String(data.status || "").toLowerCase().trim();
     if (["done", "completed", "resolved", "closed", "rejected", "spam"].includes(status)) return false;
     if (data.adminDismissed === true) return false;
     if (data.resolutionReason === "user_marked_safe") return false;
-    if (data.liveStreamingActive === false || Boolean(data.distressResolvedAt)) return false;
+    if (data.isSOSReport && (data.liveStreamingActive === false || Boolean(data.distressResolvedAt))) return false;
     if (!canRespondToIncident(data)) return false;
     if (isDismissed(id, data)) return false;
     if (wasActioned(id, data)) return false;
@@ -406,14 +536,23 @@ async function showPriorityAlert(id, data, options = {}) {
         (data.location?.latitude && data.location?.longitude
             ? `${Number(data.location.latitude).toFixed(4)}, ${Number(data.location.longitude).toFixed(4)}`
             : "Location attached");
-    const urgencyLabel = data.isSOSReport ? "SOS REPORT" : "HIGH PRIORITY";
+    const audience = determineAlertAudience(data);
+    let urgencyLabel;
+    if (data.isSOSReport) {
+        urgencyLabel = "🚨 SOS EMERGENCY";
+    } else if (audience === "police") {
+        urgencyLabel = "🚨 HIGH PRIORITY";
+    } else {
+        urgencyLabel = "🔔 INCIDENT REPORT";
+    }
+
     const legitimacy = evaluateIncidentLegitimacy(data);
     const legitimacyBannerHtml = renderLegitimacyBanner(legitimacy);
     const isHighConfidence = legitimacy.level === "high";
     const canAutoDispatch = isHighConfidence && Boolean(closestOption);
 
     const root = document.createElement("div");
-    root.className = "admin-priority-alert";
+    root.className = `admin-priority-alert admin-priority-alert--${audience}`;
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-modal", "true");
     root.innerHTML = `
@@ -628,6 +767,7 @@ async function showPriorityAlert(id, data, options = {}) {
     document.body.appendChild(root);
     initAdminCustomSelects(root);
     activeAlert = root;
+    playAlertSound(data);
 }
 
 export function showSosAlertPreview(overrides = {}) {
@@ -656,9 +796,38 @@ export function showSosAlertPreview(overrides = {}) {
     );
 }
 
+export function showBarangayAlertPreview(overrides = {}) {
+    enqueuePriorityAlert(
+        `preview-brgy-${Date.now()}`,
+        {
+            isSOSReport: false,
+            notificationAudience: "barangay",
+            type: "noise_disturbance",
+            typeLabel: "Disturbance / Noise Complaint",
+            description: "Loud karaoke session past curfew in Purok 4, Malinta.",
+            severity: "low",
+            priority: "normal",
+            status: "under_review",
+            timestamp: new Date(),
+            location: {
+                latitude: 14.6851,
+                longitude: 120.975,
+                address: "Purok 4, Barangay Malinta, Valenzuela City",
+            },
+            legitimacyRating: "High Confidence Legit",
+            legitimacySummary: "Citizen community report verified with valid local barangay location.",
+            legitimacySource: "gemini_rag",
+            ...overrides,
+        },
+        { preview: true },
+    );
+}
+
 // Expose on window for easy manual browser testing
 if (typeof window !== "undefined") {
     window.showSosAlertPreview = showSosAlertPreview;
+    window.showBarangayAlertPreview = showBarangayAlertPreview;
+    window.showPoliceAlertPreview = showSosAlertPreview;
 }
 
 function syncIncidentQueueFromDoc(docSnap, queueOptions = {}) {
