@@ -25,7 +25,17 @@ service cloud.firestore {
         : null;
     }
 
-    function isAdmin() {
+    function isHeadPoliceAdmin() {
+      return isAuthenticated() &&
+             (callerRole() in [
+               'head_police',
+               'head_police_admin',
+               'Head Police Admin',
+               'police_head'
+             ] || (callerRole() in ['police', 'police_admin'] && callerUserDoc().data.isHeadPolice == true));
+    }
+
+    function isBarangayAdmin() {
       return isAuthenticated() &&
              callerRole() in [
                'admin',
@@ -37,31 +47,73 @@ service cloud.firestore {
              ];
     }
 
+    function isAdmin() {
+      return isBarangayAdmin();
+    }
+
     function isPoliceAdmin() {
+      return isAuthenticated() &&
+             (callerRole() in [
+               'police',
+               'police_admin',
+               'police admin',
+               'Police Admin'
+             ] || isHeadPoliceAdmin());
+    }
+
+    function isSubstationPoliceAdmin() {
       return isAuthenticated() &&
              callerRole() in [
                'police',
                'police_admin',
                'police admin',
                'Police Admin'
-             ];
+             ] && !isHeadPoliceAdmin();
     }
 
-    // Staff (admin, moderator, police): can edit other users' Firestore profiles (not Auth).
-    function canManageUserProfiles() {
-      return isAuthenticated() &&
-             callerRole() in [
+    function canCreateUserWithRole(targetRole) {
+      let r = targetRole == null ? 'user' : targetRole;
+      return isHeadPoliceAdmin() ||
+             (isSubstationPoliceAdmin() && r in [
+               'police',
+               'police_admin',
+               'police admin',
+               'Police Admin'
+             ]) ||
+             (isBarangayAdmin() && r in [
+               'user',
                'admin',
                'moderator',
                'barangay',
                'barangay_admin',
                'barangay admin',
-               'Barangay Admin',
+               'Barangay Admin'
+             ]);
+    }
+
+    function canManageTargetUserProfile(targetRole) {
+      let r = targetRole == null ? 'user' : targetRole;
+      return isHeadPoliceAdmin() ||
+             (isSubstationPoliceAdmin() && r in [
                'police',
                'police_admin',
                'police admin',
                'Police Admin'
-             ];
+             ]) ||
+             (isBarangayAdmin() && r in [
+               'user',
+               'admin',
+               'moderator',
+               'barangay',
+               'barangay_admin',
+               'barangay admin',
+               'Barangay Admin'
+             ]);
+    }
+
+    // Staff (admin, police, head_police): can access dashboard-managed user profiles.
+    function canManageUserProfiles() {
+      return isBarangayAdmin() || isPoliceAdmin() || isHeadPoliceAdmin();
     }
 
     function isPoliceOperationalIncident() {
@@ -206,7 +258,10 @@ service cloud.firestore {
       // Anyone authenticated can read user profiles
       allow read: if isAuthenticated();
 
-      // Users can create their own profile; staff can create profiles from dashboard.
+      // Users can create their own profile; staff can create profiles from dashboard based on role boundaries:
+      // - HQ (Head Police) can create all users
+      // - Substation Police can only create police users
+      // - Barangay Admin can only create barangay admin and citizen users
       allow create: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
                     request.resource.data.email == request.auth.token.email &&
@@ -220,7 +275,7 @@ service cloud.firestore {
                     request.resource.data.barangay.size() >= 2 &&
                     request.resource.data.address is string &&
                     request.resource.data.address.size() >= 8) ||
-                   (canManageUserProfiles() &&
+                   (canCreateUserWithRole(request.resource.data.role) &&
                     request.resource.data.uid == userId &&
                     request.resource.data.email is string &&
                     request.resource.data.role in [
@@ -229,6 +284,9 @@ service cloud.firestore {
                       'police_admin',
                       'police admin',
                       'Police Admin',
+                      'head_police',
+                      'head_police_admin',
+                      'Head Police Admin',
                       'admin',
                       'moderator',
                       'barangay',
@@ -238,8 +296,7 @@ service cloud.firestore {
                     ] &&
                     request.resource.data.status in ['active', 'inactive', 'suspended']);
 
-      // Users update own profile (email unchanged). Staff may update others: uid must match doc id,
-      // and only safe scalar fields may change (diff-based — avoids email== failures when email is missing/mismatched).
+      // Users update own profile (email unchanged). Staff may update others based on role boundaries:
       allow update: if (isOwner(userId) &&
                     request.resource.data.uid == userId &&
                     request.resource.data.email == resource.data.email &&
@@ -263,7 +320,8 @@ service cloud.firestore {
                         'notificationPreferences',
                         'notificationPreferencesUpdatedAt'
                       ])) ||
-                   (canManageUserProfiles() &&
+                   (canManageTargetUserProfile(resource.data.role) &&
+                    canManageTargetUserProfile(request.resource.data.role) &&
                     request.resource.data.uid == userId &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly([
@@ -272,6 +330,14 @@ service cloud.firestore {
                         'lastName',
                         'phoneNumber',
                         'barangay',
+                        'barangayId',
+                        'assignedBarangay',
+                        'barangayName',
+                        'substationId',
+                        'assignedSubstation',
+                        'substationName',
+                        'isHeadPolice',
+                        'jurisdictionScope',
                         'sex',
                         'age',
                         'address',
@@ -286,8 +352,8 @@ service cloud.firestore {
                         'adminNotes'
                       ]));
 
-      // Users can delete their own profile; staff can delete dashboard-managed profiles.
-      allow delete: if isOwner(userId) || canManageUserProfiles();
+      // Users can delete their own profile; staff can delete profiles within their authority
+      allow delete: if isOwner(userId) || canManageTargetUserProfile(resource.data.role);
     }
 
     // === INCIDENTS COLLECTION ===

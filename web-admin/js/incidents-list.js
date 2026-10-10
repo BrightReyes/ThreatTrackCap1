@@ -10,8 +10,9 @@ import {
   evaluateIncidentLegitimacy,
   renderLegitimacyBadge,
 } from './incident-legitimacy.js';
-import { hasIncidentAccess, resolveIncidentBarangayId } from './admin-auth.js';
+import { hasIncidentAccess, resolveIncidentBarangayId, resolveIncidentSubstationId } from './admin-auth.js';
 import { getBarangayNameById } from '../../shared/barangays.js';
+import { getSubstationNameById } from '../../shared/substations.js';
 
 const LIST_LIMIT = 150;
 const PAGE_SIZE = 12;
@@ -112,6 +113,8 @@ function buildRow(docSnap) {
   const legitimacyBadgeHtml = renderLegitimacyBadge(legitimacy);
   const resolvedBId = resolveIncidentBarangayId(d);
   const resolvedBName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null);
+  const resolvedSId = resolveIncidentSubstationId(d);
+  const resolvedSName = d.substationName || (resolvedSId ? getSubstationNameById(resolvedSId) : null);
 
   return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
     <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>

@@ -3,8 +3,9 @@ import { db } from "../../shared/firebase.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import { COVERED_BARANGAYS, getBarangayNameById } from "../../shared/barangays.js";
+import { COVERED_SUBSTATIONS, getSubstationNameById } from "../../shared/substations.js";
 
-const EDIT_ROLES = ["user", "admin", "police"];
+const EDIT_ROLES = ["user", "admin", "police", "head_police"];
 const EDIT_STATUSES = ["active", "inactive", "suspended"];
 
 function escapeHtml(text) {
@@ -162,6 +163,8 @@ function renderUserDetail(userId, d) {
         <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
         <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
         ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd>📍 ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
+        ${d.role === "police" || d.substationId ? `<div><dt>Assigned Substation</dt><dd>🚔 ${escapeHtml(getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned")}</dd></div>` : ""}
+        ${d.role === "head_police" ? `<div><dt>Jurisdiction</dt><dd>🏢 Central Command (City-wide Oversight)</dd></div>` : ""}
         <div><dt>Status</dt><dd>${escapeHtml(humanizeStatus(status))}</dd></div>
         <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
@@ -255,6 +258,30 @@ function renderUserEditForm(userId, d) {
           </small>
         </div>
       </div>
+      <div class="user-modal-form__grid" id="user-edit-substation-grid" style="${cur === "police" ? "margin-top:10px;" : "display:none;margin-top:10px;"}">
+        <div class="user-modal-form__field user-modal-form__field--full">
+          <label class="user-modal-form__label" for="user-edit-substation">Assigned Police Sub-station</label>
+          <div class="user-modal-form__select-wrap">
+            <select id="user-edit-substation" name="substationId" class="incidents-select" aria-label="Assigned Sub-station">
+              <option value="">Unassigned</option>
+              ${COVERED_SUBSTATIONS.map((s) => {
+                  const sel = (String(d.substationId || d.assignedSubstation || "").toLowerCase() === s.id.toLowerCase()) ? " selected" : "";
+                  return `<option value="${escapeAttr(s.id)}"${sel}>${escapeHtml(s.name)} (${escapeHtml(s.code)})</option>`;
+              }).join("")}
+            </select>
+          </div>
+          <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
+            Tactical responder station receiving High Severity & SOS alerts in this sector.
+          </small>
+        </div>
+      </div>
+      <div class="user-modal-form__grid" id="user-edit-head-police-note" style="${cur === "head_police" ? "margin-top:10px;" : "display:none;margin-top:10px;"}">
+        <div class="user-modal-form__field user-modal-form__field--full">
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4;">
+            <strong>🏢 Central Command (City-wide):</strong> Head Police Admin maintains macro oversight across all substations and can dispatch/reassign incidents.
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="user-edit-card">
@@ -286,11 +313,15 @@ function patchUsersTableRow(userId, d) {
     const email = d.email || "—";
     const name = displayName(d);
     const baseRole = humanizeRole(d.role);
-    const assignedB =
+    const assignedLocation =
         d.role === "admin" && (d.barangayName || d.barangayId)
             ? ` (${getBarangayNameById(d.barangayId) || d.barangayName})`
+            : d.role === "police" && (d.substationName || d.substationId)
+            ? ` (${getSubstationNameById(d.substationId) || d.substationName})`
+            : d.role === "head_police"
+            ? " (HQ Command)"
             : "";
-    const roleLabel = `${baseRole}${assignedB}`;
+    const roleLabel = `${baseRole}${assignedLocation}`;
     const badge = roleBadgeClass(d.role);
     const joined = formatTimestamp(d.createdAt);
     const status = userStatus(d);
@@ -420,11 +451,18 @@ export function initUserModal() {
 
         const roleEl = body.querySelector("#user-edit-role");
         const barangayGrid = body.querySelector("#user-edit-barangay-grid");
-        roleEl?.addEventListener("change", () => {
-            if (barangayGrid) {
-                barangayGrid.style.display = roleEl.value === "admin" ? "" : "none";
-            }
-        });
+        const substationGrid = body.querySelector("#user-edit-substation-grid");
+        const headPoliceNote = body.querySelector("#user-edit-head-police-note");
+
+        const syncEditRoleVisibility = () => {
+            const r = normalizeRole(roleEl?.value ?? "user");
+            if (barangayGrid) barangayGrid.style.display = r === "admin" ? "" : "none";
+            if (substationGrid) substationGrid.style.display = r === "police" ? "" : "none";
+            if (headPoliceNote) headPoliceNote.style.display = r === "head_police" ? "" : "none";
+        };
+
+        roleEl?.addEventListener("change", syncEditRoleVisibility);
+        roleEl?.addEventListener("input", syncEditRoleVisibility);
 
         cancelBtn?.addEventListener("click", () => {
             if (feedback) feedback.textContent = "";
@@ -448,6 +486,9 @@ export function initUserModal() {
 
             const barangayId = String(barangayEl?.value ?? "").trim();
             const barangayName = barangayId ? getBarangayNameById(barangayId) : null;
+            const substationEl = body.querySelector("#user-edit-substation");
+            const substationId = String(substationEl?.value ?? "").trim();
+            const substationName = substationId ? getSubstationNameById(substationId) : null;
 
             if (feedback) feedback.textContent = "Saving…";
             saveBtn && (saveBtn.disabled = true);
@@ -468,10 +509,38 @@ export function initUserModal() {
                 payload.barangayId = barangayId;
                 payload.assignedBarangay = barangayId;
                 payload.barangayName = barangayName;
+                payload.substationId = null;
+                payload.assignedSubstation = null;
+                payload.substationName = null;
+                payload.isHeadPolice = null;
+                payload.jurisdictionScope = null;
+            } else if (role === "police" && substationId) {
+                payload.substationId = substationId;
+                payload.assignedSubstation = substationId;
+                payload.substationName = substationName;
+                payload.barangayId = null;
+                payload.assignedBarangay = null;
+                payload.barangayName = null;
+                payload.isHeadPolice = null;
+                payload.jurisdictionScope = null;
+            } else if (role === "head_police") {
+                payload.isHeadPolice = true;
+                payload.jurisdictionScope = "citywide";
+                payload.substationId = null;
+                payload.assignedSubstation = null;
+                payload.substationName = null;
+                payload.barangayId = null;
+                payload.assignedBarangay = null;
+                payload.barangayName = null;
             } else {
                 payload.barangayId = null;
                 payload.assignedBarangay = null;
                 payload.barangayName = null;
+                payload.substationId = null;
+                payload.assignedSubstation = null;
+                payload.substationName = null;
+                payload.isHeadPolice = null;
+                payload.jurisdictionScope = null;
             }
 
             try {

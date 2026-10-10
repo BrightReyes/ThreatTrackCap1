@@ -1,5 +1,6 @@
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { findNearestCoveredBarangay, getBarangayNameById } from "../../shared/barangays.js";
+import { findNearestCoveredSubstation, getSubstationNameById } from "../../shared/substations.js";
 import { auth, db } from "../../shared/firebase.js";
 import {
     refreshSidebarSystemName,
@@ -17,6 +18,8 @@ const DASHBOARD_CLOCK_TZ = "Asia/Manila";
 const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
 const ADMIN_BARANGAY_ID_CACHE_KEY = "tt_admin_barangay_id";
 const ADMIN_BARANGAY_NAME_CACHE_KEY = "tt_admin_barangay_name";
+const ADMIN_SUBSTATION_ID_CACHE_KEY = "tt_admin_substation_id";
+const ADMIN_SUBSTATION_NAME_CACHE_KEY = "tt_admin_substation_name";
 const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
 const ADMIN_SESSION_STORAGE_PREFIXES = ["tt_hotspot_ai_plan:"];
 const UNAUTHORIZED_ADMIN_MESSAGE =
@@ -57,24 +60,38 @@ function cacheAdminRole(role) {
     );
 }
 
-function normalizeAdminRole(role) {
+export function normalizeAdminRole(role) {
     const value = String(role || "")
         .trim()
         .toLowerCase()
         .replace(/[\s-]+/g, "_");
+    if (["head_police", "hq_police", "police_chief", "head_admin"].includes(value)) {
+        return "head_police";
+    }
     if (["moderator", "barangay", "barangay_admin"].includes(value)) {
         return "admin";
     }
-    if (value === "police_admin") return "police";
+    if (["police", "police_admin", "substation_police", "substation"].includes(value)) {
+        return "police";
+    }
     return value;
 }
 
-function isPoliceAdminRole(role) {
+export function isHeadPoliceAdminRole(role) {
+    return normalizeAdminRole(role) === "head_police";
+}
+
+export function isSubstationPoliceAdminRole(role) {
     return normalizeAdminRole(role) === "police";
 }
 
-function isAllowedAdminRole(role) {
-    return ["admin", "police"].includes(normalizeAdminRole(role));
+export function isPoliceAdminRole(role) {
+    const r = normalizeAdminRole(role);
+    return r === "police" || r === "head_police";
+}
+
+export function isAllowedAdminRole(role) {
+    return ["admin", "police", "head_police"].includes(normalizeAdminRole(role));
 }
 
 /**
@@ -115,6 +132,33 @@ export function getCurrentAdminBarangayId() {
 export function getCurrentAdminBarangayName() {
     try {
         return localStorage.getItem(ADMIN_BARANGAY_NAME_CACHE_KEY) || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Returns the current Substation Police Admin's assigned substationId (e.g. "balangkas_substation").
+ *
+ * @returns {string | null}
+ */
+export function getCurrentAdminSubstationId() {
+    try {
+        const val = localStorage.getItem(ADMIN_SUBSTATION_ID_CACHE_KEY);
+        return val ? String(val).trim().toLowerCase() : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Returns the human-readable name of the admin's assigned substation.
+ *
+ * @returns {string | null}
+ */
+export function getCurrentAdminSubstationName() {
+    try {
+        return localStorage.getItem(ADMIN_SUBSTATION_NAME_CACHE_KEY) || null;
     } catch {
         return null;
     }
@@ -190,15 +234,85 @@ export function resolveIncidentBarangayId(incidentData = {}) {
  * @param {object} incidentData - Incident document fields
  * @returns {boolean} Whether access is permitted
  */
+/**
+ * Resolves the assigned police substation ID for an incident report.
+ * Evaluates: (1) explicit substationId, (2) substation text, (3) resolved barangay,
+ * and (4) geographic proximity via GPS coordinates to nearest substation.
+ *
+ * @param {object} incidentData
+ * @returns {string | null}
+ */
+export function resolveIncidentSubstationId(incidentData = {}) {
+    if (!incidentData) return null;
+
+    // 1. Direct explicit property
+    const directId = String(
+        incidentData.substationId || incidentData.assignedSubstationId || ""
+    ).trim().toLowerCase();
+    if (directId) {
+        if (directId.includes("mapulang")) return "mapulang_lupa_substation";
+        if (directId.includes("balangkas")) return "balangkas_substation";
+        return directId;
+    }
+
+    // 2. Direct string text
+    const textSubstation = String(
+        incidentData.substationName || incidentData.substation || ""
+    ).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (textSubstation) {
+        if (textSubstation.includes("mapulang")) return "mapulang_lupa_substation";
+        if (textSubstation.includes("balangkas")) return "balangkas_substation";
+    }
+
+    // 3. Fallback using incident's resolved barangay
+    const bId = resolveIncidentBarangayId(incidentData);
+    if (bId === "mapulang_lupa") return "mapulang_lupa_substation";
+    if (bId === "balangkas") return "balangkas_substation";
+
+    // 4. GPS Coordinates fallback using Haversine calculation to nearest covered substation
+    const lat = Number(incidentData.location?.latitude ?? incidentData.latitude ?? incidentData.lat);
+    const lng = Number(incidentData.location?.longitude ?? incidentData.longitude ?? incidentData.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        const nearest = findNearestCoveredSubstation(lat, lng);
+        if (nearest?.substationId && nearest.substationId !== "unknown") {
+            return nearest.substationId;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Role-Based Access Control (RBAC) jurisdiction gate.
+ * Determines if the current administrator is authorized to view or manage an incident.
+ *
+ * Rules:
+ * 1. Head Police Admin: Has city-wide command & oversight (authorized for all incidents).
+ * 2. Substation Police Admin: Authorized ONLY for reports assigned to their substation sector.
+ * 3. Barangay Admin: Authorized ONLY for reports assigned to their barangay jurisdiction.
+ *
+ * @param {object} incidentData - Incident document fields
+ * @returns {boolean} Whether access is permitted
+ */
 export function hasIncidentAccess(incidentData = {}) {
     const role = getCurrentAdminRole();
-    if (role === "police") return true;
+    // 1. Head Police Admin has full city-wide oversight
+    if (role === "head_police") return true;
 
-    const currentBarangayId = getCurrentAdminBarangayId();
-    if (!currentBarangayId) {
-        // Fallback if an admin is not yet assigned a specific barangay
-        return true;
+    // 2. Substation Police Admin is scoped to their substation sector
+    if (role === "police") {
+        const currentSubstationId = getCurrentAdminSubstationId();
+        if (!currentSubstationId) return true; // Unassigned fallback
+        const resolvedSubstationId = resolveIncidentSubstationId(incidentData);
+        if (resolvedSubstationId) {
+            return resolvedSubstationId === currentSubstationId;
+        }
+        return false;
     }
+
+    // 3. Barangay Admin is scoped to their barangay jurisdiction
+    const currentBarangayId = getCurrentAdminBarangayId();
+    if (!currentBarangayId) return true;
 
     const resolvedBarangayId = resolveIncidentBarangayId(incidentData);
     if (resolvedBarangayId) {
@@ -213,6 +327,8 @@ export function cacheAdminJurisdiction(profile) {
     if (!profile) {
         localStorage.removeItem(ADMIN_BARANGAY_ID_CACHE_KEY);
         localStorage.removeItem(ADMIN_BARANGAY_NAME_CACHE_KEY);
+        localStorage.removeItem(ADMIN_SUBSTATION_ID_CACHE_KEY);
+        localStorage.removeItem(ADMIN_SUBSTATION_NAME_CACHE_KEY);
         return;
     }
     const bId = profile.barangayId || profile.assignedBarangayId || null;
@@ -226,6 +342,19 @@ export function cacheAdminJurisdiction(profile) {
         localStorage.setItem(ADMIN_BARANGAY_NAME_CACHE_KEY, String(bName).trim());
     } else {
         localStorage.removeItem(ADMIN_BARANGAY_NAME_CACHE_KEY);
+    }
+
+    const sId = profile.substationId || profile.assignedSubstationId || profile.assignedSubstation || null;
+    const sName = profile.substationName || profile.assignedSubstationName || null;
+    if (sId) {
+        localStorage.setItem(ADMIN_SUBSTATION_ID_CACHE_KEY, String(sId).trim().toLowerCase());
+    } else {
+        localStorage.removeItem(ADMIN_SUBSTATION_ID_CACHE_KEY);
+    }
+    if (sName) {
+        localStorage.setItem(ADMIN_SUBSTATION_NAME_CACHE_KEY, String(sName).trim());
+    } else {
+        localStorage.removeItem(ADMIN_SUBSTATION_NAME_CACHE_KEY);
     }
 }
 
@@ -258,6 +387,13 @@ async function loadAdminProfile(user) {
         }
         const bName = data.assignedBarangay || data.barangayName || (bId ? getBarangayNameById(bId) : null);
 
+        let sId = data.substationId || data.assignedSubstationId || null;
+        if (!sId && data.assignedSubstation) sId = String(data.assignedSubstation).trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (!sId && data.substationName) sId = String(data.substationName).trim().toLowerCase().replace(/[\s-]+/g, "_");
+        if (sId && sId.includes("mapulang")) sId = "mapulang_lupa_substation";
+        if (sId && sId.includes("balangkas")) sId = "balangkas_substation";
+        const sName = data.substationName || (sId ? getSubstationNameById(sId) : null);
+
         return {
             id: user.uid,
             ...data,
@@ -265,6 +401,9 @@ async function loadAdminProfile(user) {
             barangayId: bId,
             assignedBarangay: bName,
             barangayName: bName,
+            substationId: sId,
+            assignedSubstation: sName,
+            substationName: sName,
         };
     } catch (err) {
         console.warn("[admin-auth] profile load failed", err);

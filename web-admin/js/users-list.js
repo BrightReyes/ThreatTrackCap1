@@ -17,9 +17,10 @@ import {
 import primaryApp, { db } from "../../shared/firebase.js";
 import { toastError, toastSuccess } from "./alerts.js";
 import { getBarangayNameById } from "../../shared/barangays.js";
+import { getSubstationNameById } from "../../shared/substations.js";
 
 const LIST_LIMIT = 200;
-const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police"];
+const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police", "head_police"];
 const EDIT_STATUSES_FOR_CREATE = ["active", "inactive", "suspended"];
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -90,7 +91,7 @@ function displayName(d) {
 function roleBadgeClass(role) {
     const r = normalizeRole(role);
     if (r === "admin") return "incidents-badge incidents-badge--role-admin";
-    if (r === "police") return "incidents-badge incidents-badge--role-police";
+    if (r === "police" || r === "head_police") return "incidents-badge incidents-badge--role-police";
     return "incidents-badge incidents-badge--role-user";
 }
 
@@ -98,6 +99,7 @@ function humanizeRole(role) {
     const normalized = normalizeRole(role);
     if (normalized === "admin") return "Barangay Admin";
     if (normalized === "police") return "Police Admin";
+    if (normalized === "head_police") return "Head Police Admin";
     return String(normalized)
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -132,6 +134,9 @@ function normalizeRole(role) {
     if (["moderator", "barangay", "barangay_admin"].includes(value)) {
         return "admin";
     }
+    if (["head_police", "head_police_admin", "police_head"].includes(value)) {
+        return "head_police";
+    }
     if (value === "police_admin") return "police";
     return value;
 }
@@ -148,11 +153,15 @@ function buildRow(docSnap, index) {
     const email = d.email || "—";
     const name = displayName(d);
     const baseRole = humanizeRole(d.role);
-    const assignedB =
+    const assignedLocation =
         d.role === "admin" && (d.barangayName || d.barangayId)
             ? ` (${getBarangayNameById(d.barangayId) || d.barangayName})`
+            : d.role === "police" && (d.substationName || d.substationId)
+            ? ` (${getSubstationNameById(d.substationId) || d.substationName})`
+            : d.role === "head_police"
+            ? " (HQ Command)"
             : "";
-    const roleLabel = `${baseRole}${assignedB}`;
+    const roleLabel = `${baseRole}${assignedLocation}`;
     const joined = formatJoined(d);
     const status = userStatus(d);
 
@@ -221,7 +230,7 @@ function updateUserStats() {
             const role = normalizeRole(docSnap.data().role);
             acc.total += 1;
             if (role === "admin") acc.admin += 1;
-            else if (role === "police") acc.police += 1;
+            else if (role === "police" || role === "head_police") acc.police += 1;
             else acc.users += 1;
             return acc;
         },
@@ -546,22 +555,29 @@ function bindAddUserModal() {
         form.reset();
         if (feedback) feedback.textContent = "";
         document.body.style.overflow = "";
+        syncRoleVisibility();
     };
 
     const roleSelect = form.elements.role;
     const barangayWrap = form.querySelector("#user-add-barangay-wrap");
-    const syncBarangayVisibility = () => {
-        if (!barangayWrap) return;
-        const isBrgyAdmin = roleSelect?.value === "admin";
-        barangayWrap.style.display = isBrgyAdmin ? "block" : "none";
+    const substationWrap = form.querySelector("#user-add-substation-wrap");
+    const headPoliceNote = form.querySelector("#user-add-head-police-note");
+
+    const syncRoleVisibility = () => {
+        const r = normalizeRole(roleSelect?.value || "user");
+        if (barangayWrap) barangayWrap.style.display = r === "admin" ? "block" : "none";
+        if (substationWrap) substationWrap.style.display = r === "police" ? "block" : "none";
+        if (headPoliceNote) headPoliceNote.style.display = r === "head_police" ? "block" : "none";
     };
-    roleSelect?.addEventListener("change", syncBarangayVisibility);
+
+    roleSelect?.addEventListener("change", syncRoleVisibility);
+    roleSelect?.addEventListener("input", syncRoleVisibility);
 
     const open = () => {
         modal.hidden = false;
         modal.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
-        syncBarangayVisibility();
+        syncRoleVisibility();
         form.querySelector("#user-add-first")?.focus();
     };
 
@@ -604,6 +620,7 @@ function bindAddUserModal() {
         }
 
         const barangayId = String(form.elements.barangayId?.value || "").trim();
+        const substationId = String(form.elements.substationId?.value || "").trim();
         const payload = {
             email,
             firstName,
@@ -621,6 +638,19 @@ function bindAddUserModal() {
                       barangayId,
                       assignedBarangay: barangayId,
                       barangayName: getBarangayNameById(barangayId),
+                  }
+                : {}),
+            ...(role === "police" && substationId
+                ? {
+                      substationId,
+                      assignedSubstation: substationId,
+                      substationName: getSubstationNameById(substationId),
+                  }
+                : {}),
+            ...(role === "head_police"
+                ? {
+                      isHeadPolice: true,
+                      jurisdictionScope: "citywide",
                   }
                 : {}),
         };

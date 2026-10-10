@@ -27,7 +27,20 @@ import {
     evaluateIncidentLegitimacy,
     renderLegitimacyBanner,
 } from "./incident-legitimacy.js";
-import { getCurrentAdminRole, hasIncidentAccess } from "./admin-auth.js";
+import {
+    getCurrentAdminRole,
+    hasIncidentAccess,
+    isHeadPoliceAdminRole,
+    isSubstationPoliceAdminRole,
+    getCurrentAdminSubstationId,
+    getCurrentAdminSubstationName,
+    getCurrentAdminBarangayName,
+} from "./admin-auth.js";
+import {
+    COVERED_SUBSTATIONS,
+    getSortedSubstationCandidates,
+    getSubstationNameById,
+} from "../../shared/substations.js";
 
 const LISTEN_LIMIT = 30;
 const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
@@ -40,6 +53,7 @@ let activeAlertId = null;
 let renderingAlert = false;
 const alertQueue = [];
 const queuedAlertIds = new Set();
+let liveAlertDocUnsub = null;
 
 function escapeHtml(text) {
     const div = document.createElement("div");
@@ -527,34 +541,115 @@ async function showPriorityAlert(id, data, options = {}) {
     alertOpen = true;
     activeAlertId = id;
 
+    const currentRole = getCurrentAdminRole();
+    const isHeadPolice = isHeadPoliceAdminRole(currentRole);
+    const isSubstation = isSubstationPoliceAdminRole(currentRole);
+    const isBarangay = currentRole === "admin";
+
     const typeLabel = getIncidentTypeLabel(data);
-    const responderOptions = await getResponderOptionsForIncident(data, 4);
-    const closestOption = responderOptions[0] || null;
-    const distanceKm = closestOption?.distanceKm ?? null;
+    const lat = Number(data.location?.latitude ?? data.latitude);
+    const lng = Number(data.location?.longitude ?? data.longitude);
+
+    // Candidates calculation:
+    const substationCandidates = getSortedSubstationCandidates(lat, lng);
+    const closestSubstation = substationCandidates[0] || null;
+    const distanceKm = closestSubstation?.distanceKm ?? null;
+
     const locationText =
         data.location?.address ||
-        (data.location?.latitude && data.location?.longitude
-            ? `${Number(data.location.latitude).toFixed(4)}, ${Number(data.location.longitude).toFixed(4)}`
+        (Number.isFinite(lat) && Number.isFinite(lng)
+            ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
             : "Location attached");
+
     const audience = determineAlertAudience(data);
     let urgencyLabel;
     if (data.isSOSReport) {
-        urgencyLabel = "🚨 SOS EMERGENCY";
+        urgencyLabel = isHeadPolice ? "🚨 SOS EMERGENCY (HQ COMMAND)" : "🚨 SOS EMERGENCY (YOUR SECTOR)";
     } else if (audience === "police") {
-        urgencyLabel = "🚨 HIGH PRIORITY";
+        urgencyLabel = isHeadPolice ? "🚨 HIGH PRIORITY (HQ COMMAND)" : "🚨 HIGH PRIORITY (YOUR SECTOR)";
     } else {
-        urgencyLabel = "🔔 INCIDENT REPORT";
+        const brgyName = getCurrentAdminBarangayName() || "BARANGAY";
+        urgencyLabel = `🔔 INCIDENT REPORT (${brgyName.toUpperCase()})`;
     }
 
     const legitimacy = evaluateIncidentLegitimacy(data);
     const legitimacyBannerHtml = renderLegitimacyBanner(legitimacy);
-    const isHighConfidence = legitimacy.level === "high";
-    const canAutoDispatch = isHighConfidence && Boolean(closestOption);
+
+    // Render substation options for Head Police
+    const substationSelectHtml = substationCandidates.length
+        ? [
+              '<option value="">Choose substation to assign...</option>',
+              ...substationCandidates.map((s, idx) => {
+                  const rank = idx === 0 ? "Nearest" : `Option ${idx + 1}`;
+                  const meta = `${formatDistanceKm(s.distanceKm)} / ${s.etaMinutes} min ETA`;
+                  const isSel = idx === 0 ? "selected" : "";
+                  return `<option value="${escapeAttr(s.substationId)}" ${isSel}>${escapeHtml(`${rank}: ${s.substationName} - ${meta}`)}</option>`;
+              }),
+          ].join("")
+        : '<option value="">No substation options loaded</option>';
 
     const root = document.createElement("div");
     root.className = `admin-priority-alert admin-priority-alert--${audience}`;
     root.setAttribute("role", "dialog");
     root.setAttribute("aria-modal", "true");
+
+    let actionButtonsHtml = "";
+    let responderPanelHtml = "";
+
+    if (isHeadPolice) {
+        // Head Police (HQ) POV: Assignment control
+        responderPanelHtml = `
+            <div class="admin-priority-alert__responders" aria-label="Assign police substation">
+                <label class="admin-priority-alert__responder-select" for="admin-priority-responder-select">
+                    <span class="admin-priority-alert__select-label">Assign Police Sub-station (Sorted by Distance)</span>
+                    <div class="admin-priority-alert__select-wrap">
+                        <select id="admin-priority-responder-select" data-priority-responder-select class="incidents-select">
+                            ${substationSelectHtml}
+                        </select>
+                    </div>
+                    <small>HQ Command: Select a substation to assign response deployment.</small>
+                </label>
+            </div>
+        `;
+        actionButtonsHtml = `
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="assign-substation">Assign Substation</button>
+        `;
+    } else if (isSubstation) {
+        // Substation Police Admin POV: Direct response
+        const myStationName = getCurrentAdminSubstationName() || "Your Sector Substation";
+        const isHqAssigned = Boolean(data.assignedByHq);
+        responderPanelHtml = `
+            ${isHqAssigned ? '<div class="admin-priority-alert__hq-assigned-banner" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;">📢 Assigned by HQ Command to your station!</div>' : ''}
+            <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px;">
+                <div style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;">Assigned Sector Outpost</div>
+                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;">🚔 ${escapeHtml(myStationName)}</div>
+                <div style="font-size:0.8rem;color:#475569;margin-top:2px;">Distance to incident: ${escapeHtml(formatDistanceKm(distanceKm))} (${closestSubstation?.etaMinutes || 5} min ETA)</div>
+            </div>
+        `;
+        actionButtonsHtml = `
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond">${isHqAssigned ? 'Confirm Deployment' : 'Respond Now'}</button>
+        `;
+    } else {
+        // Barangay Admin POV
+        const myBrgyName = getCurrentAdminBarangayName() || "Barangay Jurisdiction";
+        responderPanelHtml = `
+            <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px;">
+                <div style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;">Community Jurisdiction</div>
+                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;">📍 ${escapeHtml(myBrgyName)}</div>
+                <div style="font-size:0.8rem;color:#475569;margin-top:2px;">Local peacekeeping & ordinance enforcement jurisdiction.</div>
+            </div>
+        `;
+        actionButtonsHtml = `
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
+            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond">Dispatch Tanods / Action</button>
+        `;
+    }
+
     root.innerHTML = `
         <div class="admin-priority-alert__backdrop"></div>
         <section class="admin-priority-alert__panel" aria-label="Urgent incident alert">
@@ -578,45 +673,71 @@ async function showPriorityAlert(id, data, options = {}) {
                     <strong>${escapeHtml(locationText)}</strong>
                 </div>
                 <div>
-                    <span>Closest option</span>
-                    <strong>${escapeHtml(closestOption ? getPrecinctDisplayName(closestOption) : "No option loaded")}</strong>
+                    <span>Closest outpost</span>
+                    <strong>${escapeHtml(closestSubstation?.substationName || "No outpost loaded")}</strong>
                 </div>
                 <div>
                     <span>Distance</span>
                     <strong>${escapeHtml(formatDistanceKm(distanceKm))}</strong>
                 </div>
             </div>
-            <div class="admin-priority-alert__responders" aria-label="Choose responder precinct">
-                ${renderResponderSelect(responderOptions, canAutoDispatch)}
-            </div>
+            ${responderPanelHtml}
             <div class="admin-priority-alert__actions">
-                <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
-                <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
-                <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond" data-priority-respond-button ${canAutoDispatch ? "" : "disabled"}>Respond</button>
+                ${actionButtonsHtml}
             </div>
-            <p class="admin-priority-alert__feedback" aria-live="polite">${canAutoDispatch ? `✓ High Confidence: Nearest responder (${escapeHtml(getPrecinctDisplayName(closestOption))}) pre-selected for instant dispatch.` : ""}</p>
+            <p class="admin-priority-alert__feedback" aria-live="polite"></p>
         </section>
     `;
 
-    root.addEventListener("change", (event) => {
-        const select = event.target.closest("[data-priority-responder-select]");
-        if (!select) return;
+    // Real-Time Race Condition Listener
+    if (!isPreview) {
+        liveAlertDocUnsub = onSnapshot(doc(db, "incidents", id), (snap) => {
+            if (!snap.exists()) return;
+            const liveData = snap.data();
 
-        const respondButton = root.querySelector("[data-priority-respond-button]");
-        const selectedResponder = responderOptions.find(
-            (option) => option.precinctId === select.value,
-        );
-        if (respondButton) {
-            respondButton.disabled = !selectedResponder;
-        }
+            // Scenario A: Substation open modal receives HQ assignment
+            if (isSubstation && liveData.assignedByHq === true) {
+                let hqBanner = root.querySelector(".admin-priority-alert__hq-assigned-banner");
+                if (!hqBanner) {
+                    hqBanner = document.createElement("div");
+                    hqBanner.className = "admin-priority-alert__hq-assigned-banner";
+                    hqBanner.style.cssText = "background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;";
+                    hqBanner.textContent = "📢 Assigned by HQ Command to your station!";
+                    const top = root.querySelector(".admin-priority-alert__top");
+                    top?.after(hqBanner);
+                }
+                const respBtn = root.querySelector("[data-priority-action='respond']");
+                if (respBtn) {
+                    respBtn.textContent = "Confirm Deployment / Respond";
+                    respBtn.disabled = false;
+                }
+                const fb = root.querySelector(".admin-priority-alert__feedback");
+                if (fb) fb.textContent = "HQ has assigned this emergency to your sector.";
+            }
 
-        const feedback = root.querySelector(".admin-priority-alert__feedback");
-        if (feedback) {
-            feedback.textContent = selectedResponder
-                ? `${getPrecinctDisplayName(selectedResponder)} selected. Click Respond to send the update.`
-                : "";
-        }
-    });
+            // Scenario B: HQ open modal receives Substation active response
+            if (isHeadPolice && (liveData.responseStatus === "help_on_the_way" || liveData.status === "responding")) {
+                let respBanner = root.querySelector(".admin-priority-alert__substation-responding-banner");
+                if (!respBanner) {
+                    respBanner = document.createElement("div");
+                    respBanner.className = "admin-priority-alert__substation-responding-banner";
+                    respBanner.style.cssText = "background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;";
+                    const stationName = liveData.respondingSubstationName || liveData.assignedSubstationName || "Substation";
+                    respBanner.textContent = `🚔 ${stationName} is actively responding to this report!`;
+                    const top = root.querySelector(".admin-priority-alert__top");
+                    top?.after(respBanner);
+                }
+                const assignBtn = root.querySelector("[data-priority-action='assign-substation']");
+                if (assignBtn) {
+                    assignBtn.textContent = "Acknowledged / Close";
+                    assignBtn.setAttribute("data-priority-action", "close-sync");
+                    assignBtn.disabled = false;
+                }
+                const fb = root.querySelector(".admin-priority-alert__feedback");
+                if (fb) fb.textContent = `Substation deployed units at ${new Date().toLocaleTimeString()}.`;
+            }
+        });
+    }
 
     root.addEventListener("click", async (event) => {
         const btn = event.target.closest("[data-priority-action]");
@@ -625,55 +746,102 @@ async function showPriorityAlert(id, data, options = {}) {
         const action = btn.getAttribute("data-priority-action");
         const feedback = root.querySelector(".admin-priority-alert__feedback");
 
-        if (action === "respond") {
-            const select = root.querySelector("[data-priority-responder-select]");
-            const responderId = select?.value || "";
-            const selectedResponder = responderOptions.find(
-                (option) => option.precinctId === responderId,
-            );
-            if (!selectedResponder) {
-                if (feedback) {
-                    feedback.textContent =
-                        "Choose a responder precinct before sending a response.";
-                }
-                toastError("Choose a responder precinct before responding.");
+        if (action === "close-sync") {
+            closeActiveAlert();
+            return;
+        }
+
+        if (action === "assign-substation") {
+            const select = root.querySelector("#admin-priority-responder-select");
+            const targetSubstationId = select?.value;
+            const targetStation = COVERED_SUBSTATIONS.find((s) => s.id === targetSubstationId) || closestSubstation;
+            if (!targetStation) {
+                toastError("Choose a substation before assigning.");
                 return;
             }
 
-            if (isPreview) {
-                if (feedback) {
-                    feedback.textContent = `Preview mode: this would dispatch ${getPrecinctDisplayName(selectedResponder)}.`;
-                }
-                return;
-            }
+            root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = true; });
+            if (feedback) feedback.textContent = `Assigning ${targetStation.name}...`;
 
-            root.querySelectorAll(
-                "[data-priority-action], [data-priority-responder-select]",
-            ).forEach((el) => {
-                el.disabled = true;
-            });
-            if (feedback) {
-                feedback.textContent = `Sending response update for ${getPrecinctDisplayName(selectedResponder)}...`;
-            }
             try {
-                await respondToIncident(id, data, selectedResponder);
-                markActioned(id, data);
-                toastSuccess("Responder alert sent to user");
+                const incidentRef = doc(db, "incidents", id);
+                await updateDoc(incidentRef, {
+                    status: "responding",
+                    assignedSubstationId: targetStation.id,
+                    assignedSubstationName: targetStation.name,
+                    substationId: targetStation.id,
+                    substationName: targetStation.name,
+                    assignedByHq: true,
+                    assignedByHqUid: auth.currentUser?.uid || null,
+                    assignedByHqEmail: auth.currentUser?.email || null,
+                    assignedAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                });
+
+                await logAudit("sos_assigned_by_hq", {
+                    incidentId: id,
+                    assignedSubstationId: targetStation.id,
+                    assignedSubstationName: targetStation.name,
+                });
+
+                toastSuccess(`Assigned to ${targetStation.name}`);
                 closeActiveAlert();
                 window.dispatchEvent(
                     new CustomEvent("incident:updated", {
-                        detail: {id, status: "responding"},
+                        detail: { id, status: "responding" },
                     }),
                 );
-            } catch (error) {
-                console.error("[admin-priority-alert] respond", error);
-                toastError(error?.message || "Failed to respond");
-                if (feedback) feedback.textContent = error?.message || "Failed to respond.";
-                root.querySelectorAll(
-                    "[data-priority-action], [data-priority-responder-select]",
-                ).forEach((el) => {
-                    el.disabled = false;
+            } catch (err) {
+                console.error("[admin-sos-alerts] assign error", err);
+                toastError(err?.message || "Failed to assign substation");
+                root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = false; });
+            }
+            return;
+        }
+
+        if (action === "respond") {
+            const mySubstationId = getCurrentAdminSubstationId();
+            const mySubstationName = getCurrentAdminSubstationName() || (mySubstationId ? getSubstationNameById(mySubstationId) : "Substation Police");
+            const myBrgyName = getCurrentAdminBarangayName();
+
+            root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = true; });
+            if (feedback) feedback.textContent = "Deploying emergency response units...";
+
+            try {
+                const incidentRef = doc(db, "incidents", id);
+                const payload = {
+                    status: "responding",
+                    responseStatus: "help_on_the_way",
+                    updatedAt: serverTimestamp(),
+                };
+
+                if (isSubstation) {
+                    payload.respondingSubstationId = mySubstationId || null;
+                    payload.respondingSubstationName = mySubstationName;
+                    payload.respondedAt = serverTimestamp();
+                } else {
+                    payload.respondingBarangayName = myBrgyName;
+                    payload.respondedAt = serverTimestamp();
+                }
+
+                await updateDoc(incidentRef, payload);
+
+                await logAudit("incident_responded", {
+                    incidentId: id,
+                    stationOrBarangay: isSubstation ? mySubstationName : myBrgyName,
                 });
+
+                toastSuccess("Response units deployed! Help is on the way.");
+                closeActiveAlert();
+                window.dispatchEvent(
+                    new CustomEvent("incident:updated", {
+                        detail: { id, status: "responding" },
+                    }),
+                );
+            } catch (err) {
+                console.error("[admin-sos-alerts] respond error", err);
+                toastError(err?.message || "Failed to deploy response");
+                root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = false; });
             }
             return;
         }
@@ -687,14 +855,8 @@ async function showPriorityAlert(id, data, options = {}) {
             const dismissal = await promptSosDismissalReason(code);
             if (!dismissal) return;
 
-            root.querySelectorAll(
-                "[data-priority-action], [data-priority-responder-select]",
-            ).forEach((el) => {
-                el.disabled = true;
-            });
-            if (feedback) {
-                feedback.textContent = "Recording dismissal and clearing alert...";
-            }
+            root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = true; });
+            if (feedback) feedback.textContent = "Recording dismissal and clearing alert...";
 
             try {
                 const incidentRef = doc(db, "incidents", id);
@@ -715,53 +877,27 @@ async function showPriorityAlert(id, data, options = {}) {
                     notes: dismissal.notes,
                 });
 
-                if (data.userId) {
-                    try {
-                        await addDoc(collection(db, "notifications"), {
-                            userId: data.userId,
-                            title: "Emergency Alert Cleared",
-                            message: `Your SOS alert was reviewed and dismissed by dispatch: ${dismissal.category} - ${dismissal.notes}`,
-                            type: "sos_dismissed",
-                            incidentId: id,
-                            read: false,
-                            createdAt: serverTimestamp(),
-                        });
-                    } catch (notifErr) {
-                        console.warn("[admin-sos-alerts] notification failed", notifErr);
-                    }
-                }
-
                 dismiss(id, data);
                 toastSuccess("SOS alert dismissed with audit record.");
                 closeActiveAlert();
             } catch (err) {
                 console.error("[admin-sos-alerts] dismiss error", err);
                 toastError("Failed to record dismissal: " + (err?.message || "Unknown error"));
-                if (feedback) {
-                    feedback.textContent = err?.message || "Failed to record dismissal.";
-                }
-                root.querySelectorAll(
-                    "[data-priority-action], [data-priority-responder-select]",
-                ).forEach((el) => {
-                    el.disabled = false;
-                });
+                root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = false; });
             }
             return;
         }
 
         if (action === "view") {
             if (isPreview) {
-                if (feedback)
-                    feedback.textContent =
-                        "Preview mode: this would open the full incident report.";
+                if (feedback) feedback.textContent = "Preview mode: this would open the full incident report.";
                 return;
             }
             markActioned(id, data);
-            closeActiveAlert({showNext: false});
+            closeActiveAlert({ showNext: false });
             window.location.href = `incidents.html?incidentId=${encodeURIComponent(id)}`;
             return;
         }
-
     });
 
     document.body.appendChild(root);

@@ -476,7 +476,10 @@
                                             Barangay Admin
                                         </option>
                                         <option value="police">
-                                            Police Admin
+                                            Police Admin (Substation)
+                                        </option>
+                                        <option value="head_police">
+                                            Head Police Admin (HQ)
                                         </option>
                                     </select>
                                 </div>
@@ -522,6 +525,38 @@
                                     <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
                                         For Barangay Admin, limits report access and AI decision support to this jurisdiction.
                                     </small>
+                                </div>
+                                <div
+                                    class="user-modal-form__field user-modal-form__field--full"
+                                    id="user-add-substation-wrap"
+                                    style="margin-top: 10px; display: none;"
+                                >
+                                    <label
+                                        class="user-modal-form__label"
+                                        for="user-add-substation"
+                                        >Assigned Police Sub-station</label
+                                    >
+                                    <select
+                                        id="user-add-substation"
+                                        name="substationId"
+                                        class="incidents-select"
+                                    >
+                                        <option value="">Choose substation outpost...</option>
+                                        <option value="balangkas_substation">Balangkas Police Sub-station (SS-BAL)</option>
+                                        <option value="mapulang_lupa_substation">Mapulang Lupa Police Sub-station (SS-MPL)</option>
+                                    </select>
+                                    <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
+                                        Tactical responder station receiving High Severity & SOS alerts in this sector.
+                                    </small>
+                                </div>
+                                <div
+                                    class="user-modal-form__field user-modal-form__field--full"
+                                    id="user-add-head-police-note"
+                                    style="margin-top: 10px; display: none;"
+                                >
+                                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4;">
+                                        <strong>🏢 Central Command (City-wide):</strong> Head Police Admin maintains macro oversight across all substations, can assign/reassign incidents, and receives SOS alerts.
+                                    </div>
                                 </div>
                             </div>
                         </section>

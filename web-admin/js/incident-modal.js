@@ -24,7 +24,14 @@ import {
     evaluateIncidentLegitimacy,
     renderLegitimacyBadge,
 } from "./incident-legitimacy.js";
-import { hasIncidentAccess, resolveIncidentBarangayId } from "./admin-auth.js";
+import {
+    hasIncidentAccess,
+    resolveIncidentBarangayId,
+    resolveIncidentSubstationId,
+    isHeadPoliceAdminRole,
+    getCurrentAdminRole,
+} from "./admin-auth.js";
+import { COVERED_SUBSTATIONS, getSubstationNameById } from "../../shared/substations.js";
 import { getBarangayNameById } from "../../shared/barangays.js";
 
 function escapeHtml(text) {
@@ -458,6 +465,17 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
                 const dist = d.assignedBarangayDistanceKm != null ? ` (${d.assignedBarangayDistanceKm} km)` : "";
                 return `<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:#1e3a8a;background:#eff6ff;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;">
                     📍 ${escapeHtml(bName)}${escapeHtml(dist)}
+                </span>`;
+            })(),
+        ],
+        [
+            "Assigned Sub-station",
+            (() => {
+                const resolvedSId = resolveIncidentSubstationId(d);
+                const sName = d.substationName || (resolvedSId ? getSubstationNameById(resolvedSId) : null) || "—";
+                const hqFlag = d.assignedByHq ? " (HQ Assigned)" : "";
+                return `<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:#065f46;background:#ecfdf5;padding:2px 8px;border-radius:4px;border:1px solid #a7f3d0;">
+                    🚔 ${escapeHtml(sName)}${escapeHtml(hqFlag)}
                 </span>`;
             })(),
         ],
