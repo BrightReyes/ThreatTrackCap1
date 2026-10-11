@@ -1,0 +1,833 @@
+{
+  "fps": 30,
+  "duration_s": 63,
+  "energy": "punchy",
+  "lufs": -14,
+  "kit": "audio/kit",
+  "room": {
+    "decay_s": 0.5,
+    "wet_db": -18
+  },
+  "music": {
+    "file": "audio/music.wav",
+    "start_s": 0,
+    "loop": false,
+    "fade_out_s": 1.2
+  },
+  "duck_db": 10,
+  "cues": [
+    {
+      "id": "s1-phone-in-0",
+      "t": 0.23,
+      "sound": "whoosh/fs-30240-swoop1-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.35
+    },
+    {
+      "id": "s1-headline-2",
+      "t": 0.9,
+      "sound": "swish/kenney-rpg-cloth1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.3
+    },
+    {
+      "id": "s1-pin-3",
+      "t": 1.1,
+      "sound": "tap/kenney-impact-impact-wood-light-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s1-exit-6",
+      "t": 4.5,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut"
+    },
+    {
+      "id": "logo-7",
+      "t": 5.13,
+      "sound": "thump/fs-133282-thump-on-carpet-2+tap/kenney-impact-impact-wood-light-000",
+      "weight": "hero",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0,
+      "stop_before": true,
+      "build": true
+    },
+    {
+      "id": "s2-wordmark-9",
+      "t": 5.75,
+      "sound": "swish/fs-14175-27-wav-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    },
+    {
+      "id": "s2-tagline-11",
+      "t": 6.55,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    },
+    {
+      "id": "s2-exit-12",
+      "t": 8.25,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut"
+    },
+    {
+      "id": "s3-touch-in-13",
+      "t": 9.15,
+      "sound": "swish/fs-14171-23-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2
+    },
+    {
+      "id": "s3-press-14",
+      "t": 9.6,
+      "sound": "click/kenney-ui-audio-click2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.2
+    },
+    {
+      "id": "s3-callout-23",
+      "t": 9.95,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.3
+    },
+    {
+      "id": "s3-hold-15",
+      "t": 12.7,
+      "sound": "riser/fs-334525-rise5-wav-1",
+      "weight": "support",
+      "align": "peak"
+    },
+    {
+      "id": "sos-release-16",
+      "t": 12.74,
+      "sound": "thump/fs-133282-thump-on-carpet-2+tap/kenney-impact-impact-wood-light-000",
+      "weight": "hero",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2,
+      "stop_before": true,
+      "build": true
+    },
+    {
+      "id": "s3-callout-24",
+      "t": 12.95,
+      "sound": "pop/fs-507006-soap-bubbles-pop-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.3
+    },
+    {
+      "id": "s3-ping-19",
+      "t": 13.5,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s3-ping-20",
+      "t": 14.1,
+      "sound": "tick/fs-130388-clock-ticking-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s3-ping-21",
+      "t": 14.7,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s3-exit-26",
+      "t": 15.6,
+      "sound": "whoosh/fs-30240-swoop1-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.3
+    },
+    {
+      "id": "s4-chip-27",
+      "t": 16.9,
+      "sound": "click/kenney-ui-audio-click2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-step2-29",
+      "t": 17.9,
+      "sound": "swish/kenney-rpg-cloth1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-role-30",
+      "t": 18.35,
+      "sound": "click/kenney-ui-audio-click2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-sev-32",
+      "t": 18.7,
+      "sound": "click/kenney-ui-audio-click2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-step3-33",
+      "t": 19.1,
+      "sound": "swish/fs-14175-27-wav-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-key-35",
+      "t": 19.3,
+      "sound": "key/fs-180974-key-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-key-36",
+      "t": 19.717,
+      "sound": "key/fs-194799-keyboard5-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-key-37",
+      "t": 20.133,
+      "sound": "key/fs-194796-vintage-keyboard-2-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-key-38",
+      "t": 20.55,
+      "sound": "key/fs-180974-key-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-photo-39",
+      "t": 20.75,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-submit-40",
+      "t": 21.3,
+      "sound": "click/kenney-ui-audio-switch10",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-flip-41",
+      "t": 21.65,
+      "sound": "whoosh/fs-30240-swoop1-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-c4-42",
+      "t": 22.05,
+      "sound": "pop/fs-507006-soap-bubbles-pop-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.3
+    },
+    {
+      "id": "s4-status2-43",
+      "t": 22.98,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-status3-44",
+      "t": 23.78,
+      "sound": "chime/kenney-interface-glass-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.2
+    },
+    {
+      "id": "s4-exit-45",
+      "t": 24.4,
+      "sound": "whoosh/fs-30241-swoop2g-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.3
+    },
+    {
+      "id": "s5-line1-46",
+      "t": 24.9,
+      "sound": "swish/kenney-rpg-cloth1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    },
+    {
+      "id": "s5-tag-47",
+      "t": 25.2,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.4
+    },
+    {
+      "id": "s5-tag-49",
+      "t": 25.44,
+      "sound": "tap/kenney-impact-impact-wood-light-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": -0.4
+    },
+    {
+      "id": "s5-zoom-51",
+      "t": 26.95,
+      "sound": "whoosh/fs-30241-swoop2g-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move"
+    },
+    {
+      "id": "s5-line2-52",
+      "t": 27.12,
+      "sound": "tap/kenney-impact-impact-wood-light-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land"
+    },
+    {
+      "id": "s5-exit-53",
+      "t": 29.35,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut"
+    },
+    {
+      "id": "dashboard-54",
+      "t": 29.7,
+      "sound": "thump/fs-133282-thump-on-carpet-2+tap/kenney-impact-impact-wood-light-000",
+      "weight": "hero",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0,
+      "stop_before": true,
+      "build": true
+    },
+    {
+      "id": "s6-stat-56",
+      "t": 30.65,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.1
+    },
+    {
+      "id": "s6-stat-57",
+      "t": 30.9,
+      "sound": "tick/fs-130388-clock-ticking-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0
+    },
+    {
+      "id": "s6-pin-60",
+      "t": 31.1,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.25
+    },
+    {
+      "id": "s6-stat-59",
+      "t": 31.4,
+      "sound": "tick/fs-130388-clock-ticking-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.20000000000000004
+    },
+    {
+      "id": "s6-heat-62",
+      "t": 31.7,
+      "sound": "shimmer/fs-449645-transition-action-jump-pitch-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.25
+    },
+    {
+      "id": "s6-row-in-63",
+      "t": 32.98,
+      "sound": "swish/fs-14171-23-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.3
+    },
+    {
+      "id": "s6-row-land-64",
+      "t": 33.25,
+      "sound": "pop/fs-796298-bubble-pop-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0.3
+    },
+    {
+      "id": "s6-focus-66",
+      "t": 35.98,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut"
+    },
+    {
+      "id": "s7-legit-build-67",
+      "t": 38,
+      "sound": "riser/fs-503801-reverse-fx-3-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "pan": -0.3
+    },
+    {
+      "id": "s7-pill-70",
+      "t": 38.25,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.3
+    },
+    {
+      "id": "s7-precinct-72",
+      "t": 38.7,
+      "sound": "tick/fs-130388-clock-ticking-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.3
+    },
+    {
+      "id": "s7-cursor-73",
+      "t": 39.1,
+      "sound": "swish/kenney-rpg-cloth1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.3
+    },
+    {
+      "id": "dispatch-74",
+      "t": 39.84,
+      "sound": "thump/fs-133282-thump-on-carpet-2+tap/kenney-impact-impact-wood-light-000",
+      "weight": "hero",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.25,
+      "stop_before": true,
+      "build": true
+    },
+    {
+      "id": "s7-sent-76",
+      "t": 40.35,
+      "sound": "chime/fs-570243-point-in-space-ogg-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.3
+    },
+    {
+      "id": "s7-phone-in-77",
+      "t": 40.78,
+      "sound": "whoosh/fs-30240-swoop1-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.45
+    },
+    {
+      "id": "s7-phone-land-78",
+      "t": 41.3,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0.45
+    },
+    {
+      "id": "s7-exit-79",
+      "t": 43.5,
+      "sound": "whoosh/fs-30241-swoop2g-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.3
+    },
+    {
+      "id": "s8-kpi-80",
+      "t": 44.6,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.1
+    },
+    {
+      "id": "s8-bar-84",
+      "t": 44.84,
+      "sound": "tap/kenney-impact-impact-wood-light-003",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.35
+    },
+    {
+      "id": "s8-kpi-82",
+      "t": 45.1,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.1
+    },
+    {
+      "id": "s8-hot-86",
+      "t": 45.45,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0
+    },
+    {
+      "id": "s8-gen-88",
+      "t": 46.3,
+      "sound": "click/kenney-ui-audio-switch10",
+      "weight": "support",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-stream-89",
+      "t": 46.8,
+      "sound": "key/fs-180974-key-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-stream-90",
+      "t": 47.425,
+      "sound": "key/fs-194799-keyboard5-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-stream-91",
+      "t": 48.05,
+      "sound": "key/fs-194796-vintage-keyboard-2-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-stream-92",
+      "t": 48.675,
+      "sound": "key/fs-180974-key-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-stream-93",
+      "t": 49.3,
+      "sound": "key/fs-194799-keyboard5-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-guard-94",
+      "t": 49.65,
+      "sound": "chime/kenney-interface-glass-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.35
+    },
+    {
+      "id": "s8-exit-95",
+      "t": 51.1,
+      "sound": "whoosh/fs-30241-swoop2g-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.3
+    },
+    {
+      "id": "s9-title-96",
+      "t": 51.5,
+      "sound": "swish/kenney-rpg-cloth1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    },
+    {
+      "id": "s9-n0-97",
+      "t": 51.95,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.35
+    },
+    {
+      "id": "s9-node-98",
+      "t": 52.2,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.2
+    },
+    {
+      "id": "s9-node-99",
+      "t": 52.37,
+      "sound": "tap/kenney-impact-impact-wood-light-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.30000000000000004
+    },
+    {
+      "id": "s9-node-100",
+      "t": 52.54,
+      "sound": "tap/kenney-impact-impact-wood-light-003",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.4
+    },
+    {
+      "id": "s9-route-high-101",
+      "t": 53.3,
+      "sound": "swish/fs-14175-27-wav-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0
+    },
+    {
+      "id": "s9-badge-high-102",
+      "t": 53.55,
+      "sound": "pop/fs-507006-soap-bubbles-pop-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.1
+    },
+    {
+      "id": "s9-route-low-103",
+      "t": 53.9,
+      "sound": "swish/fs-14171-23-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0
+    },
+    {
+      "id": "s9-badge-low-104",
+      "t": 54.15,
+      "sound": "pop/fs-796298-bubble-pop-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.1
+    },
+    {
+      "id": "s9-hq-105",
+      "t": 54.5,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.4
+    },
+    {
+      "id": "s9-exit-106",
+      "t": 55.8,
+      "sound": "whoosh/fs-30241-swoop2g-flac-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.4
+    },
+    {
+      "id": "s10-streak-107",
+      "t": 56.15,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut",
+      "pan": -0.2
+    },
+    {
+      "id": "s10-node-108",
+      "t": 56.65,
+      "sound": "tap/kenney-impact-impact-wood-light-002",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": -0.4
+    },
+    {
+      "id": "s10-node-109",
+      "t": 56.85,
+      "sound": "tap/kenney-impact-impact-wood-light-003",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0
+    },
+    {
+      "id": "s10-node-110",
+      "t": 57.05,
+      "sound": "tap/kenney-impact-impact-wood-light-001",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear",
+      "pan": 0.4
+    },
+    {
+      "id": "s10-link-111",
+      "t": 57.5,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": -0.2
+    },
+    {
+      "id": "s10-link-112",
+      "t": 57.74,
+      "sound": "tick/fs-188033-ticking-clock-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "move",
+      "pan": 0.06
+    },
+    {
+      "id": "s10-exit-113",
+      "t": 59.55,
+      "sound": "transition/fs-444623-swoosh-10-wav-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "cut"
+    },
+    {
+      "id": "outro-114",
+      "t": 60.23,
+      "sound": "thump/fs-133282-thump-on-carpet-2+tap/kenney-impact-impact-wood-light-000",
+      "weight": "hero",
+      "align": "peak",
+      "visual": "land",
+      "pan": 0,
+      "stop_before": true,
+      "build": true
+    },
+    {
+      "id": "s11-wordmark-116",
+      "t": 60.6,
+      "sound": "swish/fs-14175-27-wav-2",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    },
+    {
+      "id": "s11-tagline-118",
+      "t": 61.2,
+      "sound": "pop/fs-269583-bubble-1",
+      "weight": "support",
+      "align": "peak",
+      "visual": "appear"
+    }
+  ]
+}
