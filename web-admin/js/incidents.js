@@ -1,3 +1,4 @@
+import "../css/incidents.css";
 import { initAdminPage } from "./admin-auth.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { initIncidentModal } from "./incident-modal.js";

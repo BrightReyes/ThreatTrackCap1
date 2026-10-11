@@ -22,6 +22,22 @@ let allDocs = [];
 let toolbarBound = false;
 let searchDebounceTimer = null;
 let currentPage = 1;
+let activeQuickFilter = 'all';
+
+function isToday(ts) {
+  if (!ts) return false;
+  try {
+    const d = typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
+    const now = new Date();
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    );
+  } catch {
+    return false;
+  }
+}
 
 function escapeHtml(text) {
   if (text == null || text === '') return '';
@@ -39,17 +55,25 @@ function escapeAttr(text) {
 
 function formatReported(data) {
   const ts = data.timestamp ?? data.reportedAt;
-  if (ts && typeof ts.toDate === 'function') {
-    try {
-      return ts.toDate().toLocaleString(undefined, {
-        dateStyle: 'short',
-        timeStyle: 'short',
-      });
-    } catch {
-      return '—';
-    }
+  if (!ts) return '—';
+  try {
+    const d =
+      typeof ts.toDate === 'function'
+        ? ts.toDate()
+        : ts?.seconds
+          ? new Date(ts.seconds * 1000)
+          : ts instanceof Date
+            ? ts
+            : new Date(ts);
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    const day = d.getDate();
+    const year = d.getFullYear();
+    const time = d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${month} ${day} ${year} ${time}`;
+  } catch {
+    return '—';
   }
-  return '—';
 }
 
 function humanize(str) {
@@ -116,17 +140,21 @@ function buildRow(docSnap) {
   const resolvedSId = resolveIncidentSubstationId(d);
   const resolvedSName = d.substationName || (resolvedSId ? getSubstationNameById(resolvedSId) : null);
 
+  const unreadBeaconHtml = opened
+    ? ''
+    : '<span class="incidents-unread-beacon" aria-hidden="true" title="Unopened incident"></span>';
+
   return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
-    <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${escapeHtml(code)}</span></td>
-    <td>${escapeHtml(reported)}</td>
+    <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${unreadBeaconHtml}<span>${escapeHtml(code)}</span></span></td>
+    <td><span class="incidents-reported-time">${escapeHtml(reported)}</span></td>
     <td>
-      <div>${escapeHtml(typeLabel)}</div>
-      ${resolvedBName ? `<div style="font-size: 0.74rem; color: #475569; font-weight: 600; margin-top: 2px;">📍 ${escapeHtml(resolvedBName)}</div>` : ''}
+      <div style="font-weight: 750; color: #0f172a; font-size: 0.88rem; line-height: 1.25;">${escapeHtml(typeLabel)}</div>
+      ${resolvedBName ? `<div style="font-size: 0.74rem; color: #475569; font-weight: 600; margin-top: 3px; display: flex; align-items: center; gap: 3px;"><span style="color: #dc2626; font-size: 0.78rem;">📍</span> ${escapeHtml(resolvedBName)}</div>` : ''}
     </td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>
     <td>${legitimacyBadgeHtml}</td>
-    <td>
+    <td style="text-align: right;">
       <div class="incidents-row-actions">
         <button type="button" class="incidents-more-btn incidents-action-btn" title="More options" aria-label="More options" aria-expanded="false" data-incident-menu-toggle>
           <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
@@ -153,11 +181,17 @@ function docMatchesSearch(docSnap, q) {
   const typeStr = norm(d.type);
   const descStr = norm(d.description);
   const typeHuman = norm(humanize(d.type));
+  const bName = norm(d.barangayName || '');
+  const sName = norm(d.substationName || '');
+  const addr = norm(d.location?.address || '');
   return (
     norm(code).includes(q) ||
     typeStr.includes(q) ||
     typeHuman.includes(q) ||
     descStr.includes(q) ||
+    bName.includes(q) ||
+    sName.includes(q) ||
+    addr.includes(q) ||
     norm(docSnap.id).includes(q)
   );
 }
@@ -172,6 +206,20 @@ function docMatchesSeverity(docSnap, sevVal) {
   if (!sevVal || sevVal === 'all') return true;
   const s = norm(docSnap.data().severity);
   return s === norm(sevVal);
+}
+
+function docMatchesQuickFilter(docSnap, filter) {
+  if (!filter || filter === 'all') return true;
+  const d = docSnap.data();
+  const sev = norm(d.severity);
+  const status = norm(d.status);
+  if (filter === 'high') return sev === 'high';
+  if (filter === 'pending') return status === 'pending' || status === 'under_review';
+  if (filter === 'responding') return status === 'responding';
+  if (filter === 'resolved') return status === 'done' || status === 'verified';
+  if (filter === 'unopened') return !isIncidentOpened(d);
+  if (filter === 'today') return isToday(d.timestamp ?? d.reportedAt);
+  return true;
 }
 
 function getFilterValues() {
@@ -191,8 +239,67 @@ function filterDocs() {
     (docSnap) =>
       docMatchesSearch(docSnap, search) &&
       docMatchesStatus(docSnap, status) &&
-      docMatchesSeverity(docSnap, severity),
+      docMatchesSeverity(docSnap, severity) &&
+      docMatchesQuickFilter(docSnap, activeQuickFilter),
   );
+}
+
+function syncFilterUI() {
+  // Update chips active state
+  document.querySelectorAll('.incidents-chip').forEach((chip) => {
+    const chipFilter = chip.getAttribute('data-chip-filter');
+    if (chipFilter === activeQuickFilter) {
+      chip.classList.add('incidents-chip--active');
+    } else {
+      chip.classList.remove('incidents-chip--active');
+    }
+  });
+
+  // Update stat cards active filter highlights
+  const cardTotal = document.getElementById('card-stat-total');
+  const cardHigh = document.getElementById('card-stat-high');
+  const cardPending = document.getElementById('card-stat-pending');
+  const cardResolved = document.getElementById('card-stat-resolved');
+
+  cardTotal?.classList.toggle('stat-card--filter-active', activeQuickFilter === 'all');
+  cardHigh?.classList.toggle('stat-card--filter-active-high', activeQuickFilter === 'high');
+  cardPending?.classList.toggle('stat-card--filter-active-pending', activeQuickFilter === 'pending');
+  cardResolved?.classList.toggle('stat-card--filter-active-resolved', activeQuickFilter === 'resolved');
+
+  // Update filter pill in table header
+  const filterPill = document.getElementById('incidents-filter-pill');
+  const searchEl = document.getElementById('incidents-search');
+  const statusEl = document.getElementById('incidents-filter-status');
+  const sevEl = document.getElementById('incidents-filter-severity');
+  const isFiltered = (
+    activeQuickFilter !== 'all' ||
+    Boolean(searchEl?.value?.trim()) ||
+    (statusEl && statusEl.value !== 'all') ||
+    (sevEl && sevEl.value !== 'all')
+  );
+
+  if (filterPill) {
+    filterPill.hidden = !isFiltered;
+    if (activeQuickFilter !== 'all') {
+      const labels = {
+        high: 'High Severity',
+        pending: 'Pending Review',
+        responding: 'Responding',
+        resolved: 'Resolved',
+        unopened: 'Unopened Only',
+        today: "Today's Reports",
+      };
+      filterPill.textContent = labels[activeQuickFilter] || 'Filtered';
+    } else {
+      filterPill.textContent = 'Filtered';
+    }
+  }
+
+  // Update search clear button
+  const searchClear = document.getElementById('incidents-search-clear');
+  if (searchClear && searchEl) {
+    searchClear.hidden = !searchEl.value.trim();
+  }
 }
 
 function updateIncidentStats() {
@@ -309,21 +416,35 @@ function renderFilteredTable() {
   const meta = document.getElementById('incidents-count');
   if (!tbody) return;
 
+  syncFilterUI();
+
   const filtered = filterDocs();
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   currentPage = clampPage(currentPage, totalPages);
 
   if (!allDocs.length) {
     tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents yet.</td></tr>';
+      '<tr class="incidents-table__empty"><td colspan="7">No incidents reported yet.</td></tr>';
     if (meta) meta.textContent = '0 incidents';
     renderPagination(0, 1);
     return;
   }
 
   if (!filtered.length) {
-    tbody.innerHTML =
-      '<tr class="incidents-table__empty"><td colspan="7">No incidents match your search or filters.</td></tr>';
+    tbody.innerHTML = `
+      <tr class="incidents-table__empty">
+        <td colspan="7">
+          <div style="padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <span class="material-symbols-outlined" style="font-size: 38px; color: #94a3b8;">search_off</span>
+            <div style="font-size: 0.96rem; font-weight: 750; color: #334155;">No incidents match your search or filters</div>
+            <p style="margin: 0; font-size: 0.82rem; color: #64748b;">Try adjusting your keywords, changing categories, or resetting filters.</p>
+            <button type="button" id="incidents-empty-reset" class="incidents-filter-reset" style="margin-top: 8px;">
+              <span class="material-symbols-outlined" style="font-size: 15px;">restart_alt</span>
+              <span>Reset all filters</span>
+            </button>
+          </div>
+        </td>
+      </tr>`;
     if (meta) {
       meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
     }
@@ -360,20 +481,83 @@ function bindToolbar() {
   toolbarBound = true;
 
   const searchEl = document.getElementById('incidents-search');
+  const searchClear = document.getElementById('incidents-search-clear');
   const statusEl = document.getElementById('incidents-filter-status');
   const sevEl = document.getElementById('incidents-filter-severity');
+  const resetBtn = document.getElementById('incidents-filter-reset');
 
-  const rerender = () => resetPageAndRender();
+  const rerender = () => {
+    resetPageAndRender();
+  };
 
   searchEl?.addEventListener('input', () => {
     if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = window.setTimeout(rerender, 200);
+    searchDebounceTimer = window.setTimeout(rerender, 180);
   });
   searchEl?.addEventListener('search', rerender);
+
+  searchClear?.addEventListener('click', () => {
+    if (searchEl) {
+      searchEl.value = '';
+      searchEl.focus();
+    }
+    rerender();
+  });
 
   statusEl?.addEventListener('change', rerender);
   sevEl?.addEventListener('change', rerender);
 
+  const resetAllFilters = () => {
+    if (searchEl) searchEl.value = '';
+    if (statusEl) statusEl.value = 'all';
+    if (sevEl) sevEl.value = 'all';
+    activeQuickFilter = 'all';
+    rerender();
+  };
+
+  resetBtn?.addEventListener('click', resetAllFilters);
+
+  // Empty state reset button click
+  document.getElementById('incidents-tbody')?.addEventListener('click', (e) => {
+    if (e.target.closest('#incidents-empty-reset')) {
+      resetAllFilters();
+    }
+  });
+
+  // Quick filter chips click
+  document.querySelector('.incidents-quick-chips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-chip-filter]');
+    if (!chip) return;
+    const filterVal = chip.getAttribute('data-chip-filter');
+    activeQuickFilter = filterVal || 'all';
+    rerender();
+  });
+
+  // Stat card click to filter
+  document.querySelector('.incidents-stats')?.addEventListener('click', (e) => {
+    const card = e.target.closest('[data-stat-filter]');
+    if (!card) return;
+    const filterVal = card.getAttribute('data-stat-filter');
+    if (activeQuickFilter === filterVal) {
+      activeQuickFilter = 'all';
+    } else {
+      activeQuickFilter = filterVal || 'all';
+    }
+    rerender();
+  });
+
+  // Keyboard accessibility for stat cards
+  document.querySelector('.incidents-stats')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const card = e.target.closest('[data-stat-filter]');
+      if (card) {
+        e.preventDefault();
+        card.click();
+      }
+    }
+  });
+
+  // Pagination click
   document
     .getElementById('incidents-pagination')
     ?.addEventListener('click', (event) => {
@@ -428,7 +612,7 @@ export async function loadIncidentsTable() {
   if (!tbody) return;
 
   tbody.innerHTML =
-    '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
+    '<tr class="incidents-table__empty"><td colspan="7">Loading incidents…</td></tr>';
   if (meta) meta.textContent = 'Loading…';
 
   const q = query(
@@ -439,6 +623,13 @@ export async function loadIncidentsTable() {
 
   const snap = await getDocs(q);
   allDocs = snap.docs.filter((docSnap) => hasIncidentAccess(docSnap.data()));
+
+  // Check initial URL filter query (e.g. ?filter=today from Dashboard)
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialFilter = urlParams.get('filter');
+  if (initialFilter && ['high', 'pending', 'responding', 'resolved', 'unopened', 'today'].includes(initialFilter)) {
+    activeQuickFilter = initialFilter;
+  }
 
   bindToolbar();
   bindIncidentUpdates();

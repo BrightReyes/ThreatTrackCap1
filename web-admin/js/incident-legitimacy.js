@@ -373,15 +373,15 @@ export function renderLegitimacyBanner(assessment) {
     const isHigh = assessment.level === "high";
     const isSpam = assessment.level === "low";
 
-    const bg = isHigh ? "#f0fdf4" : isSpam ? "#fef2f2" : "#fffbeb";
-    const border = isHigh ? "#bbf7d0" : isSpam ? "#fecaca" : "#fef3c7";
-    const text = isHigh ? "#166534" : isSpam ? "#991b1b" : "#92400e";
-    const badgeBg = isHigh ? "#22c55e" : isSpam ? "#ef4444" : "#f59e0b";
+    const bg = isHigh ? "#f0fdf4" : isSpam ? "#fff1f2" : "#fefce8";
+    const border = isHigh ? "#bbf7d0" : isSpam ? "#fecdd3" : "#fef08a";
+    const text = isHigh ? "#166534" : isSpam ? "#991b1b" : "#854d0e";
+    const badgeBg = isHigh ? "#15803d" : isSpam ? "#dc2626" : "#b45309";
     const icon = isHigh ? "verified" : isSpam ? "gpp_bad" : "help_outline";
 
     const items = isSpam
-        ? assessment.flags.map((f) => `<span style="display:inline-flex;align-items:center;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠ ${escapeHtml(f)}</span>`).join(" ")
-        : assessment.reasons.slice(0, 3).map((r) => `<span style="display:inline-flex;align-items:center;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">✓ ${escapeHtml(r)}</span>`).join(" ");
+        ? assessment.flags.map((f) => `<span style="display:inline-flex;align-items:center;background:#fff1f2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠ ${escapeHtml(f)}</span>`).join(" ")
+        : assessment.reasons.slice(0, 3).map((r) => `<span style="display:inline-flex;align-items:center;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">✓ ${escapeHtml(r)}</span>`).join(" ");
 
     return `
       <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 14px;margin:10px 0 14px 0;display:flex;flex-direction:column;gap:6px;">
@@ -407,9 +407,9 @@ export function renderLegitimacyBadge(assessment) {
     const isHigh = assessment.level === "high";
     const isSpam = assessment.level === "low";
 
-    const badgeBg = isHigh ? "#ecfdf5" : isSpam ? "#fef2f2" : "#fffbeb";
-    const badgeBorder = isHigh ? "#a7f3d0" : isSpam ? "#fecaca" : "#fde68a";
-    const badgeColor = isHigh ? "#065f46" : isSpam ? "#991b1b" : "#92400e";
+    const badgeBg = isHigh ? "#f0fdf4" : isSpam ? "#fff1f2" : "#fefce8";
+    const badgeBorder = isHigh ? "#bbf7d0" : isSpam ? "#fecdd3" : "#fef08a";
+    const badgeColor = isHigh ? "#166534" : isSpam ? "#991b1b" : "#854d0e";
     const icon = isHigh ? "verified" : isSpam ? "gpp_bad" : "help_outline";
     const isAi = assessment.source === "gemini_ai" || assessment.source === "gemini_rag";
     const sourceLabel = isAi ? " (AI Evaluated)" : "";

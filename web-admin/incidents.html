@@ -4,8 +4,14 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Admin | Incidents</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -26,13 +32,13 @@
         />
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
-        <link rel="stylesheet" href="/css/incidents.css" />
-        <link rel="stylesheet" href="/css/admin-readability.css" />
+        <link rel="stylesheet" href="/css/incidents.css?v=3" />
+        <link rel="stylesheet" href="/css/admin-readability.css?v=3" />
     </head>
     <body>
         <div id="page-incidents" class="admin-dashboard" hidden>
             <aside
-                class="admin-dashboard__sidebar"
+                class="admin-dashboard__sidebar admin-dashboard__sidebar--gradient"
                 aria-label="Main navigation"
             >
                 <div class="sidebar__top">
@@ -57,7 +63,7 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
@@ -151,9 +157,9 @@
             <div class="admin-dashboard__shell">
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <h1 class="admin-dashboard__title">Incidents</h1>
+                        <h1 class="admin-dashboard__title">Incidents Management</h1>
                         <p class="admin-dashboard__tagline">
-                            Review and moderate reported incidents
+                            Real-time incident triage, severity moderation, verification, and dispatch coordination
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -162,139 +168,268 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
-                                <span
-                                    class="admin-dashboard__clock-sep"
-                                    aria-hidden="true"
-                                    >·</span
-                                >
-                                <span class="admin-dashboard__clock-tz"
-                                    >PHT</span
-                                >
+                                >--:--:--</time>
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
-                    <section
-                        class="incidents-stats"
-                        aria-label="Incident summary"
-                    >
-                        <article
-                            class="incidents-stat-card incidents-stat-card--total"
-                        >
-                            <span
-                                class="incidents-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >assignment</span
+                    <!-- Container 1: Overview & Severity Metrics -->
+                    <section class="incidents-panel incidents-panel--metrics" aria-label="Incident metrics overview">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">monitoring</span>
+                                <h2 class="incidents-panel__title">Overview &amp; Severity Metrics</h2>
+                                <span class="incidents-filter-pill">Live Counters</span>
+                            </div>
+                            <p class="incidents-panel__meta">Click any card to filter the queue</p>
+                        </div>
+                        <div class="incidents-panel__body incidents-panel__body--stats">
+                            <div
+                                class="incidents-stats admin-dashboard__stats"
+                                aria-label="Incident summary"
                             >
-                            <div>
-                                <p class="incidents-stat-card__label">
-                                    Total incidents
-                                </p>
-                                <strong id="incidents-stat-total">0</strong>
+                        <!-- Total Incidents -->
+                        <article
+                            class="stat-card stat-card--total-incidents stat-card--interactive"
+                            id="card-stat-total"
+                            tabindex="0"
+                            role="button"
+                            aria-label="View all incidents"
+                            data-stat-filter="all"
+                        >
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >assignment</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Total incidents
+                                    </p>
+                                    <p
+                                        id="incidents-stat-total"
+                                        class="stat-card__value"
+                                    >
+                                        0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">
+                                    All logged reports
+                                </span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             </div>
                         </article>
+
+                        <!-- High Severity -->
                         <article
-                            class="incidents-stat-card incidents-stat-card--high"
+                            class="stat-card stat-card--open-incidents stat-card--interactive"
+                            id="card-stat-high"
+                            tabindex="0"
+                            role="button"
+                            aria-label="Filter high severity incidents"
+                            data-stat-filter="high"
                         >
-                            <span
-                                class="incidents-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >priority_high</span
-                            >
-                            <div>
-                                <p class="incidents-stat-card__label">
-                                    High severity
-                                </p>
-                                <strong id="incidents-stat-high">0</strong>
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >crisis_alert</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        High severity
+                                    </p>
+                                    <p
+                                        id="incidents-stat-high"
+                                        class="stat-card__value"
+                                    >
+                                        0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">
+                                    Requires urgent action
+                                </span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             </div>
                         </article>
+
+                        <!-- Pending Review -->
                         <article
-                            class="incidents-stat-card incidents-stat-card--pending"
+                            class="stat-card stat-card--pending stat-card--interactive"
+                            id="card-stat-pending"
+                            tabindex="0"
+                            role="button"
+                            aria-label="Filter pending review incidents"
+                            data-stat-filter="pending"
                         >
-                            <span
-                                class="incidents-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >pending_actions</span
-                            >
-                            <div>
-                                <p class="incidents-stat-card__label">
-                                    Pending review
-                                </p>
-                                <strong id="incidents-stat-pending">0</strong>
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >pending_actions</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Pending review
+                                    </p>
+                                    <p
+                                        id="incidents-stat-pending"
+                                        class="stat-card__value"
+                                    >
+                                        0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">
+                                    Awaiting triage
+                                </span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             </div>
                         </article>
+
+                        <!-- Resolved -->
                         <article
-                            class="incidents-stat-card incidents-stat-card--resolved"
+                            class="stat-card stat-card--users stat-card--interactive"
+                            id="card-stat-resolved"
+                            tabindex="0"
+                            role="button"
+                            aria-label="Filter resolved incidents"
+                            data-stat-filter="resolved"
                         >
-                            <span
-                                class="incidents-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >task_alt</span
-                            >
-                            <div>
-                                <p class="incidents-stat-card__label">
-                                    Resolved
-                                </p>
-                                <strong id="incidents-stat-resolved">0</strong>
+                            <div class="stat-card__accent" aria-hidden="true"></div>
+                            <div class="stat-card__summary">
+                                <div class="stat-card__icon-wrap">
+                                    <span
+                                        class="stat-card__icon material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >task_alt</span
+                                    >
+                                </div>
+                                <div class="stat-card__content">
+                                    <p class="stat-card__label">
+                                        Resolved
+                                    </p>
+                                    <p
+                                        id="incidents-stat-resolved"
+                                        class="stat-card__value"
+                                    >
+                                        0
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="stat-card__footer">
+                                <span class="stat-card__hint">
+                                    Verified &amp; closed
+                                </span>
+                                <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
                             </div>
                         </article>
+                            </div>
+                        </div>
                     </section>
 
-                    <div class="incidents-toolbar">
-                        <div class="incidents-toolbar__search">
-                            <label
-                                class="visually-hidden"
-                                for="incidents-search"
-                                >Search incidents</label
-                            >
-                            <input
-                                id="incidents-search"
-                                type="search"
-                                class="incidents-search-input"
-                                placeholder="Search by code, type, description…"
-                                autocomplete="off"
-                            />
-                        </div>
-                        <div class="incidents-toolbar__filters">
-                            <select
-                                id="incidents-filter-status"
-                                class="incidents-select"
-                                aria-label="Status filter"
-                            >
-                                <option value="all">All statuses</option>
-                            </select>
-                            <select
-                                id="incidents-filter-severity"
-                                class="incidents-select"
-                                aria-label="Severity filter"
-                            >
-                                <option value="all">All severities</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <section class="incidents-panel" aria-label="Incident list">
-                        <div class="incidents-panel__head">
-                            <h2 class="incidents-panel__title">
-                                All incidents
-                            </h2>
+                    <!-- Container 2: Incidents (Header, Filters, then Reports) -->
+                    <section class="incidents-panel incidents-panel--reports" aria-label="Incident list">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">emergency</span>
+                                <h2 class="incidents-panel__title">
+                                    Emergency Incidents
+                                </h2>
+                                <span id="incidents-filter-pill" class="incidents-filter-pill" hidden>Filtered</span>
+                            </div>
                             <p
                                 class="incidents-panel__meta"
                                 id="incidents-count"
                             >
                                 Loading…
                             </p>
+                        </div>
+
+                        <!-- Filters & Triage Area -->
+                        <div class="incidents-panel__filters">
+                            <div class="incidents-toolbar__primary">
+                                <div class="incidents-search-wrap">
+                                    <span class="material-symbols-outlined incidents-search-icon" aria-hidden="true">search</span>
+                                    <input
+                                        id="incidents-search"
+                                        type="search"
+                                        class="incidents-search-input"
+                                        placeholder="Search by code, type, description, barangay…"
+                                        autocomplete="off"
+                                    />
+                                    <button
+                                        type="button"
+                                        id="incidents-search-clear"
+                                        class="incidents-search-clear"
+                                        aria-label="Clear search query"
+                                        hidden
+                                    >
+                                        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                                    </button>
+                                </div>
+                                <div class="incidents-toolbar__filters">
+                                    <div class="incidents-filter-group">
+                                        <label for="incidents-filter-status" class="incidents-filter-label">Status</label>
+                                        <select
+                                            id="incidents-filter-status"
+                                            class="incidents-select"
+                                            aria-label="Status filter"
+                                        >
+                                            <option value="all">All statuses</option>
+                                        </select>
+                                    </div>
+                                    <div class="incidents-filter-group">
+                                        <label for="incidents-filter-severity" class="incidents-filter-label">Severity</label>
+                                        <select
+                                            id="incidents-filter-severity"
+                                            class="incidents-select"
+                                            aria-label="Severity filter"
+                                        >
+                                            <option value="all">All severities</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        id="incidents-filter-reset"
+                                        class="incidents-filter-reset"
+                                        title="Reset all search filters"
+                                    >
+                                        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+                                        <span>Reset Filters</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="incidents-table-wrap">
@@ -305,7 +440,7 @@
                                     <tr>
                                         <th scope="col">Code</th>
                                         <th scope="col">Reported</th>
-                                        <th scope="col">Type</th>
+                                        <th scope="col">Type &amp; Location</th>
                                         <th scope="col">Severity</th>
                                         <th scope="col">Status</th>
                                         <th scope="col">Legitimacy</th>
@@ -317,7 +452,7 @@
                                 </thead>
                                 <tbody id="incidents-tbody">
                                     <tr class="incidents-table__empty">
-                                        <td colspan="7">Loading…</td>
+                                        <td colspan="7">Loading incidents…</td>
                                     </tr>
                                 </tbody>
                             </table>

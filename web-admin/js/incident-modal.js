@@ -129,15 +129,25 @@ function buildPhotosHtml(data) {
     if (data.photoDataUrl) urls.push(String(data.photoDataUrl));
     const unique = [...new Set(urls)];
     if (!unique.length && data.hadInlineEvidence && data.evidenceClearedReason === "incident_marked_done") {
-        return '<span class="incident-detail__value">Cleared after completion</span>';
+        return `<div class="incident-evidence-empty incident-evidence-empty--cleared">
+            <span class="material-symbols-outlined incident-evidence-empty__icon" aria-hidden="true">check_circle</span>
+            <p class="incident-evidence-empty__title">Evidence Cleared</p>
+            <p class="incident-evidence-empty__subtitle">Inline storage data was purged following incident completion.</p>
+        </div>`;
     }
-    if (!unique.length) return '<span class="incident-detail__value">—</span>';
+    if (!unique.length) {
+        return `<div class="incident-evidence-empty">
+            <span class="material-symbols-outlined incident-evidence-empty__icon" aria-hidden="true">image_not_supported</span>
+            <p class="incident-evidence-empty__title">No Media Attached</p>
+            <p class="incident-evidence-empty__subtitle">The reporting resident did not attach photos with this report.</p>
+        </div>`;
+    }
     return `<div class="incident-photo-list">${unique
         .map((u, i) => {
             const label = `Evidence photo ${i + 1}`;
             return `<a class="incident-photo-list__item" href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttr(label)}">
                 <img class="incident-photo-list__image" src="${escapeAttr(u)}" alt="${escapeAttr(label)}" loading="lazy">
-                <span>${escapeHtml(`Photo ${i + 1}`)}</span>
+                <span class="incident-photo-list__label"><span class="material-symbols-outlined">zoom_in</span> ${escapeHtml(`Photo ${i + 1}`)}</span>
             </a>`;
         })
         .join("")}</div>`;
@@ -423,102 +433,188 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
     const legitimacy = evaluateIncidentLegitimacy(d);
     const legitimacyBadge = renderLegitimacyBadge(legitimacy);
     const legitimacyDetails = legitimacy.level === "low"
-        ? (legitimacy.flags.length ? `<div style="margin-top:4px;font-size:0.8rem;color:#b91c1c;">${legitimacy.flags.map((f) => `⚠ ${escapeHtml(f)}`).join(" · ")}</div>` : "")
-        : (legitimacy.reasons.length ? `<div style="margin-top:4px;font-size:0.8rem;color:#15803d;">${legitimacy.reasons.slice(0, 2).map((r) => `✓ ${escapeHtml(r)}`).join(" · ")}</div>` : "");
+        ? (legitimacy.flags.length ? `<div class="incident-legitimacy-flags">${legitimacy.flags.map((f) => `<span>⚠ ${escapeHtml(f)}</span>`).join("")}</div>` : "")
+        : (legitimacy.reasons.length ? `<div class="incident-legitimacy-reasons">${legitimacy.reasons.slice(0, 2).map((r) => `<span>✓ ${escapeHtml(r)}</span>`).join("")}</div>` : "");
 
-    const rows = [
-        ["Incident code", escapeHtml(code)],
-        [
-            "Status",
-            `<span class="${statusBadgeClass(d.status)}">${escapeHtml(humanize(d.status))}</span>`,
-        ],
-        [
-            "Severity",
-            `<span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>`,
-        ],
-        [
-            "Legitimacy Rating",
-            `<div>${legitimacyBadge}${legitimacyDetails}</div>`,
-        ],
-        ["Type", escapeHtml(getIncidentTypeLabel(d))],
-        [
-            "Description",
-            `<div class="incident-detail__desc">${escapeHtml(d.description || "—")}</div>`,
-        ],
-        ["Reported", reportedAtDisplay(d)],
-        [
-            "Location",
-            lat != null && lng != null
-                ? `${escapeHtml(String(lat))}, ${escapeHtml(String(lng))}${
-                      mapsHref
-                          ? ` · <a class="incident-detail__link" href="${escapeAttr(mapsHref)}" target="_blank" rel="noopener noreferrer">Open map</a>`
-                          : ""
-                  }`
-                : "—",
-        ],
-        ["Address", escapeHtml(loc.address || "—")],
-        [
-            "Assigned Barangay",
-            (() => {
-                const resolvedBId = resolveIncidentBarangayId(d);
-                const bName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null) || d.location?.barangay || "—";
-                const dist = d.assignedBarangayDistanceKm != null ? ` (${d.assignedBarangayDistanceKm} km)` : "";
-                return `<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:#1e3a8a;background:#eff6ff;padding:2px 8px;border-radius:4px;border:1px solid #bfdbfe;">
-                    📍 ${escapeHtml(bName)}${escapeHtml(dist)}
-                </span>`;
-            })(),
-        ],
-        [
-            "Assigned Sub-station",
-            (() => {
-                const resolvedSId = resolveIncidentSubstationId(d);
-                const sName = d.substationName || (resolvedSId ? getSubstationNameById(resolvedSId) : null) || "—";
-                const hqFlag = d.assignedByHq ? " (HQ Assigned)" : "";
-                return `<span style="display:inline-flex;align-items:center;gap:4px;font-weight:600;color:#065f46;background:#ecfdf5;padding:2px 8px;border-radius:4px;border:1px solid #a7f3d0;">
-                    🚔 ${escapeHtml(sName)}${escapeHtml(hqFlag)}
-                </span>`;
-            })(),
-        ],
-        ["Reporter", escapeHtml(reporterSummary(d))],
-    ];
+    const resolvedBId = resolveIncidentBarangayId(d);
+    const bName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null) || d.location?.barangay || "—";
+    const bDist = d.assignedBarangayDistanceKm != null ? ` (${d.assignedBarangayDistanceKm} km)` : "";
 
-    if (d.status === "rejected" || d.rejectionReason) {
-        rows.push([
-            "Rejection Reason",
-            `<div style="color:#991b1b;font-weight:600;background:#fef2f2;padding:8px 12px;border-radius:6px;border:1px solid #fecaca;line-height:1.4;">
-                ${escapeHtml(d.rejectionReason || d.response?.message || "Report was rejected by administration.")}
-            </div>`,
-        ]);
-    }
+    const resolvedSId = resolveIncidentSubstationId(d);
+    const sName = d.substationName || (resolvedSId ? getSubstationNameById(resolvedSId) : null) || "—";
+    const hqFlag = d.assignedByHq ? " (HQ Assigned)" : "";
 
     const actionStatus = d.status || "under_review";
+
     return `<div class="incident-review-layout">
     <div class="incident-review-main">
-      <dl class="incident-detail">
-        ${rows
-            .map(
-                ([label, inner]) =>
-                    `<div class="incident-detail__row"><dt>${escapeHtml(label)}</dt><dd>${inner}</dd></div>`,
-            )
-            .join("")}
-      </dl>
+
+      <!-- CARD 1: Triage, Classification & Legitimacy -->
+      <section class="incident-card" aria-label="Incident Triage Information">
+        <header class="incident-card__header">
+          <div class="incident-card__header-left">
+            <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">verified_user</span>
+            <h4 class="incident-card__title">Incident Overview &amp; Verification</h4>
+          </div>
+          <span class="incident-code-pill">${escapeHtml(code)}</span>
+        </header>
+        <div class="incident-card__body">
+          <div class="incident-triage-grid">
+            <div class="incident-triage-item">
+              <span class="incident-triage-item__label">Classification</span>
+              <strong class="incident-triage-item__val">${escapeHtml(getIncidentTypeLabel(d))}</strong>
+            </div>
+            <div class="incident-triage-item">
+              <span class="incident-triage-item__label">Reported Time</span>
+              <span class="incident-triage-item__val">
+                <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+                ${reportedAtDisplay(d)}
+              </span>
+            </div>
+            <div class="incident-triage-item">
+              <span class="incident-triage-item__label">Reporter Source</span>
+              <span class="incident-triage-item__val">
+                <span class="material-symbols-outlined" aria-hidden="true">person</span>
+                ${escapeHtml(reporterSummary(d))}
+              </span>
+            </div>
+            <div class="incident-triage-item">
+              <span class="incident-triage-item__label">Initial Priority</span>
+              <div class="incident-triage-item__val">
+                <span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="incident-legitimacy-strip">
+            <div class="incident-legitimacy-strip__head">
+              <span class="material-symbols-outlined" aria-hidden="true">policy</span>
+              <span class="incident-legitimacy-strip__label">System Legitimacy Assessment</span>
+            </div>
+            <div class="incident-legitimacy-strip__body">
+              ${legitimacyBadge}
+              ${legitimacyDetails}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CARD 2: Narrative & Description -->
+      <section class="incident-card" aria-label="Incident Description">
+        <header class="incident-card__header">
+          <div class="incident-card__header-left">
+            <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">notes</span>
+            <h4 class="incident-card__title">Citizen Narrative</h4>
+          </div>
+        </header>
+        <div class="incident-card__body">
+          <div class="incident-narrative-box">
+            <p class="incident-narrative-text">${escapeHtml(d.description || "No written narrative provided with this incident submission.")}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CARD 3: Geolocation & Jurisdiction -->
+      <section class="incident-card" aria-label="Geolocation & Jurisdiction">
+        <header class="incident-card__header">
+          <div class="incident-card__header-left">
+            <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">location_on</span>
+            <h4 class="incident-card__title">Location &amp; Precinct Jurisdiction</h4>
+          </div>
+        </header>
+        <div class="incident-card__body">
+          <div class="incident-location-block">
+            <div class="incident-address-display">
+              <span class="material-symbols-outlined incident-address-icon" aria-hidden="true">home_pin</span>
+              <div class="incident-address-content">
+                <span class="incident-address-label">Reported Address / Landmark</span>
+                <p class="incident-address-text">${escapeHtml(loc.address || "Valenzuela City (Coordinates provided)")}</p>
+              </div>
+            </div>
+
+            <div class="incident-meta-pills">
+              ${
+                lat != null && lng != null
+                  ? `<div class="incident-coords-badge">
+                       <span class="material-symbols-outlined" aria-hidden="true">my_location</span>
+                       <span class="incident-coords-text">${escapeHtml(String(lat))}, ${escapeHtml(String(lng))}</span>
+                       ${
+                         mapsHref
+                           ? `<a class="incident-detail__link incident-map-link-btn" href="${escapeAttr(mapsHref)}" target="_blank" rel="noopener noreferrer">
+                                <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Focus Map
+                              </a>`
+                           : ""
+                       }
+                     </div>`
+                  : '<span class="incident-coords-badge">No GPS coordinates attached</span>'
+              }
+              <div class="incident-jurisdiction-pill incident-jurisdiction-pill--barangay">
+                <span aria-hidden="true">📍</span>
+                <span>Barangay ${escapeHtml(bName)}${escapeHtml(bDist)}</span>
+              </div>
+              <div class="incident-jurisdiction-pill incident-jurisdiction-pill--substation">
+                <span aria-hidden="true">🚔</span>
+                <span>Sub-station: ${escapeHtml(sName)}${escapeHtml(hqFlag)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rejection Notice (if rejected) -->
+      ${
+        d.status === "rejected" || d.rejectionReason
+          ? `<section class="incident-rejection-callout" aria-label="Rejection Notice">
+               <div class="incident-rejection-callout__header">
+                 <span class="material-symbols-outlined" aria-hidden="true">cancel</span>
+                 <h4 class="incident-rejection-callout__title">Case Rejected by Moderation</h4>
+               </div>
+               <p class="incident-rejection-callout__text">${escapeHtml(d.rejectionReason || d.response?.message || "Report was rejected by administration.")}</p>
+             </section>`
+          : ""
+      }
+
       ${buildPriorityPanel(d)}
       ${buildResponsePanel(d)}
     </div>
+
+    <!-- SIDEBAR: Evidence & Dispatch Moderation -->
     <aside class="incident-review-side">
       ${buildEvidenceReviewPanel(d)}
+
       <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
+        <div class="incident-actions__header">
+          <div class="incident-actions__header-title-group">
+            <span class="material-symbols-outlined incident-actions__header-icon" aria-hidden="true">local_police</span>
+            <h4 class="incident-actions__title">Dispatch &amp; Moderation</h4>
+          </div>
+          <span class="incident-actions__badge">Officer Controls</span>
+        </div>
+
         ${canRespondToIncident(d) ? buildResponderSelect(responderOptions) : ""}
+
         <div class="incident-actions__buttons">
           ${
-              canRespondToIncident(d)
-                  ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true">Respond</button>'
-                  : ""
+            canRespondToIncident(d)
+              ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true"><span class="material-symbols-outlined" aria-hidden="true">send</span><span>Dispatch Precinct</span></button>'
+              : ""
           }
-          <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">Under review</button>
-          <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">Verify</button>
-          <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">${actionStatus === "done" ? "Completed" : "Mark Done"}</button>
-          <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">Reject</button>
+          <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">
+            <span class="material-symbols-outlined" aria-hidden="true">pending_actions</span>
+            <span>Under review</span>
+          </button>
+          <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">
+            <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+            <span>Verify</span>
+          </button>
+          <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">
+            <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+            <span>${actionStatus === "done" ? "Completed" : "Mark Done"}</span>
+          </button>
+          <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">
+            <span class="material-symbols-outlined" aria-hidden="true">cancel</span>
+            <span>Reject</span>
+          </button>
         </div>
         <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
       </section>
@@ -544,6 +640,7 @@ export function initIncidentModal() {
         modal.hidden = true;
         modal.setAttribute("aria-hidden", "true");
         body.innerHTML = "";
+        if (titleEl) titleEl.textContent = "Incident details";
         document.body.style.overflow = "";
         currentIncidentId = null;
         currentData = null;
@@ -1037,7 +1134,19 @@ export function initIncidentModal() {
                 });
             }
             if (titleEl) {
-                titleEl.textContent = `Incident — ${humanize(d.type)}`;
+                const code = formatIncidentCode(snap.id);
+                titleEl.innerHTML = `
+                    <div class="incident-modal__header-bar">
+                        <div class="incident-modal__header-left">
+                            <span class="incident-modal__code-badge">${escapeHtml(code)}</span>
+                            <span class="incident-modal__type-name">${escapeHtml(getIncidentTypeLabel(d))}</span>
+                        </div>
+                        <div class="incident-modal__header-badges">
+                            <span class="${statusBadgeClass(d.status)}">${escapeHtml(humanize(d.status))}</span>
+                            <span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>
+                        </div>
+                    </div>
+                `;
             }
             body.innerHTML = renderIncidentDetail(snap.id, currentData);
             bindActionHandlers();
