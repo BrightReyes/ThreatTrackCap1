@@ -17,6 +17,7 @@ import { db } from '../utils/firebase';
 import { getReportEligibility } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates, watchLocation } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
+import QuickDescriptionChips from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
   {
@@ -590,6 +591,12 @@ const SOSReportScreen = ({ navigation, route }) => {
                 </View>
 
                 <Text style={styles.sectionTitle}>Quick details</Text>
+                <QuickDescriptionChips
+                  incidentType={incidentType}
+                  reportingAs={reportingAs}
+                  description={description}
+                  onDescriptionChange={setDescription}
+                />
                 <TextInput
                   style={styles.descriptionInput}
                   placeholder="Optional: add a short detail for responders..."

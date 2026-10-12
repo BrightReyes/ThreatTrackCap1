@@ -18,6 +18,7 @@ import { db } from '../utils/firebase';
 import { getReportEligibility } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
+import QuickDescriptionChips from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
   {
@@ -795,6 +796,12 @@ const ReportIncidentScreen = ({ navigation }) => {
                     {description.length}/{DESCRIPTION_MAX_LENGTH}
                   </Text>
                 </View>
+                <QuickDescriptionChips
+                  incidentType={incidentType}
+                  reportingAs={reportingAs}
+                  description={description}
+                  onDescriptionChange={setDescription}
+                />
                 <TextInput
                   style={styles.descriptionInput}
                   placeholder="Example: A person snatched a bag near the main road and ran toward..."
