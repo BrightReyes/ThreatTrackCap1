@@ -147,6 +147,22 @@ function norm(s) {
         .trim();
 }
 
+export function isUserVerified(d) {
+    if (!d) return false;
+    return Boolean(
+        d.isVerified === true ||
+        d.emailVerified === true ||
+        String(d.verificationStatus || "").toLowerCase() === "approved",
+    );
+}
+
+export function verifiedBadgeHtml(isVerified) {
+    if (isVerified) {
+        return `<span class="users-verified-badge users-verified-badge--yes" title="Verified Gmail (Can send reports)"><span class="material-symbols-outlined" aria-hidden="true">verified</span>Verified</span>`;
+    }
+    return `<span class="users-verified-badge users-verified-badge--no" title="Unverified Gmail"><span class="material-symbols-outlined" aria-hidden="true">pending</span>Unverified</span>`;
+}
+
 function buildRow(docSnap, index) {
     const id = docSnap.id;
     const d = docSnap.data();
@@ -164,12 +180,18 @@ function buildRow(docSnap, index) {
     const roleLabel = `${baseRole}${assignedLocation}`;
     const joined = formatJoined(d);
     const status = userStatus(d);
+    const isVerified = isUserVerified(d);
+    const isCitizen = normalizeRole(d.role) === "user";
+    const verifiedCell = isCitizen
+        ? verifiedBadgeHtml(isVerified)
+        : '<span style="color: #94a3b8; font-weight: 500;">—</span>';
 
     return `<tr data-user-id="${escapeAttr(id)}">
     <td class="users-table__index">${index + 1}</td>
     <td class="users-table__name">${escapeHtml(name)}</td>
     <td class="incidents-table__desc" title="${escapeAttr(email)}">${escapeHtml(email)}</td>
     <td><span class="${roleBadgeClass(d.role)}">${escapeHtml(roleLabel)}</span></td>
+    <td>${verifiedCell}</td>
     <td>${escapeHtml(joined)}</td>
     <td><span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span></td>
     <td>
@@ -287,14 +309,14 @@ function renderFilteredTable() {
 
     if (!allDocs.length) {
         tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="7">No users yet.</td></tr>';
+            '<tr class="incidents-table__empty"><td colspan="8">No users yet.</td></tr>';
         if (meta) meta.textContent = "0 users";
         return;
     }
 
     if (!filtered.length) {
         tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="7">No users match your search or filter.</td></tr>';
+            '<tr class="incidents-table__empty"><td colspan="8">No users match your search or filter.</td></tr>';
         if (meta) {
             meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
         }
@@ -562,12 +584,15 @@ function bindAddUserModal() {
     const barangayWrap = form.querySelector("#user-add-barangay-wrap");
     const substationWrap = form.querySelector("#user-add-substation-wrap");
     const headPoliceNote = form.querySelector("#user-add-head-police-note");
+    const citizenNote = form.querySelector("#user-add-citizen-note");
 
     const syncRoleVisibility = () => {
-        const r = normalizeRole(roleSelect?.value || "user");
+        const rawRole = roleSelect?.value || "";
+        const r = rawRole ? normalizeRole(rawRole) : "";
         if (barangayWrap) barangayWrap.style.display = r === "admin" ? "block" : "none";
         if (substationWrap) substationWrap.style.display = r === "police" ? "block" : "none";
         if (headPoliceNote) headPoliceNote.style.display = r === "head_police" ? "block" : "none";
+        if (citizenNote) citizenNote.style.display = r === "user" ? "block" : "none";
     };
 
     roleSelect?.addEventListener("change", syncRoleVisibility);
@@ -593,7 +618,12 @@ function bindAddUserModal() {
         const email = String(form.elements.email?.value || "")
             .trim()
             .toLowerCase();
-        const role = normalizeRole(form.elements.role?.value || "user");
+        const rawRole = form.elements.role?.value || "";
+        if (!rawRole) {
+            if (feedback) feedback.textContent = "Please choose a role from the dropdown.";
+            return;
+        }
+        const role = normalizeRole(rawRole);
         const status = String(
             form.elements.status?.value || "active",
         ).toLowerCase();
@@ -629,10 +659,14 @@ function bindAddUserModal() {
             status: EDIT_STATUSES_FOR_CREATE.includes(status)
                 ? status
                 : "active",
+            accountStatus: status === "active" ? "active" : "inactive",
             disabled: status === "inactive",
             suspended: status === "suspended",
             createdAt: serverTimestamp(),
             createdByAdmin: true,
+            isVerified: true,
+            emailVerified: true,
+            verificationStatus: "approved",
             ...(role === "admin" && barangayId
                 ? {
                       barangayId,
@@ -790,7 +824,7 @@ export async function loadUsersTable() {
     if (!tbody) return;
 
     tbody.innerHTML =
-        '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
+        '<tr class="incidents-table__empty"><td colspan="8">Loading…</td></tr>';
     if (meta) meta.textContent = "Loading…";
 
     const snap = await fetchUsersQuery();

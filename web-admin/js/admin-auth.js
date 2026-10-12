@@ -21,11 +21,33 @@ const ADMIN_BARANGAY_NAME_CACHE_KEY = "tt_admin_barangay_name";
 const ADMIN_SUBSTATION_ID_CACHE_KEY = "tt_admin_substation_id";
 const ADMIN_SUBSTATION_NAME_CACHE_KEY = "tt_admin_substation_name";
 const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
+const ADMIN_PROFILE_CACHE_KEY = "tt_admin_profile";
+
+export function getCachedAdminProfile(uid) {
+    try {
+        const raw = sessionStorage.getItem(ADMIN_PROFILE_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && (!uid || parsed.id === uid)) return parsed;
+    } catch {}
+    return null;
+}
+
+export function cacheAdminProfile(profile) {
+    try {
+        if (!profile) {
+            sessionStorage.removeItem(ADMIN_PROFILE_CACHE_KEY);
+        } else {
+            sessionStorage.setItem(ADMIN_PROFILE_CACHE_KEY, JSON.stringify(profile));
+        }
+    } catch {}
+}
 const ADMIN_SESSION_STORAGE_PREFIXES = ["tt_hotspot_ai_plan:"];
 const UNAUTHORIZED_ADMIN_MESSAGE =
     "Unauthorized admin access. Please sign in with an approved admin account.";
 
 function clearAdminSessionCaches() {
+    cacheAdminProfile(null);
     try {
         Object.keys(sessionStorage)
             .filter((key) =>
@@ -39,24 +61,24 @@ function clearAdminSessionCaches() {
     }
 }
 
-function applyCachedAdminRole() {
+export function applyCachedAdminRole() {
     const role = normalizeAdminRole(localStorage.getItem(ADMIN_ROLE_CACHE_KEY));
     document.documentElement.classList.toggle(
         "admin-role-police",
-        role === "police",
+        isPoliceAdminRole(role),
     );
 }
 
-function cacheAdminRole(role) {
+export function cacheAdminRole(role) {
     const normalized = normalizeAdminRole(role);
-    if (normalized) {
+    if (normalized && isAllowedAdminRole(normalized)) {
         localStorage.setItem(ADMIN_ROLE_CACHE_KEY, normalized);
     } else {
         localStorage.removeItem(ADMIN_ROLE_CACHE_KEY);
     }
     document.documentElement.classList.toggle(
         "admin-role-police",
-        normalized === "police",
+        isPoliceAdminRole(normalized),
     );
 }
 
@@ -65,14 +87,17 @@ export function normalizeAdminRole(role) {
         .trim()
         .toLowerCase()
         .replace(/[\s-]+/g, "_");
-    if (["head_police", "hq_police", "police_chief", "head_admin"].includes(value)) {
+    if (["head_police", "head_police_admin", "police_chief", "head_admin", "hq_police"].includes(value)) {
         return "head_police";
-    }
-    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
-        return "admin";
     }
     if (["police", "police_admin", "substation_police", "substation"].includes(value)) {
         return "police";
+    }
+    if (["admin", "barangay_admin", "barangay", "moderator"].includes(value)) {
+        return "admin";
+    }
+    if (["user", "citizen", "resident"].includes(value)) {
+        return "user";
     }
     return value;
 }
@@ -88,6 +113,10 @@ export function isSubstationPoliceAdminRole(role) {
 export function isPoliceAdminRole(role) {
     const r = normalizeAdminRole(role);
     return r === "police" || r === "head_police";
+}
+
+export function isBarangayAdminRole(role) {
+    return normalizeAdminRole(role) === "admin";
 }
 
 export function isAllowedAdminRole(role) {
@@ -358,53 +387,72 @@ export function cacheAdminJurisdiction(profile) {
     }
 }
 
-function humanizeAdminRole(role) {
+export function humanizeAdminRole(role) {
     const normalized = normalizeAdminRole(role);
-    if (normalized === "admin") return "Barangay Admin";
+    if (normalized === "head_police") return "Head Police Admin";
     if (normalized === "police") return "Police Admin";
+    if (normalized === "admin") return "Barangay Admin";
     if (normalized === "user") return "User";
     return "Admin";
 }
 
+export function resolveAdminProfileData(uid, data = {}, email = "") {
+    let bId = data.barangayId || data.assignedBarangayId || null;
+    if (!bId && data.assignedBarangay) bId = String(data.assignedBarangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (!bId && data.barangayName) bId = String(data.barangayName).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (!bId && data.barangay) bId = String(data.barangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (bId && bId.includes("mapulang")) bId = "mapulang_lupa";
+    if (bId && bId.includes("balangkas")) bId = "balangkas";
+
+    // Fallback: Infer jurisdiction from email address if unpopulated
+    const emailLower = String(email || data.email || "").toLowerCase();
+    if (!bId) {
+        if (emailLower.includes("mapulang")) bId = "mapulang_lupa";
+        else if (emailLower.includes("balangkas")) bId = "balangkas";
+    }
+    const bName = data.assignedBarangay || data.barangayName || (bId ? getBarangayNameById(bId) : null);
+
+    let sId = data.substationId || data.assignedSubstationId || null;
+    if (!sId && data.assignedSubstation) sId = String(data.assignedSubstation).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (!sId && data.substationName) sId = String(data.substationName).trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (sId && sId.includes("mapulang")) sId = "mapulang_lupa_substation";
+    if (sId && sId.includes("balangkas")) sId = "balangkas_substation";
+    const sName = data.substationName || (sId ? getSubstationNameById(sId) : null);
+
+    return {
+        id: uid,
+        ...data,
+        email: email || data.email || "",
+        role: normalizeAdminRole(data.role),
+        barangayId: bId,
+        assignedBarangay: bName,
+        barangayName: bName,
+        substationId: sId,
+        assignedSubstation: sName,
+        substationName: sName,
+    };
+}
+
 async function loadAdminProfile(user) {
     if (!user?.uid) return null;
+    const cached = getCachedAdminProfile(user.uid);
+    if (cached) {
+        // Silently refresh in background without stalling page navigation
+        getDoc(doc(db, "users", user.uid)).then((snap) => {
+            if (snap.exists()) {
+                const fresh = resolveAdminProfileData(user.uid, snap.data() || {}, user.email);
+                cacheAdminProfile(fresh);
+                cacheAdminJurisdiction(fresh);
+            }
+        }).catch(() => {});
+        return cached;
+    }
     try {
         const snap = await getDoc(doc(db, "users", user.uid));
         const data = snap.exists() ? (snap.data() || {}) : {};
-
-        let bId = data.barangayId || data.assignedBarangayId || null;
-        if (!bId && data.assignedBarangay) bId = String(data.assignedBarangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
-        if (!bId && data.barangayName) bId = String(data.barangayName).trim().toLowerCase().replace(/[\s-]+/g, "_");
-        if (!bId && data.barangay) bId = String(data.barangay).trim().toLowerCase().replace(/[\s-]+/g, "_");
-        if (bId && bId.includes("mapulang")) bId = "mapulang_lupa";
-        if (bId && bId.includes("balangkas")) bId = "balangkas";
-
-        // Fallback: Infer jurisdiction from email address if unpopulated
-        const emailLower = String(user.email || data.email || "").toLowerCase();
-        if (!bId) {
-            if (emailLower.includes("mapulang")) bId = "mapulang_lupa";
-            else if (emailLower.includes("balangkas")) bId = "balangkas";
-        }
-        const bName = data.assignedBarangay || data.barangayName || (bId ? getBarangayNameById(bId) : null);
-
-        let sId = data.substationId || data.assignedSubstationId || null;
-        if (!sId && data.assignedSubstation) sId = String(data.assignedSubstation).trim().toLowerCase().replace(/[\s-]+/g, "_");
-        if (!sId && data.substationName) sId = String(data.substationName).trim().toLowerCase().replace(/[\s-]+/g, "_");
-        if (sId && sId.includes("mapulang")) sId = "mapulang_lupa_substation";
-        if (sId && sId.includes("balangkas")) sId = "balangkas_substation";
-        const sName = data.substationName || (sId ? getSubstationNameById(sId) : null);
-
-        return {
-            id: user.uid,
-            ...data,
-            role: normalizeAdminRole(data.role),
-            barangayId: bId,
-            assignedBarangay: bName,
-            barangayName: bName,
-            substationId: sId,
-            assignedSubstation: sName,
-            substationName: sName,
-        };
+        const profile = resolveAdminProfileData(user.uid, data, user.email);
+        cacheAdminProfile(profile);
+        return profile;
     } catch (err) {
         console.warn("[admin-auth] profile load failed", err);
         return null;
@@ -433,13 +481,18 @@ function applyRoleNavigation(profile) {
     cacheAdminJurisdiction(profile);
 
     const operationHref = "operation.html";
-    let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
     const canUseOperations = isPoliceAdminRole(profile?.role);
 
     if (!canUseOperations) {
-        operationLink?.remove();
+        nav.querySelectorAll('.sidebar__link[href*="operation"], [data-role-nav="police"]').forEach((link) => {
+            link.remove();
+        });
+        document.documentElement.classList.remove("admin-role-police");
         return;
     }
+
+    document.documentElement.classList.add("admin-role-police");
+    let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
 
     if (!operationLink) {
         operationLink = document.createElement("a");
@@ -516,6 +569,32 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
     let timeoutId = null;
     let lastActivity = Date.now();
     let timeoutMs = null;
+
+    // --- ZERO-LATENCY FAST PATH FOR TAB NAVIGATION ---
+    // If user already holds an approved admin session in this browser,
+    // render the page shell, sidebar, and clock instantly without waiting for network!
+    const cachedRole = getCurrentAdminRole();
+    const cachedProfile = getCachedAdminProfile();
+    const isAllowed = isAllowedAdminRole(cachedRole);
+
+    if (isAllowed) {
+        if (requirePolice && !isPoliceAdminRole(cachedRole)) {
+            window.location.replace("dashboard.html");
+            return;
+        }
+        if (cachedProfile) {
+            applySidebarRoleLabel(cachedProfile);
+            applyRoleNavigation(cachedProfile);
+            if (userEmail && cachedProfile.email) {
+                userEmail.textContent = cachedProfile.email;
+                userEmail.title = cachedProfile.email;
+            }
+        }
+        applyCachedSidebarSystemName();
+        initSidebarToggle();
+        if (page) page.hidden = false;
+        startAdminClock();
+    }
 
     async function loadSessionTimeoutMs() {
         try {
@@ -618,8 +697,9 @@ export function initAdminPage({ pageId, requirePolice = false, onReady }) {
         }
         // Apply cached system name immediately
         applyCachedSidebarSystemName();
-        // Load latest from Firestore
-        await refreshSidebarSystemName();
+        // Load latest from Firestore in background without blocking
+        // eslint-disable-next-line no-void
+        void refreshSidebarSystemName();
         initSidebarToggle();
         if (page) page.hidden = false;
         // eslint-disable-next-line no-void

@@ -64,6 +64,10 @@ body {
     font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+.admin-dashboard[hidden] {
+    display: none !important;
+}
+
 .admin-dashboard__sidebar {
     width: 260px;
     max-width: 260px;
@@ -375,8 +379,8 @@ body {
 }
 
 html:not(.admin-role-police)
-    .sidebar__link[data-role-nav="police"]:not(.sidebar__link--role-visible) {
-    display: none;
+    .sidebar__link[data-role-nav="police"] {
+    display: none !important;
 }
 
 .sidebar__link span:not(.sidebar__icon) {

@@ -14,7 +14,8 @@
                     "sidebar-collapsed-initial",
                 );
             }
-            if (localStorage.getItem("tt_admin_role") === "police") {
+            const cachedRole = localStorage.getItem("tt_admin_role");
+            if (cachedRole === "police" || cachedRole === "head_police") {
                 document.documentElement.classList.add("admin-role-police");
             }
         </script>
@@ -294,6 +295,7 @@
                                         <th scope="col">Name</th>
                                         <th scope="col">Email address</th>
                                         <th scope="col">Role</th>
+                                        <th scope="col">Verified</th>
                                         <th scope="col">Date</th>
                                         <th scope="col">Status</th>
                                         <th
@@ -304,7 +306,7 @@
                                 </thead>
                                 <tbody id="users-tbody">
                                     <tr class="incidents-table__empty">
-                                        <td colspan="7">Loading…</td>
+                                        <td colspan="8">Loading…</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -471,16 +473,20 @@
                                         name="role"
                                         class="incidents-select"
                                     >
-                                        <option value="user">User</option>
-                                        <option value="admin">
-                                            Barangay Admin
-                                        </option>
-                                        <option value="police">
-                                            Police Admin (Substation)
-                                        </option>
-                                        <option value="head_police">
-                                            Head Police Admin (HQ)
-                                        </option>
+                                        <option value="" disabled selected>Choose role / access level...</option>
+                                        <option value="admin">Barangay Admin (Web Admin)</option>
+                                        <option value="police">Police Admin — Substation (Web Admin)</option>
+                                        <option value="head_police">Head Police Admin — HQ Central Command (Web Admin)</option>
+                                        <option value="user">Citizen (Mobile App Only — No Web Admin)</option>
+
+
+
+
+
+
+
+
+
                                     </select>
                                 </div>
                                 <div class="user-modal-form__field">
@@ -556,6 +562,15 @@
                                 >
                                     <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4;">
                                         <strong>🏢 Central Command (City-wide):</strong> Head Police Admin maintains macro oversight across all substations, can assign/reassign incidents, and receives SOS alerts.
+                                    </div>
+                                </div>
+                                <div
+                                    class="user-modal-form__field user-modal-form__field--full"
+                                    id="user-add-citizen-note"
+                                    style="margin-top: 10px; display: none;"
+                                >
+                                    <div style="background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4;">
+                                        <strong>📱 Citizen Account (Mobile App):</strong> This user can only log in to the ThreatTrack Mobile application to view incidents and submit reports. They cannot access the Web Admin portal.
                                     </div>
                                 </div>
                             </div>

@@ -118,6 +118,7 @@
 
 .admin-dashboard .incidents-badge,
 .admin-dashboard .users-status,
+.admin-dashboard .users-verified-badge,
 .admin-dashboard .analytics-priority-pill,
 .admin-dashboard .notification-pill {
     font-size: 0.88rem;

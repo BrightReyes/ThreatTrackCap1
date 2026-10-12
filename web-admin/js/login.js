@@ -9,6 +9,13 @@ import { handleLogin } from "../../shared/auth.js";
 import Swal from "sweetalert2";
 import { toastError, toastSuccess } from "./alerts.js";
 import { logAudit } from "./audit.js";
+import {
+    normalizeAdminRole,
+    isAllowedAdminRole,
+    cacheAdminRole,
+    cacheAdminJurisdiction,
+    cacheAdminProfile,
+} from "./admin-auth.js";
 
 const pageLogin = document.getElementById("page-login");
 const loginForm = document.getElementById("login-form");
@@ -17,61 +24,63 @@ const loginSubmit = document.getElementById("login-submit");
 const forgotPassword = document.getElementById("forgot-password");
 
 const LOCK_KEY = "tt_admin_login_lock";
-const ADMIN_ROLE_CACHE_KEY = "tt_admin_role";
 const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
 const UNAUTHORIZED_ADMIN_MESSAGE =
     "Unauthorized admin access. Please sign in with an approved admin account.";
 
-function normalizeAdminRole(role) {
-    const value = String(role || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[\s-]+/g, "_");
-    if (["moderator", "barangay", "barangay_admin"].includes(value)) {
-        return "admin";
-    }
-    if (value === "police_admin") return "police";
-    return value;
-}
-
-function isAllowedAdminRole(role) {
-    return ["admin", "police"].includes(normalizeAdminRole(role));
-}
-
-function cacheAdminRole(role) {
-    const normalized = normalizeAdminRole(role);
-    if (isAllowedAdminRole(normalized)) {
-        localStorage.setItem(ADMIN_ROLE_CACHE_KEY, normalized);
-    } else {
-        localStorage.removeItem(ADMIN_ROLE_CACHE_KEY);
-    }
-    document.documentElement.classList.toggle(
-        "admin-role-police",
-        normalized === "police",
-    );
-}
+let isSubmitting = false;
 
 async function loadLoginAdminProfile(user) {
     if (!user?.uid) return null;
     const snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists()) return null;
+    const data = snap.data() || {};
     return {
         id: snap.id,
-        ...snap.data(),
-        role: normalizeAdminRole(snap.data()?.role),
+        ...data,
+        role: normalizeAdminRole(data.role),
     };
 }
 
 async function requireAdminLogin(user) {
     try {
         const profile = await loadLoginAdminProfile(user);
-        if (!isAllowedAdminRole(profile?.role)) {
+        if (!profile) {
+            throw new Error(
+                "No administrator profile found for this account in Firestore.",
+            );
+        }
+
+        const normalizedRole = normalizeAdminRole(profile.role);
+        if (normalizedRole === "user") {
+            throw new Error(
+                "This account has the Citizen role for the ThreatTrack Mobile app and cannot access the Web Admin portal. To grant admin access, change this user's role to an Admin in User Management.",
+            );
+        }
+
+        if (
+            profile.status &&
+            ["inactive", "suspended", "disabled", "banned"].includes(
+                String(profile.status).toLowerCase(),
+            )
+        ) {
+            throw new Error(
+                "This administrator account has been deactivated or suspended.",
+            );
+        }
+
+        if (!isAllowedAdminRole(normalizedRole)) {
             throw new Error(UNAUTHORIZED_ADMIN_MESSAGE);
         }
-        cacheAdminRole(profile.role);
+
+        cacheAdminRole(normalizedRole);
+        cacheAdminJurisdiction(profile);
+        cacheAdminProfile(profile);
         return profile;
     } catch (err) {
         cacheAdminRole(null);
+        cacheAdminJurisdiction(null);
+        cacheAdminProfile(null);
         try {
             await signOut(auth);
         } catch (signOutErr) {
@@ -144,6 +153,9 @@ function getLoginErrorMessage(err) {
 }
 
 onAuthStateChanged(auth, async (user) => {
+    // If the login form is actively submitting, avoid parallel duplicate checks
+    if (isSubmitting) return;
+
     if (user) {
         try {
             await requireAdminLogin(user);
@@ -157,6 +169,7 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     cacheAdminRole(null);
+    cacheAdminJurisdiction(null);
     pageLogin.hidden = false;
     showPendingAuthNotice();
 });
@@ -177,6 +190,7 @@ loginForm.addEventListener("submit", async (e) => {
         return;
     }
 
+    isSubmitting = true;
     loginSubmit.disabled = true;
     loginSubmit.innerHTML = `<span class="btn-loader"></span>`;
     try {
@@ -189,6 +203,7 @@ loginForm.addEventListener("submit", async (e) => {
         void logAudit("auth.login", { email });
         window.location.replace("dashboard.html");
     } catch (err) {
+        isSubmitting = false;
         const msg = getLoginErrorMessage(err);
         console.warn("[login] sign-in failed", {
             code: err?.code || "(no code)",

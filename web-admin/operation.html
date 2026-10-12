@@ -9,14 +9,21 @@
             rel="stylesheet"
         />
         <script>
-            if (localStorage.getItem("sidebar-collapsed") === "true") {
-                document.documentElement.classList.add(
-                    "sidebar-collapsed-initial",
-                );
-            }
-            if (localStorage.getItem("tt_admin_role") === "police") {
-                document.documentElement.classList.add("admin-role-police");
-            }
+            (function () {
+                if (localStorage.getItem("sidebar-collapsed") === "true") {
+                    document.documentElement.classList.add(
+                        "sidebar-collapsed-initial",
+                    );
+                }
+                const role = String(localStorage.getItem("tt_admin_role") || "").trim().toLowerCase();
+                if (role === "admin" || role === "user") {
+                    window.location.replace("dashboard.html");
+                    return;
+                }
+                if (role === "police" || role === "head_police") {
+                    document.documentElement.classList.add("admin-role-police");
+                }
+            })();
         </script>
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />

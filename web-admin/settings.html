@@ -14,7 +14,8 @@
                     "sidebar-collapsed-initial",
                 );
             }
-            if (localStorage.getItem("tt_admin_role") === "police") {
+            const cachedRole = localStorage.getItem("tt_admin_role");
+            if (cachedRole === "police" || cachedRole === "head_police") {
                 document.documentElement.classList.add("admin-role-police");
             }
         </script>

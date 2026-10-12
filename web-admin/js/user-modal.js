@@ -4,6 +4,7 @@ import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import { COVERED_BARANGAYS, getBarangayNameById } from "../../shared/barangays.js";
 import { COVERED_SUBSTATIONS, getSubstationNameById } from "../../shared/substations.js";
+import { isUserVerified, verifiedBadgeHtml } from "./users-list.js";
 
 const EDIT_ROLES = ["user", "admin", "police", "head_police"];
 const EDIT_STATUSES = ["active", "inactive", "suspended"];
@@ -91,6 +92,8 @@ function humanizeRole(role) {
     const normalized = normalizeRole(role);
     if (normalized === "admin") return "Barangay Admin";
     if (normalized === "police") return "Police Admin";
+    if (normalized === "head_police") return "Head Police Admin";
+    if (normalized === "user") return "User";
     return String(normalized)
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -99,7 +102,7 @@ function humanizeRole(role) {
 function roleBadgeClass(role) {
     const r = normalizeRole(role);
     if (r === "admin") return "incidents-badge incidents-badge--role-admin";
-    if (r === "police") return "incidents-badge incidents-badge--role-police";
+    if (r === "police" || r === "head_police") return "incidents-badge incidents-badge--role-police";
     return "incidents-badge incidents-badge--role-user";
 }
 
@@ -108,16 +111,26 @@ function normalizeRole(role) {
         .trim()
         .toLowerCase()
         .replace(/[\s-]+/g, "_");
+    if (["head_police", "head_police_admin", "police_chief", "head_admin", "hq_police"].includes(value)) {
+        return "head_police";
+    }
+    if (["police", "police_admin", "substation_police", "substation"].includes(value)) {
+        return "police";
+    }
     if (["moderator", "barangay", "barangay_admin"].includes(value)) {
         return "admin";
     }
-    if (value === "police_admin") return "police";
+    if (["user", "citizen", "resident"].includes(value)) {
+        return "user";
+    }
     return value;
 }
 
 function renderUserDetail(userId, d) {
     const name = displayName(d);
     const status = userStatus(d);
+    const verified = isUserVerified(d);
+    const isCitizen = normalizeRole(d.role) === "user";
     const contact = d.phone || d.phoneNumber || d.contactNumber || "—";
     const joined = formatDate(d.createdAt);
     const updated = formatTimestamp(d.updatedAt || d.lastUpdatedAt);
@@ -134,6 +147,7 @@ function renderUserDetail(userId, d) {
         <div class="user-profile__badges">
           <span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>
           <span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>
+          ${isCitizen ? verifiedBadgeHtml(verified) : ""}
         </div>
       </div>
     </div>
@@ -162,6 +176,7 @@ function renderUserDetail(userId, d) {
       <dl class="user-profile__details">
         <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
         <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
+        ${isCitizen ? `<div><dt>Gmail Verification</dt><dd>${verified ? "✅ Verified Gmail (Can submit incident reports)" : "⏳ Unverified Gmail (Pending verification)"}</dd></div>` : ""}
         ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd>📍 ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
         ${d.role === "police" || d.substationId ? `<div><dt>Assigned Substation</dt><dd>🚔 ${escapeHtml(getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned")}</dd></div>` : ""}
         ${d.role === "head_police" ? `<div><dt>Jurisdiction</dt><dd>🏢 Central Command (City-wide Oversight)</dd></div>` : ""}
@@ -186,6 +201,7 @@ function renderUserDetail(userId, d) {
 function renderUserEditForm(userId, d) {
     const cur = normalizeRole(d.role);
     const curStatus = userStatus(d);
+    const verified = isUserVerified(d);
     const name = displayName(d);
     const roleOptions = EDIT_ROLES.map((r) => {
         const sel = r === cur ? " selected" : "";
@@ -225,7 +241,7 @@ function renderUserEditForm(userId, d) {
     <section class="user-edit-card">
       <div class="user-edit-card__head">
         <h4>Access</h4>
-        <p>Control the account role and moderation status.</p>
+        <p>Control the account role, verification, and moderation status.</p>
       </div>
       <div class="user-modal-form__grid">
         <div class="user-modal-form__field">
@@ -239,6 +255,20 @@ function renderUserEditForm(userId, d) {
           <div class="user-modal-form__select-wrap">
             <select id="user-edit-status" name="status" class="incidents-select" aria-label="User status">${statusOptions}</select>
           </div>
+        </div>
+      </div>
+      <div class="user-modal-form__grid" id="user-edit-verified-grid" style="${cur === "user" ? "margin-top: 10px;" : "display:none;margin-top: 10px;"}">
+        <div class="user-modal-form__field user-modal-form__field--full">
+          <label class="user-modal-form__label" for="user-edit-verified">Gmail Verification (Report Eligibility)</label>
+          <div class="user-modal-form__select-wrap">
+            <select id="user-edit-verified" name="isVerified" class="incidents-select" aria-label="Verification status">
+              <option value="true"${verified ? " selected" : ""}>Verified — Eligible to send reports</option>
+              <option value="false"${!verified ? " selected" : ""}>Unverified — Pending verification</option>
+            </select>
+          </div>
+          <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
+            Verified accounts can automatically submit incident reports.
+          </small>
         </div>
       </div>
       <div class="user-modal-form__grid" id="user-edit-barangay-grid" style="${cur === "admin" ? "margin-top:10px;" : "display:none;margin-top:10px;"}">
@@ -309,7 +339,7 @@ function renderUserEditForm(userId, d) {
 
 function patchUsersTableRow(userId, d) {
     const row = document.querySelector(`tr[data-user-id="${CSS.escape(userId)}"]`);
-    if (!row || row.children.length < 6) return;
+    if (!row || row.children.length < 7) return;
     const email = d.email || "—";
     const name = displayName(d);
     const baseRole = humanizeRole(d.role);
@@ -323,6 +353,8 @@ function patchUsersTableRow(userId, d) {
             : "";
     const roleLabel = `${baseRole}${assignedLocation}`;
     const badge = roleBadgeClass(d.role);
+    const isVerified = isUserVerified(d);
+    const isCitizen = normalizeRole(d.role) === "user";
     const joined = formatTimestamp(d.createdAt);
     const status = userStatus(d);
     const c1 = row.children[1];
@@ -330,6 +362,7 @@ function patchUsersTableRow(userId, d) {
     const c3 = row.children[3];
     const c4 = row.children[4];
     const c5 = row.children[5];
+    const c6 = row.children[6];
     if (c1) c1.textContent = name;
     if (c2) {
         c2.textContent = email;
@@ -338,7 +371,11 @@ function patchUsersTableRow(userId, d) {
     }
     if (c3)
         c3.innerHTML = `<span class="${badge}">${escapeHtml(roleLabel)}</span>`;
-    if (c4) {
+    if (c4)
+        c4.innerHTML = isCitizen
+            ? verifiedBadgeHtml(isVerified)
+            : '<span style="color: #94a3b8; font-weight: 500;">—</span>';
+    if (c5) {
         const short =
             d.createdAt && typeof d.createdAt.toDate === "function"
                 ? (() => {
@@ -351,10 +388,10 @@ function patchUsersTableRow(userId, d) {
                       }
                   })()
                 : joined;
-        c4.textContent = short;
+        c5.textContent = short;
     }
-    if (c5)
-        c5.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>`;
+    if (c6)
+        c6.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>`;
 }
 
 export function initUserModal() {
@@ -450,12 +487,14 @@ export function initUserModal() {
         const saveBtn = body.querySelector('[data-user-action="save-profile"]');
 
         const roleEl = body.querySelector("#user-edit-role");
+        const verifiedGrid = body.querySelector("#user-edit-verified-grid");
         const barangayGrid = body.querySelector("#user-edit-barangay-grid");
         const substationGrid = body.querySelector("#user-edit-substation-grid");
         const headPoliceNote = body.querySelector("#user-edit-head-police-note");
 
         const syncEditRoleVisibility = () => {
             const r = normalizeRole(roleEl?.value ?? "user");
+            if (verifiedGrid) verifiedGrid.style.display = r === "user" ? "" : "none";
             if (barangayGrid) barangayGrid.style.display = r === "admin" ? "" : "none";
             if (substationGrid) substationGrid.style.display = r === "police" ? "" : "none";
             if (headPoliceNote) headPoliceNote.style.display = r === "head_police" ? "" : "none";
@@ -489,6 +528,8 @@ export function initUserModal() {
             const substationEl = body.querySelector("#user-edit-substation");
             const substationId = String(substationEl?.value ?? "").trim();
             const substationName = substationId ? getSubstationNameById(substationId) : null;
+            const verifiedEl = body.querySelector("#user-edit-verified");
+            const isVerifiedVal = verifiedEl ? verifiedEl.value === "true" : isUserVerified(currentData);
 
             if (feedback) feedback.textContent = "Saving…";
             saveBtn && (saveBtn.disabled = true);
@@ -503,6 +544,9 @@ export function initUserModal() {
                 status,
                 disabled: status === "inactive",
                 suspended: status === "suspended",
+                isVerified: isVerifiedVal,
+                emailVerified: isVerifiedVal,
+                verificationStatus: isVerifiedVal ? "approved" : "unverified",
             };
 
             if (role === "admin" && barangayId) {
