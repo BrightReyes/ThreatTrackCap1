@@ -256,47 +256,55 @@ function buildResponderOptionsPanel(options = []) {
   </section>`;
 }
 
-function buildResponderSelect(options = null) {
+function buildResponderSelect(options = null, currentData = null) {
     if (options === null) {
         return `<label class="incident-responder-select">
-      <span class="incident-responder-select__label">Responder precinct</span>
+      <span class="incident-responder-select__label">Assign Police Sub-station</span>
       <div class="incident-responder-select__wrap">
         <select id="incident-responder-select" disabled>
-          <option>Loading nearest precincts...</option>
+          <option>Loading nearest police substations...</option>
         </select>
       </div>
-      <small>Choices use the same precinct list as the map locator.</small>
+      <small>Balangkas & Mapulang Lupa substations cover city sectors.</small>
     </label>`;
     }
 
     if (!options.length) {
         return `<label class="incident-responder-select">
-      <span class="incident-responder-select__label">Responder precinct</span>
+      <span class="incident-responder-select__label">Assign Police Sub-station</span>
       <div class="incident-responder-select__wrap">
         <select id="incident-responder-select" disabled>
-          <option>No precinct options available</option>
+          <option>No substation options available</option>
         </select>
       </div>
-      <small>Check the incident location and precinct records before responding.</small>
+      <small>Check the incident location and substation records before responding.</small>
     </label>`;
     }
 
+    const assignedId = String(
+        currentData?.assignedSubstationId ||
+        currentData?.substationId ||
+        ""
+    ).toLowerCase();
+
     const optionHtml = [
-        '<option value="">Choose precinct...</option>',
+        '<option value="">Choose police sub-station...</option>',
         ...options.map((option, index) => {
-            const prefix = index === 0 ? "Nearest" : `Option ${index + 1}`;
+            const prefix = option.isSubstation ? "🚔 Sub-station" : (index === 0 ? "Nearest" : `Option ${index + 1}`);
             const distance = formatDistanceKm(option.distanceKm);
             const eta = formatEtaMinutes(option.etaMinutes, option.trafficLevel);
-            return `<option value="${escapeAttr(option.precinctId)}">${escapeHtml(`${prefix}: ${getPrecinctDisplayName(option)} - ${distance} / ${eta}`)}</option>`;
+            const optId = String(option.precinctId || option.substationId || "").toLowerCase();
+            const isSelected = assignedId && (optId === assignedId || optId.includes(assignedId) || assignedId.includes(optId)) ? " selected" : "";
+            return `<option value="${escapeAttr(option.precinctId)}"${isSelected}>${escapeHtml(`${prefix}: ${getPrecinctDisplayName(option)} - ${distance} / ${eta}`)}</option>`;
         }),
     ].join("");
 
     return `<label class="incident-responder-select">
-      <span class="incident-responder-select__label">Responder precinct</span>
+      <span class="incident-responder-select__label">Assign Police Sub-station</span>
       <div class="incident-responder-select__wrap">
         <select id="incident-responder-select">${optionHtml}</select>
       </div>
-      <small>Sorted nearest first. ETA includes dispatch, route, traffic, and delay buffers.</small>
+      <small>Sorted nearest first. Select Balangkas or Mapulang Lupa substation for dispatch.</small>
     </label>`;
 }
 
@@ -445,6 +453,9 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
     const hqFlag = d.assignedByHq ? " (HQ Assigned)" : "";
 
     const actionStatus = d.status || "under_review";
+    const currentRole = getCurrentAdminRole();
+    const isHeadPolice = isHeadPoliceAdminRole(currentRole);
+    const canDispatch = canRespondToIncident(d) || (isHeadPolice && d.status !== "done" && d.status !== "rejected");
 
     return `<div class="incident-review-layout">
     <div class="incident-review-main">
@@ -588,15 +599,15 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
             <span class="material-symbols-outlined incident-actions__header-icon" aria-hidden="true">local_police</span>
             <h4 class="incident-actions__title">Dispatch &amp; Moderation</h4>
           </div>
-          <span class="incident-actions__badge">Officer Controls</span>
+          <span class="incident-actions__badge">${isHeadPolice ? "HQ Central Command" : "Officer Controls"}</span>
         </div>
 
-        ${canRespondToIncident(d) ? buildResponderSelect(responderOptions) : ""}
+        ${canDispatch ? buildResponderSelect(responderOptions, d) : ""}
 
         <div class="incident-actions__buttons">
           ${
-            canRespondToIncident(d)
-              ? '<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true"><span class="material-symbols-outlined" aria-hidden="true">send</span><span>Dispatch Precinct</span></button>'
+            canDispatch
+              ? `<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true"><span class="material-symbols-outlined" aria-hidden="true">send</span><span>${isHeadPolice ? "Dispatch / Assign Substation" : "Dispatch Precinct"}</span></button>`
               : ""
           }
           <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">
@@ -1006,14 +1017,20 @@ export function initIncidentModal() {
             respondButton.disabled = !selectedResponder;
         }
 
+        const currentRole = getCurrentAdminRole();
+        const isHeadPolice = isHeadPoliceAdminRole(currentRole);
         const feedback = document.getElementById("incident-actions-feedback");
         if (feedback && selectedResponder) {
-            feedback.textContent = `${getPrecinctDisplayName(selectedResponder)} selected. Click Respond to send the alert.`;
+            feedback.textContent = `${getPrecinctDisplayName(selectedResponder)} selected. Click ${isHeadPolice ? "Dispatch / Assign Substation" : "Dispatch"} to deploy.`;
         }
     }
 
     async function loadResponderOptions() {
-        if (!currentIncidentId || !currentData || !canRespondToIncident(currentData)) {
+        const currentRole = getCurrentAdminRole();
+        const isHeadPolice = isHeadPoliceAdminRole(currentRole);
+        const canDispatch = canRespondToIncident(currentData) || (isHeadPolice && currentData?.status !== "done" && currentData?.status !== "rejected");
+
+        if (!currentIncidentId || !currentData || !canDispatch) {
             return;
         }
         const respondButton = body.querySelector("[data-action-respond]");
@@ -1023,7 +1040,7 @@ export function initIncidentModal() {
             currentResponderOptions = await getResponderOptionsForIncident(currentData);
             const select = body.querySelector(".incident-responder-select");
             if (select) {
-                select.outerHTML = buildResponderSelect(currentResponderOptions);
+                select.outerHTML = buildResponderSelect(currentResponderOptions, currentData);
             }
             document
                 .getElementById("incident-responder-select")
@@ -1034,7 +1051,7 @@ export function initIncidentModal() {
             currentResponderOptions = [];
             const select = body.querySelector(".incident-responder-select");
             if (select) {
-                select.outerHTML = buildResponderSelect([]);
+                select.outerHTML = buildResponderSelect([], currentData);
             }
         } finally {
             syncResponderActionState();
@@ -1043,9 +1060,11 @@ export function initIncidentModal() {
 
     async function sendResponderUpdate(selectedResponder) {
         if (!currentIncidentId || !currentData) return;
+        const currentRole = getCurrentAdminRole();
+        const isHeadPolice = isHeadPoliceAdminRole(currentRole);
         const feedback = document.getElementById("incident-actions-feedback");
         if (feedback) {
-            feedback.textContent = `Sending responder alert for ${getPrecinctDisplayName(selectedResponder)}...`;
+            feedback.textContent = `Dispatching responder alert for ${getPrecinctDisplayName(selectedResponder)}...`;
         }
         body.querySelectorAll(
             "[data-action-status], [data-action-respond], #incident-responder-select",
@@ -1064,7 +1083,7 @@ export function initIncidentModal() {
             body.innerHTML = renderIncidentDetail(currentIncidentId, currentData);
             bindActionHandlers();
             updateStatusCell(currentIncidentId, "responding");
-            toastSuccess("Responder alert sent to user");
+            toastSuccess(isHeadPolice ? `Assigned to ${getPrecinctDisplayName(selectedResponder)}` : "Responder alert sent to user");
             window.dispatchEvent(
                 new CustomEvent("incident:updated", {
                     detail: {

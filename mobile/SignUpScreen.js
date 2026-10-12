@@ -148,8 +148,8 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
 
       const result = await handleSignup(email, password, userData);
       const message = result.verificationEmailSent
-        ? 'Your account has been created. You can submit reports now; email verification is optional.'
-        : 'Your account has been created. You can submit reports now, even though the verification email could not be sent.';
+        ? 'Your account has been created. A verification link was sent to your email.\n\nYou can submit your first emergency report immediately, but must verify your email before submitting future reports.'
+        : 'Your account has been created.\n\nYou can submit your first emergency report immediately. Please verify your email from Settings before submitting future reports.';
 
       showAlert('Account created', message, 'success', [
         { text: 'Go to Login', onPress: onNavigateToLogin },

@@ -8,7 +8,17 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { auth, db } from './firebase';
 
 export const validateEmail = (email) => {
@@ -285,9 +295,38 @@ export const getReportEligibility = async () => {
     };
   }
 
+  // Check if user has already submitted at least one report
+  let hasPriorReport = Number(profile.reportCount || 0) > 0;
+  if (!hasPriorReport) {
+    try {
+      const q = query(
+        collection(db, 'incidents'),
+        where('reporterId', '==', currentUser.uid),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      hasPriorReport = !snap.empty;
+    } catch (queryErr) {
+      console.warn('[AUTH] Prior report query error:', queryErr);
+    }
+  }
+
+  // Policy: First report is allowed without verification (grace period for initial emergencies).
+  // Subsequent reports (2nd+) strictly require a verified email address.
+  if (!currentUser.emailVerified && hasPriorReport) {
+    return {
+      allowed: false,
+      needsEmailVerification: true,
+      hasPriorReport: true,
+      title: 'Email Verification Required',
+      message: `You have submitted your first report. To keep reports reliable and protect community safety, please verify your email (${currentUser.email}) before submitting additional reports.`,
+    };
+  }
+
   return {
     allowed: true,
     user: currentUser,
+    isFirstReportGracePeriod: !currentUser.emailVerified && !hasPriorReport,
     profile: {
       ...profile,
       emailVerified: currentUser.emailVerified,

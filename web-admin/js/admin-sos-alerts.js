@@ -27,26 +27,27 @@ import {
     evaluateIncidentLegitimacy,
     renderLegitimacyBanner,
 } from "./incident-legitimacy.js";
-import {
-    getCurrentAdminRole,
-    hasIncidentAccess,
-    isHeadPoliceAdminRole,
-    isSubstationPoliceAdminRole,
-    getCurrentAdminSubstationId,
-    getCurrentAdminSubstationName,
-    getCurrentAdminBarangayName,
-} from "./admin-auth.js";
-import {
-    COVERED_SUBSTATIONS,
-    getSortedSubstationCandidates,
-    getSubstationNameById,
-} from "../../shared/substations.js";
+    import {
+        getCurrentAdminRole,
+        hasIncidentAccess,
+        isHeadPoliceAdminRole,
+        isSubstationPoliceAdminRole,
+        isPoliceAdminRole,
+        getCurrentAdminSubstationId,
+        getCurrentAdminSubstationName,
+        getCurrentAdminBarangayName,
+    } from "./admin-auth.js";
+    import {
+        COVERED_SUBSTATIONS,
+        getSortedSubstationCandidates,
+        getSubstationNameById,
+    } from "../../shared/substations.js";
 
-const LISTEN_LIMIT = 30;
-const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
-const ACTIONED_PREFIX = "threattrack:priority-alert-actioned:";
+    const LISTEN_LIMIT = 30;
+    const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
+    const ACTIONED_PREFIX = "threattrack:priority-alert-actioned:";
 
-let listenerStarted = false;
+    let listenerStarted = false;
 let alertOpen = false;
 let activeAlert = null;
 let activeAlertId = null;
@@ -312,7 +313,7 @@ function isEligibleAlert(id, data = {}, options = {}) {
     // - Police Admin ("police") only sees "police" audience (SOS / high severity)
     const audience = determineAlertAudience(data);
     const currentRole = getCurrentAdminRole();
-    const isPolice = currentRole === "police";
+    const isPolice = isPoliceAdminRole(currentRole);
     const isForPolice = audience === "police";
 
     if (isPolice && !isForPolice) return false;
@@ -326,7 +327,11 @@ function isEligibleAlert(id, data = {}, options = {}) {
     if (data.adminDismissed === true) return false;
     if (data.resolutionReason === "user_marked_safe") return false;
     if (data.isSOSReport && (data.liveStreamingActive === false || Boolean(data.distressResolvedAt))) return false;
-    if (!canRespondToIncident(data)) return false;
+    const isHqAssignedToMyStation =
+        isSubstationPoliceAdminRole(currentRole) &&
+        data.assignedByHq === true &&
+        !data.respondingSubstationId;
+    if (!canRespondToIncident(data) && !isHqAssignedToMyStation) return false;
     if (isDismissed(id, data)) return false;
     if (wasActioned(id, data)) return false;
     return true;

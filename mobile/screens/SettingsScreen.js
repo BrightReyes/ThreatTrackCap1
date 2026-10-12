@@ -19,6 +19,7 @@ import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
 import { auth, db } from '../utils/firebase';
+import { resendEmailVerification } from '../utils/auth';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 
@@ -77,6 +78,24 @@ const SettingsScreen = ({ navigation, onLogout }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [supportVisible, setSupportVisible] = useState(false);
   const [aboutVisible, setAboutVisible] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+
+  const handleResendVerification = async () => {
+    try {
+      setResendingVerification(true);
+      const res = await resendEmailVerification();
+      if (res.alreadyVerified) {
+        setUser({ ...auth.currentUser });
+        showAlert('Email Verified', 'Your email address is already verified!', 'success');
+      } else {
+        showAlert('Verification Link Sent', 'A verification link has been sent to your email address. Please check your inbox or spam folder.', 'info');
+      }
+    } catch (error) {
+      showAlert('Unable to Send', error.message || 'Could not send verification email.', 'error');
+    } finally {
+      setResendingVerification(false);
+    }
+  };
 
   useEffect(() => {
     const currentUser = auth.currentUser || null;
@@ -84,6 +103,13 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
     const loadProfile = async () => {
       if (!currentUser?.uid) return;
+
+      try {
+        await currentUser.reload();
+        setUser({ ...auth.currentUser });
+      } catch (reloadErr) {
+        // Silently continue if network unavailable
+      }
 
       try {
         const profileSnap = await getDoc(doc(db, 'users', currentUser.uid));
@@ -310,7 +336,16 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               </View>
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{displayName}</Text>
-                <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
+                <View style={styles.profileEmailRow}>
+                  <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
+                  {user && (
+                    <View style={user.emailVerified ? styles.verifiedBadge : styles.unverifiedBadge}>
+                      <Text style={user.emailVerified ? styles.verifiedBadgeText : styles.unverifiedBadgeText}>
+                        {user.emailVerified ? 'Verified' : 'Unverified'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#cbd5e1" />
             </TouchableOpacity>
@@ -466,12 +501,39 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                   <Text style={styles.profileStatusLabel}>Account</Text>
                   <Text style={styles.profileStatusValue}>{accountStatus}</Text>
                 </View>
+                <View style={styles.profileStatusCard}>
+                  <Text style={styles.profileStatusLabel}>Email Status</Text>
+                  <Text style={[styles.profileStatusValue, { color: user?.emailVerified ? '#16a34a' : '#d97706' }]}>
+                    {user?.emailVerified ? 'Verified' : 'Unverified'}
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.profileDetailsCard}>
                 <ProfileField icon="person-outline" label="Full name" value={displayName} />
                 <View style={styles.divider} />
                 <ProfileField icon="mail-outline" label="Email address" value={user?.email || profile?.email} />
+                {user && !user.emailVerified && (
+                  <View style={styles.emailVerifyBanner}>
+                    <View style={styles.emailVerifyBannerHeader}>
+                      <Ionicons name="shield-outline" size={16} color="#b45309" />
+                      <Text style={styles.emailVerifyBannerTitle}>Verification Required</Text>
+                    </View>
+                    <Text style={styles.emailVerifyBannerText}>
+                      Your 1st report was allowed as a grace period. Subsequent reports require email verification.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.emailVerifyBannerBtn}
+                      onPress={handleResendVerification}
+                      disabled={resendingVerification}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.emailVerifyBannerBtnText}>
+                        {resendingVerification ? 'Sending link...' : 'Resend Verification Link'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <View style={styles.divider} />
                 <ProfileField icon="call-outline" label="Phone number" value={profile?.phoneNumber} />
                 <View style={styles.divider} />
@@ -927,6 +989,77 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     fontWeight: '600',
+  },
+  profileEmailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  verifiedBadge: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  verifiedBadgeText: {
+    color: '#15803d',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  unverifiedBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  unverifiedBadgeText: {
+    color: '#b45309',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  emailVerifyBanner: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    marginHorizontal: 14,
+    marginVertical: 10,
+    padding: 12,
+  },
+  emailVerifyBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  emailVerifyBannerTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#92400e',
+  },
+  emailVerifyBannerText: {
+    fontSize: 12,
+    color: '#78350f',
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  emailVerifyBannerBtn: {
+    backgroundColor: '#d97706',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  emailVerifyBannerBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   profileModalOverlay: {
     flex: 1,

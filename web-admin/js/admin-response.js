@@ -6,7 +6,9 @@ import {
     writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
-import { VALENZUELA_POLICE_PRECINCTS } from "../../mobile/data/valenzuelaPrecincts.js";
+import { COVERED_SUBSTATIONS } from "../../shared/substations.js";
+import { getCurrentAdminRole, isHeadPoliceAdminRole } from "./admin-auth.js";
+import { logAudit } from "./audit.js";
 
 export const DEFAULT_RESPONDER = {
     precinctId: null,
@@ -155,11 +157,44 @@ function getValenzuelaTrafficProfile(now = new Date()) {
     };
 }
 
-export async function getResponderOptionsForIncident(incidentData = {}, limit = Infinity) {
-    const incidentLocation = normalizeLocation(incidentData.location);
-    if (!incidentLocation) {
-        return [];
+export function resolveIncidentCoordinates(incidentData = {}) {
+    // 1. Direct location object with numeric latitude and longitude
+    const loc = normalizeLocation(incidentData?.location);
+    if (loc) return loc;
+
+    // 2. Direct top-level fields
+    const topLoc = normalizeLocation(incidentData);
+    if (topLoc) return topLoc;
+
+    // 3. Shorthand lat / lng
+    const shortLat = Number(incidentData?.lat);
+    const shortLng = Number(incidentData?.lng);
+    if (Number.isFinite(shortLat) && Number.isFinite(shortLng)) {
+        return { latitude: shortLat, longitude: shortLng };
     }
+
+    // 4. Fallback based on known coverage areas (Balangkas / Mapulang Lupa)
+    const text = String(
+        incidentData?.barangay ||
+        incidentData?.location?.barangay ||
+        incidentData?.address ||
+        incidentData?.location?.address ||
+        ""
+    ).toLowerCase();
+
+    if (text.includes("mapulang")) {
+        return { latitude: 14.7025, longitude: 121.0008 };
+    }
+    if (text.includes("balangkas")) {
+        return { latitude: 14.7175, longitude: 120.9495 };
+    }
+
+    // 5. Default Valenzuela City center coordinates
+    return { latitude: 14.7011, longitude: 120.9830 };
+}
+
+export async function getResponderOptionsForIncident(incidentData = {}, limit = Infinity) {
+    const incidentLocation = resolveIncidentCoordinates(incidentData);
 
     const precincts = await loadActivePrecincts();
 
@@ -173,12 +208,14 @@ export async function getResponderOptionsForIncident(incidentData = {}, limit = 
             const eta = estimateTrafficAwareEta(distanceKm);
             return {
                 precinctId: precinct.precinctId,
+                substationId: precinct.substationId || precinct.precinctId,
                 precinctName: precinct.precinctName,
                 shortName: precinct.shortName,
                 address: precinct.address,
                 location: precinct.location,
                 contact: precinct.contact || null,
                 district: precinct.district || null,
+                isSubstation: precinct.isSubstation === true,
                 source: "admin_selected_precinct",
                 distanceKm,
                 etaMinutes: eta?.etaMinutes ?? null,
@@ -239,10 +276,24 @@ export async function respondToIncident(
         updatedAt: serverTimestamp(),
     };
 
+    const currentRole = getCurrentAdminRole();
+    const isHeadPolice = isHeadPoliceAdminRole(currentRole);
+
+    let targetSubstationId = responder.substationId || responder.precinctId;
+    let targetSubstationName = responder.precinctName || responder.shortName;
+
+    if (String(targetSubstationId).toLowerCase().includes("balangkas")) {
+        targetSubstationId = "balangkas_substation";
+        targetSubstationName = "Balangkas Police Sub-station";
+    } else if (String(targetSubstationId).toLowerCase().includes("mapulang")) {
+        targetSubstationId = "mapulang_lupa_substation";
+        targetSubstationName = "Mapulang Lupa Police Sub-station";
+    }
+
     const batch = writeBatch(db);
     const incidentRef = doc(db, "incidents", incidentId);
 
-    batch.update(incidentRef, {
+    const updatePayload = {
         status: "responding",
         responseStatus: "help_on_the_way",
         responder,
@@ -251,7 +302,21 @@ export async function respondToIncident(
         moderatedAt: serverTimestamp(),
         respondedBy: auth.currentUser?.uid || null,
         respondedAt: serverTimestamp(),
-    });
+        assignedSubstationId: targetSubstationId,
+        assignedSubstationName: targetSubstationName,
+        substationId: targetSubstationId,
+        substationName: targetSubstationName,
+        assignedByHq: isHeadPolice,
+        assignedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+
+    if (isHeadPolice) {
+        updatePayload.assignedByHqUid = auth.currentUser?.uid || null;
+        updatePayload.assignedByHqEmail = auth.currentUser?.email || null;
+    }
+
+    batch.update(incidentRef, updatePayload);
 
     if (incidentData.reporterId) {
         const notificationRef = doc(collection(db, "notifications"));
@@ -280,9 +345,25 @@ export async function respondToIncident(
 
     await batch.commit();
 
+    try {
+        await logAudit("incident_dispatched", {
+            incidentId,
+            assignedSubstationId: targetSubstationId,
+            assignedSubstationName: targetSubstationName,
+            dispatchedByRole: currentRole,
+        });
+    } catch (auditErr) {
+        console.warn("[admin-response] audit log error", auditErr);
+    }
+
     return {
         status: "responding",
         responseStatus: "help_on_the_way",
+        assignedSubstationId: targetSubstationId,
+        assignedSubstationName: targetSubstationName,
+        substationId: targetSubstationId,
+        substationName: targetSubstationName,
+        assignedByHq: isHeadPolice,
         responder,
         response: {
             ...response,
@@ -298,23 +379,53 @@ function toRadians(value) {
 
 async function loadActivePrecincts() {
     const now = Date.now();
-    if (now - precinctCache.loadedAt < PRECINCT_CACHE_MS) {
+    if (now - precinctCache.loadedAt < PRECINCT_CACHE_MS && precinctCache.precincts?.length) {
         return precinctCache.precincts;
     }
 
     try {
-        const snap = await getDocs(collection(db, "precincts"));
         const merged = new Map();
 
-        VALENZUELA_POLICE_PRECINCTS
-            .map(normalizeBaselinePrecinct)
-            .filter(Boolean)
-            .forEach((precinct) => mergePrecinct(merged, precinct));
+        // 1. Seed with the officially covered pilot substations (Balangkas and Mapulang Lupa)
+        COVERED_SUBSTATIONS.forEach((s) => {
+            const substationObj = {
+                precinctId: s.id,
+                substationId: s.id,
+                code: s.code || null,
+                sourceId: s.id,
+                precinctName: s.name,
+                shortName: s.name,
+                address: s.address || "Valenzuela City",
+                location: { latitude: Number(s.latitude), longitude: Number(s.longitude) },
+                contact: s.contactNumber || null,
+                district: s.coverageType || null,
+                isSubstation: true,
+                isActive: s.status !== "inactive",
+            };
+            mergePrecinct(merged, substationObj);
+        });
 
-        snap.docs
-            .map(normalizePrecinctDoc)
-            .filter(Boolean)
-            .forEach((precinct) => mergePrecinct(merged, precinct));
+        // 2. Query Firestore substations collection if available
+        try {
+            const subSnap = await getDocs(collection(db, "substations"));
+            subSnap.docs
+                .map(normalizePrecinctDoc)
+                .filter(Boolean)
+                .forEach((precinct) => mergePrecinct(merged, { ...precinct, isSubstation: true }));
+        } catch {
+            // Optional collection
+        }
+
+        // 3. Query Firestore precincts collection if available
+        try {
+            const snap = await getDocs(collection(db, "precincts"));
+            snap.docs
+                .map(normalizePrecinctDoc)
+                .filter(Boolean)
+                .forEach((precinct) => mergePrecinct(merged, precinct));
+        } catch {
+            // Optional collection
+        }
 
         const precincts = Array.from(new Set(merged.values())).filter(
             (precinct) => precinct.isActive !== false,
@@ -408,6 +519,8 @@ function normalizeSelectedResponder(responder = null) {
     if (!responder.precinctId || !responder.precinctName || !location) return null;
     return {
         precinctId: String(responder.precinctId),
+        substationId: responder.substationId ? String(responder.substationId) : String(responder.precinctId),
+        isSubstation: responder.isSubstation === true,
         precinctName: String(responder.precinctName),
         shortName: String(responder.shortName || responder.precinctName),
         address: String(responder.address || "Valenzuela City"),

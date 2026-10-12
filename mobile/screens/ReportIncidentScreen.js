@@ -15,7 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
-import { getReportEligibility } from '../utils/auth';
+import { getReportEligibility, resendEmailVerification } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
 import QuickDescriptionChips from '../components/QuickDescriptionChips';
@@ -242,6 +242,43 @@ const ReportIncidentScreen = ({ navigation }) => {
   };
 
   const showReportEligibilityAlert = (eligibility) => {
+    if (eligibility?.needsEmailVerification) {
+      showAlert(
+        eligibility.title || 'Email Verification Required',
+        eligibility.message || 'You have used your first-report grace period. Please verify your email before submitting additional reports.',
+        'warning',
+        [
+          {
+            text: 'Resend Link',
+            onPress: async () => {
+              try {
+                const res = await resendEmailVerification();
+                if (res.alreadyVerified) {
+                  showAlert('Already Verified', 'Your email is already verified! You can now submit your report.', 'success');
+                } else {
+                  showAlert('Verification Link Sent', 'A new verification link was sent to your email. Please check your inbox or spam folder.', 'info');
+                }
+              } catch (err) {
+                showAlert('Error', err.message || 'Failed to resend verification email.', 'error');
+              }
+            },
+          },
+          {
+            text: "I've Verified",
+            onPress: () => {
+              handleConfirmedSubmit();
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ],
+        0,
+      );
+      return;
+    }
+
     showAlert(
       eligibility.title || 'Reporting Unavailable',
       eligibility.message || 'Your account cannot submit reports right now.',
@@ -535,11 +572,17 @@ const ReportIncidentScreen = ({ navigation }) => {
 
       await addDoc(collection(db, 'incidents'), incidentData);
 
+      const isFirstGrace = eligibility?.isFirstReportGracePeriod;
+      const baseSuccess = image
+        ? 'Your report has been submitted securely with photo evidence attached.'
+        : 'Your report has been submitted securely. Your identity remains protected.';
+      const successMessage = isFirstGrace
+        ? `${baseSuccess}\n\n⚠️ Notice: This was your 1st report grace period. Please verify your email before submitting future reports.`
+        : baseSuccess;
+
       showAlert(
         'Report Submitted',
-        image
-          ? 'Your report has been submitted securely with photo evidence attached.'
-          : 'Your report has been submitted securely. Your identity remains protected.',
+        successMessage,
         'success',
         [
           {
