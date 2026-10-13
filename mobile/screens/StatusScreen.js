@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,14 @@ import GlobalBottomBar from '../components/GlobalBottomBar';
 import { computeInitialDistanceAndEta } from '../utils/responderEta';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
+const PAGE_SIZE = 5;
+
+const FILTER_TABS = [
+  { id: 'all', label: 'All Reports' },
+  { id: 'in_progress', label: 'In Progress' },
+  { id: 'resolved', label: 'Resolved' },
+  { id: 'attention', label: 'Needs Attention' },
+];
 
 const INCIDENT_TYPE_LABELS = {
   theft_snatching: 'Theft / Snatching',
@@ -99,13 +107,13 @@ const STATUS_META = {
     assurance: 'This report was reviewed and rejected by the administration team.',
   },
   spam: {
-    label: 'Needs Attention',
-    shortLabel: 'Attention',
+    label: 'Flagged Report',
+    shortLabel: 'Flagged',
     color: '#991b1b',
     backgroundColor: '#fef2f2',
     borderColor: '#fecaca',
     step: 1,
-    assurance: 'This report was flagged and needs admin review.',
+    assurance: 'This report was flagged and needs administrator review.',
   },
   error: {
     label: 'Needs Attention',
@@ -142,6 +150,11 @@ const StatusScreen = ({ navigation }) => {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
 
+  // Pagination & Filter States
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const scrollViewRef = useRef(null);
+
   // Custom alert state
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -162,7 +175,7 @@ const StatusScreen = ({ navigation }) => {
   };
 
   const hideAlert = () => {
-    setAlertConfig({ ...alertConfig, visible: false });
+    setAlertConfig(prev => ({ ...prev, visible: false }));
   };
 
   useEffect(() => {
@@ -225,7 +238,7 @@ const StatusScreen = ({ navigation }) => {
       verified,
       under_review,
       rejected,
-      total: fetchedIncidents.length
+      total: fetchedIncidents.length,
     });
 
     setLoading(false);
@@ -249,7 +262,7 @@ const StatusScreen = ({ navigation }) => {
 
       const querySnapshot = await getDocs(q);
       const fetchedIncidents = [];
-      
+
       querySnapshot.forEach((doc) => {
         fetchedIncidents.push({
           id: doc.id,
@@ -271,16 +284,44 @@ const StatusScreen = ({ navigation }) => {
     fetchMyIncidents();
   };
 
-  const handleSOSPress = async () => {
-    try {
-      // Import getCurrentLocation here since StatusScreen doesn't have it
-      const { getCurrentLocation } = require('../utils/location');
-      const location = await getCurrentLocation();
-      navigation.navigate('SOSReport', { userLocation: location });
-    } catch (error) {
-      console.error('Error getting location for SOS:', error);
-      // Navigate anyway without location, SOS screen will handle it
-      navigation.navigate('SOSReport');
+  // Filtered & Paginated Incidents computation
+  const filteredIncidents = useMemo(() => {
+    switch (activeFilter) {
+      case 'in_progress':
+        return incidents.filter(i => !TERMINAL_STATUSES.includes(i.status) && i.status !== 'verified');
+      case 'resolved':
+        return incidents.filter(i => ['verified', 'done'].includes(i.status));
+      case 'attention':
+        return incidents.filter(i => ['rejected', 'error', 'spam'].includes(i.status));
+      default:
+        return incidents;
+    }
+  }, [incidents, activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / PAGE_SIZE));
+  const paginatedIncidents = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredIncidents.slice(start, start + PAGE_SIZE);
+  }, [filteredIncidents, currentPage]);
+
+  const handleFilterChange = (filterId) => {
+    if (activeFilter === filterId) return;
+    setActiveFilter(filterId);
+    setCurrentPage(1);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
     }
   };
 
@@ -359,8 +400,8 @@ const StatusScreen = ({ navigation }) => {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'high': return '#dc2626';
-      case 'medium': return '#f59e0b';
-      case 'low': return '#eab308';
+      case 'medium': return '#d97706';
+      case 'low': return '#16a34a';
       default: return '#6b7280';
     }
   };
@@ -369,24 +410,19 @@ const StatusScreen = ({ navigation }) => {
     switch (severity) {
       case 'high': return '#fef2f2';
       case 'medium': return '#fffbeb';
-      case 'low': return '#fefce8';
+      case 'low': return '#f0fdf4';
       default: return '#f3f4f6';
     }
   };
 
   const getLocationDisplay = (location) => {
     if (!location) return 'Location not specified';
-    
-    // If location has address property, use it
     if (location.address) {
       return location.address;
     }
-    
-    // If location has coordinates, format them
     if (location.latitude && location.longitude) {
       return `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`;
     }
-    
     return 'Location not specified';
   };
 
@@ -443,7 +479,6 @@ const StatusScreen = ({ navigation }) => {
     const meta = getStatusMeta(displayStatus);
     const severityColor = getSeverityColor(selectedIncident.severity);
     const response = selectedIncident.response || {};
-    const responder = selectedIncident.responder || response.responder || {};
     const hasResponse = displayStatus === 'responding' ||
       selectedIncident.responseStatus === 'help_on_the_way' ||
       response.status === 'help_on_the_way';
@@ -463,143 +498,181 @@ const StatusScreen = ({ navigation }) => {
         overlayStyle={styles.detailsBackdrop}
         contentStyle={styles.detailsSheet}
       >
-            <View style={styles.detailsHandle} />
-            <View style={styles.detailsHeader}>
-              <View style={styles.detailsTitleBlock}>
-                <Text style={styles.detailsEyebrow}>REPORT TRACKING</Text>
-                <Text style={styles.detailsTitle}>{formatIncidentType(selectedIncident)}</Text>
-                <Text style={styles.detailsSubtitle}>Submitted {formatTimestamp(selectedIncident.timestamp || selectedIncident.clientTimestamp)}</Text>
-              </View>
-              <TouchableOpacity style={styles.detailsCloseButton} onPress={closeDetailsModal}>
-                <Ionicons name="close-outline" size={24} color="#ffffff" />
-              </TouchableOpacity>
+        <View style={styles.detailsHandle} />
+        <View style={styles.detailsHeader}>
+          <View style={styles.detailsTitleBlock}>
+            <View style={styles.detailsEyebrowBadge}>
+              <Ionicons name="shield-checkmark" size={13} color="#991b1b" />
+              <Text style={styles.detailsEyebrow}>INCIDENT DOSSIER</Text>
             </View>
+            <Text style={styles.detailsTitle}>{formatIncidentType(selectedIncident)}</Text>
+            <Text style={styles.detailsSubtitle}>
+              Submitted {formatTimestamp(selectedIncident.timestamp || selectedIncident.clientTimestamp)}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.detailsCloseButton} onPress={closeDetailsModal}>
+            <Ionicons name="close" size={20} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
 
-            <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.detailsStatusPanel}>
-                <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
-                  <Ionicons name={getStatusIconName(displayStatus)} size={27} color={meta.color} />
+        <ScrollView style={styles.detailsScroll} showsVerticalScrollIndicator={false}>
+          {/* Status Banner */}
+          <View style={styles.detailsStatusPanel}>
+            <View style={[styles.detailsStatusIcon, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
+              <Ionicons name={getStatusIconName(displayStatus)} size={26} color={meta.color} />
+            </View>
+            <View style={styles.detailsStatusCopy}>
+              <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
+              <Text style={styles.detailsStatusMessage}>{meta.assurance}</Text>
+            </View>
+          </View>
+
+          {renderTrackingSteps(displayStatus)}
+
+          {/* Rejection / Flag Notice */}
+          {(displayStatus === 'rejected' || !!selectedIncident.rejectionReason) && (
+            <View style={styles.rejectionCard}>
+              <View style={styles.rejectionHeader}>
+                <View style={styles.rejectionIconWrap}>
+                  <Ionicons name="close-circle" size={24} color="#dc2626" />
                 </View>
-                <View style={styles.detailsStatusCopy}>
-                  <Text style={styles.detailsStatusLabel}>{meta.label}</Text>
-                  <Text style={styles.detailsStatusMessage}>{meta.assurance}</Text>
-                </View>
-              </View>
-
-              {renderTrackingSteps(displayStatus)}
-
-              {(displayStatus === 'rejected' || !!selectedIncident.rejectionReason) && (
-                <View style={styles.rejectionCard}>
-                  <View style={styles.rejectionHeader}>
-                    <View style={styles.rejectionIconWrap}>
-                      <Ionicons name="close-circle" size={24} color="#dc2626" />
-                    </View>
-                    <View style={styles.rejectionTitleBlock}>
-                      <Text style={styles.rejectionEyebrow}>STATUS UPDATE</Text>
-                      <Text style={styles.rejectionTitle}>Report Rejected</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.rejectionReasonHeading}>Reason for Rejection:</Text>
-                  <Text style={styles.rejectionMessage}>
-                    {selectedIncident.rejectionReason || selectedIncident.response?.message || 'This report was reviewed and could not be validated or did not meet submission guidelines.'}
-                  </Text>
-                  <View style={styles.rejectionAdvice}>
-                    <Ionicons name="help-circle-outline" size={16} color="#6b7280" />
-                    <Text style={styles.rejectionAdviceText}>
-                      For active emergencies, please call emergency services immediately or submit a new report with complete street details.
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {hasResponse && (
-                <View style={styles.responderCard}>
-                  <View style={styles.responderHeader}>
-                    <View style={styles.responderSignal}>
-                      <Ionicons name="radio-outline" size={24} color="#ffffff" />
-                    </View>
-                    <View style={styles.responderTitleBlock}>
-                      <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
-                      <Text style={styles.responderTitle}>
-                        {stationName}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.responderMessage}>
-                    {response.message || 'A responder has acknowledged your report and is being deployed from the assigned station.'}
-                  </Text>
-
-                  {/* Initial Distance & Traffic-Adjusted Arrival Pills */}
-                  <View style={styles.responderMetaRow}>
-                    <View style={styles.responderMetaPill}>
-                      <Text style={styles.responderMetaLabel}>INITIAL DISTANCE</Text>
-                      <Text style={styles.responderMetaValue}>{distanceText}</Text>
-                    </View>
-                    <View style={styles.responderMetaPill}>
-                      <Text style={styles.responderMetaLabel}>EST. ARRIVAL</Text>
-                      <Text style={styles.responderMetaValue}>{etaText}</Text>
-                    </View>
-                  </View>
-
-                  {trafficNote ? (
-                    <Text style={styles.responderTrafficNote}>
-                      {trafficNote}
-                    </Text>
-                  ) : null}
-
-                  <Text style={styles.responderAddress}>
-                    {stationAddress}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.detailsGrid}>
-                <View style={styles.detailsInfoCard}>
-                  <Text style={styles.detailsInfoLabel}>Severity</Text>
-                  <Text style={[styles.detailsInfoValue, { color: severityColor }]}>
-                    {(selectedIncident.severity || 'medium').toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.detailsInfoCard}>
-                  <Text style={styles.detailsInfoLabel}>Report ID</Text>
-                  <Text style={styles.detailsInfoValue} numberOfLines={2}>
-                    {selectedIncident.id?.slice(0, 8) || 'Pending'}
-                  </Text>
+                <View style={styles.rejectionTitleBlock}>
+                  <Text style={styles.rejectionEyebrow}>STATUS UPDATE</Text>
+                  <Text style={styles.rejectionTitle}>Report Rejected</Text>
                 </View>
               </View>
-
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsSectionLabel}>Description</Text>
-                <Text style={styles.detailsSectionText}>
-                  {selectedIncident.description || 'No description provided.'}
+              <Text style={styles.rejectionReasonHeading}>Reason for Rejection:</Text>
+              <Text style={styles.rejectionMessage}>
+                {selectedIncident.rejectionReason || selectedIncident.response?.message || 'This report was reviewed and could not be validated or did not meet submission guidelines.'}
+              </Text>
+              <View style={styles.rejectionAdvice}>
+                <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+                <Text style={styles.rejectionAdviceText}>
+                  For active emergencies, please call emergency services immediately or submit a new report with complete street details.
                 </Text>
               </View>
+            </View>
+          )}
 
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsSectionLabel}>Location</Text>
-                <Text style={styles.detailsSectionText}>
-                  {getLocationDisplay(selectedIncident.location)}
-                </Text>
+          {/* Responder Dispatch & ETA */}
+          {hasResponse && (
+            <View style={styles.responderCard}>
+              <View style={styles.responderHeader}>
+                <View style={styles.responderSignal}>
+                  <Ionicons name="radio-outline" size={24} color="#ffffff" />
+                </View>
+                <View style={styles.responderTitleBlock}>
+                  <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
+                  <Text style={styles.responderTitle}>
+                    {stationName}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.responderMessage}>
+                {response.message || 'A responder has acknowledged your report and is being deployed from the assigned station.'}
+              </Text>
+
+              {/* Initial Distance & Traffic-Adjusted Arrival Pills */}
+              <View style={styles.responderMetaRow}>
+                <View style={styles.responderMetaPill}>
+                  <Text style={styles.responderMetaLabel}>INITIAL DISTANCE</Text>
+                  <Text style={styles.responderMetaValue}>{distanceText}</Text>
+                </View>
+                <View style={styles.responderMetaPill}>
+                  <Text style={styles.responderMetaLabel}>EST. ARRIVAL</Text>
+                  <Text style={styles.responderMetaValue}>{etaText}</Text>
+                </View>
               </View>
 
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsSectionLabel}>Reported</Text>
-                <Text style={styles.detailsSectionText}>
-                  {formatFullTimestamp(selectedIncident)}
+              {trafficNote ? (
+                <Text style={styles.responderTrafficNote}>
+                  {trafficNote}
                 </Text>
-              </View>
+              ) : null}
 
-              <View style={styles.assuranceCard}>
-                <Text style={styles.assuranceTitle}>What happens next</Text>
-                <Text style={styles.assuranceText}>
-                  {displayStatus === 'done'
-                    ? 'This report has been completed by the admin team. The status updates here automatically when the admin changes it.'
-                    : hasResponse
-                      ? 'Stay near a safe, visible area if possible. The response details above update from the admin side.'
-                      : 'Your report is saved with your submitted location. Responder assignment will appear here once the admin acknowledges the report.'}
+              {stationAddress ? (
+                <Text style={styles.responderAddress}>
+                  {stationAddress}
                 </Text>
+              ) : null}
+            </View>
+          )}
+
+          {/* Details Grid */}
+          <View style={styles.detailsGrid}>
+            <View style={styles.detailsInfoCard}>
+              <Text style={styles.detailsInfoLabel}>Severity</Text>
+              <Text style={[styles.detailsInfoValue, { color: severityColor }]}>
+                {(selectedIncident.severity || 'medium').toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.detailsInfoCard}>
+              <Text style={styles.detailsInfoLabel}>Report ID</Text>
+              <Text style={styles.detailsInfoValue} numberOfLines={1}>
+                #{selectedIncident.id?.slice(0, 8).toUpperCase() || 'PENDING'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Description Section */}
+          <View style={styles.detailsSection}>
+            <Text style={styles.detailsSectionLabel}>Incident Description</Text>
+            <Text style={styles.detailsSectionText}>
+              {selectedIncident.description || 'No description provided.'}
+            </Text>
+          </View>
+
+          {/* Evidence Photo Preview if available */}
+          {selectedIncident.photoDataUrl ? (
+            <View style={styles.detailsPhotoSection}>
+              <View style={styles.detailsPhotoHeader}>
+                <Text style={styles.detailsSectionLabel}>Photo Evidence Attached</Text>
+                <View style={styles.evidenceBadge}>
+                  <Ionicons name="checkmark-circle" size={13} color="#16a34a" />
+                  <Text style={styles.evidenceBadgeText}>Verified Upload</Text>
+                </View>
               </View>
-            </ScrollView>
+              <View style={styles.detailsPhotoWrapper}>
+                <Image
+                  source={{ uri: selectedIncident.photoDataUrl }}
+                  style={styles.detailsPhotoImage}
+                  resizeMode="cover"
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {/* Location Section */}
+          <View style={styles.detailsSection}>
+            <Text style={styles.detailsSectionLabel}>Location & Coordinates</Text>
+            <Text style={styles.detailsSectionText}>
+              {getLocationDisplay(selectedIncident.location)}
+            </Text>
+          </View>
+
+          {/* Timestamp Section */}
+          <View style={styles.detailsSection}>
+            <Text style={styles.detailsSectionLabel}>Timestamp Recorded</Text>
+            <Text style={styles.detailsSectionText}>
+              {formatFullTimestamp(selectedIncident)}
+            </Text>
+          </View>
+
+          {/* Assurance Box */}
+          <View style={styles.assuranceCard}>
+            <View style={styles.assuranceTitleRow}>
+              <Ionicons name="shield-checkmark-outline" size={17} color="#991b1b" />
+              <Text style={styles.assuranceTitle}>Dispatcher Guidance</Text>
+            </View>
+            <Text style={styles.assuranceText}>
+              {displayStatus === 'done'
+                ? 'This report has been finalized by operations command. Incident logs remain encrypted in your citizen history.'
+                : hasResponse
+                  ? 'Stay near a safe, visible area if possible. Response status updates continuously as units advance.'
+                  : 'Your report is registered with GPS precision. Station dispatchers review active queues in priority order.'}
+            </Text>
+          </View>
+        </ScrollView>
       </SmoothModal>
     );
   };
@@ -609,7 +682,7 @@ const StatusScreen = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#dc2626" />
-          <Text style={styles.loadingText}>Loading your reports...</Text>
+          <Text style={styles.loadingText}>Synchronizing citizen reports...</Text>
         </View>
       </View>
     );
@@ -618,57 +691,124 @@ const StatusScreen = ({ navigation }) => {
   return (
     <>
       <View style={styles.container}>
-        <ScrollView 
-          style={styles.scrollView} 
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#dc2626" />
           }
         >
-          {/* Header */}
-          <View style={styles.headerNew}>
-            <Text style={styles.headerNewTitle}>Report Status</Text>
-            <Text style={styles.headerSubtitle}>Track your submitted reports and review response progress.</Text>
-          </View>
+          {/* ThreatTrack Signature Gradient Header */}
           <LinearGradient
-            colors={['transparent', 'rgba(220, 38, 38, 0.45)', 'transparent']}
+            colors={['#7f1d1d', '#991b1b', '#dc2626']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.headerLaserLine}
-          />
+            end={{ x: 1, y: 1 }}
+            style={styles.headerContainer}
+          >
+            <View style={styles.headerTopBar}>
+              <View style={styles.headerBrandBadge}>
+                <Ionicons name="shield-checkmark" size={13} color="#fee2e2" />
+                <Text style={styles.headerBrandBadgeText}>THREATTRACK CITIZEN PORTAL</Text>
+              </View>
+              <View style={styles.headerLiveBadge}>
+                <View style={styles.livePulseDot} />
+                <Text style={styles.headerLiveBadgeText}>LIVE DISPATCH</Text>
+              </View>
+            </View>
 
-          {/* Statistics Cards */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.total}</Text>
-              <Text style={styles.statLabel}>Total Reports</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.under_review}</Text>
-              <Text style={styles.statLabel}>In Progress</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{stats.verified}</Text>
-              <Text style={styles.statLabel}>Resolved</Text>
-            </View>
-          </View>
-
-          <View style={styles.assuranceBanner}>
-            <View style={styles.assuranceBannerIcon}>
-              <Ionicons name="information-outline" size={23} color="#ffffff" />
-            </View>
-            <View style={styles.assuranceBannerCopy}>
-              <Text style={styles.assuranceBannerTitle}>Your reports stay trackable</Text>
-              <Text style={styles.assuranceBannerText}>
-                Responder updates from the admin side will appear here automatically once help is on the way.
+            <View style={styles.headerTitleBlock}>
+              <Text style={styles.headerTitle}>Incident Reports</Text>
+              <Text style={styles.headerSubtitle}>
+                Real-time review, responder dispatch, and arrival ETA
               </Text>
             </View>
+          </LinearGradient>
+
+          {/* Elevated Metric Cards (Double-Bezel Architecture) */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <View style={styles.statHeaderRow}>
+                <Text style={styles.statLabel}>Total</Text>
+                <Ionicons name="document-text-outline" size={14} color="#dc2626" />
+              </View>
+              <Text style={styles.statNumber}>{stats.total}</Text>
+              <Text style={styles.statSub}>Submitted</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statHeaderRow}>
+                <Text style={styles.statLabel}>Active</Text>
+                <Ionicons name="time-outline" size={14} color="#b45309" />
+              </View>
+              <Text style={[styles.statNumber, { color: '#b45309' }]}>{stats.under_review}</Text>
+              <Text style={styles.statSub}>In Progress</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <View style={styles.statHeaderRow}>
+                <Text style={styles.statLabel}>Resolved</Text>
+                <Ionicons name="checkmark-done-outline" size={14} color="#047857" />
+              </View>
+              <Text style={[styles.statNumber, { color: '#047857' }]}>{stats.verified}</Text>
+              <Text style={styles.statSub}>Validated</Text>
+            </View>
           </View>
 
-          {/* Incidents List */}
+          {/* Filter Tab Chips (Horizontal Touch Strip) */}
+          <View style={styles.filterSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterScroll}
+            >
+              {FILTER_TABS.map((tab) => {
+                const isSelected = activeFilter === tab.id;
+                const count = tab.id === 'all'
+                  ? stats.total
+                  : tab.id === 'in_progress'
+                  ? stats.under_review
+                  : tab.id === 'resolved'
+                  ? stats.verified
+                  : stats.rejected;
+
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[styles.filterTab, isSelected && styles.filterTabSelected]}
+                    onPress={() => handleFilterChange(tab.id)}
+                    activeOpacity={0.82}
+                  >
+                    {isSelected ? (
+                      <LinearGradient
+                        colors={['#dc2626', '#991b1b']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.filterTabGradient}
+                      >
+                        <Text style={styles.filterTabTextSelected}>{tab.label}</Text>
+                        <View style={styles.filterCountBadgeSelected}>
+                          <Text style={styles.filterCountTextSelected}>{count}</Text>
+                        </View>
+                      </LinearGradient>
+                    ) : (
+                      <View style={styles.filterTabInner}>
+                        <Text style={styles.filterTabText}>{tab.label}</Text>
+                        <View style={styles.filterCountBadge}>
+                          <Text style={styles.filterCountText}>{count}</Text>
+                        </View>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Incidents List (Windowed / Paginated for Smooth Performance) */}
           <View style={styles.content}>
-            {incidents.length > 0 ? (
-              incidents.map((incident) => {
+            {paginatedIncidents.length > 0 ? (
+              paginatedIncidents.map((incident) => {
                 const displayStatus = getDisplayStatus(incident);
                 const meta = getStatusMeta(displayStatus);
                 const severityColor = getSeverityColor(incident.severity);
@@ -684,35 +824,59 @@ const StatusScreen = ({ navigation }) => {
                       <View style={[styles.incidentTypeIconWrap, { backgroundColor: getSeverityBackground(incident.severity) }]}>
                         <Ionicons
                           name={getIncidentIconName(incident.type)}
-                          size={24}
+                          size={22}
                           color={severityColor}
                         />
                       </View>
                       <View style={styles.incidentTitleBlock}>
-                        <Text style={styles.incidentTitle} numberOfLines={2}>{formatIncidentType(incident)}</Text>
-                        <Text style={styles.incidentTime}>Submitted {formatTimestamp(incident.timestamp || incident.clientTimestamp)}</Text>
+                        <Text style={styles.incidentTitle} numberOfLines={1}>
+                          {formatIncidentType(incident)}
+                        </Text>
+                        <Text style={styles.incidentTime}>
+                          Submitted {formatTimestamp(incident.timestamp || incident.clientTimestamp)}
+                        </Text>
                       </View>
                       <View style={[styles.statusPill, { backgroundColor: meta.backgroundColor, borderColor: meta.borderColor }]}>
-                        <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.shortLabel}</Text>
+                        <Text style={[styles.statusPillText, { color: meta.color }]}>
+                          {meta.shortLabel}
+                        </Text>
                       </View>
                     </View>
 
                     {renderTrackingSteps(displayStatus, true)}
 
-                    <Text style={styles.incidentBody} numberOfLines={3}>{incident.description}</Text>
+                    <Text style={styles.incidentBody} numberOfLines={2}>
+                      {incident.description}
+                    </Text>
+
+                    {/* Photo attached indicator if image is present */}
+                    {incident.photoDataUrl ? (
+                      <View style={styles.photoAttachedBadge}>
+                        <Ionicons name="camera-outline" size={13} color="#991b1b" />
+                        <Text style={styles.photoAttachedText}>Photo Evidence Attached</Text>
+                      </View>
+                    ) : null}
 
                     {displayStatus === 'rejected' && (
                       <View style={styles.cardRejectionSnippet}>
                         <Ionicons name="alert-circle-outline" size={15} color="#dc2626" />
-                        <Text style={styles.cardRejectionSnippetText} numberOfLines={2}>
+                        <Text style={styles.cardRejectionSnippetText} numberOfLines={1}>
                           Rejected: {incident.rejectionReason || incident.response?.message || 'Report not accepted'}
                         </Text>
                       </View>
                     )}
 
                     <View style={styles.incidentRowBottom}>
-                      <Text style={styles.incidentLocation} numberOfLines={2}>{getLocationDisplay(incident.location)}</Text>
-                      <Text style={styles.detailsLink}>Details</Text>
+                      <View style={styles.locationContainer}>
+                        <Ionicons name="location-outline" size={14} color="#6b7280" style={{ marginRight: 4 }} />
+                        <Text style={styles.incidentLocation} numberOfLines={1}>
+                          {getLocationDisplay(incident.location)}
+                        </Text>
+                      </View>
+                      <View style={styles.detailsLinkRow}>
+                        <Text style={styles.detailsLink}>Details</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#dc2626" />
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -720,17 +884,115 @@ const StatusScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIcon}>
-                  <Ionicons name="document-text-outline" size={30} color="#dc2626" />
+                  <Ionicons name="document-text-outline" size={32} color="#dc2626" />
                 </View>
-                <Text style={styles.emptyTitle}>No Reports Yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Your submitted incident reports will appear here
+                <Text style={styles.emptyTitle}>
+                  {activeFilter === 'all'
+                    ? 'No Reports Submitted Yet'
+                    : `No ${FILTER_TABS.find(t => t.id === activeFilter)?.label}`}
                 </Text>
+                <Text style={styles.emptySubtitle}>
+                  {activeFilter === 'all'
+                    ? 'Your submitted incidents will appear here for tracking, validation, and station response.'
+                    : 'There are currently no submitted reports matching this filter.'}
+                </Text>
+                {activeFilter !== 'all' ? (
+                  <TouchableOpacity
+                    style={styles.clearFilterButton}
+                    onPress={() => handleFilterChange('all')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.clearFilterButtonText}>Show All Reports</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            )}
+
+            {/* Tactical Pagination Bar */}
+            {filteredIncidents.length > 0 && (
+              <View style={styles.paginationCard}>
+                <View style={styles.paginationSummaryRow}>
+                  <Text style={styles.paginationSummaryText}>
+                    Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredIncidents.length)}–
+                    {Math.min(currentPage * PAGE_SIZE, filteredIncidents.length)} of {filteredIncidents.length} reports
+                  </Text>
+                  <View style={styles.paginationBadge}>
+                    <Text style={styles.paginationBadgeText}>PAGE {currentPage} OF {totalPages}</Text>
+                  </View>
+                </View>
+
+                {totalPages > 1 && (
+                  <View style={styles.paginationControlsRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.paginationButton,
+                        currentPage === 1 && styles.paginationButtonDisabled,
+                      ]}
+                      onPress={handlePrevPage}
+                      disabled={currentPage === 1}
+                      activeOpacity={0.78}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={16}
+                        color={currentPage === 1 ? '#9ca3af' : '#dc2626'}
+                      />
+                      <Text
+                        style={[
+                          styles.paginationButtonText,
+                          currentPage === 1 && styles.paginationButtonTextDisabled,
+                        ]}
+                      >
+                        Previous
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.pageDotsContainer}>
+                      {Array.from({ length: totalPages }).map((_, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[
+                            styles.pageDot,
+                            currentPage === idx + 1 && styles.pageDotActive,
+                          ]}
+                          onPress={() => {
+                            setCurrentPage(idx + 1);
+                            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                          }}
+                        />
+                      ))}
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.paginationButton,
+                        currentPage === totalPages && styles.paginationButtonDisabled,
+                      ]}
+                      onPress={handleNextPage}
+                      disabled={currentPage === totalPages}
+                      activeOpacity={0.78}
+                    >
+                      <Text
+                        style={[
+                          styles.paginationButtonText,
+                          currentPage === totalPages && styles.paginationButtonTextDisabled,
+                        ]}
+                      >
+                        Next
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={16}
+                        color={currentPage === totalPages ? '#9ca3af' : '#dc2626'}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </View>
 
-          {/* Bottom Spacer */}
+          {/* Bottom Spacer so content is never blocked by GlobalBottomBar */}
           <View style={styles.bottomSpacer} />
         </ScrollView>
 
@@ -769,125 +1031,224 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 14,
     fontSize: 14,
-    color: '#6b7280',
+    color: '#64748b',
+    fontWeight: '700',
   },
-  
-  // Header Styles
-  headerNew: {
-    paddingHorizontal: 20,
+
+  // ThreatTrack Signature Gradient Header
+  headerContainer: {
     paddingTop: HEADER_TOP_PADDING,
-    paddingBottom: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.26,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  headerLaserLine: {
-    height: 1.5,
-    width: '100%',
+  headerTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  headerNewTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#0f172a',
-    letterSpacing: -0.3,
-    marginBottom: 4,
+  headerBrandBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: 999,
+    paddingVertical: 4.5,
+    paddingHorizontal: 11,
+  },
+  headerBrandBadgeText: {
+    color: '#fee2e2',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  headerLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderRadius: 999,
+    paddingVertical: 4.5,
+    paddingHorizontal: 10,
+  },
+  livePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#4ade80',
+  },
+  headerLiveBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+  },
+  headerTitleBlock: {
+    marginTop: 4,
+  },
+  headerTitle: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.2,
   },
   headerSubtitle: {
+    color: 'rgba(255, 241, 242, 0.94)',
     fontSize: 13,
-    color: '#64748b',
-    fontWeight: '500',
+    fontWeight: '600',
     lineHeight: 18,
+    marginTop: 4,
   },
 
   // Statistics Cards
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 14,
-    justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 14,
+    paddingHorizontal: 16,
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 12,
   },
   statCard: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    marginHorizontal: 4,
-    alignItems: 'center',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
+    borderColor: '#fee2e2',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 10,
-    elevation: 2,
+    elevation: 3,
   },
-  statNumber: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#0f172a',
+  statHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#64748b',
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  assuranceBanner: {
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.2,
+  },
+  statSub: {
+    fontSize: 10.5,
+    color: '#9ca3af',
+    fontWeight: '700',
+    marginTop: 1,
+  },
+
+  // Filter Section
+  filterSection: {
+    marginBottom: 12,
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterTab: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  filterTabSelected: {
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.24,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  filterTabGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 18,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#fee2e2',
-    borderRadius: 18,
-    padding: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    gap: 8,
   },
-  assuranceBannerIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: '#dc2626',
+  filterTabInner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.2,
+    borderColor: '#fecaca',
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderRadius: 14,
+    gap: 8,
   },
-  assuranceBannerCopy: {
-    flex: 1,
-  },
-  assuranceBannerTitle: {
-    fontSize: 14,
-    color: '#111827',
+  filterTabTextSelected: {
+    color: '#ffffff',
+    fontSize: 12.5,
     fontWeight: '900',
-    marginBottom: 3,
   },
-  assuranceBannerText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '600',
-    lineHeight: 20,
+  filterTabText: {
+    color: '#374151',
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  filterCountBadgeSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  filterCountTextSelected: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  filterCountBadge: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 10,
+  },
+  filterCountText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '900',
   },
 
   // Content Area
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
   },
   incidentCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 15,
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 14,
-    borderWidth: 1.5,
-    borderColor: '#f3f4f6',
-    shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    borderWidth: 1.2,
+    borderColor: '#fee2e2',
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
   },
   incidentRowTop: {
     flexDirection: 'row',
@@ -895,51 +1256,55 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   incidentTypeIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
   incidentTitleBlock: {
     flex: 1,
-    marginRight: 10,
+    marginRight: 8,
   },
   incidentTitle: {
     fontSize: 15,
     fontWeight: '900',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   incidentTime: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9ca3af',
     fontWeight: '700',
   },
   statusPill: {
-    borderWidth: 1.5,
+    borderWidth: 1.2,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   statusPillText: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: '900',
   },
   trackingCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   trackingTimeline: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#fff7f7',
     borderRadius: 16,
     paddingHorizontal: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
   },
   trackingStepWrap: {
     flex: 1,
@@ -947,10 +1312,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   trackingDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
     alignItems: 'center',
@@ -967,18 +1332,18 @@ const styles = StyleSheet.create({
   },
   trackingDotText: {
     color: '#9ca3af',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
   },
   trackingDotTextActive: {
     color: '#ffffff',
   },
   trackingLabel: {
-    marginTop: 6,
+    marginTop: 5,
     color: '#9ca3af',
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: '800',
-    lineHeight: 18,
+    lineHeight: 16,
     textAlign: 'center',
   },
   trackingLabelActive: {
@@ -986,7 +1351,7 @@ const styles = StyleSheet.create({
   },
   trackingLine: {
     position: 'absolute',
-    top: 16,
+    top: 14,
     left: '58%',
     right: '-42%',
     height: 2,
@@ -997,35 +1362,208 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
   },
   incidentBody: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#374151',
     marginBottom: 10,
     lineHeight: 19,
     fontWeight: '600',
   },
+  photoAttachedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    marginBottom: 10,
+  },
+  photoAttachedText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#991b1b',
+  },
   incidentRowBottom: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
   },
   incidentLocation: {
-    fontSize: 14,
+    fontSize: 12.5,
     color: '#6b7280',
+    fontWeight: '700',
     flex: 1,
-    fontWeight: '600',
-    marginRight: 12,
+  },
+  detailsLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   detailsLink: {
     color: '#dc2626',
     fontWeight: '900',
-    fontSize: 14,
+    fontSize: 13,
   },
+
+  // Tactical Pagination Card
+  paginationCard: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1.2,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 6,
+    marginBottom: 12,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  paginationSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  paginationSummaryText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#4b5563',
+  },
+  paginationBadge: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+  },
+  paginationBadgeText: {
+    color: '#991b1b',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  paginationControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  paginationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.2,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 4,
+    minHeight: 38,
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+  },
+  paginationButtonText: {
+    fontSize: 12.5,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9ca3af',
+  },
+  pageDotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pageDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e5e7eb',
+  },
+  pageDotActive: {
+    width: 18,
+    backgroundColor: '#dc2626',
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: '#fee2e2',
+    paddingHorizontal: 20,
+    marginTop: 6,
+  },
+  emptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.5,
+    borderColor: '#fecaca',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 19,
+    fontWeight: '600',
+  },
+  clearFilterButton: {
+    marginTop: 16,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1.2,
+    borderColor: '#fecaca',
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+  },
+  clearFilterButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
+
+  // Detail Modal Styles
   detailsBackdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(17, 24, 39, 0.46)',
+    backgroundColor: 'rgba(17, 24, 39, 0.52)',
   },
   detailsSheet: {
-    maxHeight: '86%',
+    maxHeight: '88%',
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -1034,7 +1572,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     borderWidth: 1,
     borderColor: '#fee2e2',
-    shadowColor: '#dc2626',
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.22,
     shadowRadius: 22,
@@ -1042,45 +1580,50 @@ const styles = StyleSheet.create({
   },
   detailsHandle: {
     alignSelf: 'center',
-    width: 54,
+    width: 48,
     height: 5,
     borderRadius: 3,
     backgroundColor: '#fecaca',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   detailsHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 14,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 14,
   },
   detailsTitleBlock: {
     flex: 1,
   },
+  detailsEyebrowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 4,
+  },
   detailsEyebrow: {
-    fontSize: 14,
-    color: '#dc2626',
+    fontSize: 11,
+    color: '#991b1b',
     fontWeight: '900',
-    letterSpacing: 1.3,
-    marginBottom: 6,
+    letterSpacing: 1.1,
   },
   detailsTitle: {
-    fontSize: 22,
+    fontSize: 20,
     color: '#111827',
     fontWeight: '900',
   },
   detailsSubtitle: {
-    marginTop: 5,
-    fontSize: 14,
-    color: '#6b7280',
+    marginTop: 3,
+    fontSize: 12.5,
+    color: '#64748b',
     fontWeight: '700',
   },
   detailsCloseButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#dc2626',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#991b1b',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1093,14 +1636,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#fee2e2',
-    borderRadius: 20,
-    padding: 14,
+    borderRadius: 18,
+    padding: 13,
     marginBottom: 12,
   },
   detailsStatusIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1110,16 +1653,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailsStatusLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#111827',
     fontWeight: '900',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   detailsStatusMessage: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#64748b',
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   responderCard: {
     backgroundColor: '#fff7f7',
@@ -1129,10 +1672,10 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 14,
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   responderHeader: {
     flexDirection: 'row',
@@ -1140,9 +1683,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   responderSignal: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     backgroundColor: '#dc2626',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1152,22 +1695,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   responderEyebrow: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: '#dc2626',
-    letterSpacing: 1.1,
+    letterSpacing: 1,
     marginBottom: 2,
   },
   responderTitle: {
-    fontSize: 16,
+    fontSize: 15.5,
     fontWeight: '900',
     color: '#111827',
   },
   responderMessage: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#4b5563',
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: 19,
     marginBottom: 12,
   },
   responderMetaRow: {
@@ -1185,70 +1728,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   responderMetaLabel: {
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 10.5,
+    fontWeight: '900',
     color: '#991b1b',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
   },
   responderMetaValue: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '900',
     color: '#111827',
   },
   responderAddress: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#6b7280',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   responderTrafficNote: {
     fontSize: 11,
     color: '#991b1b',
     fontStyle: 'italic',
-    marginBottom: 10,
+    marginBottom: 8,
     lineHeight: 15,
   },
-  callResponderButton: {
-    backgroundColor: '#dc2626',
-    borderRadius: 14,
+  detailsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  callResponderButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 0.3,
+    gap: 10,
+    marginBottom: 10,
   },
   detailsInfoCard: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: '#fee2e2',
   },
   detailsInfoLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#991b1b',
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 5,
+    letterSpacing: 0.7,
+    marginBottom: 4,
   },
   detailsInfoValue: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#111827',
     fontWeight: '900',
   },
@@ -1261,18 +1788,58 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   detailsSectionLabel: {
-    fontSize: 14,
-    color: '#dc2626',
+    fontSize: 11,
+    color: '#991b1b',
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 5,
+    letterSpacing: 0.7,
+    marginBottom: 4,
   },
   detailsSectionText: {
-    fontSize: 14,
+    fontSize: 13.5,
     color: '#374151',
     fontWeight: '700',
     lineHeight: 19,
+  },
+  detailsPhotoSection: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    borderRadius: 18,
+    padding: 13,
+    marginBottom: 10,
+  },
+  detailsPhotoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  evidenceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  evidenceBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#16a34a',
+  },
+  detailsPhotoWrapper: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    height: 190,
+    backgroundColor: '#f3f4f6',
+  },
+  detailsPhotoImage: {
+    width: '100%',
+    height: '100%',
   },
   assuranceCard: {
     backgroundColor: '#fef2f2',
@@ -1282,149 +1849,30 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
+  assuranceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   assuranceTitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#991b1b',
     fontWeight: '900',
-    marginBottom: 5,
   },
   assuranceText: {
-    fontSize: 14,
+    fontSize: 12.5,
     color: '#7f1d1d',
     fontWeight: '700',
-    lineHeight: 20,
-  },
-
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 80,
-  },
-  emptyIcon: {
-    width: 62,
-    height: 62,
-    borderRadius: 22,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    textAlign: 'center',
-    paddingHorizontal: 20,
-    lineHeight: 20,
-  },
-
-  // Bottom Spacer
-  bottomSpacer: {
-    height: 120,
-  },
-
-  // Bottom Navigation Bar Container
-  bottomNavBarContainer: {
-    position: 'relative',
-    backgroundColor: '#991b1b',
-  },
-
-  // Bottom Navigation Bar
-  bottomNavBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    backgroundColor: '#991b1b',
-    borderTopWidth: 1,
-    borderTopColor: '#b91c1c',
-    paddingBottom: 15,
-    paddingTop: 13,
-    paddingHorizontal: 20,
-  },
-
-  navBottomItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 0,
-    paddingHorizontal: 14,
-  },
-  navBottomIcon: {
-    fontSize: 32,
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  navBottomIconImage: {
-    width: 32,
-    height: 32,
-    marginBottom: 4,
-    tintColor: '#ffffff',
-  },
-  navBottomLabel: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  sosButtonBottom: {
-    position: 'absolute',
-    top: -58,
-    left: '50%',
-    marginLeft: -56,
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.68,
-    shadowRadius: 28,
-    elevation: 35,
-  },
-  sosGlowRing: {
-    position: 'absolute',
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    backgroundColor: '#ffe4e6',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  sosButtonInner: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    backgroundColor: '#ff1238',
-    borderWidth: 4,
-    borderColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ff1238',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  sosTextBottom: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 3,
+    lineHeight: 18,
   },
   rejectionCard: {
     backgroundColor: '#fff5f5',
     borderWidth: 1.5,
     borderColor: '#fecaca',
     borderRadius: 16,
-    padding: 16,
-    marginVertical: 14,
+    padding: 14,
+    marginVertical: 10,
     shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -1434,74 +1882,80 @@ const styles = StyleSheet.create({
   rejectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   rejectionIconWrap: {
-    marginRight: 10,
+    marginRight: 9,
   },
   rejectionTitleBlock: {
     flex: 1,
   },
   rejectionEyebrow: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#dc2626',
     letterSpacing: 1,
   },
   rejectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     color: '#991b1b',
   },
   rejectionReasonHeading: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: '#7f1d1d',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   rejectionMessage: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#1f2937',
-    lineHeight: 20,
-    fontWeight: '500',
+    lineHeight: 19,
+    fontWeight: '600',
     backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 8,
+    padding: 11,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#fee2e2',
   },
   rejectionAdvice: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 10,
+    marginTop: 8,
     gap: 6,
   },
   rejectionAdviceText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11.5,
     color: '#6b7280',
     lineHeight: 16,
+    fontWeight: '600',
   },
   cardRejectionSnippet: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fef2f2',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fee2e2',
     marginVertical: 6,
-    gap: 6,
+    gap: 5,
   },
   cardRejectionSnippetText: {
     flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11.5,
+    fontWeight: '700',
     color: '#b91c1c',
-    lineHeight: 16,
+    lineHeight: 15,
+  },
+
+  // Bottom Spacer to prevent content clipping by bottom nav
+  bottomSpacer: {
+    height: 120,
   },
 });
 

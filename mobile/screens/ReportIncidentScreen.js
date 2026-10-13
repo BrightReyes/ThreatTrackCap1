@@ -11,6 +11,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -603,55 +604,94 @@ const ReportIncidentScreen = ({ navigation }) => {
   return (
     <>
       <View style={styles.container}>
-        <View style={styles.headerContainer}>
+        <LinearGradient
+          colors={['#7f1d1d', '#991b1b', '#dc2626']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerContainer}
+        >
+          <View style={styles.headerTopBar}>
+            <TouchableOpacity
+              style={styles.headerBackButton}
+              onPress={handleBack}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color="#ffffff" />
+            </TouchableOpacity>
+            <View style={styles.headerSecurityBadge}>
+              <Ionicons name="shield-checkmark" size={13} color="#fee2e2" />
+              <Text style={styles.headerSecurityBadgeText}>CITIZEN DISPATCH PORTAL</Text>
+            </View>
+          </View>
           <View style={styles.headerTitleBlock}>
-            <Text style={styles.headerEyebrow}>Community report</Text>
+            <Text style={styles.headerEyebrow}>VALENZUELA COMMUNITY SAFETY</Text>
             <Text style={styles.headerTitle}>Report Incident</Text>
-            <Text style={styles.headerSubtitle}>Classify the event, confirm your role, and submit details for review.</Text>
+            <Text style={styles.headerSubtitle}>
+              Classify the event, confirm your role, and submit details for swift official response.
+            </Text>
           </View>
           <View style={styles.progressContainer}>
             <View style={styles.stepsRow}>
-              {[1, 2, 3].map((step) => (
-                <View key={step} style={styles.stepWrapper}>
-                  <View
-                    style={[
-                      styles.stepCircle,
-                      currentStep >= step && styles.stepCircleActive,
-                      currentStep === step && styles.stepCircleCurrent,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.stepNumber,
-                        currentStep >= step && styles.stepNumberActive,
-                      ]}
-                    >
-                      {step}
-                    </Text>
-                  </View>
-                  {step < 3 && (
+              {[1, 2, 3].map((step) => {
+                const isCompleted = currentStep > step;
+                const isCurrent = currentStep === step;
+
+                return (
+                  <View key={step} style={styles.stepWrapper}>
                     <View
                       style={[
-                        styles.stepLine,
-                        currentStep > step && styles.stepLineActive,
+                        styles.stepCircle,
+                        isCompleted && styles.stepCircleCompleted,
+                        isCurrent && styles.stepCircleCurrent,
                       ]}
-                    />
-                  )}
-                </View>
-              ))}
+                    >
+                      {isCompleted ? (
+                        <Ionicons name="checkmark" size={16} color="#ffffff" />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.stepNumber,
+                            isCurrent && styles.stepNumberCurrent,
+                          ]}
+                        >
+                          {step}
+                        </Text>
+                      )}
+                    </View>
+                    {step < 3 && (
+                      <View
+                        style={[
+                          styles.stepLine,
+                          currentStep > step && styles.stepLineActive,
+                        ]}
+                      />
+                    )}
+                  </View>
+                );
+              })}
             </View>
-            <Text style={styles.stepLabel}>
-              {currentStep === 1 ? 'Incident Type' : currentStep === 2 ? 'Reporting Role' : 'Details and Evidence'}
-            </Text>
+            <View style={styles.stepBadgeRow}>
+              <Text style={styles.stepCounterText}>
+                STEP {currentStep} OF 3
+              </Text>
+              <Text style={styles.stepDotSeparator}>•</Text>
+              <Text style={styles.stepLabel}>
+                {currentStep === 1
+                  ? 'INCIDENT CATEGORY'
+                  : currentStep === 2
+                  ? 'REPORTING ROLE'
+                  : 'DETAILS & EVIDENCE'}
+              </Text>
+            </View>
           </View>
-        </View>
+        </LinearGradient>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {currentStep === 1 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="layers-outline" size={18} color="#dc2626" />
+                  <Ionicons name="layers-outline" size={19} color="#dc2626" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Select incident category</Text>
@@ -673,18 +713,28 @@ const ReportIncidentScreen = ({ navigation }) => {
                       onPress={() => setIncidentType(type.id)}
                       activeOpacity={0.86}
                     >
-                      <View
-                        style={[
-                          styles.incidentIconBadge,
-                          isSelected && styles.incidentIconBadgeSelected,
-                        ]}
-                      >
-                        <Ionicons
-                          name={getIncidentIconName(type.id)}
-                          size={22}
-                          color={isSelected ? '#ffffff' : '#b91c1c'}
-                        />
-                      </View>
+                      {isSelected ? (
+                        <LinearGradient
+                          colors={['#dc2626', '#991b1b']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.incidentIconBadgeSelectedGradient}
+                        >
+                          <Ionicons
+                            name={getIncidentIconName(type.id)}
+                            size={22}
+                            color="#ffffff"
+                          />
+                        </LinearGradient>
+                      ) : (
+                        <View style={styles.incidentIconBadge}>
+                          <Ionicons
+                            name={getIncidentIconName(type.id)}
+                            size={22}
+                            color="#b91c1c"
+                          />
+                        </View>
+                      )}
                       {isSelected && (
                         <View style={styles.incidentSelectedCheck}>
                           <Ionicons name="checkmark" size={13} color="#ffffff" />
@@ -714,7 +764,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                         ]}
                       >
                         <Text style={[styles.incidentSeverityMiniText, { color: SEVERITY_CONFIG[type.severity].color }]}>
-                          {SEVERITY_CONFIG[type.severity].label}
+                          ● {SEVERITY_CONFIG[type.severity].label.toUpperCase()}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -728,7 +778,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="id-card-outline" size={18} color="#dc2626" />
+                  <Ionicons name="id-card-outline" size={19} color="#dc2626" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Who is reporting?</Text>
@@ -751,18 +801,28 @@ const ReportIncidentScreen = ({ navigation }) => {
                       activeOpacity={0.86}
                     >
                       <View style={styles.reportingCardHeader}>
-                        <View
-                          style={[
-                            styles.reportingIconBadge,
-                            isSelected && styles.reportingIconBadgeSelected,
-                          ]}
-                        >
-                          <Ionicons
-                            name={getReportingIconName(option.id)}
-                            size={25}
-                            color={isSelected ? '#ffffff' : '#b91c1c'}
-                          />
-                        </View>
+                        {isSelected ? (
+                          <LinearGradient
+                            colors={['#dc2626', '#991b1b']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.reportingIconBadgeSelectedGradient}
+                          >
+                            <Ionicons
+                              name={getReportingIconName(option.id)}
+                              size={25}
+                              color="#ffffff"
+                            />
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.reportingIconBadge}>
+                            <Ionicons
+                              name={getReportingIconName(option.id)}
+                              size={25}
+                              color="#b91c1c"
+                            />
+                          </View>
+                        )}
                         <View style={styles.reportingTitleBlock}>
                           <Text
                             style={[
@@ -773,14 +833,26 @@ const ReportIncidentScreen = ({ navigation }) => {
                             {option.label}
                           </Text>
                         </View>
+                        {isSelected && (
+                          <View style={styles.reportingCheckPill}>
+                            <Ionicons name="checkmark-circle" size={20} color="#dc2626" />
+                          </View>
+                        )}
                       </View>
-                      <Text style={styles.reportingAsTag}>
-                        {option.id === 'victim' ? 'Directly affected' : 'Observed incident'}
+                      <Text style={[styles.reportingAsTag, isSelected && styles.reportingAsTagSelected]}>
+                        {option.id === 'victim' ? 'DIRECTLY AFFECTED' : 'EYEWITNESS REPORT'}
                       </Text>
                       <Text style={styles.reportingAsDescription}>{option.description}</Text>
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+
+              <View style={styles.roleAssuranceBox}>
+                <Ionicons name="shield-checkmark-outline" size={18} color="#991b1b" />
+                <Text style={styles.roleAssuranceText}>
+                  Your reporting role assists dispatchers in coordinating the correct emergency assistance. Citizen identity remains confidential from public views.
+                </Text>
               </View>
             </View>
           )}
@@ -789,7 +861,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="document-text-outline" size={18} color="#dc2626" />
+                  <Ionicons name="document-text-outline" size={19} color="#dc2626" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Details and evidence</Text>
@@ -807,7 +879,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     />
                   </View>
                   <View style={styles.summaryCopy}>
-                    <Text style={styles.summaryLabel}>Selected incident</Text>
+                    <Text style={styles.summaryLabel}>INCIDENT REVIEW</Text>
                     <Text style={styles.summaryTitle}>{selectedIncident?.label || 'Incident'}</Text>
                     <Text style={styles.summaryMeta}>
                       Reporting as {selectedReportingOption?.label || 'Reporter'}
@@ -824,7 +896,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                   ]}
                 >
                   <Text style={[styles.summarySeverityText, { color: severityStyle.color }]}>
-                    {severityStyle.label}
+                    ● {severityStyle.label.toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -870,13 +942,22 @@ const ReportIncidentScreen = ({ navigation }) => {
               {image ? (
                 <View style={styles.imageContainer}>
                   <Image source={{ uri: image.uri }} style={styles.previewImage} />
-                  <TouchableOpacity style={styles.removeImageButton} onPress={() => setImage(null)}>
-                    <Ionicons name="close" size={19} color="#ffffff" />
+                  <TouchableOpacity
+                    style={styles.removeImageButton}
+                    onPress={() => setImage(null)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="trash-outline" size={17} color="#ffffff" />
                   </TouchableOpacity>
-                  <View style={styles.imageAttachedPill}>
-                    <Ionicons name="image-outline" size={14} color="#ffffff" />
-                    <Text style={styles.imageAttachedText}>Photo attached</Text>
-                  </View>
+                  <LinearGradient
+                    colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+                    style={styles.imageGradientScrim}
+                  >
+                    <View style={styles.imageAttachedPill}>
+                      <Ionicons name="checkmark-circle" size={14} color="#4ade80" />
+                      <Text style={styles.imageAttachedText}>Photo Evidence Attached</Text>
+                    </View>
+                  </LinearGradient>
                 </View>
               ) : (
                 <View style={styles.photoButtonsContainer}>
@@ -884,6 +965,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     style={[styles.photoActionButton, processingImage && styles.photoActionButtonDisabled]}
                     onPress={takePhoto}
                     disabled={processingImage || loading}
+                    activeOpacity={0.85}
                   >
                     <Ionicons name="camera-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Take Photo</Text>
@@ -892,6 +974,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     style={[styles.photoActionButton, processingImage && styles.photoActionButtonDisabled]}
                     onPress={pickImage}
                     disabled={processingImage || loading}
+                    activeOpacity={0.85}
                   >
                     <Ionicons name="image-outline" size={21} color="#dc2626" />
                     <Text style={styles.photoActionText}>Choose Photo</Text>
@@ -910,7 +993,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                   <Ionicons name="shield-checkmark-outline" size={18} color="#991b1b" />
                 </View>
                 <Text style={styles.infoText}>
-                  Reports are sent with your location and selected severity. Your identity is protected from public views.
+                  Verified Citizen Report • Encrypted dispatch routing to Valenzuela City Police and Barangay Operations Command.
                 </Text>
               </View>
             </View>
@@ -920,34 +1003,60 @@ const ReportIncidentScreen = ({ navigation }) => {
         </ScrollView>
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.button, styles.backButton]} onPress={handleBack}>
+          <TouchableOpacity
+            style={[styles.button, styles.backButton]}
+            onPress={handleBack}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={16} color="#991b1b" style={{ marginRight: 6 }} />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
 
           {currentStep < 3 ? (
-            <TouchableOpacity style={[styles.button, styles.nextButton]} onPress={handleNext}>
-              <Text style={styles.nextButtonText}>Next</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.gradientButtonWrap]}
+              onPress={handleNext}
+              activeOpacity={0.88}
+            >
+              <LinearGradient
+                colors={['#dc2626', '#991b1b']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientButton}
+              >
+                <Text style={styles.nextButtonText}>Next</Text>
+                <Ionicons name="arrow-forward" size={16} color="#ffffff" style={{ marginLeft: 6 }} />
+              </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={[
                 styles.button,
-                styles.submitButton,
+                styles.gradientButtonWrap,
                 (loading || processingImage) && styles.submitButtonDisabled,
               ]}
               onPress={handleSubmit}
               disabled={loading || processingImage}
+              activeOpacity={0.88}
             >
-              {loading ? (
-                <>
-                  <ActivityIndicator color="#ffffff" />
-                  <Text style={styles.submitButtonText}>
-                    Submitting...
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.submitButtonText}>Submit Report</Text>
-              )}
+              <LinearGradient
+                colors={['#dc2626', '#7f1d1d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.gradientButton}
+              >
+                {loading ? (
+                  <>
+                    <ActivityIndicator color="#ffffff" size="small" />
+                    <Text style={styles.submitButtonText}>Submitting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="shield-checkmark" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+                    <Text style={styles.submitButtonText}>Submit Report</Text>
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -972,127 +1081,178 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   headerContainer: {
-    backgroundColor: '#b91c1c',
     paddingTop: HEADER_TOP_PADDING,
     paddingHorizontal: 18,
-    paddingBottom: 18,
+    paddingBottom: 20,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
+  },
+  headerTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSecurityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+  },
+  headerSecurityBadgeText: {
+    color: '#fee2e2',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.8,
   },
   headerTitleBlock: {
     marginBottom: 14,
   },
   headerEyebrow: {
-    color: '#fee2e2',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 6,
+    color: '#fecaca',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: '900',
     color: '#ffffff',
+    letterSpacing: 0.2,
   },
   headerSubtitle: {
-    color: '#fff1f2',
+    color: 'rgba(255, 241, 242, 0.92)',
     fontSize: 13,
     fontWeight: '600',
-    lineHeight: 19,
-    marginTop: 7,
+    lineHeight: 18,
+    marginTop: 4,
   },
   scrollView: {
     flex: 1,
   },
   progressContainer: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
-    borderRadius: 18,
+    borderColor: 'rgba(254, 226, 226, 0.8)',
+    borderRadius: 20,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    elevation: 5,
   },
   stepsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   stepWrapper: {
     alignItems: 'center',
     flexDirection: 'row',
   },
   stepCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
   },
-  stepCircleActive: {
+  stepCircleCompleted: {
     backgroundColor: '#dc2626',
     borderColor: '#dc2626',
   },
   stepCircleCurrent: {
+    backgroundColor: '#ffffff',
     borderColor: '#991b1b',
     borderWidth: 3,
   },
   stepNumber: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#6b7280',
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#9ca3af',
   },
-  stepNumberActive: {
-    color: '#ffffff',
+  stepNumberCurrent: {
+    color: '#991b1b',
+    fontWeight: '900',
   },
   stepLine: {
-    width: 42,
-    height: 2,
+    width: 44,
+    height: 2.5,
     backgroundColor: '#e5e7eb',
-    marginHorizontal: 5,
+    marginHorizontal: 6,
+    borderRadius: 1,
   },
   stepLineActive: {
     backgroundColor: '#dc2626',
   },
+  stepBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  stepCounterText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#991b1b',
+    letterSpacing: 0.6,
+  },
+  stepDotSeparator: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
   stepLabel: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#7f1d1d',
-    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#111827',
+    letterSpacing: 0.3,
   },
   stepContent: {
     paddingHorizontal: 16,
     paddingTop: 14,
-  },
-  sectionHeadingRow: {
-    marginBottom: 12,
   },
   stepHeading: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#fecaca',
     borderRadius: 18,
     padding: 14,
     marginBottom: 16,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     elevation: 2,
   },
   stepHeadingIcon: {
@@ -1121,19 +1281,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 17,
   },
-  stepTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#111827',
-    marginBottom: 14,
-  },
-  stepSubtitle: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 19,
-    marginBottom: 16,
-  },
   incidentTypeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1142,18 +1289,17 @@ const styles = StyleSheet.create({
   },
   incidentTypeButton: {
     width: '48.5%',
-    minHeight: 154,
+    minHeight: 156,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderWidth: 1.5,
+    borderColor: '#f3f4f6',
     borderRadius: 18,
     padding: 14,
-    marginBottom: 0,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
     position: 'relative',
     justifyContent: 'space-between',
   },
@@ -1161,21 +1307,34 @@ const styles = StyleSheet.create({
     borderColor: '#dc2626',
     borderWidth: 2,
     backgroundColor: '#fff7f7',
+    shadowColor: '#dc2626',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 4,
   },
   incidentIconBadge: {
     width: 44,
     height: 44,
-    borderRadius: 16,
-    backgroundColor: '#fee2e2',
+    borderRadius: 15,
+    backgroundColor: '#fef2f2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 11,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#fecaca',
   },
-  incidentIconBadgeSelected: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
+  incidentIconBadgeSelectedGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   incidentSelectedCheck: {
     position: 'absolute',
@@ -1215,10 +1374,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 9,
     paddingVertical: 4,
-    marginTop: 12,
+    marginTop: 10,
   },
   incidentSeverityMiniText: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '900',
   },
   reportingAsContainer: {
@@ -1228,28 +1387,32 @@ const styles = StyleSheet.create({
   reportingAsButton: {
     flex: 1,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderWidth: 1.5,
+    borderColor: '#f3f4f6',
     borderRadius: 18,
     padding: 16,
-    minHeight: 172,
+    minHeight: 176,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
     position: 'relative',
   },
   reportingAsButtonSelected: {
     borderColor: '#dc2626',
     borderWidth: 2,
     backgroundColor: '#fff7f7',
+    shadowColor: '#dc2626',
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 4,
   },
   reportingCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    paddingRight: 18,
+    position: 'relative',
   },
   reportingIconBadge: {
     width: 52,
@@ -1261,22 +1424,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#fecaca',
   },
-  reportingIconBadgeSelected: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
+  reportingIconBadgeSelectedGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   reportingTitleBlock: {
     flex: 1,
     marginLeft: 12,
-    height: 52,
     justifyContent: 'center',
+  },
+  reportingCheckPill: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
   },
   reportingAsLabel: {
     fontSize: 16,
     fontWeight: '900',
     color: '#111827',
     lineHeight: 20,
-    textAlign: 'center',
   },
   reportingAsLabelSelected: {
     color: '#991b1b',
@@ -1294,26 +1468,50 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
+  reportingAsTagSelected: {
+    backgroundColor: '#fef2f2',
+    color: '#991b1b',
+  },
   reportingAsDescription: {
     color: '#6b7280',
     fontSize: 11.5,
     fontWeight: '700',
     lineHeight: 17,
   },
+  roleAssuranceBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#fff7f7',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 16,
+  },
+  roleAssuranceText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#7f1d1d',
+    fontWeight: '700',
+    lineHeight: 18,
+  },
   summaryPanel: {
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#fecaca',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc2626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
     shadowColor: '#991b1b',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 2,
   },
   summaryMain: {
@@ -1337,9 +1535,9 @@ const styles = StyleSheet.create({
     color: '#991b1b',
     fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 0,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   summaryTitle: {
     color: '#111827',
@@ -1349,7 +1547,7 @@ const styles = StyleSheet.create({
   },
   summaryMeta: {
     color: '#6b7280',
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
     marginTop: 3,
   },
@@ -1460,12 +1658,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
   },
   photoActionButtonDisabled: {
     opacity: 0.55,
   },
   photoActionText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
     color: '#dc2626',
   },
@@ -1505,23 +1708,36 @@ const styles = StyleSheet.create({
     top: 10,
     right: 10,
     backgroundColor: '#dc2626',
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  imageGradientScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 65,
+    justifyContent: 'flex-end',
+    padding: 12,
   },
   imageAttachedPill: {
-    position: 'absolute',
-    left: 12,
-    bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(17, 24, 39, 0.82)',
+    backgroundColor: 'rgba(17, 24, 39, 0.85)',
     borderRadius: 999,
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 7,
+    alignSelf: 'flex-start',
   },
   imageAttachedText: {
     color: '#ffffff',
@@ -1549,10 +1765,10 @@ const styles = StyleSheet.create({
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12.5,
     color: '#7f1d1d',
     fontWeight: '700',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   spacer: {
     height: 108,
@@ -1561,15 +1777,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 18,
+    paddingBottom: 20,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#fee2e2',
     gap: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   button: {
     flex: 1,
-    paddingVertical: 15,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1579,43 +1799,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
     borderColor: '#fecaca',
+    flexDirection: 'row',
+    paddingVertical: 14,
   },
   backButtonText: {
     fontSize: 14,
     fontWeight: '900',
     color: '#991b1b',
   },
-  nextButton: {
-    backgroundColor: '#dc2626',
+  gradientButtonWrap: {
+    overflow: 'hidden',
+    paddingVertical: 0,
+    paddingHorizontal: 0,
     shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  gradientButton: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 16,
   },
   nextButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#ffffff',
-  },
-  submitButton: {
-    backgroundColor: '#dc2626',
-    flexDirection: 'row',
-    gap: 8,
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
+    letterSpacing: 0.3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#fca5a5',
-    opacity: 0.8,
+    opacity: 0.65,
   },
   submitButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#ffffff',
+    letterSpacing: 0.3,
   },
 });
 

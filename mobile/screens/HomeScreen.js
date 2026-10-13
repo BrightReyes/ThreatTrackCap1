@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
 import { VALENZUELA_POLICE_PRECINCTS } from '../data/valenzuelaPrecincts';
+import { COVERED_SUBSTATIONS } from '../utils/responderEta';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,8 +38,8 @@ const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 const VALENZUELA_CENTER = {
   latitude: 14.7136,
   longitude: 120.9752,
-  latitudeDelta: 0.12,
-  longitudeDelta: 0.13,
+  latitudeDelta: 0.082,
+  longitudeDelta: 0.088,
 };
 
 const DEFAULT_HEATMAP_DAYS = 7;
@@ -74,8 +75,8 @@ const PRECINCT_CONTACTS = [
 ];
 
 const normalizePrecinctForMap = (precinct) => {
-  const latitude = Number(precinct?.location?.latitude);
-  const longitude = Number(precinct?.location?.longitude);
+  const latitude = Number(precinct?.location?.latitude ?? precinct?.latitude ?? precinct?.lat);
+  const longitude = Number(precinct?.location?.longitude ?? precinct?.longitude ?? precinct?.lng);
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null;
@@ -84,7 +85,7 @@ const normalizePrecinctForMap = (precinct) => {
   return {
     ...precinct,
     location: {
-      ...precinct.location,
+      ...(precinct?.location || {}),
       latitude,
       longitude,
     },
@@ -125,10 +126,24 @@ const getMapPrecincts = (firestorePrecincts = []) => {
   const precinctsByKey = new Map();
   const precinctKeyAliases = new Map();
 
+  // 1. Baseline Valenzuela PCP 1-12 directory
   VALENZUELA_POLICE_PRECINCTS.forEach((precinct) => {
     setMergedPrecinct(precinctsByKey, precinctKeyAliases, precinct);
   });
 
+  // 2. Official police substations (e.g. Balangkas PCP 5, Mapulang Lupa PCP 10)
+  (COVERED_SUBSTATIONS || [])
+    .map(normalizePrecinctForMap)
+    .filter(Boolean)
+    .forEach((precinct) => {
+      setMergedPrecinct(precinctsByKey, precinctKeyAliases, {
+        ...precinct,
+        category: 'police_substation',
+        source: 'Substation Directory',
+      });
+    });
+
+  // 3. Dynamic Firestore-managed precincts
   firestorePrecincts
     .map(normalizePrecinctForMap)
     .filter(Boolean)
@@ -143,14 +158,130 @@ const getMapPrecincts = (firestorePrecincts = []) => {
 };
 
 const getPrecinctCoordinate = (precinct) => {
-  const latitude = Number(precinct?.location?.latitude);
-  const longitude = Number(precinct?.location?.longitude);
+  const latitude = Number(precinct?.location?.latitude ?? precinct?.latitude ?? precinct?.lat);
+  const longitude = Number(precinct?.location?.longitude ?? precinct?.longitude ?? precinct?.lng);
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     return null;
   }
 
   return { latitude, longitude };
+};
+
+// Pure date parsing helpers for incident timestamps
+const getIncidentDate = (timestamp) => {
+  if (!timestamp) return null;
+  if (timestamp.toDate) return timestamp.toDate();
+  if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
+
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getIncidentHeatmapDate = (incident) => {
+  return (
+    getIncidentDate(incident?.timestamp) ||
+    getIncidentDate(incident?.clientTimestamp) ||
+    getIncidentDate(incident?.createdAt) ||
+    getIncidentDate(incident?.submittedAt)
+  );
+};
+
+// Spatial clustering algorithm: computes exact geodesic circles for MapView
+const buildGeographicHotspotCircles = (sourceIncidents, days = DEFAULT_HEATMAP_DAYS) => {
+  if (!Array.isArray(sourceIncidents) || sourceIncidents.length === 0) {
+    return [];
+  }
+
+  const endDate = new Date();
+  const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+  const validIncidents = sourceIncidents.filter((incident) => {
+    const lat = Number(incident?.location?.latitude ?? incident?.latitude);
+    const lng = Number(incident?.location?.longitude ?? incident?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+
+    const status = incident.status || 'verified';
+    if (!HEATMAP_VISIBLE_STATUSES.has(status)) return false;
+
+    const incidentDate = getIncidentHeatmapDate(incident);
+    if (!incidentDate || incidentDate < startDate || incidentDate > endDate) return false;
+
+    return true;
+  });
+
+  if (validIncidents.length === 0) {
+    return [];
+  }
+
+  // Group into spatial clusters within 260m
+  const clusters = [];
+  const CLUSTER_DISTANCE_KM = 0.26;
+
+  validIncidents.forEach((incident) => {
+    const lat = Number(incident?.location?.latitude ?? incident?.latitude);
+    const lng = Number(incident?.location?.longitude ?? incident?.longitude);
+    const point = { latitude: lat, longitude: lng };
+
+    let closestCluster = null;
+    let minDistance = Infinity;
+
+    for (const cluster of clusters) {
+      const dist = calculateDistance(point, {
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+      });
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestCluster = cluster;
+      }
+    }
+
+    if (closestCluster && minDistance <= CLUSTER_DISTANCE_KM) {
+      closestCluster.points.push(incident);
+      const total = closestCluster.points.length;
+      closestCluster.latitude = (closestCluster.latitude * (total - 1) + lat) / total;
+      closestCluster.longitude = (closestCluster.longitude * (total - 1) + lng) / total;
+      if (incident.severity === 'high') closestCluster.hasHigh = true;
+    } else {
+      clusters.push({
+        id: `cluster-${clusters.length + 1}-${lat.toFixed(4)}-${lng.toFixed(4)}`,
+        latitude: lat,
+        longitude: lng,
+        points: [incident],
+        hasHigh: incident.severity === 'high',
+      });
+    }
+  });
+
+  return clusters.map((cluster) => {
+    const count = cluster.points.length;
+    let radius = 130; // base meter radius
+    let auraRadius = 180;
+    let severity = 'low';
+
+    if (count >= 5 || cluster.hasHigh) {
+      radius = 280;
+      auraRadius = 380;
+      severity = 'high';
+    } else if (count >= 2) {
+      radius = 190;
+      auraRadius = 260;
+      severity = 'medium';
+    }
+
+    return {
+      id: cluster.id,
+      center: {
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+      },
+      radius,
+      auraRadius,
+      count,
+      severity,
+    };
+  });
 };
 
 const SEVERITY_ORDER = {
@@ -185,10 +316,19 @@ const getHeatmapMarkerPoints = (points) => {
     .slice(0, MAX_HEATMAP_MARKERS);
 };
 
-// Valenzuela City bounds from OSM boundary relation 307470.
+// Valenzuela City bounds matching web-admin admin-map.js with 18% padding
 const VALENZUELA_BOUNDS = {
-  northEast: { latitude: 14.7585, longitude: 121.0247 },
-  southWest: { latitude: 14.6686, longitude: 120.9256 },
+  northEast: { latitude: 14.775, longitude: 121.042 },
+  southWest: { latitude: 14.652, longitude: 120.908 },
+};
+
+const VALENZUELA_ALLOWED_LIMITS = {
+  minLat: 14.652,
+  maxLat: 14.775,
+  minLng: 120.908,
+  maxLng: 121.042,
+  maxLatitudeDelta: 0.098,
+  maxLongitudeDelta: 0.108,
 };
 
 // Simplified Valenzuela City boundary polygon from OSM relation 307470.
@@ -260,7 +400,8 @@ const HomeScreen = ({ navigation }) => {
   // State management
   const [userLocation, setUserLocation] = useState(VALENZUELA_CENTER);
   const [incidents, setIncidents] = useState([]);
-  const [precincts, setPrecincts] = useState(VALENZUELA_POLICE_PRECINCTS);
+  const [precincts, setPrecincts] = useState(() => getMapPrecincts([]));
+  const [tracksPcpViewChanges, setTracksPcpViewChanges] = useState(true);
   const [nearestPrecinct, setNearestPrecinct] = useState(null);
   const [riskStats, setRiskStats] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(true);
@@ -271,6 +412,18 @@ const HomeScreen = ({ navigation }) => {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  const hotspotCircles = useMemo(() => {
+    return buildGeographicHotspotCircles(incidents, heatmapDays);
+  }, [incidents, heatmapDays]);
+
+  useEffect(() => {
+    setTracksPcpViewChanges(true);
+    const timer = setTimeout(() => {
+      setTracksPcpViewChanges(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [precincts]);
   const mapRef = useRef(null);
   const unsubscribeRef = useRef(null);
   const notificationsUnsubscribeRef = useRef(null);
@@ -765,7 +918,7 @@ const HomeScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error fetching precincts:', error);
-      setPrecincts(VALENZUELA_POLICE_PRECINCTS);
+      setPrecincts(getMapPrecincts([]));
     }
   };
 
@@ -776,11 +929,12 @@ const HomeScreen = ({ navigation }) => {
     let minDistance = Infinity;
 
     precincts.forEach((precinct) => {
-      if (precinct.location && precinct.location.latitude && precinct.location.longitude) {
-        const distance = calculateDistance(userLocation, precinct.location);
+      const coord = getPrecinctCoordinate(precinct);
+      if (coord) {
+        const distance = calculateDistance(userLocation, coord);
         if (distance < minDistance) {
           minDistance = distance;
-          nearest = { ...precinct, distance };
+          nearest = { ...precinct, distance, location: coord };
         }
       }
     });
@@ -793,40 +947,51 @@ const HomeScreen = ({ navigation }) => {
       mapRef.current.animateToRegion({
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
+        latitudeDelta: 0.082,
+        longitudeDelta: 0.088,
       }, 1000);
     }
   };
 
-  // Constrain map to Valenzuela bounds
+  // Constrain map strictly to Valenzuela bounds and zoom limits
   const handleRegionChange = (region) => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !region) return;
 
     let constrainedRegion = { ...region };
     let needsAdjustment = false;
 
-    // Keep latitude within bounds
-    if (region.latitude < VALENZUELA_BOUNDS.southWest.latitude) {
-      constrainedRegion.latitude = VALENZUELA_BOUNDS.southWest.latitude;
+    // Constrain zoom out delta to keep city in focus
+    if (constrainedRegion.latitudeDelta > VALENZUELA_ALLOWED_LIMITS.maxLatitudeDelta) {
+      constrainedRegion.latitudeDelta = VALENZUELA_ALLOWED_LIMITS.maxLatitudeDelta;
       needsAdjustment = true;
-    } else if (region.latitude > VALENZUELA_BOUNDS.northEast.latitude) {
-      constrainedRegion.latitude = VALENZUELA_BOUNDS.northEast.latitude;
+    }
+    if (constrainedRegion.longitudeDelta > VALENZUELA_ALLOWED_LIMITS.maxLongitudeDelta) {
+      constrainedRegion.longitudeDelta = VALENZUELA_ALLOWED_LIMITS.maxLongitudeDelta;
       needsAdjustment = true;
     }
 
-    // Keep longitude within bounds
-    if (region.longitude < VALENZUELA_BOUNDS.southWest.longitude) {
-      constrainedRegion.longitude = VALENZUELA_BOUNDS.southWest.longitude;
+    // Keep latitude within padded Valenzuela city limits
+    if (constrainedRegion.latitude < VALENZUELA_ALLOWED_LIMITS.minLat) {
+      constrainedRegion.latitude = VALENZUELA_ALLOWED_LIMITS.minLat;
       needsAdjustment = true;
-    } else if (region.longitude > VALENZUELA_BOUNDS.northEast.longitude) {
-      constrainedRegion.longitude = VALENZUELA_BOUNDS.northEast.longitude;
+    } else if (constrainedRegion.latitude > VALENZUELA_ALLOWED_LIMITS.maxLat) {
+      constrainedRegion.latitude = VALENZUELA_ALLOWED_LIMITS.maxLat;
       needsAdjustment = true;
     }
 
-    // Animate back to constrained region if user panned too far
+    // Keep longitude within padded Valenzuela city limits
+    if (constrainedRegion.longitude < VALENZUELA_ALLOWED_LIMITS.minLng) {
+      constrainedRegion.longitude = VALENZUELA_ALLOWED_LIMITS.minLng;
+      needsAdjustment = true;
+    } else if (constrainedRegion.longitude > VALENZUELA_ALLOWED_LIMITS.maxLng) {
+      constrainedRegion.longitude = VALENZUELA_ALLOWED_LIMITS.maxLng;
+      needsAdjustment = true;
+    }
+
+    // Smoothly animate back to constrained region if user panned or zoomed too far
     if (needsAdjustment) {
-      mapRef.current.animateToRegion(constrainedRegion, 300);
+      mapRef.current.animateToRegion(constrainedRegion, 320);
+      setMapRegion(constrainedRegion);
     }
   };
 
@@ -894,24 +1059,6 @@ const HomeScreen = ({ navigation }) => {
     return date.toLocaleDateString();
   };
 
-  const getIncidentDate = (timestamp) => {
-    if (!timestamp) return null;
-    if (timestamp.toDate) return timestamp.toDate();
-    if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-
-    const date = new Date(timestamp);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-
-  const getIncidentHeatmapDate = (incident) => {
-    return (
-      getIncidentDate(incident.timestamp) ||
-      getIncidentDate(incident.clientTimestamp) ||
-      getIncidentDate(incident.createdAt) ||
-      getIncidentDate(incident.submittedAt)
-    );
-  };
-
   const getBoundsFromRegion = (region) => ({
     north: region.latitude + region.latitudeDelta / 2,
     south: region.latitude - region.latitudeDelta / 2,
@@ -924,22 +1071,19 @@ const HomeScreen = ({ navigation }) => {
       return precinct.distance;
     }
 
-    if (
-      userLocation &&
-      precinct?.location &&
-      Number.isFinite(Number(precinct.location.latitude)) &&
-      Number.isFinite(Number(precinct.location.longitude))
-    ) {
-      return calculateDistance(userLocation, precinct.location);
+    const coord = getPrecinctCoordinate(precinct);
+    if (userLocation && coord) {
+      return calculateDistance(userLocation, coord);
     }
 
     return null;
   };
 
   const confirmPrecinctNavigation = (precinct) => {
-    if (!precinct?.location) return;
+    const coord = getPrecinctCoordinate(precinct);
+    if (!coord) return;
 
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${precinct.location.latitude},${precinct.location.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${coord.latitude},${coord.longitude}`;
     showAlert('Navigate', `Open in Google Maps?\n${precinct.name}`, 'info', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Open Maps', onPress: () => Linking.openURL(url) },
@@ -1539,7 +1683,7 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.hotspotAdvisoryTitle}>Safety & Hotspot Radar</Text>
               <Text style={styles.hotspotAdvisorySubtitle}>
                 {showHeatmap
-                  ? `${heatmapData?.length || 0} active cluster${heatmapData?.length === 1 ? '' : 's'} mapped in Valenzuela`
+                  ? `${hotspotCircles?.length || heatmapData?.length || 0} active cluster${(hotspotCircles?.length || heatmapData?.length || 0) === 1 ? '' : 's'} mapped in Valenzuela`
                   : 'Hotspot radar is currently on standby'}
               </Text>
             </View>
@@ -1603,6 +1747,7 @@ const HomeScreen = ({ navigation }) => {
                 ref={mapRef}
                 style={styles.map}
                 initialRegion={VALENZUELA_CENTER}
+                cameraBoundary={VALENZUELA_BOUNDS}
                 showsUserLocation={true}
                 showsMyLocationButton={false}
                 customMapStyle={darkMapStyle}
@@ -1615,11 +1760,11 @@ const HomeScreen = ({ navigation }) => {
                     clearTimeout(heatmapDebounceTimerRef.current);
                   }
                   heatmapDebounceTimerRef.current = setTimeout(() => {
-                    fetchHeatmapData(region, DEFAULT_HEATMAP_DAYS);
+                    fetchHeatmapData(region, heatmapDays);
                   }, 450);
                 }}
-                minZoomLevel={12}
-                maxZoomLevel={17}
+                minZoomLevel={12.5}
+                maxZoomLevel={18}
                 pitchEnabled={false}
                 rotateEnabled={false}
                 mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
@@ -1633,38 +1778,102 @@ const HomeScreen = ({ navigation }) => {
                   tappable={false}
                 />
 
-                {/* Heatmap Layer - Hardware-accelerated GPU overlay */}
+                {/* Geodesically Perfect Hotspot Circles (mathematically true circles at all zoom levels) */}
+                {showHeatmap &&
+                  hotspotCircles.map((hotspot) => {
+                    const isHigh = hotspot.severity === 'high';
+                    const isMedium = hotspot.severity === 'medium';
+
+                    const auraFill = isHigh
+                      ? 'rgba(239, 68, 68, 0.12)'
+                      : isMedium
+                      ? 'rgba(249, 115, 22, 0.10)'
+                      : 'rgba(245, 158, 11, 0.08)';
+
+                    const coreFill = isHigh
+                      ? 'rgba(220, 38, 38, 0.32)'
+                      : isMedium
+                      ? 'rgba(234, 88, 12, 0.28)'
+                      : 'rgba(217, 119, 6, 0.22)';
+
+                    const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#f59e0b';
+                    const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#d97706';
+
+                    return (
+                      <React.Fragment key={`hotspot-circle-${hotspot.id}`}>
+                        {/* Outer atmospheric aura */}
+                        <Circle
+                          center={hotspot.center}
+                          radius={hotspot.auraRadius}
+                          fillColor={auraFill}
+                          strokeColor="transparent"
+                          strokeWidth={0}
+                          zIndex={14}
+                        />
+                        {/* Core hotspot zone - mathematically perfect vector circle */}
+                        <Circle
+                          center={hotspot.center}
+                          radius={hotspot.radius}
+                          fillColor={coreFill}
+                          strokeColor={strokeColor}
+                          strokeWidth={2}
+                          zIndex={15}
+                        />
+                        {/* High-density center pinpoint core */}
+                        <Circle
+                          center={hotspot.center}
+                          radius={22}
+                          fillColor={centerColor}
+                          strokeColor="#ffffff"
+                          strokeWidth={1.5}
+                          zIndex={16}
+                        />
+                      </React.Fragment>
+                    );
+                  })}
+
+                {/* Heatmap Layer - Hardware-accelerated GPU overlay for ambient glow */}
                 {showHeatmap && heatmapData && heatmapData.length > 0 && (
                   <Heatmap
                     points={heatmapData}
                     radius={HEATMAP_NATIVE_RADIUS}
-                    opacity={0.8}
+                    opacity={0.4}
                     maxIntensity={1}
                     gradient={HEATMAP_GRADIENT}
                   />
                 )}
 
-                {/* Precinct Markers */}
+                {/* Precinct & Sub-station Tactical Markers */}
                 {precincts.map((precinct) => {
                   const coordinate = getPrecinctCoordinate(precinct);
 
                   if (!coordinate) return null;
 
+                  const pinKey = precinct.id || precinct.code || precinct.name;
+                  const displayLabel = precinct.code || (precinct.name && precinct.name.includes('PCP') ? precinct.name.split(' ').slice(-2).join(' ') : 'POLICE');
+
                   return (
                     <Marker
-                      key={`precinct-marker-${precinct.id || precinct.name}`}
+                      key={`precinct-marker-${pinKey}`}
                       coordinate={coordinate}
                       title={precinct.name}
                       description={precinct.address}
                       anchor={{ x: 0.5, y: 1 }}
-                      zIndex={20}
-                      tracksViewChanges={false}
+                      zIndex={25}
+                      tracksViewChanges={tracksPcpViewChanges}
+                      onPress={() => openHomeModal('nearest', precinct)}
                     >
-                      <Image
-                        source={require('../assets/icons/police-station.png')}
-                        style={styles.policeStationMarker}
-                        fadeDuration={0}
-                      />
+                      <View style={styles.pcpPinWrapper}>
+                        <View style={styles.pcpPinBadge}>
+                          <View style={styles.pcpPinIconWrap}>
+                            <Ionicons name="shield" size={12} color="#ffffff" />
+                          </View>
+                          <Text style={styles.pcpPinText} numberOfLines={1}>
+                            {displayLabel}
+                          </Text>
+                        </View>
+                        <View style={styles.pcpPinArrow} />
+                      </View>
                     </Marker>
                   );
                 })}
@@ -3402,6 +3611,57 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     resizeMode: 'contain',
+  },
+
+  // Tactical PCP & Sub-station Vector Pins
+  pcpPinWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pcpPinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1.5,
+    borderColor: '#38bdf8',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 8,
+  },
+  pcpPinIconWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 5,
+  },
+  pcpPinText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  pcpPinArrow: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 0,
+    borderTopWidth: 6,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#38bdf8',
+    alignSelf: 'center',
+    marginTop: -1,
   },
   
   // Old location marker styles

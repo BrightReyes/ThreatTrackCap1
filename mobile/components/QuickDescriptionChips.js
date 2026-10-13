@@ -219,8 +219,8 @@ export default function QuickDescriptionChips({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Ionicons name="chatbubble-ellipses-outline" size={13} color="#2563eb" />
-        <Text style={styles.headerLabel}>Quick details (tap to add):</Text>
+        <Ionicons name="chatbubble-ellipses-outline" size={13} color="#dc2626" />
+        <Text style={styles.headerLabel}>Quick situational details (tap to insert):</Text>
       </View>
       <ScrollView
         horizontal
@@ -240,7 +240,7 @@ export default function QuickDescriptionChips({
               activeOpacity={0.7}
             >
               {isSelected && (
-                <Ionicons name="checkmark" size={12} color="#1d4ed8" style={styles.checkIcon} />
+                <Ionicons name="checkmark" size={12} color="#dc2626" style={styles.checkIcon} />
               )}
               <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                 {tag.label}
@@ -255,18 +255,18 @@ export default function QuickDescriptionChips({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginBottom: 6,
+    gap: 5,
+    marginBottom: 7,
   },
   headerLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#4b5563',
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#374151',
   },
   scrollContent: {
     flexDirection: 'row',
@@ -279,30 +279,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.2,
-    borderColor: '#3b82f6',
+    borderColor: '#fecaca',
     borderRadius: 16,
-    paddingVertical: 4.5,
-    paddingHorizontal: 10,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 1 },
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    shadowColor: '#991b1b',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 1,
   },
   chipSelected: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#1d4ed8',
+    backgroundColor: '#fef2f2',
+    borderColor: '#dc2626',
   },
   checkIcon: {
-    marginRight: 3,
+    marginRight: 4,
   },
   chipText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#2563eb',
+    color: '#7f1d1d',
   },
   chipTextSelected: {
-    color: '#1d4ed8',
-    fontWeight: '800',
+    color: '#dc2626',
+    fontWeight: '900',
   },
 });
