@@ -1,49 +1,20 @@
-// ThreatTrack promo — the single source of truth for every beat (seconds).
-// index.html reads window.TL; tools/cues.mjs reads the same file to build audio/cues.json.
-// Picture and sound share these numbers; retime here, never in components.
+// ThreatTrack promo v2 — every beat in seconds. Picture (anim.js) and sound (tools/cues.mjs) read this file.
+// Structure borrowed from the two references: hard block wipes between full-bleed colour sections,
+// one headline + one card per screen, a typographic beat on a solid block, glow logo in and out.
 const TL = {
   fps: 30,
-  duration: 63,
-  // Film current: LEFT. Reserved vectors: Z pull = arrival, Z push = deeper, UP = elevation.
-  s1: { // Opening — phone floats in, headline waterfall
-    start: 0, phoneIn: 0.15, phoneLand: 1.05, headline: 0.9, caption: 1.6, exit: 4.55, end: 5.1
-  },
-  s2: { // Logo hero — inverse-zoom arrival (Z pull)
-    start: 4.55, logoLand: 5.35, wordmark: 5.75, tagline: 6.55, hold: 7.1, exit: 8.3, end: 8.9
-  },
-  s3: { // SOS gateway — 3 s hold, release, live GPS
-    start: 8.3, phoneLand: 9.0, pressDown: 9.6, holdEnd: 12.6, release: 12.7, dispatched: 13.05,
-    ping1: 13.5, ping2: 14.1, ping3: 14.7, callout1: 9.9, callout2: 12.9, callout3: 14.2,
-    exit: 15.7, end: 16.3
-  },
-  s4: { // Report flow — category, role, details, then status tracking
-    start: 15.7, phoneLand: 16.35, chip: 16.9, step2: 17.9, role: 18.35, step3: 19.1,
-    typeStart: 19.25, typeEnd: 20.6, photo: 20.75, submit: 21.3, flip: 21.6,
-    status1: 22.0, status2: 22.9, status3: 23.7, exit: 24.5, end: 25.1
-  },
-  s5: { // Typographic beat — "Reporting is easy." / "Response is what matters."
-    start: 24.5, line1: 24.9, iconsIn: 25.1, zoom: 27.0, line2: 27.25, hold: 28.0, exit: 29.4, end: 30.0
-  },
-  s6: { // Admin command center — inverse-zoom arrival, stats tick, live row
-    start: 29.4, windowLand: 30.2, stats: 30.5, statsEnd: 31.7, map: 31.0, heat: 31.6,
-    rowIn: 32.9, rowLand: 33.25, flash: 33.3, exit: 36.1, end: 36.7
-  },
-  s7: { // Triage & dispatch — rack-focus into the incident modal
-    start: 36.1, focus: 36.4, legit: 36.9, legitEnd: 38.0, chips: 38.2, precinct: 38.7,
-    cursorIn: 39.0, click: 39.8, sent: 40.3, phoneIn: 40.7, phoneLand: 41.3, exit: 43.6, end: 44.2
-  },
-  s8: { // Analytics & AI decision support
-    start: 43.6, panelLand: 44.3, bars: 44.5, line: 44.9, hotspots: 45.4, aiClick: 46.3,
-    aiTypeStart: 46.7, aiTypeEnd: 49.4, guard: 49.6, exit: 51.2, end: 51.8
-  },
-  s9: { // Routing & roles diagram
-    start: 51.2, title: 51.5, tiers: 51.9, routeHigh: 53.2, routeLow: 53.8, badge: 54.6, exit: 56.0, end: 56.6
-  },
-  s10: { // Speed streak → system architecture flow
-    start: 56.0, streak: 56.0, streakEnd: 56.5, nodes: 56.6, links: 57.3, exit: 59.6, end: 60.2
-  },
-  s11: { // Outro — logo arrival, tagline, hold
-    start: 59.6, logoLand: 60.3, wordmark: 60.6, tagline: 61.2, hold: 61.8, end: 63
-  }
+  duration: 62,
+  wipe: 0.45, // block wipe duration at every cut
+  s1:  { start: 0,    line: 0.2,  pulse: 1.0,  logo: 1.7,  word: 2.3,  tag: 3.0,  end: 4.6 },   // navy intro
+  s2:  { start: 4.6,  l1: 4.9,   l2: 6.0,   l3: 7.0,   tick: 4.9,  end: 10.2 },               // red typographic beat
+  s3:  { start: 10.2, card: 10.5, head: 10.8, press: 11.6, holdEnd: 14.6, release: 14.7, sent: 15.1, row1: 15.5, row2: 15.9, row3: 16.3, end: 17.6 }, // navy · SOS
+  s4:  { start: 17.6, phone: 17.8, head: 18.1, chip: 18.9, role: 19.7, photo: 20.5, submit: 21.2, sent: 21.6, end: 23.4 },   // white · report
+  s5:  { start: 23.4, card: 23.7, head: 24.0, p1: 24.6, p2: 25.3, p3: 26.0, p4: 26.7, p5: 27.4, end: 29.2 },                  // sky · status
+  s6:  { start: 29.2, card: 29.5, head: 29.8, stats: 30.2, rows: 30.6, newRow: 32.4, flash: 32.8, end: 35.0 },               // navy · command center
+  s7:  { start: 35.0, title: 35.3, left: 35.6, right: 35.9, score: 36.6, scoreEnd: 37.6, verdict: 37.7, click: 38.6, way: 39.2, eta: 39.7, end: 41.2 }, // split · citizen vs dispatcher
+  s8:  { start: 41.2, title: 41.5, tiles: 41.7, tilesEnd: 43.2, card: 43.4, r1: 43.8, r2: 44.2, r3: 44.6, head: 45.2, end: 47.4 },   // navy · hotspot grid
+  s9:  { start: 47.4, card: 47.7, head: 48.0, typeStart: 48.5, typeEnd: 51.2, guard: 51.5, end: 53.2 },                       // amber · AI
+  s10: { start: 53.2, title: 53.5, chips: 53.9, chipsEnd: 55.6, end: 57.0 },                                                   // navy · every role
+  s11: { start: 57.0, glow: 57.2, line: 57.6, word: 58.2, tag: 58.9, pill: 59.6, end: 62 }                                     // navy · outro
 };
 if (typeof window !== "undefined") window.TL = TL;
