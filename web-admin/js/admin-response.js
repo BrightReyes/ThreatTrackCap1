@@ -183,10 +183,10 @@ export function resolveIncidentCoordinates(incidentData = {}) {
     ).toLowerCase();
 
     if (text.includes("mapulang")) {
-        return { latitude: 14.7025, longitude: 121.0008 };
+        return { latitude: 14.7068, longitude: 121.0018 };
     }
     if (text.includes("balangkas")) {
-        return { latitude: 14.7175, longitude: 120.9495 };
+        return { latitude: 14.7114, longitude: 120.9425 };
     }
 
     // 5. Default Valenzuela City center coordinates

@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Image,
   StatusBar,
-  Linking,
 } from 'react-native';
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +17,7 @@ import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
+import { computeInitialDistanceAndEta } from '../utils/responderEta';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
@@ -271,26 +271,6 @@ const StatusScreen = ({ navigation }) => {
     fetchMyIncidents();
   };
 
-  const handleCallResponder = async (phoneNumber) => {
-    const cleanNumber = String(phoneNumber || '83524000').replace(/[^0-9+]/g, '');
-    const telUrl = `tel:${cleanNumber}`;
-    try {
-      const supported = await Linking.canOpenURL(telUrl);
-      if (supported) {
-        await Linking.openURL(telUrl);
-      } else {
-        showAlert(
-          'Dialer Unavailable',
-          `Cannot automatically open phone dialer. Please dial ${cleanNumber} manually.`,
-          'info'
-        );
-      }
-    } catch (error) {
-      console.error('Call responder error:', error);
-      showAlert('Call Error', `Unable to place call: ${error.message}`, 'error');
-    }
-  };
-
   const handleSOSPress = async () => {
     try {
       // Import getCurrentLocation here since StatusScreen doesn't have it
@@ -464,14 +444,17 @@ const StatusScreen = ({ navigation }) => {
     const severityColor = getSeverityColor(selectedIncident.severity);
     const response = selectedIncident.response || {};
     const responder = selectedIncident.responder || response.responder || {};
-    const hasResponse = displayStatus === 'responding' && (
+    const hasResponse = displayStatus === 'responding' ||
       selectedIncident.responseStatus === 'help_on_the_way' ||
-      response.status === 'help_on_the_way'
-    );
-    const distanceText = Number.isFinite(Number(response.distanceKm))
-      ? `${Number(response.distanceKm).toFixed(1)} km away`
-      : 'Distance unavailable';
-    const etaText = response.etaMinutes ? `${response.etaMinutes} min ETA` : 'ETA unavailable';
+      response.status === 'help_on_the_way';
+
+    const {
+      distanceText,
+      etaText,
+      trafficNote,
+      stationName,
+      stationAddress,
+    } = computeInitialDistanceAndEta(selectedIncident);
 
     return (
       <SmoothModal
@@ -538,34 +521,35 @@ const StatusScreen = ({ navigation }) => {
                     <View style={styles.responderTitleBlock}>
                       <Text style={styles.responderEyebrow}>HELP IS ON THE WAY</Text>
                       <Text style={styles.responderTitle}>
-                        {responder.precinctName || 'Assigned responder'}
+                        {stationName}
                       </Text>
                     </View>
                   </View>
                   <Text style={styles.responderMessage}>
-                    {response.message || 'A responder has acknowledged your report and is being assigned from the nearest available station.'}
+                    {response.message || 'A responder has acknowledged your report and is being deployed from the assigned station.'}
                   </Text>
+
+                  {/* Initial Distance & Traffic-Adjusted Arrival Pills */}
                   <View style={styles.responderMetaRow}>
                     <View style={styles.responderMetaPill}>
-                      <Text style={styles.responderMetaLabel}>Distance</Text>
+                      <Text style={styles.responderMetaLabel}>INITIAL DISTANCE</Text>
                       <Text style={styles.responderMetaValue}>{distanceText}</Text>
                     </View>
                     <View style={styles.responderMetaPill}>
-                      <Text style={styles.responderMetaLabel}>Arrival</Text>
+                      <Text style={styles.responderMetaLabel}>EST. ARRIVAL</Text>
                       <Text style={styles.responderMetaValue}>{etaText}</Text>
                     </View>
                   </View>
+
+                  {trafficNote ? (
+                    <Text style={styles.responderTrafficNote}>
+                      {trafficNote}
+                    </Text>
+                  ) : null}
+
                   <Text style={styles.responderAddress}>
-                    {responder.address || 'Valenzuela City'}
+                    {stationAddress}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.callResponderButton}
-                    onPress={() => handleCallResponder(responder.phone || responder.contactNumber || '83524000')}
-                    activeOpacity={0.86}
-                  >
-                    <Ionicons name="call" size={16} color="#ffffff" />
-                    <Text style={styles.callResponderButtonText}>Call Assigned Unit</Text>
-                  </TouchableOpacity>
                 </View>
               )}
 
@@ -1218,6 +1202,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6b7280',
     marginBottom: 12,
+  },
+  responderTrafficNote: {
+    fontSize: 11,
+    color: '#991b1b',
+    fontStyle: 'italic',
+    marginBottom: 10,
+    lineHeight: 15,
   },
   callResponderButton: {
     backgroundColor: '#dc2626',

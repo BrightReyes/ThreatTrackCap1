@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Alert,
   Animated,
-  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import SmoothModal from './SmoothModal';
+import { computeInitialDistanceAndEta } from '../utils/responderEta';
 
 const TRACKING_STEPS = ['Submitted', 'Review', 'Responder'];
 
@@ -163,22 +162,20 @@ const ActiveEmergencyModal = ({
 
   const response = incident.response || {};
   const responder = incident.responder || response.responder || {};
-  const hasResponder = displayStatus === 'responding' && (responder.precinctName || responder.name);
+  const hasResponder = displayStatus === 'responding' && Boolean(
+    responder.precinctName ||
+    responder.name ||
+    incident.assignedSubstationName ||
+    incident.substationName ||
+    incident.respondingSubstationName
+  );
 
-  const handleCall = async (phone) => {
-    const cleanNumber = String(phone || '83524000').replace(/[^0-9+]/g, '');
-    const telUrl = `tel:${cleanNumber}`;
-    try {
-      const canOpen = await Linking.canOpenURL(telUrl);
-      if (canOpen) {
-        await Linking.openURL(telUrl);
-      } else {
-        Alert.alert('Dialer Unavailable', `Please dial ${cleanNumber} manually on your phone.`);
-      }
-    } catch (err) {
-      console.warn('Call error:', err.message);
-    }
-  };
+  const {
+    distanceText,
+    etaText,
+    trafficNote,
+    stationName,
+  } = computeInitialDistanceAndEta(incident);
 
   const handleSafePress = () => {
     setConfirmSafeVisible(true);
@@ -314,27 +311,22 @@ const ActiveEmergencyModal = ({
           {hasResponder && (
             <View style={styles.responderBox}>
               <Text style={styles.responderEyebrow}>ASSIGNED UNIT</Text>
-              <Text style={styles.responderName}>{responder.precinctName || responder.name}</Text>
-              <TouchableOpacity
-                style={styles.callUnitButton}
-                onPress={() => handleCall(responder.phone || responder.contactNumber || '83524000')}
-                activeOpacity={0.86}
-              >
-                <Ionicons name="call" size={16} color="#ffffff" />
-                <Text style={styles.callUnitButtonText}>Call Assigned Unit</Text>
-              </TouchableOpacity>
+              <Text style={styles.responderName}>{stationName || responder.precinctName || responder.name}</Text>
+              <View style={styles.emergencyEtaRow}>
+                <View style={styles.emergencyEtaPill}>
+                  <Text style={styles.emergencyEtaPillLabel}>INITIAL DISTANCE</Text>
+                  <Text style={styles.emergencyEtaPillValue}>{distanceText}</Text>
+                </View>
+                <View style={styles.emergencyEtaPill}>
+                  <Text style={styles.emergencyEtaPillLabel}>EST. ARRIVAL</Text>
+                  <Text style={styles.emergencyEtaPillValue}>{etaText}</Text>
+                </View>
+              </View>
+              {trafficNote ? (
+                <Text style={styles.emergencyTrafficNote}>{trafficNote}</Text>
+              ) : null}
             </View>
           )}
-
-          {/* Quick hotline button */}
-          <TouchableOpacity
-            style={styles.hotlineButton}
-            onPress={() => handleCall('83524000')}
-            activeOpacity={0.86}
-          >
-            <Ionicons name="call" size={16} color="#ffffff" style={{ marginRight: 8 }} />
-            <Text style={styles.hotlineButtonText}>Direct Call Hotline (8352-4000)</Text>
-          </TouchableOpacity>
 
           {/* I Am Safe Now Button */}
           <TouchableOpacity
@@ -691,6 +683,40 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontWeight: '800',
     marginBottom: 8,
+  },
+  emergencyEtaRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  emergencyEtaPill: {
+    flex: 1,
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  emergencyEtaPillLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#991b1b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  emergencyEtaPillValue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  emergencyTrafficNote: {
+    fontSize: 10,
+    color: '#991b1b',
+    fontStyle: 'italic',
+    marginTop: 2,
+    lineHeight: 14,
   },
   callUnitButton: {
     backgroundColor: '#dc2626',
