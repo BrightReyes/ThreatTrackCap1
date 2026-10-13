@@ -22,7 +22,9 @@
   function type(sel, t, text, dur, caret) { const el = $(sel), o = { n: 0 }; tl.to(o, { n: text.length, duration: dur, ease: "none", onUpdate: () => { el.textContent = text.slice(0, Math.round(o.n)); } }, t); if (caret) tl.to(caret, { opacity: 0, duration: 0.42, repeat: Math.ceil(dur / 0.42) + 4, yoyo: true, ease: "steps(1)" }, t); }
   // camera drive + impact punch
   function drive(scene, t0, t1, amount = 1.06) { tl.fromTo(`${scene} .in`, { scale: 1 }, { scale: amount, duration: t1 - t0, ease: "none" }, t0); }
-  function punch(scene, t) { tl.fromTo(`${scene} .in`, { x: 0 }, { x: 8, duration: 0.06 }, t); tl.to(`${scene} .in`, { x: -5, duration: 0.08 }, t + 0.06); tl.to(`${scene} .in`, { x: 0, duration: 0.2, ease: "power3.out" }, t + 0.14); }
+  // impact shake: heroes only, half strength
+  function punch(scene, t) { tl.fromTo(`${scene} .in`, { x: 0 }, { x: 4, duration: 0.06 }, t); tl.to(`${scene} .in`, { x: -3, duration: 0.08 }, t + 0.06); tl.to(`${scene} .in`, { x: 0, duration: 0.2, ease: "power3.out" }, t + 0.14); }
+  const noShake = () => {};
   // card arrives from depth (z) like a product shot, with a slight tilt that straightens
   function cardIn(sel, t) { tl.fromTo(sel, { opacity: 0, scale: 0.82, y: 60, rotateY: -14, rotateX: 6, transformPerspective: 1600 }, { opacity: 1, scale: 1, y: 0, rotateY: -6, rotateX: 3, duration: 0.7, ease: "expo.out" }, t); }
   function blip(sel, t) { tl.fromTo(sel, { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, t); tl.fromTo(`${sel} i`, { scale: 1, opacity: 0.9 }, { scale: 2.6, opacity: 0, duration: 0.9, ease: "power2.out" }, t + 0.05); }
@@ -47,7 +49,7 @@
   }
   // ===== S2 / S3 · kinetic type =====
   { const S = T.s2; snap("#s2-kt", S.w1, 0.3); drive("#s2", S.start, S.end, 1.07); snapOut("#s2-kt", S.end - 0.25); }
-  { const S = T.s3; snap("#s3-kt", S.w1, 0.38); punch("#s3", S.w1 + 0.1); drive("#s3", S.start, S.end, 1.07); snapOut("#s3-kt", S.end - 0.25); }
+  { const S = T.s3; snap("#s3-kt", S.w1, 0.38); noShake("#s3", S.w1 + 0.1); drive("#s3", S.start, S.end, 1.07); snapOut("#s3-kt", S.end - 0.25); }
   // ===== S4 · collage: screens fly in from depth, drift, then one zooms through =====
   { const S = T.s4;
     const shots = $$("#s4 .sh");
@@ -58,7 +60,7 @@
     });
     tl.fromTo("#s4-icons span", { opacity: 0, y: 40, scale: 0.6 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.8)", stagger: 0.05 }, S.settle + 0.1);
     tl.to("#s4 .in", { scale: 2.4, x: -400, y: 300, filter: "blur(6px)", duration: S.end - S.zoom + 0.1, ease: "power3.in" }, S.zoom);
-    punch("#s4", S.settle);
+    noShake("#s4", S.settle);
   }
   // ===== S5 · Report. Track. Respond. =====
   { const S = T.s5;
@@ -66,7 +68,7 @@
     [["#s5-a", S.a], ["#s5-b", S.b], ["#s5-c", S.c]].forEach(([id, t], i) => {
       tl.fromTo(id, { opacity: 0, scale: 2.2, filter: "blur(16px)" }, { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.32, ease: "expo.out" }, t);
       if (i < 2) tl.to(id, { opacity: 0, scale: 0.8, filter: "blur(8px)", duration: 0.2, ease: "power3.in" }, [S.b, S.c][i] - 0.05);
-      punch("#s5", t + 0.05);
+      noShake("#s5", t + 0.05);
     });
     drive("#s5", S.start, S.end, 1.1);
   }
@@ -74,7 +76,7 @@
   function beat(scene, S, cardSel, extra = {}) {
     snap(`${scene} .kt`, S.head, 0.09);
     rise(`${scene} .sub-kt`, S.head + 0.5, 30, 0.45);
-    if (cardSel) { cardIn(cardSel, S.card ?? S.head + 0.3); punch(scene, (S.card ?? S.head + 0.3) + 0.4); }
+    if (cardSel) { cardIn(cardSel, S.card ?? S.head + 0.3); if (scene === "#s9") punch(scene, (S.card ?? S.head + 0.3) + 0.4); }
     drive(scene, S.start, S.end, extra.drive ?? 1.05);
     snapOut(`${scene} .kt`, S.end - 0.22);
     tl.to(`${scene} .sub-kt`, { opacity: 0, y: -20, duration: 0.2 }, S.end - 0.22);
@@ -104,13 +106,13 @@
     tl.set("#s7-toast", { opacity: 0, y: 30 }, 0);
     tl.fromTo("#s7-phone", { x: 320, y: 80, rotateY: -28, rotateX: 8, opacity: 0 }, { x: 0, y: 0, rotateY: -12, rotateX: 5, opacity: 1, duration: 0.8, ease: "expo.out" }, S.phone);
     tl.to("#s7-phone", { rotateY: -4, rotateX: 2, duration: S.end - S.phone - 0.8, ease: "none" }, S.phone + 0.8);
-    punch("#s7", S.phone + 0.5);
+    noShake("#s7", S.phone + 0.5);
     tl.to("#s7-cat", { backgroundColor: "#fff1f2", borderColor: "#dc2626", color: "#dc2626", duration: 0.2 }, S.chip); press("#s7-cat", S.chip);
     tl.to("#s7-st2", { backgroundColor: "#dc2626", duration: 0.2 }, S.role - 0.1);
     tl.to("#s7-role", { backgroundColor: "#fff1f2", borderColor: "#dc2626", duration: 0.2 }, S.role); press("#s7-role", S.role);
     tl.to("#s7-st3", { backgroundColor: "#dc2626", duration: 0.2 }, S.photo - 0.1);
     pop("#s7-photo .ok", S.photo); tl.fromTo("#s7-photo", { borderColor: "#e2e8f0" }, { borderColor: "#22c55e", duration: 0.25 }, S.photo);
-    press("#s7-btn", S.submit); punch("#s7", S.submit + 0.05);
+    press("#s7-btn", S.submit); noShake("#s7", S.submit + 0.05);
     tl.to("#s7-btn", { opacity: 0, y: 20, duration: 0.25, ease: "power2.in" }, S.sent - 0.05);
     tl.to("#s7-toast", { opacity: 1, y: 0, duration: 0.45, ease: "power4.out" }, S.sent);
     tl.to("#s7-phone", { opacity: 0, x: 200, duration: 0.25, ease: "power3.in" }, S.end - 0.22);
@@ -141,7 +143,7 @@
     tl.fromTo("#s9-new", { boxShadow: "0 0 0 2px rgba(255,59,48,0.7), 0 0 0 0 rgba(255,59,48,0)" }, { boxShadow: "0 0 0 2px rgba(255,59,48,0.7), 0 0 0 18px rgba(255,59,48,0)", duration: 0.8, ease: "power2.out" }, S.flash);
     tl.fromTo("#s9 .stat.hot .v", { scale: 1.2 }, { scale: 1, duration: 0.4, ease: "back.out(2)" }, S.flash);
     tl.set("#s9 .stat.hot .v", { textContent: "4" }, S.flash);
-    punch("#s9", S.newRow + 0.3);
+    noShake("#s9", S.newRow + 0.3);
   }
   // ===== S10 · One click. split =====
   { const S = T.s10;
@@ -190,7 +192,7 @@
     rise("#s11-sub", S.head + 0.9, 30, 0.45);
     tl.to("#s11-hot", { opacity: 1, y: 0, duration: 0.5, ease: "expo.out" }, S.card);
     tl.to("#s11-h1", { opacity: 1, x: 0, duration: 0.4, ease: "power4.out" }, S.card + 0.25);
-    punch("#s11", S.blips + 0.2);
+    noShake("#s11", S.blips + 0.2);
     drive("#s11", S.radar, S.end, 1.05);
     snapOut("#s11-kt", S.end - 0.22);
     tl.to(["#s11-sub", "#s11-hot", "#s11-radar"], { opacity: 0, duration: 0.2 }, S.end - 0.2);
@@ -211,7 +213,7 @@
       const t = S.w[i], next = S.w[i + 1] ?? S.end;
       snap(id, t, 0.06, { x: (i % 2 ? 1 : -1) * 120 });
       if (i < 5) snapOut(id, next - 0.15);
-      punch("#s13", t + 0.05);
+      noShake("#s13", t + 0.05);
     });
     tl.fromTo("#s13-t", { opacity: 0, letterSpacing: "0.6em" }, { opacity: 1, letterSpacing: "0.2em", duration: 1.2, ease: "power3.out" }, S.w[0] + 0.3);
     drive("#s13", S.start, S.end, 1.12);
@@ -225,7 +227,7 @@
       tl.to(sh, { y: (i % 2 ? -1 : 1) * 22, duration: S.end - S.settle, ease: "none" }, S.settle);
     });
     snap("#s14-kt", S.title, 0.09);
-    punch("#s14", S.title + 0.1);
+    noShake("#s14", S.title + 0.1);
     drive("#s14", S.fly, S.end, 1.06);
     tl.to("#s14 .in", { opacity: 0, scale: 1.1, filter: "blur(10px)", duration: 0.3, ease: "power3.in" }, S.end - 0.3);
   }

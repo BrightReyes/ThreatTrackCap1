@@ -3,74 +3,74 @@ pass  loudness               integrated -14.15 LUFS, target -14
 pass  true peak              -1.88 dBTP (limit -1.0)
 warn  picture s1-radar-0     move at frame 15: motion peak at frame 18
 FAIL  picture logo-1         appear at frame 47: change at frame 46 (1.73 vs local 1.45)
-warn  picture s1-word-3      appear at frame 59: change at frame 60 (0.61 vs local 0.24)
+warn  picture s1-word-3      appear at frame 59: change at frame 60 (0.61 vs local 0.20)
 warn  picture s2-4           cut at frame 98: largest change at frame 99 (2.3 vs local 1.2)
 pass  picture s2-w2-6        appear at frame 109: change at frame 109 (2.02 vs local 0.39)
-warn  picture s3-7           cut at frame 164: largest change at frame 165 (0.6 vs local 1.3)
+warn  picture s3-7           cut at frame 164: largest change at frame 165 (0.6 vs local 1.2)
 pass  picture s3-w2-10       appear at frame 179: change at frame 178 (3.33 vs local 0.49)
 warn  picture s4-shot-12     land at frame 250: motion does not stop near the cue
-warn  picture s4-icons-15    appear at frame 276: change at frame 275 (1.09 vs local 0.54)
+warn  picture s4-icons-15    appear at frame 276: change at frame 277 (0.48 vs local 0.42)
 warn  picture s4-zoom-16     move at frame 321: motion peak at frame 324
-warn  picture s5-17          cut at frame 344: largest change at frame 345 (6.0 vs local 6.7)
-pass  picture s5-word-19     appear at frame 364: change at frame 365 (3.87 vs local 0.12)
+warn  picture s5-17          cut at frame 344: largest change at frame 345 (6.0 vs local 6.8)
+pass  picture s5-word-19     appear at frame 364: change at frame 365 (3.50 vs local 0.12)
 pass  picture s5-word-20     appear at frame 384: change at frame 384 (9.27 vs local 0.14)
 warn  picture s6-21          cut at frame 410: largest change at frame 411 (0.8 vs local 1.5)
-pass  picture s6-card-23     land at frame 430: motion stops at frame 432
-pass  picture s6-press-24    land at frame 441: motion stops at frame 440
+warn  picture s6-card-23     land at frame 430: motion stops at frame 433
+warn  picture s6-press-24    land at frame 441: motion stops at frame 435
 pass  picture sos-release-26 move at frame 520: motion peak at frame 523
-warn  picture s6-row-28      appear at frame 532: change at frame 533 (1.61 vs local 0.45)
-warn  picture s6-row-29      appear at frame 543: change at frame 543 (0.52 vs local 0.42)
-warn  picture s6-assigned-31 appear at frame 561: change at frame 562 (0.39 vs local 0.29)
+warn  picture s6-row-28      appear at frame 532: change at frame 533 (1.61 vs local 0.44)
+warn  picture s6-row-29      appear at frame 543: change at frame 543 (0.52 vs local 0.40)
+warn  picture s6-assigned-31 appear at frame 561: change at frame 562 (0.40 vs local 0.30)
 pass  picture s7-32          cut at frame 598: largest change at frame 597 (37.7 vs local 2.4)
 pass  picture s7-phone-34    move at frame 609: motion peak at frame 608
-pass  picture s7-chip-35     land at frame 630: motion stops at frame 630
+warn  picture s7-chip-35     land at frame 630: motion stops at frame 625
 warn  picture s7-role-36     land at frame 648: no motion before the landing
-warn  picture s7-photo-37    appear at frame 668: change at frame 668 (0.33 vs local 0.29)
+warn  picture s7-photo-37    appear at frame 668: change at frame 668 (0.34 vs local 0.29)
 warn  picture s7-submit-38   land at frame 684: no motion before the landing
-warn  picture s7-sent-39     appear at frame 698: change at frame 697 (1.01 vs local 0.45)
+warn  picture s7-sent-39     appear at frame 698: change at frame 697 (1.01 vs local 0.36)
 warn  picture s8-head-40     appear at frame 739: change at frame 740 (1.13 vs local 1.20)
-warn  picture s8-card-41     land at frame 756: motion stops at frame 762
-pass  picture s8-step-43     appear at frame 778: change at frame 778 (2.13 vs local 0.49)
+warn  picture s8-card-41     land at frame 756: motion stops at frame 760
+pass  picture s8-step-43     appear at frame 778: change at frame 778 (2.13 vs local 0.48)
 pass  picture s8-step-44     appear at frame 794: change at frame 793 (2.10 vs local 0.48)
-pass  picture s8-responding-45 appear at frame 808: change at frame 808 (2.15 vs local 0.41)
+pass  picture s8-responding-45 appear at frame 808: change at frame 808 (2.15 vs local 0.42)
 pass  picture s8-done-46     appear at frame 824: change at frame 823 (2.13 vs local 0.40)
 warn  picture s9-47          cut at frame 860: largest change at frame 861 (0.9 vs local 2.0)
-pass  picture dashboard-49   appear at frame 882: change at frame 883 (3.19 vs local 0.86)
-warn  picture s9-stat-51     appear at frame 894: change at frame 895 (0.87 vs local 0.63)
+FAIL  picture dashboard-49   appear at frame 882: change at frame 883 (1.93 vs local 0.86)
+warn  picture s9-stat-51     appear at frame 894: change at frame 895 (0.88 vs local 0.60)
 warn  picture s9-row-in-52   move at frame 933: motion peak at frame 936
-pass  picture s9-alert-53    appear at frame 943: change at frame 942 (4.64 vs local 0.39)
-warn  picture s10-head-54    appear at frame 997: change at frame 998 (0.72 vs local 0.99)
+warn  picture s9-alert-53    appear at frame 943: change at frame 942 (0.87 vs local 0.36)
+warn  picture s10-head-54    appear at frame 997: change at frame 998 (0.73 vs local 1.00)
 warn  picture s10-right-55   land at frame 1011: motion stops at frame 1017
 warn  picture s10-cursor-58  move at frame 1062: motion peak at frame 1063
-pass  picture dispatch-59    move at frame 1082: motion peak at frame 1081
-warn  picture s10-way-61     appear at frame 1098: change at frame 1097 (0.56 vs local 0.48)
+pass  picture dispatch-59    move at frame 1082: motion peak at frame 1082
+warn  picture s10-way-61     appear at frame 1098: change at frame 1097 (0.56 vs local 0.47)
 warn  picture s11-iris-62    cut at frame 1160: largest change at frame 1161 (12.0 vs local 4.3)
-warn  picture s11-blip-63    appear at frame 1178: change at frame 1178 (1.27 vs local 1.52)
-warn  picture s11-blip-64    appear at frame 1190: change at frame 1189 (1.31 vs local 1.21)
+warn  picture s11-blip-63    appear at frame 1178: change at frame 1178 (1.26 vs local 1.30)
+warn  picture s11-blip-64    appear at frame 1190: change at frame 1189 (1.23 vs local 1.20)
 warn  picture s11-blip-65    appear at frame 1202: change at frame 1203 (1.21 vs local 1.18)
 warn  picture s11-card-67    appear at frame 1227: change at frame 1226 (1.35 vs local 1.22)
 warn  picture s12-head-68    appear at frame 1282: change at frame 1283 (0.90 vs local 1.58)
-warn  picture s12-card-69    land at frame 1300: motion does not stop near the cue
+warn  picture s12-card-69    land at frame 1300: motion stops at frame 1304
 warn  picture s12-key-71     appear at frame 1323: change at frame 1322 (0.37 vs local 0.35)
-warn  picture s12-key-72     appear at frame 1338: change at frame 1337 (0.38 vs local 0.34)
+warn  picture s12-key-72     appear at frame 1338: change at frame 1337 (0.39 vs local 0.34)
 warn  picture s12-key-73     appear at frame 1353: change at frame 1353 (0.35 vs local 0.34)
 warn  picture s12-key-74     appear at frame 1368: change at frame 1367 (0.34 vs local 0.33)
 warn  picture s12-key-75     appear at frame 1383: change at frame 1382 (0.44 vs local 0.32)
 warn  picture s12-guard-76   appear at frame 1394: change at frame 1394 (0.37 vs local 0.32)
-pass  picture s13-word-77    appear at frame 1431: change at frame 1432 (4.37 vs local 0.90)
-pass  picture s13-word-78    appear at frame 1446: change at frame 1446 (4.92 vs local 1.01)
-pass  picture s13-word-79    appear at frame 1461: change at frame 1462 (6.20 vs local 1.01)
-pass  picture s13-word-80    appear at frame 1476: change at frame 1476 (4.64 vs local 0.72)
-pass  picture s13-word-81    appear at frame 1491: change at frame 1492 (3.98 vs local 0.56)
-pass  picture s13-word-82    appear at frame 1506: change at frame 1507 (4.81 vs local 0.76)
+pass  picture s13-word-77    appear at frame 1431: change at frame 1432 (4.37 vs local 0.80)
+pass  picture s13-word-78    appear at frame 1446: change at frame 1447 (4.93 vs local 0.77)
+pass  picture s13-word-79    appear at frame 1461: change at frame 1462 (6.06 vs local 0.82)
+pass  picture s13-word-80    appear at frame 1476: change at frame 1476 (4.64 vs local 0.46)
+pass  picture s13-word-81    appear at frame 1491: change at frame 1492 (3.70 vs local 0.44)
+pass  picture s13-word-82    appear at frame 1506: change at frame 1507 (4.67 vs local 0.49)
 warn  picture s14-83         cut at frame 1538: largest change at frame 1539 (0.4 vs local 2.1)
 warn  picture s14-shot-85    land at frame 1550: motion does not stop near the cue
 pass  picture s14-title-87   appear at frame 1580: change at frame 1581 (1.97 vs local 0.21)
 warn  picture s15-89         cut at frame 1664: largest change at frame 1663 (0.0 vs local 1.0)
 warn  picture s15-line-90    move at frame 1674: motion peak at frame 1677
 warn  picture s15-res-91     appear at frame 1690: change at frame 1690 (0.06 vs local 0.04)
-FAIL  picture outro-92       appear at frame 1709: change at frame 1710 (0.41 vs local 0.15)
-warn  picture s15-pill-94    appear at frame 1760: change at frame 1760 (0.34 vs local 0.07)
+FAIL  picture outro-92       appear at frame 1709: change at frame 1710 (0.42 vs local 0.14)
+warn  picture s15-pill-94    appear at frame 1760: change at frame 1760 (0.34 vs local 0.06)
 pass  sync s1-radar-0        peak 0.00 frames from its cue
 pass  audible s1-radar-0     stands out by 18.8 dB in 1000-2000 Hz over music+voice
 pass  sync logo-1            peak 0.00 frames from its cue

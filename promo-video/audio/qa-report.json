@@ -29,7 +29,7 @@
   {
    "check": "picture s1-word-3",
    "status": "warn",
-   "detail": "appear at frame 59: change at frame 60 (0.61 vs local 0.24)"
+   "detail": "appear at frame 59: change at frame 60 (0.61 vs local 0.20)"
   },
   {
    "check": "picture s2-4",
@@ -44,7 +44,7 @@
   {
    "check": "picture s3-7",
    "status": "warn",
-   "detail": "cut at frame 164: largest change at frame 165 (0.6 vs local 1.3)"
+   "detail": "cut at frame 164: largest change at frame 165 (0.6 vs local 1.2)"
   },
   {
    "check": "picture s3-w2-10",
@@ -59,7 +59,7 @@
   {
    "check": "picture s4-icons-15",
    "status": "warn",
-   "detail": "appear at frame 276: change at frame 275 (1.09 vs local 0.54)"
+   "detail": "appear at frame 276: change at frame 277 (0.48 vs local 0.42)"
   },
   {
    "check": "picture s4-zoom-16",
@@ -69,12 +69,12 @@
   {
    "check": "picture s5-17",
    "status": "warn",
-   "detail": "cut at frame 344: largest change at frame 345 (6.0 vs local 6.7)"
+   "detail": "cut at frame 344: largest change at frame 345 (6.0 vs local 6.8)"
   },
   {
    "check": "picture s5-word-19",
    "status": "pass",
-   "detail": "appear at frame 364: change at frame 365 (3.87 vs local 0.12)"
+   "detail": "appear at frame 364: change at frame 365 (3.50 vs local 0.12)"
   },
   {
    "check": "picture s5-word-20",
@@ -88,13 +88,13 @@
   },
   {
    "check": "picture s6-card-23",
-   "status": "pass",
-   "detail": "land at frame 430: motion stops at frame 432"
+   "status": "warn",
+   "detail": "land at frame 430: motion stops at frame 433"
   },
   {
    "check": "picture s6-press-24",
-   "status": "pass",
-   "detail": "land at frame 441: motion stops at frame 440"
+   "status": "warn",
+   "detail": "land at frame 441: motion stops at frame 435"
   },
   {
    "check": "picture sos-release-26",
@@ -104,17 +104,17 @@
   {
    "check": "picture s6-row-28",
    "status": "warn",
-   "detail": "appear at frame 532: change at frame 533 (1.61 vs local 0.45)"
+   "detail": "appear at frame 532: change at frame 533 (1.61 vs local 0.44)"
   },
   {
    "check": "picture s6-row-29",
    "status": "warn",
-   "detail": "appear at frame 543: change at frame 543 (0.52 vs local 0.42)"
+   "detail": "appear at frame 543: change at frame 543 (0.52 vs local 0.40)"
   },
   {
    "check": "picture s6-assigned-31",
    "status": "warn",
-   "detail": "appear at frame 561: change at frame 562 (0.39 vs local 0.29)"
+   "detail": "appear at frame 561: change at frame 562 (0.40 vs local 0.30)"
   },
   {
    "check": "picture s7-32",
@@ -128,8 +128,8 @@
   },
   {
    "check": "picture s7-chip-35",
-   "status": "pass",
-   "detail": "land at frame 630: motion stops at frame 630"
+   "status": "warn",
+   "detail": "land at frame 630: motion stops at frame 625"
   },
   {
    "check": "picture s7-role-36",
@@ -139,7 +139,7 @@
   {
    "check": "picture s7-photo-37",
    "status": "warn",
-   "detail": "appear at frame 668: change at frame 668 (0.33 vs local 0.29)"
+   "detail": "appear at frame 668: change at frame 668 (0.34 vs local 0.29)"
   },
   {
    "check": "picture s7-submit-38",
@@ -149,7 +149,7 @@
   {
    "check": "picture s7-sent-39",
    "status": "warn",
-   "detail": "appear at frame 698: change at frame 697 (1.01 vs local 0.45)"
+   "detail": "appear at frame 698: change at frame 697 (1.01 vs local 0.36)"
   },
   {
    "check": "picture s8-head-40",
@@ -159,12 +159,12 @@
   {
    "check": "picture s8-card-41",
    "status": "warn",
-   "detail": "land at frame 756: motion stops at frame 762"
+   "detail": "land at frame 756: motion stops at frame 760"
   },
   {
    "check": "picture s8-step-43",
    "status": "pass",
-   "detail": "appear at frame 778: change at frame 778 (2.13 vs local 0.49)"
+   "detail": "appear at frame 778: change at frame 778 (2.13 vs local 0.48)"
   },
   {
    "check": "picture s8-step-44",
@@ -174,7 +174,7 @@
   {
    "check": "picture s8-responding-45",
    "status": "pass",
-   "detail": "appear at frame 808: change at frame 808 (2.15 vs local 0.41)"
+   "detail": "appear at frame 808: change at frame 808 (2.15 vs local 0.42)"
   },
   {
    "check": "picture s8-done-46",
@@ -188,13 +188,13 @@
   },
   {
    "check": "picture dashboard-49",
-   "status": "pass",
-   "detail": "appear at frame 882: change at frame 883 (3.19 vs local 0.86)"
+   "status": "FAIL",
+   "detail": "appear at frame 882: change at frame 883 (1.93 vs local 0.86)"
   },
   {
    "check": "picture s9-stat-51",
    "status": "warn",
-   "detail": "appear at frame 894: change at frame 895 (0.87 vs local 0.63)"
+   "detail": "appear at frame 894: change at frame 895 (0.88 vs local 0.60)"
   },
   {
    "check": "picture s9-row-in-52",
@@ -203,13 +203,13 @@
   },
   {
    "check": "picture s9-alert-53",
-   "status": "pass",
-   "detail": "appear at frame 943: change at frame 942 (4.64 vs local 0.39)"
+   "status": "warn",
+   "detail": "appear at frame 943: change at frame 942 (0.87 vs local 0.36)"
   },
   {
    "check": "picture s10-head-54",
    "status": "warn",
-   "detail": "appear at frame 997: change at frame 998 (0.72 vs local 0.99)"
+   "detail": "appear at frame 997: change at frame 998 (0.73 vs local 1.00)"
   },
   {
    "check": "picture s10-right-55",
@@ -224,12 +224,12 @@
   {
    "check": "picture dispatch-59",
    "status": "pass",
-   "detail": "move at frame 1082: motion peak at frame 1081"
+   "detail": "move at frame 1082: motion peak at frame 1082"
   },
   {
    "check": "picture s10-way-61",
    "status": "warn",
-   "detail": "appear at frame 1098: change at frame 1097 (0.56 vs local 0.48)"
+   "detail": "appear at frame 1098: change at frame 1097 (0.56 vs local 0.47)"
   },
   {
    "check": "picture s11-iris-62",
@@ -239,12 +239,12 @@
   {
    "check": "picture s11-blip-63",
    "status": "warn",
-   "detail": "appear at frame 1178: change at frame 1178 (1.27 vs local 1.52)"
+   "detail": "appear at frame 1178: change at frame 1178 (1.26 vs local 1.30)"
   },
   {
    "check": "picture s11-blip-64",
    "status": "warn",
-   "detail": "appear at frame 1190: change at frame 1189 (1.31 vs local 1.21)"
+   "detail": "appear at frame 1190: change at frame 1189 (1.23 vs local 1.20)"
   },
   {
    "check": "picture s11-blip-65",
@@ -264,7 +264,7 @@
   {
    "check": "picture s12-card-69",
    "status": "warn",
-   "detail": "land at frame 1300: motion does not stop near the cue"
+   "detail": "land at frame 1300: motion stops at frame 1304"
   },
   {
    "check": "picture s12-key-71",
@@ -274,7 +274,7 @@
   {
    "check": "picture s12-key-72",
    "status": "warn",
-   "detail": "appear at frame 1338: change at frame 1337 (0.38 vs local 0.34)"
+   "detail": "appear at frame 1338: change at frame 1337 (0.39 vs local 0.34)"
   },
   {
    "check": "picture s12-key-73",
@@ -299,32 +299,32 @@
   {
    "check": "picture s13-word-77",
    "status": "pass",
-   "detail": "appear at frame 1431: change at frame 1432 (4.37 vs local 0.90)"
+   "detail": "appear at frame 1431: change at frame 1432 (4.37 vs local 0.80)"
   },
   {
    "check": "picture s13-word-78",
    "status": "pass",
-   "detail": "appear at frame 1446: change at frame 1446 (4.92 vs local 1.01)"
+   "detail": "appear at frame 1446: change at frame 1447 (4.93 vs local 0.77)"
   },
   {
    "check": "picture s13-word-79",
    "status": "pass",
-   "detail": "appear at frame 1461: change at frame 1462 (6.20 vs local 1.01)"
+   "detail": "appear at frame 1461: change at frame 1462 (6.06 vs local 0.82)"
   },
   {
    "check": "picture s13-word-80",
    "status": "pass",
-   "detail": "appear at frame 1476: change at frame 1476 (4.64 vs local 0.72)"
+   "detail": "appear at frame 1476: change at frame 1476 (4.64 vs local 0.46)"
   },
   {
    "check": "picture s13-word-81",
    "status": "pass",
-   "detail": "appear at frame 1491: change at frame 1492 (3.98 vs local 0.56)"
+   "detail": "appear at frame 1491: change at frame 1492 (3.70 vs local 0.44)"
   },
   {
    "check": "picture s13-word-82",
    "status": "pass",
-   "detail": "appear at frame 1506: change at frame 1507 (4.81 vs local 0.76)"
+   "detail": "appear at frame 1506: change at frame 1507 (4.67 vs local 0.49)"
   },
   {
    "check": "picture s14-83",
@@ -359,12 +359,12 @@
   {
    "check": "picture outro-92",
    "status": "FAIL",
-   "detail": "appear at frame 1709: change at frame 1710 (0.41 vs local 0.15)"
+   "detail": "appear at frame 1709: change at frame 1710 (0.42 vs local 0.14)"
   },
   {
    "check": "picture s15-pill-94",
    "status": "warn",
-   "detail": "appear at frame 1760: change at frame 1760 (0.34 vs local 0.07)"
+   "detail": "appear at frame 1760: change at frame 1760 (0.34 vs local 0.06)"
   },
   {
    "check": "sync s1-radar-0",
