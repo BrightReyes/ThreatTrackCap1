@@ -1,11 +1,11 @@
 # ThreatTrack promo — audio credits
 
 ## Music
-- "Confident Session" — Kevin MacLeod, CC0 (public domain), mirrored in the Internet Archive item
+- "Called to Win" — CC0 (public domain), from the Internet Archive item
   "Public Domain Background Tracks": https://archive.org/details/public-domain-background-tracks
-  (file: Confident Session.mp3). Trimmed to 63 s with a 1.2 s fade.
+  (file: called-to-win.mp3). Trimmed to the film with a 1.4 s fade.
 
-## Sound effects (24 recordings used, all CC0)
+## Sound effects (25 recordings used, all CC0)
 Built with opus-sound-layer (https://github.com/Bodila51/opus-sound-layer). Full kit list: audio/kit/CREDITS.md.
 
 - boom: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
@@ -13,6 +13,7 @@ Built with opus-sound-layer (https://github.com/Bodila51/opus-sound-layer). Full
 - chime/kenney-interface-glass-001: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
 - click/kenney-ui-audio-click2: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
 - click/kenney-ui-audio-switch10: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
+- hit: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
 - key/fs-180974-key-1: "ä key" by uEffects, CC0, https://freesound.org/people/uEffects/sounds/180974
 - key/fs-194796-vintage-keyboard-2-1: "Vintage Keyboard 2" by jim-ph, CC0, https://freesound.org/people/jim-ph/sounds/194796
 - key/fs-194799-keyboard5-wav-1: "keyboard5.wav" by jim-ph, CC0, https://freesound.org/people/jim-ph/sounds/194799
@@ -27,8 +28,8 @@ Built with opus-sound-layer (https://github.com/Bodila51/opus-sound-layer). Full
 - tap/kenney-impact-impact-wood-light-001: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
 - tap/kenney-impact-impact-wood-light-002: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
 - tap/kenney-impact-impact-wood-light-003: Kenney (kenney.nl), CC0 — see audio/kit/CREDITS.md pack list
-- thump/fs-133282-thump-on-carpet-2: "thump (on carpet)" by animationIsaac, CC0, https://freesound.org/people/animationIsaac/sounds/133282
 - tick/fs-130388-clock-ticking-2: "Clock ticking" by olver, CC0, https://freesound.org/people/olver/sounds/130388
 - tick/fs-188033-ticking-clock-1: "Ticking Clock" by AntumDeluge, CC0, https://freesound.org/people/AntumDeluge/sounds/188033
+- transition/fs-444623-swoosh-10-wav-1: "Swoosh 10.wav" by AudioPapkin, CC0, https://freesound.org/people/AudioPapkin/sounds/444623
 - whoosh/fs-30240-swoop1-flac-1: "swoop1.flac" by Streety, CC0, https://freesound.org/people/Streety/sounds/30240
 - whoosh/fs-30241-swoop2g-flac-1: "swoop2g.flac" by Streety, CC0, https://freesound.org/people/Streety/sounds/30241

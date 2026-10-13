@@ -12,219 +12,227 @@
   <body>
     <div id="root" data-composition-id="main" data-start="0" data-duration="62" data-width="1920" data-height="1080">
 
-      <!-- S1 · navy intro: pulse line, glowing mark, wordmark -->
-      <section id="s1" class="clip scene navy" data-start="0" data-duration="5.05" data-track-index="1">
+      <!-- S1 · radar finds the mark -->
+      <section id="s1" class="clip scene black" data-start="0" data-duration="3.2" data-track-index="1">
         <div class="in">
-          <svg class="pulse" viewBox="0 0 1920 120" preserveAspectRatio="none"><path id="s1-pulse" d="M0 60 H780 L810 60 L830 14 L850 106 L870 30 L890 80 L905 60 H1920"/></svg>
+          <div class="intro-radar" id="s1-radar">
+            <div class="ring" style="width:260px;height:260px;"></div><div class="ring" style="width:540px;height:540px;"></div><div class="ring" style="width:820px;height:820px;"></div><div class="ring" style="width:1100px;height:1100px;"></div>
+            <div class="beam" id="s1-beam"></div>
+            <div class="blip" id="s1-b1" style="left:72%;top:36%;"><i></i></div><div class="blip a" id="s1-b2" style="left:30%;top:62%;"><i></i></div><div class="blip" id="s1-b3" style="left:58%;top:74%;"><i></i></div>
+          </div>
+          <div class="eyebrow" id="s1-eb" style="position:absolute;left:0;right:0;top:300px;text-align:center;color:#6b7280;">Valenzuela City · 14.70°N 120.98°E</div>
           <div class="logo" id="s1-logo"><img src="assets/brand/logo-tight.png" alt="" /></div>
           <div class="wordmark" id="s1-word"><span class="line">Threat<span class="r">Track</span></span></div>
-          <div class="tagline" id="s1-tag">Valenzuela City · community safety, SOS and dispatch</div>
         </div>
       </section>
 
-      <!-- S2 · red typographic beat -->
-      <section id="s2" class="clip scene red" data-start="4.6" data-duration="6.05" data-track-index="2">
+      <!-- S2 / S3 · kinetic type -->
+      <section id="s2" class="clip scene black" data-start="3.2" data-duration="2.2" data-track-index="2">
+        <div class="in"><div class="kt" id="s2-kt"><span class="w">Something </span><span class="w">happens.</span></div></div>
+      </section>
+      <section id="s3" class="clip scene black" data-start="5.4" data-duration="2.6" data-track-index="1">
+        <div class="in"><div class="kt" id="s3-kt"><span class="w gw">Help </span><br><span class="w">should already </span><span class="w">be moving.</span></div></div>
+      </section>
+
+      <!-- S4 · collage of real screens -->
+      <section id="s4" class="clip scene black" data-start="8.0" data-duration="3.4" data-track-index="2">
         <div class="in">
-          <div class="copy left" style="top:300px; width:1680px; gap:0;">
-            <div class="head" style="font-size:116px;">
-              <span class="line" id="s2-l1">Something happens.</span>
-              <span class="line hl" id="s2-l2">Help</span>
-              <span class="line" id="s2-l3">should already be moving.</span>
-            </div>
+          <div class="collage" id="s4-collage">
+            <div class="shot sh" id="c1" style="left:150px;top:120px;width:360px;height:420px;"><div class="bar"><i></i>SOS Gateway</div><div class="px"><div class="sosmini">SOS</div><div class="ln w60" style="margin:0 auto;"></div><div class="ln w80" style="margin:0 auto;"></div><div class="ln red w40" style="margin:0 auto;"></div></div></div>
+            <div class="shot sh" id="c2" style="left:560px;top:60px;width:380px;height:300px;"><div class="bar"><i></i>Report Incident</div><div class="px"><div class="pillrow"><span>Theft</span><span>Assault</span><span>Traffic</span></div><div class="ln"></div><div class="ln w80"></div><div class="ln w60"></div><div class="ln red w40"></div></div></div>
+            <div class="shot sh dark" id="c3" style="left:990px;top:90px;width:520px;height:330px;"><div class="bar"><i></i>Dispatch Command Center</div><div class="px"><div class="ln w40"></div><div class="ln red"></div><div class="ln"></div><div class="ln w80"></div><div class="ln w60"></div><div class="ln"></div></div></div>
+            <div class="shot sh" id="c4" style="left:300px;top:590px;width:400px;height:300px;"><div class="bar"><i></i>Report Status</div><div class="px"><div class="ln green w60"></div><div class="ln green w60"></div><div class="ln red w60"></div><div class="ln w60"></div><div class="ln w60"></div></div></div>
+            <div class="shot sh dark" id="c5" style="left:760px;top:430px;width:420px;height:400px;"><div class="bar"><i></i>Hotspot radar</div><div class="px"><div class="map"></div><div class="ln red w60"></div><div class="ln w80"></div></div></div>
+            <div class="shot sh dark" id="c6" style="left:1240px;top:480px;width:480px;height:360px;"><div class="bar"><i></i>Analytics · AI decision support</div><div class="px"><div class="bars"><i style="height:30%"></i><i style="height:45%"></i><i style="height:40%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:55%"></i></div><div class="ln w80"></div><div class="ln w60"></div></div></div>
           </div>
-          <div class="ticks" id="s2-ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="icons" id="s4-icons"><span class="r">SOS</span><span class="b">Live map</span><span>Reports</span><span class="g">Tracking</span><span class="o">Dispatch</span><span class="p">AI plan</span><span>Audit</span></div>
         </div>
       </section>
 
-      <!-- S3 · navy · FEATURE 01 SOS -->
-      <section id="s3" class="clip scene navy" data-start="10.2" data-duration="7.85" data-track-index="1">
+      <!-- S5 · Report. Track. Respond. -->
+      <section id="s5" class="clip scene black" data-start="11.4" data-duration="2.2" data-track-index="1">
+        <div class="in"><div class="kt" style="font-size:190px;"><span class="w" id="s5-a">Report.</span><span class="w gw" id="s5-b">Track.</span><span class="w" id="s5-c">Respond.</span></div></div>
+      </section>
+
+      <!-- S6 · Hold. -->
+      <section id="s6" class="clip scene black" data-start="13.6" data-duration="6.3" data-track-index="2">
         <div class="in">
-          <div class="card" id="s3-card">
+          <div class="kt left" id="s6-kt" style="top:380px;"><span class="w">Hold.</span><br><span class="w gw">Help </span><span class="w">moves.</span></div>
+          <div class="sub-kt" id="s6-sub">A <b>three-second hold</b> sends your live GPS to the nearest sub-station. No form, no typing.</div>
+          <div class="card" id="s6-card" style="left:1000px; width:800px;">
             <div class="ct"><i class="red"></i>SOS Gateway <span class="mono">hold 3 s</span></div>
-            <div id="s3-gate">
-              <div class="sos-wrap">
-                <div class="sos-halo" id="s3-halo"></div>
-                <svg class="sos-ring" viewBox="0 0 300 300"><circle class="bg" cx="150" cy="150" r="140"/><circle class="fg" id="s3-ring" cx="150" cy="150" r="140"/></svg>
-                <div class="sos-btn" id="s3-btn"><b>SOS</b><small>HOLD</small></div>
-              </div>
-              <div class="sos-label" id="s3-label">Release before 3 seconds to cancel</div>
+            <div id="s6-gate">
+              <div class="sos-wrap"><div class="sos-halo" id="s6-halo"></div><svg class="sos-ring" viewBox="0 0 300 300"><circle class="bg" cx="150" cy="150" r="140"/><circle class="fg" id="s6-ring" cx="150" cy="150" r="140"/></svg><div class="sos-btn" id="s6-btn"><b>SOS</b><small>HOLD</small></div></div>
+              <div class="sos-label" id="s6-label">Release before 3 seconds to cancel</div>
             </div>
-            <div class="rows" id="s3-rows">
-              <div class="row hot" id="s3-r0"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 3v10M12 17v.5"/></svg></span>SOS dispatched<span class="mono">18:41:07</span></div>
-              <div class="row" id="s3-r1"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/></svg></span>Live GPS streaming<span class="mono">14.7245, 120.9620</span></div>
-              <div class="row" id="s3-r2"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M4 20V9l8-5 8 5v11M9 20v-6h6v6"/></svg></span>Mapulang Lupa Police Sub-station<span class="mono">1.4 km</span></div>
-              <div class="row ok" id="s3-r3"><span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Unit assigned · help is on the way<span class="mono">5 min ETA</span></div>
+            <div class="rows" id="s6-rows">
+              <div class="row hot" id="s6-r0"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 3v10M12 17v.5"/></svg></span>SOS dispatched<span class="mono">18:41:07</span></div>
+              <div class="row" id="s6-r1"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/></svg></span>Live GPS streaming<span class="mono">14.7245, 120.9620</span></div>
+              <div class="row" id="s6-r2"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M4 20V9l8-5 8 5v11M9 20v-6h6v6"/></svg></span>Mapulang Lupa Police Sub-station<span class="mono">1.4 km</span></div>
+              <div class="row ok" id="s6-r3"><span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Unit assigned · help is on the way<span class="mono">5 min ETA</span></div>
             </div>
-          </div>
-          <div class="copy" id="s3-copy">
-            <div class="eyebrow">Feature 01</div>
-            <div class="head"><span class="line">Hold.</span><span class="line">Help moves.</span></div>
-            <div class="body">A three-second hold sends your live GPS to the nearest sub-station. No form, no typing.</div>
           </div>
         </div>
       </section>
 
-      <!-- S4 · paper · FEATURE 02 report (ref 1 floating phone) -->
-      <section id="s4" class="clip scene paper" data-start="17.6" data-duration="6.25" data-track-index="2">
+      <!-- S7 · Report in three taps. -->
+      <section id="s7" class="clip scene black" data-start="19.9" data-duration="4.6" data-track-index="1">
         <div class="in">
-          <div class="copy left" id="s4-copy" style="top:280px;">
-            <div class="eyebrow" style="color:#dc2626; opacity:1;">Feature 02</div>
-            <div class="head"><span class="line">Report in</span><span class="line">three taps.</span></div>
-            <div class="body">Category, your role, a photo. Every report is tied to a verified account.</div>
-          </div>
-          <div class="persp" id="s4-persp" style="left:1180px; top:110px;">
-            <div class="phone" id="s4-phone"><div class="notch"></div>
+          <div class="kt left" id="s7-kt" style="top:380px;"><span class="w">Report in</span><br><span class="w gw">three </span><span class="w">taps.</span></div>
+          <div class="sub-kt" id="s7-sub">Category, your role, a photo. Every report is tied to a <b>verified account</b>.</div>
+          <div class="persp" id="s7-persp" style="left:1180px; top:110px;">
+            <div class="phone" id="s7-phone"><div class="notch"></div>
               <div class="screen">
-                <div class="rp">
-                  <div class="lbl">COMMUNITY REPORT</div><h2>Report Incident</h2>
-                  <div class="steps"><i class="on"></i><i id="s4-st2"></i><i id="s4-st3"></i></div>
-                  <div class="cats">
-                    <div class="cat">Robbery / Hold-up<s>Force or intimidation</s></div>
-                    <div class="cat" id="s4-cat">Theft / Snatching<s>Phone or bag snatching</s></div>
-                    <div class="cat">Physical Assault<s>Fight or injury</s></div>
-                    <div class="cat">Traffic Accident<s>Collision or injured</s></div>
-                  </div>
-                  <div class="role" id="s4-role">Witness<s>I saw or heard the incident happen.</s></div>
-                  <div class="photo" id="s4-photo">Evidence photo<span class="ok">Photo attached</span></div>
+                <div class="rp"><div class="lbl">COMMUNITY REPORT</div><h2>Report Incident</h2>
+                  <div class="steps"><i class="on"></i><i id="s7-st2"></i><i id="s7-st3"></i></div>
+                  <div class="cats"><div class="cat">Robbery / Hold-up<s>Force or intimidation</s></div><div class="cat" id="s7-cat">Theft / Snatching<s>Phone or bag snatching</s></div><div class="cat">Physical Assault<s>Fight or injury</s></div><div class="cat">Traffic Accident<s>Collision or injured</s></div></div>
+                  <div class="role" id="s7-role">Witness<s>I saw or heard the incident happen.</s></div>
+                  <div class="photo" id="s7-photo">Evidence photo<span class="ok">Photo attached</span></div>
                 </div>
-                <div class="btn" id="s4-btn">Submit Report</div>
-                <div class="toast" id="s4-toast"><b>SUBMITTED</b>TR-4821 · Theft / Snatching · Mapulang Lupa</div>
+                <div class="btn" id="s7-btn">Submit Report</div>
+                <div class="toast" id="s7-toast"><b>SUBMITTED</b>TR-4821 · Theft / Snatching · Mapulang Lupa</div>
               </div>
             </div>
           </div>
         </div>
       </section>
-      <div class="clip caption" id="cap4" data-start="18.6" data-duration="4.5" data-track-index="5"><span>Ten categories · Victim or witness · Optional photo evidence</span></div>
 
-      <!-- S5 · sky · FEATURE 03 status -->
-      <section id="s5" class="clip scene sky" data-start="23.4" data-duration="6.25" data-track-index="1">
+      <!-- S8 · Track every step. -->
+      <section id="s8" class="clip scene black" data-start="24.5" data-duration="4.1" data-track-index="2">
         <div class="in">
-          <div class="card" id="s5-card">
+          <div class="kt left" id="s8-kt" style="top:380px;"><span class="w">Track</span><br><span class="w gw">every </span><span class="w">step.</span></div>
+          <div class="sub-kt" id="s8-sub">Residents see each status change <b>the moment</b> an officer makes it.</div>
+          <div class="card" id="s8-card" style="left:1000px; width:800px;">
             <div class="ct"><i></i>Report Status · TR-4821 <span class="mono">Theft / Snatching</span></div>
             <div class="pills">
-              <div class="pill" id="s5-p1"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Submitted<span class="t">18:41</span></div>
-              <div class="pill" id="s5-p2"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Under review<span class="t">18:43</span></div>
-              <div class="pill" id="s5-p3"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Verified<span class="t">18:46</span></div>
-              <div class="pill" id="s5-p4"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Responding<span class="t">18:47</span></div>
-              <div class="pill" id="s5-p5"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Done<span class="t">19:12</span></div>
+              <div class="pill" id="s8-p1"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Submitted<span class="t">18:41</span></div>
+              <div class="pill" id="s8-p2"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Under review<span class="t">18:43</span></div>
+              <div class="pill" id="s8-p3"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Verified<span class="t">18:46</span></div>
+              <div class="pill" id="s8-p4"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Responding<span class="t">18:47</span></div>
+              <div class="pill" id="s8-p5"><span class="chk"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Done<span class="t">19:12</span></div>
             </div>
-          </div>
-          <div class="copy" id="s5-copy">
-            <div class="eyebrow">Feature 03</div>
-            <div class="head"><span class="line">Track</span><span class="line">every step.</span></div>
-            <div class="body">Residents see each status change the moment an officer makes it.</div>
           </div>
         </div>
       </section>
 
-      <!-- S6 · navy · FEATURE 04 command center -->
-      <section id="s6" class="clip scene navy" data-start="29.2" data-duration="6.25" data-track-index="2">
+      <!-- S9 · Live queue. -->
+      <section id="s9" class="clip scene black" data-start="28.6" data-duration="4.3" data-track-index="1">
         <div class="in">
-          <div class="card dark" id="s6-card">
-            <div class="ct"><i></i>Dispatch Command Center <span class="mono" id="s6-clock">18:42:07 PHT</span></div>
+          <div class="kt left" id="s9-kt" style="top:380px;"><span class="w">A live</span><br><span class="w gw">command </span><span class="w">center.</span></div>
+          <div class="sub-kt" id="s9-sub">Every report streams into the dispatcher's queue <b>the second</b> it is filed.</div>
+          <div class="card dark" id="s9-card" style="left:1000px; width:800px;">
+            <div class="ct"><i></i>Dispatch Command Center <span class="mono" id="s9-clock">18:42:07 PHT</span></div>
             <div class="stats">
-              <div class="stat"><div class="l">OPEN INCIDENTS</div><div class="v s6-num" data-to="14">0</div></div>
-              <div class="stat hot"><div class="l">SOS ALERTS</div><div class="v s6-num" data-to="3">0</div></div>
-              <div class="stat"><div class="l">TODAY'S REPORTS</div><div class="v s6-num" data-to="23">0</div></div>
+              <div class="stat"><div class="l">OPEN INCIDENTS</div><div class="v s9-num" data-to="14">0</div></div>
+              <div class="stat hot"><div class="l">SOS ALERTS</div><div class="v s9-num" data-to="3">0</div></div>
+              <div class="stat"><div class="l">TODAY'S REPORTS</div><div class="v s9-num" data-to="23">0</div></div>
             </div>
-            <div class="queue" id="s6-queue">
-              <div class="q new" id="s6-new"><span class="code">TR-4821</span><div>Theft / Snatching<div class="loc">Mapulang Lupa · just now</div></div><span class="badge high">HIGH</span><span class="badge pending">PENDING</span></div>
+            <div class="queue" id="s9-queue">
+              <div class="q new" id="s9-new"><span class="code">TR-4821</span><div>Theft / Snatching<div class="loc">Mapulang Lupa · just now</div></div><span class="badge high">HIGH</span><span class="badge pending">PENDING</span></div>
               <div class="q"><span class="code">TR-4820</span><div>Traffic Accident<div class="loc">Balangkas · MacArthur Hwy</div></div><span class="badge med">MEDIUM</span><span class="badge review">REVIEW</span></div>
               <div class="q"><span class="code">TR-4817</span><div>Public Disturbance<div class="loc">Mapulang Lupa · Blk 12</div></div><span class="badge low">LOW</span><span class="badge verified">VERIFIED</span></div>
               <div class="q"><span class="code">TR-4812</span><div>Physical Assault<div class="loc">Balangkas · Riverside</div></div><span class="badge high">HIGH</span><span class="badge responding">RESPONDING</span></div>
             </div>
           </div>
-          <div class="copy" id="s6-copy">
-            <div class="eyebrow">Feature 04</div>
-            <div class="head"><span class="line">A live</span><span class="line">command center.</span></div>
-            <div class="body">Every report streams into the dispatcher's queue the second it is filed.</div>
-          </div>
         </div>
       </section>
 
-      <!-- S7 · split · citizen vs dispatcher -->
-      <section id="s7" class="clip scene navy" data-start="35.0" data-duration="6.65" data-track-index="1">
+      <!-- S10 · One click. (citizen / dispatcher) -->
+      <section id="s10" class="clip scene black" data-start="32.9" data-duration="5.5" data-track-index="2">
         <div class="in">
-          <div class="half l" id="s7-l">
-            <div class="who">CITIZEN</div><div class="name">Maria · Mapulang Lupa</div>
-            <div class="mini" id="s7-ml">
-              <h3><i></i>Report TR-4821</h3>
-              <div class="big" id="s7-ml-big">Sent. Waiting for review.</div>
-              <div class="sub" id="s7-ml-sub">Live location shared with the sub-station</div>
-              <div class="eta" id="s7-eta"><span>Distance<b>1.4 km</b></span><span>Arrival<b>5 min</b></span></div>
-            </div>
+          <div class="half l" id="s10-l">
+            <div class="who">CITIZEN · MAPULANG LUPA</div><div class="name">Maria</div>
+            <div class="mini" id="s10-ml"><h3><i></i>Report TR-4821</h3><div class="big" id="s10-ml-big">Sent. Waiting for review.</div><div class="sub" id="s10-ml-sub">Live location shared with the sub-station</div><div class="eta" id="s10-eta"><span>Distance<b>1.4 km</b></span><span>Arrival<b>5 min</b></span></div></div>
           </div>
-          <div class="half r" id="s7-r">
-            <div class="who">DISPATCHER</div><div class="name">PO2 Reyes · SS-MPL</div>
-            <div class="mini" id="s7-mr">
-              <h3><i></i>Legitimacy assessment</h3>
-              <div class="bar"><i id="s7-bar"></i></div>
-              <div class="score"><span id="s7-score">0</span><small>/100</small></div>
-              <div class="verdict" id="s7-verdict">High Confidence Legit · AI Verified</div>
-              <div class="cta" id="s7-cta">Dispatch Precinct</div>
-            </div>
+          <div class="half r" id="s10-r">
+            <div class="who">DISPATCHER · SS-MPL</div><div class="name">PO2 Reyes</div>
+            <div class="mini" id="s10-mr"><h3><i></i>Legitimacy assessment</h3><div class="bar"><i id="s10-bar"></i></div><div class="score"><span id="s10-score">0</span><small>/100</small></div><div class="verdict" id="s10-verdict">High Confidence Legit · AI Verified</div><div class="cta" id="s10-cta">Dispatch Precinct</div></div>
           </div>
-          <div class="vs" id="s7-vs">LIVE</div>
-          <svg class="cursor" id="s7-cursor" viewBox="0 0 24 24" style="left:1500px; top:980px;"><path d="M5 3l14 8.5-6.5 1.2 3.7 7.3-2.6 1.3-3.7-7.4L5 18z" fill="#fff" stroke="#0b1220" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          <div class="kt" id="s10-kt" style="top:120px; transform:none; font-size:96px;"><span class="w">One </span><span class="w gw">click.</span></div>
+          <div class="vs" id="s10-vs"><span id="s10-vs-t">T+05:48</span><small>RESPONDING</small></div>
+          <svg class="cursor" id="s10-cursor" viewBox="0 0 24 24" style="left:1500px; top:980px;"><path d="M5 3l14 8.5-6.5 1.2 3.7 7.3-2.6 1.3-3.7-7.4L5 18z" fill="#fff" stroke="#0b1220" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
       </section>
 
-      <!-- S8 · navy · hotspot grid (ref 2 heatmap) -->
-      <section id="s8" class="clip scene navy" data-start="41.2" data-duration="6.65" data-track-index="2">
+      <!-- S11 · See it coming. (radar) -->
+      <section id="s11" class="clip scene black" data-start="38.4" data-duration="4.2" data-track-index="1">
         <div class="in">
-          <div class="gridlbl" id="s8-lbl">Hotspot grid · Mapulang Lupa &amp; Balangkas · last 30 days</div>
-          <div class="tiles" id="s8-tiles"></div>
-          <div class="hotcard" id="s8-hot">
-            <h3><i></i>Top hotspots · live</h3>
-            <div class="hr" id="s8-h1">Market road · Theft / Snatching<span class="badge high">31</span></div>
-            <div class="hr" id="s8-h2">MacArthur Hwy · Traffic<span class="badge med">24</span></div>
-            <div class="hr" id="s8-h3">Blk 12 · Public Disturbance<span class="badge low">17</span></div>
+          <div class="radar" id="s11-radar" style="left:1020px; top:150px;">
+            <div class="ring" style="width:195px;height:195px;"></div><div class="ring" style="width:390px;height:390px;"></div><div class="ring" style="width:585px;height:585px;"></div><div class="ring" style="width:780px;height:780px;"></div>
+            <div class="axis"></div><div class="axis h"></div>
+            <svg class="poly" viewBox="0 0 780 780"><path d="M150 250 L320 170 L520 150 L660 260 L690 440 L600 620 L420 680 L250 620 L140 470 Z"/></svg>
+            <div class="beam" id="s11-beam"></div>
+            <div class="lbl" style="left:190px;top:330px;">Balangkas</div><div class="lbl" style="left:440px;top:470px;">Mapulang Lupa</div>
+            <div class="blip" id="s11-b1" style="left:63%;top:58%;"><i></i></div><div class="blip" id="s11-b2" style="left:34%;top:38%;"><i></i></div><div class="blip a" id="s11-b3" style="left:58%;top:40%;"><i></i></div><div class="blip g" id="s11-b4" style="left:42%;top:68%;"><i></i></div><div class="blip a" id="s11-b5" style="left:70%;top:72%;"><i></i></div><div class="blip" id="s11-b6" style="left:28%;top:56%;"><i></i></div>
           </div>
-          <div class="grid-copy" id="s8-copy"><div class="eyebrow">Feature 05</div><div class="head">See it coming.</div></div>
+          <div class="kt left" id="s11-kt" style="top:360px;"><span class="w">See it</span><br><span class="w gw">coming.</span></div>
+          <div class="sub-kt" id="s11-sub" style="top:600px;">Clusters surface on the <b>hotspot radar</b> before they surface in the news.</div>
+          <div class="hotcard" id="s11-hot" style="left:120px; top:720px; width:780px; height:220px; padding:22px 30px;"><h3><i></i>Top hotspots · 30 days</h3><div class="hr" id="s11-h1">Market road · Theft / Snatching<span class="badge high">31</span></div></div>
         </div>
       </section>
 
-      <!-- S9 · amber · FEATURE 06 AI -->
-      <section id="s9" class="clip scene amber" data-start="47.4" data-duration="6.25" data-track-index="1">
+      <!-- S12 · AI drafts. Officers decide. -->
+      <section id="s12" class="clip scene black" data-start="42.6" data-duration="5.0" data-track-index="2">
         <div class="in">
-          <div class="card" id="s9-card">
+          <div class="kt left" id="s12-kt" style="top:380px; font-size:116px;"><span class="w gw">AI </span><span class="w">drafts.</span><br><span class="w">Officers </span><span class="w">decide.</span></div>
+          <div class="sub-kt" id="s12-sub" style="top:660px;">Gemini reads <b>aggregated counts only</b>, never names. Every plan is approved by a human.</div>
+          <div class="card" id="s12-card" style="left:1000px; width:800px;">
             <div class="ct"><i></i>AI Decision Support · Gemini <span class="mono">hotspot #1</span></div>
-            <div class="plan"><span id="s9-plan"></span><span class="caret" id="s9-caret"></span></div>
-            <div class="guard" id="s9-guard"><span class="g">Guardrails passed · 0 violations</span><span class="c">High confidence</span><span class="r">Approve · Modify · Reject</span></div>
-          </div>
-          <div class="copy" id="s9-copy">
-            <div class="eyebrow">Feature 06</div>
-            <div class="head" style="font-size:104px;"><span class="line">AI drafts.</span><span class="line">Officers decide.</span></div>
-            <div class="body">Gemini reads aggregated counts only, never names. Every plan is approved by a human.</div>
+            <div class="plan"><span id="s12-plan"></span><span class="caret" id="s12-caret"></span></div>
+            <div class="guard" id="s12-guard"><span class="g">Guardrails passed · 0 violations</span><span class="c">High confidence</span><span class="r">Approve · Modify · Reject</span></div>
           </div>
         </div>
       </section>
 
-      <!-- S10 · navy · every role (ref 2 chips) -->
-      <section id="s10" class="clip scene navy" data-start="53.2" data-duration="4.25" data-track-index="2">
+      <!-- S13 · role storm -->
+      <section id="s13" class="clip scene black" data-start="47.6" data-duration="3.6" data-track-index="1">
+        <div class="in storm">
+          <div class="kt" id="s13-w0"><span class="w">Barangay desk.</span></div>
+          <div class="kt" id="s13-w1"><span class="w gw">Police sub-station.</span></div>
+          <div class="kt" id="s13-w2"><span class="w">Head police HQ.</span></div>
+          <div class="kt" id="s13-w3"><span class="w gw">Audit log.</span></div>
+          <div class="kt" id="s13-w4"><span class="w">35 PH laws.</span></div>
+          <div class="kt" id="s13-w5"><span class="w gw">Zero names </span><span class="w">to the AI.</span></div>
+          <div class="tag" id="s13-t" style="left:0;right:0;bottom:120px;text-align:center;">THREE ADMIN TIERS · SEVERITY ROUTING · JURISDICTION BY DISTANCE</div>
+        </div>
+      </section>
+
+      <!-- S14 · collage returns -->
+      <section id="s14" class="clip scene black" data-start="51.2" data-duration="4.2" data-track-index="2">
         <div class="in">
-          <div class="glow" id="s10-glow"></div>
-          <div class="center-title" id="s10-title">One platform. Every role.</div>
-          <div class="chips" id="s10-chips">
-            <span class="chip red">SOS Gateway</span><span class="chip">Incident Reports</span><span class="chip">Live Safety Map</span><span class="chip">Case Tracking</span><span class="chip">Push Alerts</span>
-            <span class="chip">Command Center</span><span class="chip red">Precinct Dispatch</span><span class="chip">Legitimacy Scoring</span><span class="chip">GIS Heatmap</span><span class="chip">Analytics</span>
-            <span class="chip">AI Decision Support</span><span class="chip">Audit Log</span><span class="chip">Barangay Desk</span><span class="chip">Police Sub-station</span><span class="chip red">Head Police HQ</span>
+          <div class="collage" id="s14-collage">
+            <div class="shot sh2" style="left:120px;top:60px;width:300px;height:360px;"><div class="bar"><i></i>SOS Gateway</div><div class="px"><div class="sosmini">SOS</div><div class="ln w60" style="margin:0 auto;"></div><div class="ln red w40" style="margin:0 auto;"></div></div></div>
+            <div class="shot sh2" style="left:460px;top:40px;width:340px;height:240px;"><div class="bar"><i></i>Report Incident</div><div class="px"><div class="pillrow"><span>Theft</span><span>Assault</span></div><div class="ln"></div><div class="ln w60"></div></div></div>
+            <div class="shot sh2 dark" style="left:1120px;top:60px;width:680px;height:300px;"><div class="bar"><i></i>Dispatch Command Center</div><div class="px"><div class="ln w40"></div><div class="ln red"></div><div class="ln"></div><div class="ln w80"></div></div></div>
+            <div class="shot sh2" style="left:120px;top:700px;width:360px;height:280px;"><div class="bar"><i></i>Report Status</div><div class="px"><div class="ln green w60"></div><div class="ln green w60"></div><div class="ln red w60"></div></div></div>
+            <div class="shot sh2 dark" style="left:520px;top:720px;width:400px;height:300px;"><div class="bar"><i></i>Hotspot radar</div><div class="px"><div class="map" style="height:120px;"></div><div class="ln red w60"></div></div></div>
+            <div class="shot sh2 dark" style="left:1240px;top:700px;width:560px;height:300px;"><div class="bar"><i></i>Analytics · AI decision support</div><div class="px"><div class="bars" style="height:90px;"><i style="height:30%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:55%"></i></div></div></div>
           </div>
+          <div class="kt" id="s14-kt" style="font-size:118px;"><span class="w">One incident.</span><br><span class="w gw">Every role </span><span class="w">in the loop.</span></div>
         </div>
       </section>
 
-      <!-- S11 · navy outro -->
-      <section id="s11" class="clip scene navy" data-start="57.0" data-duration="5" data-track-index="1">
+      <!-- S15 · flatline → resolved → logo -->
+      <section id="s15" class="clip scene black" data-start="55.4" data-duration="6.6" data-track-index="1">
         <div class="in">
-          <div class="glow" id="s11-glow" style="top:470px;"></div>
-          <svg class="pulse" style="top:410px;" viewBox="0 0 1920 120" preserveAspectRatio="none"><path id="s11-line" d="M0 60 H1920"/></svg>
-          <div class="logo" id="s11-logo" style="top:470px;"><img src="assets/brand/logo-tight.png" alt="" /></div>
-          <div class="wordmark" id="s11-word"><span class="line">Threat<span class="r">Track</span></span></div>
-          <div class="tagline" id="s11-tag">Report. Track. Respond.</div>
-          <div class="pillcta" id="s11-pill">Valenzuela City · Capstone 2026</div>
+          <div class="glow" id="s15-glow" style="top:470px;"></div>
+          <svg class="flat" viewBox="0 0 1920 120" preserveAspectRatio="none"><path id="s15-line" d="M0 60 H700 L730 60 L750 18 L770 102 L790 34 L805 60 H1920"/></svg>
+          <div class="resolved" id="s15-res">CASE TR-4821 · RESOLVED · T+31:00</div>
+          <div class="logo" id="s15-logo" style="top:470px;"><img src="assets/brand/logo-tight.png" alt="" /></div>
+          <div class="wordmark" id="s15-word"><span class="line">Threat<span class="r">Track</span></span></div>
+          <div class="tagline" id="s15-tag">Report. Track. Respond.</div>
+          <div class="pillcta green" id="s15-pill">All clear · Valenzuela City</div>
         </div>
       </section>
 
+      <div class="sweep" id="sweep"></div>
+      <div class="clip" id="hud" data-start="17.65" data-duration="33.55" data-track-index="6">
+        <div class="l"><span class="dot"></span><span class="case">CASE TR-4821 · THEFT / SNATCHING</span><span class="st" id="hud-st">SOS RECEIVED</span></div>
+        <span class="clock" id="hud-clock">18:41:07</span>
+      </div>
+      <div class="clip" id="ticker" data-start="17.65" data-duration="33.55" data-track-index="7">
+        <div class="tape" id="tape"><b>18:41:07</b> SOS received · Mapulang Lupa · live GPS 14.7245, 120.9620<span class="sep">//</span><b>18:41:09</b> validateIncident · score 87 · High Confidence Legit<span class="sep">//</span><b>18:41:10</b> nearest unit · Mapulang Lupa Police Sub-station · 1.4 km<span class="sep">//</span><b>18:41:12</b> push alert · 212 residents within 5 km<span class="sep">//</span><b>18:43:21</b> status · UNDER REVIEW · PO2 Reyes<span class="sep">//</span><b>18:46:02</b> status · VERIFIED · photo evidence attached<span class="sep">//</span><b>18:46:55</b> DISPATCH · SS-MPL · ETA 5 min<span class="sep">//</span><b>18:47:03</b> citizen notified · HELP IS ON THE WAY<span class="sep">//</span><b>18:52:10</b> unit on scene<span class="sep">//</span><b>19:12:07</b> status · DONE · audit log written<span class="sep">//</span><b>19:12:08</b> analytics · hotspot weight +1 · market road</div>
+      </div>
       <audio id="music" data-start="0" data-duration="62" data-track-index="9" data-volume="0.0" data-timeline-role="music" src="audio/music.wav"></audio>
     </div>
     <script src="assets/anim.js"></script>

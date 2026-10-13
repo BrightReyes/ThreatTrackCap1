@@ -11,9 +11,9 @@ for (const id of [...ids].sort()) {
 const out = `# ThreatTrack promo — audio credits
 
 ## Music
-- "Confident Session" — Kevin MacLeod, CC0 (public domain), mirrored in the Internet Archive item
+- "Called to Win" — CC0 (public domain), from the Internet Archive item
   "Public Domain Background Tracks": https://archive.org/details/public-domain-background-tracks
-  (file: Confident Session.mp3). Trimmed to 63 s with a 1.2 s fade.
+  (file: called-to-win.mp3). Trimmed to the film with a 1.4 s fade.
 
 ## Sound effects (${ids.size} recordings used, all CC0)
 Built with opus-sound-layer (https://github.com/Bodila51/opus-sound-layer). Full kit list: audio/kit/CREDITS.md.

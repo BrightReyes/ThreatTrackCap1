@@ -3,26 +3,26 @@
  "fps": 30,
  "duration_s": 62.0,
  "target_lufs": -14,
- "master_lufs": -14.01,
+ "master_lufs": -14.12,
  "master_true_peak_db": -2.0,
- "master_gain_db": 6.1,
+ "master_gain_db": 6.13,
  "events": [
   {
-   "id": "s1-line-0",
-   "sound": "swish/fs-14171-23-wav-1",
+   "id": "s1-radar-0",
+   "sound": "tick/fs-188033-ticking-clock-1",
    "files": [
-    "audio/kit\\swish/fs-14171-23-wav-1.wav"
+    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
    ],
    "weight": "support",
    "align": "peak",
    "cue_s": 0.5,
    "peak_s": 0.5,
    "pan": 0.0,
-   "gain_db": -17.12,
+   "gain_db": -23.66,
    "limited_by": "best-band target",
    "band_hz": [
-    500,
-    1000
+    1000,
+    2000
    ],
    "win_s": [
     0.49,
@@ -31,699 +31,745 @@
    "visual": "move"
   },
   {
-   "id": "s1-pulse-1",
-   "sound": "tick/fs-188033-ticking-clock-1",
+   "id": "logo-1",
+   "sound": "hit+boom",
    "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 1.1,
-   "peak_s": 1.1,
-   "pan": 0.0,
-   "gain_db": -14.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    1.09,
-    1.14
-   ],
-   "visual": "move"
-  },
-  {
-   "id": "logo-2",
-   "sound": "thump/fs-133282-thump-on-carpet-2+boom",
-   "files": [
-    "audio/kit\\thump/fs-133282-thump-on-carpet-2.wav",
+    "audio/kit\\hit/fs-337831-long-metal-hit-02-wav-1.wav",
     "audio/kit\\boom/fs-337695-transition-bass-1.wav"
    ],
    "weight": "hero",
    "align": "peak",
-   "cue_s": 1.75,
-   "peak_s": 1.75,
+   "cue_s": 1.57,
+   "peak_s": 1.57,
    "pan": 0.0,
-   "gain_db": -3.63,
+   "gain_db": -19.61,
    "limited_by": "main-band target (hero)",
    "band_hz": [
     125,
     250
    ],
    "win_s": [
-    1.74,
-    1.9
+    1.56,
+    1.72
    ],
    "visual": "appear"
   },
   {
-   "id": "s1-word-4",
-   "sound": "swish/fs-14175-27-wav-2",
-   "files": [
-    "audio/kit\\swish/fs-14175-27-wav-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 2.4,
-   "peak_s": 2.4,
-   "pan": 0.0,
-   "gain_db": -9.84,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    2.39,
-    2.44
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s1-tag-5",
-   "sound": "pop/fs-269583-bubble-1",
-   "files": [
-    "audio/kit\\pop/fs-269583-bubble-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 3.1,
-   "peak_s": 3.1,
-   "pan": 0.0,
-   "gain_db": -16.6,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    3.09,
-    3.14
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s2-wipe-6",
-   "sound": "whoosh/fs-30240-swoop1-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 4.802,
-   "peak_s": 4.802,
-   "pan": -0.2,
-   "gain_db": -21.53,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    4.792,
-    4.842
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s2-line-8",
-   "sound": "tap/kenney-impact-impact-wood-light-001",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-001.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 6.12,
-   "peak_s": 6.12,
-   "pan": -0.3,
-   "gain_db": -14.59,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    6.11,
-    6.1619
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s2-line-9",
-   "sound": "swish/fs-14171-23-wav-1",
-   "files": [
-    "audio/kit\\swish/fs-14171-23-wav-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 7.12,
-   "peak_s": 7.12,
-   "pan": -0.3,
-   "gain_db": -19.12,
-   "limited_by": "best-band target",
-   "band_hz": [
-    125,
-    250
-   ],
-   "win_s": [
-    7.11,
-    7.16
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s3-wipe-10",
-   "sound": "whoosh/fs-30240-swoop1-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 10.402,
-   "peak_s": 10.402,
-   "pan": -0.2,
-   "gain_db": -23.53,
-   "limited_by": "best-band target",
-   "band_hz": [
-    125,
-    250
-   ],
-   "win_s": [
-    10.392,
-    10.442
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s3-card-11",
-   "sound": "tap/kenney-impact-impact-wood-light-002",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 10.8,
-   "peak_s": 10.8,
-   "pan": -0.3,
-   "gain_db": -9.85,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    10.79,
-    10.8434
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s3-head-12",
+   "id": "s1-word-3",
    "sound": "swish/kenney-rpg-cloth1",
    "files": [
     "audio/kit\\swish/kenney-rpg-cloth1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 11.3,
-   "peak_s": 11.3,
-   "pan": 0.3,
-   "gain_db": -8.12,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    11.29,
-    11.45
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s3-press-13",
-   "sound": "click/kenney-ui-audio-click2",
-   "files": [
-    "audio/kit\\click/kenney-ui-audio-click2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 11.6,
-   "peak_s": 11.6,
-   "pan": -0.3,
-   "gain_db": -12.37,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    11.59,
-    11.64
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s3-hold-14",
-   "sound": "riser/fs-334525-rise5-wav-1",
-   "files": [
-    "audio/kit\\riser/fs-334525-rise5-wav-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 14.7,
-   "peak_s": 14.7,
-   "pan": -0.3,
-   "gain_db": -40.4,
-   "limited_by": "best-band target",
-   "band_hz": [
-    4000,
-    8000
-   ],
-   "win_s": [
-    14.69,
-    14.7899
-   ],
-   "visual": null
-  },
-  {
-   "id": "sos-release-15",
-   "sound": "thump/fs-133282-thump-on-carpet-2+boom",
-   "files": [
-    "audio/kit\\thump/fs-133282-thump-on-carpet-2.wav",
-    "audio/kit\\boom/fs-535615-low-bit-boom-1.wav"
-   ],
-   "weight": "hero",
-   "align": "peak",
-   "cue_s": 14.75,
-   "peak_s": 14.75,
-   "pan": -0.3,
-   "gain_db": -6.6,
-   "limited_by": "main-band target (hero)",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    14.74,
-    14.8356
-   ],
-   "visual": "move"
-  },
-  {
-   "id": "s3-gate-17",
-   "sound": "swish/fs-14175-27-wav-2",
-   "files": [
-    "audio/kit\\swish/fs-14175-27-wav-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 15.05,
-   "peak_s": 15.05,
-   "pan": -0.3,
-   "gain_db": -7.84,
+   "cue_s": 1.98,
+   "peak_s": 1.98,
+   "pan": 0.0,
+   "gain_db": -13.28,
    "limited_by": "best-band target",
    "band_hz": [
     250,
     500
    ],
    "win_s": [
-    15.04,
-    15.09
-   ],
-   "visual": "move"
-  },
-  {
-   "id": "s3-row-19",
-   "sound": "tick/fs-130388-clock-ticking-2",
-   "files": [
-    "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 15.6,
-   "peak_s": 15.6,
-   "pan": -0.3,
-   "gain_db": -31.41,
-   "limited_by": "best-band target",
-   "band_hz": [
-    4000,
-    8000
-   ],
-   "win_s": [
-    15.59,
-    15.6431
+    1.97,
+    2.13
    ],
    "visual": "appear"
   },
   {
-   "id": "s3-row-20",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 16.0,
-   "peak_s": 16.0,
-   "pan": -0.3,
-   "gain_db": -12.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    15.99,
-    16.04
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s3-assigned-21",
-   "sound": "chime/fs-570243-point-in-space-ogg-1",
-   "files": [
-    "audio/kit\\chime/fs-570243-point-in-space-ogg-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 16.4,
-   "peak_s": 16.4,
-   "pan": -0.3,
-   "gain_db": -14.54,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    16.39,
-    16.5075
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s4-wipe-22",
+   "id": "s2-4",
    "sound": "whoosh/fs-30240-swoop1-flac-1",
    "files": [
     "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 17.803,
-   "peak_s": 17.803,
-   "pan": -0.2,
-   "gain_db": -19.53,
+   "cue_s": 3.25,
+   "peak_s": 3.25,
+   "pan": 0.0,
+   "gain_db": -19.81,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    17.793,
-    17.843
+    3.24,
+    3.29
    ],
    "visual": "cut"
   },
   {
-   "id": "s4-land-24",
-   "sound": "tap/kenney-impact-impact-wood-light-001",
+   "id": "s2-w2-6",
+   "sound": "swish/kenney-rpg-cloth1",
    "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-001.wav"
+    "audio/kit\\swish/kenney-rpg-cloth1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 18.55,
-   "peak_s": 18.55,
-   "pan": 0.35,
-   "gain_db": -13.08,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    18.54,
-    18.5916
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s4-chip-26",
-   "sound": "click/kenney-ui-audio-click2",
-   "files": [
-    "audio/kit\\click/kenney-ui-audio-click2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 18.9,
-   "peak_s": 18.9,
-   "pan": 0.35,
-   "gain_db": -8.37,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    18.89,
-    18.94
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s4-role-27",
-   "sound": "click/kenney-ui-audio-click2",
-   "files": [
-    "audio/kit\\click/kenney-ui-audio-click2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 19.7,
-   "peak_s": 19.7,
-   "pan": 0.35,
-   "gain_db": -10.37,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    19.69,
-    19.74
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s4-photo-28",
-   "sound": "pop/fs-507006-soap-bubbles-pop-1",
-   "files": [
-    "audio/kit\\pop/fs-507006-soap-bubbles-pop-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 20.55,
-   "peak_s": 20.55,
-   "pan": 0.35,
-   "gain_db": -21.38,
+   "cue_s": 3.63,
+   "peak_s": 3.63,
+   "pan": 0.2,
+   "gain_db": -13.28,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    20.54,
-    20.59
+    3.62,
+    3.78
    ],
    "visual": "appear"
   },
   {
-   "id": "s4-submit-29",
-   "sound": "click/kenney-ui-audio-switch10",
-   "files": [
-    "audio/kit\\click/kenney-ui-audio-switch10.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 21.2,
-   "peak_s": 21.2,
-   "pan": 0.35,
-   "gain_db": -8.27,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    21.19,
-    21.24
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s4-sent-30",
-   "sound": "chime/kenney-interface-glass-001",
-   "files": [
-    "audio/kit\\chime/kenney-interface-glass-001.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 21.7,
-   "peak_s": 21.7,
-   "pan": 0.35,
-   "gain_db": -19.69,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    21.69,
-    21.7908
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s5-wipe-31",
+   "id": "s3-7",
    "sound": "whoosh/fs-30241-swoop2g-flac-1",
    "files": [
     "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 23.602,
-   "peak_s": 23.602,
-   "pan": -0.2,
-   "gain_db": -14.26,
+   "cue_s": 5.45,
+   "peak_s": 5.45,
+   "pan": 0.0,
+   "gain_db": -20.81,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    23.592,
-    23.6453
+    5.44,
+    5.4932
    ],
    "visual": "cut"
   },
   {
-   "id": "s5-card-32",
-   "sound": "tap/kenney-impact-impact-wood-light-003",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 24.0,
-   "peak_s": 24.0,
-   "pan": -0.3,
-   "gain_db": -12.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    23.99,
-    24.0417
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s5-head-33",
+   "id": "s3-w2-10",
    "sound": "swish/fs-14175-27-wav-2",
    "files": [
     "audio/kit\\swish/fs-14175-27-wav-2.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 24.5,
-   "peak_s": 24.5,
-   "pan": 0.3,
-   "gain_db": -9.84,
+   "cue_s": 5.98,
+   "peak_s": 5.98,
+   "pan": -0.2,
+   "gain_db": -21.05,
    "limited_by": "best-band target",
    "band_hz": [
-    125,
-    250
+    2000,
+    4000
    ],
    "win_s": [
-    24.49,
-    24.54
+    5.97,
+    6.02
    ],
    "visual": "appear"
   },
   {
-   "id": "s5-step-35",
-   "sound": "tick/fs-130388-clock-ticking-2",
+   "id": "s4-shot-12",
+   "sound": "tap/kenney-impact-impact-wood-light-002",
    "files": [
-    "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
+    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 25.35,
-   "peak_s": 25.35,
-   "pan": -0.3,
-   "gain_db": -31.2,
-   "limited_by": "best-band target",
-   "band_hz": [
-    4000,
-    8000
-   ],
-   "win_s": [
-    25.34,
-    25.3929
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s5-step-36",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 26.05,
-   "peak_s": 26.05,
-   "pan": -0.3,
-   "gain_db": -13.58,
+   "cue_s": 8.35,
+   "peak_s": 8.35,
+   "pan": -0.4,
+   "gain_db": -18.68,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    26.04,
-    26.09
+    8.34,
+    8.3932
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s4-icons-15",
+   "sound": "tick/fs-130388-clock-ticking-2",
+   "files": [
+    "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 9.2,
+   "peak_s": 9.2,
+   "pan": 0.0,
+   "gain_db": -31.04,
+   "limited_by": "best-band target",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    9.19,
+    9.2438
    ],
    "visual": "appear"
   },
   {
-   "id": "s5-responding-37",
+   "id": "s4-zoom-16",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 10.7,
+   "peak_s": 10.7,
+   "pan": 0.0,
+   "gain_db": -16.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    10.69,
+    10.7426
+   ],
+   "visual": "move"
+  },
+  {
+   "id": "s5-17",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 11.45,
+   "peak_s": 11.45,
+   "pan": 0.0,
+   "gain_db": -20.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    11.44,
+    11.4935
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "s5-word-19",
+   "sound": "tap/kenney-impact-impact-wood-light-001",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-001.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 12.15,
+   "peak_s": 12.15,
+   "pan": 0.0,
+   "gain_db": -14.13,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    12.14,
+    12.1923
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s5-word-20",
+   "sound": "tap/kenney-impact-impact-wood-light-003",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 12.8,
+   "peak_s": 12.8,
+   "pan": 0.3,
+   "gain_db": -11.07,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    12.79,
+    12.8415
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s6-21",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 13.65,
+   "peak_s": 13.65,
+   "pan": 0.0,
+   "gain_db": -20.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    13.64,
+    13.6925
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "s6-card-23",
+   "sound": "tap/kenney-impact-impact-wood-light-002",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 14.35,
+   "peak_s": 14.35,
+   "pan": 0.3,
+   "gain_db": -16.98,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    14.34,
+    14.3944
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s6-press-24",
+   "sound": "click/kenney-ui-audio-click2",
+   "files": [
+    "audio/kit\\click/kenney-ui-audio-click2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 14.7,
+   "peak_s": 14.7,
+   "pan": 0.3,
+   "gain_db": -18.43,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    14.69,
+    14.74
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s6-hold-25",
+   "sound": "riser/fs-334525-rise5-wav-1",
+   "files": [
+    "audio/kit\\riser/fs-334525-rise5-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 17.3,
+   "peak_s": 17.3,
+   "pan": 0.3,
+   "gain_db": -41.34,
+   "limited_by": "best-band target",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    17.29,
+    17.39
+   ],
+   "visual": null
+  },
+  {
+   "id": "sos-release-26",
+   "sound": "hit+boom",
+   "files": [
+    "audio/kit\\hit/fs-558238-distorted-impact-short-wav-1.wav",
+    "audio/kit\\boom/fs-535615-low-bit-boom-1.wav"
+   ],
+   "weight": "hero",
+   "align": "peak",
+   "cue_s": 17.35,
+   "peak_s": 17.35,
+   "pan": 0.3,
+   "gain_db": -15.61,
+   "limited_by": "main-band target (hero)",
+   "band_hz": [
+    125,
+    250
+   ],
+   "win_s": [
+    17.34,
+    17.5
+   ],
+   "visual": "move"
+  },
+  {
+   "id": "s6-row-28",
+   "sound": "tick/fs-188033-ticking-clock-1",
+   "files": [
+    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 17.75,
+   "peak_s": 17.75,
+   "pan": 0.3,
+   "gain_db": -23.66,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    17.74,
+    17.79
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s6-row-29",
+   "sound": "tick/fs-130388-clock-ticking-2",
+   "files": [
+    "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 18.1,
+   "peak_s": 18.1,
+   "pan": 0.3,
+   "gain_db": -27.67,
+   "limited_by": "best-band target",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    18.09,
+    18.1427
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s6-assigned-31",
+   "sound": "chime/fs-570243-point-in-space-ogg-1",
+   "files": [
+    "audio/kit\\chime/fs-570243-point-in-space-ogg-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 18.7,
+   "peak_s": 18.7,
+   "pan": 0.3,
+   "gain_db": -14.27,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    18.69,
+    18.8071
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s7-32",
+   "sound": "whoosh/fs-30240-swoop1-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 19.95,
+   "peak_s": 19.95,
+   "pan": 0.0,
+   "gain_db": -15.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    19.94,
+    19.99
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "s7-phone-34",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 20.3,
+   "peak_s": 20.3,
+   "pan": 0.35,
+   "gain_db": -17.77,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    20.29,
+    20.3431
+   ],
+   "visual": "move"
+  },
+  {
+   "id": "s7-chip-35",
+   "sound": "click/kenney-ui-audio-click2",
+   "files": [
+    "audio/kit\\click/kenney-ui-audio-click2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 21.0,
+   "peak_s": 21.0,
+   "pan": 0.35,
+   "gain_db": -14.43,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    20.99,
+    21.04
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s7-role-36",
+   "sound": "click/kenney-ui-audio-click2",
+   "files": [
+    "audio/kit\\click/kenney-ui-audio-click2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 21.6,
+   "peak_s": 21.6,
+   "pan": 0.35,
+   "gain_db": -16.43,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    21.59,
+    21.64
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s7-photo-37",
+   "sound": "pop/fs-507006-soap-bubbles-pop-1",
+   "files": [
+    "audio/kit\\pop/fs-507006-soap-bubbles-pop-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 22.25,
+   "peak_s": 22.25,
+   "pan": 0.35,
+   "gain_db": -20.51,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    22.24,
+    22.29
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s7-submit-38",
+   "sound": "click/kenney-ui-audio-switch10",
+   "files": [
+    "audio/kit\\click/kenney-ui-audio-switch10.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 22.8,
+   "peak_s": 22.8,
+   "pan": 0.35,
+   "gain_db": -9.12,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    22.79,
+    22.84
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s7-sent-39",
    "sound": "chime/kenney-interface-glass-001",
    "files": [
     "audio/kit\\chime/kenney-interface-glass-001.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 26.75,
-   "peak_s": 26.75,
-   "pan": -0.3,
-   "gain_db": -18.38,
+   "cue_s": 23.25,
+   "peak_s": 23.25,
+   "pan": 0.35,
+   "gain_db": -24.34,
    "limited_by": "best-band target",
    "band_hz": [
-    1000,
-    2000
+    2000,
+    4000
    ],
    "win_s": [
-    26.74,
-    26.8416
+    23.24,
+    23.3403
    ],
    "visual": "appear"
   },
   {
-   "id": "s5-done-38",
+   "id": "s8-head-40",
+   "sound": "swish/fs-14175-27-wav-2",
+   "files": [
+    "audio/kit\\swish/fs-14175-27-wav-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 24.63,
+   "peak_s": 24.63,
+   "pan": -0.3,
+   "gain_db": -19.05,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    24.62,
+    24.67
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s8-card-41",
+   "sound": "tap/kenney-impact-impact-wood-light-003",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 25.2,
+   "peak_s": 25.2,
+   "pan": 0.3,
+   "gain_db": -13.07,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    25.19,
+    25.2423
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s8-step-43",
+   "sound": "tick/fs-130388-clock-ticking-2",
+   "files": [
+    "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 25.95,
+   "peak_s": 25.95,
+   "pan": 0.3,
+   "gain_db": -30.4,
+   "limited_by": "best-band target",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    25.94,
+    25.9929
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s8-step-44",
+   "sound": "tick/fs-188033-ticking-clock-1",
+   "files": [
+    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 26.45,
+   "peak_s": 26.45,
+   "pan": 0.3,
+   "gain_db": -19.66,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    26.44,
+    26.49
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s8-responding-45",
+   "sound": "chime/kenney-interface-glass-001",
+   "files": [
+    "audio/kit\\chime/kenney-interface-glass-001.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 26.95,
+   "peak_s": 26.95,
+   "pan": 0.3,
+   "gain_db": -22.57,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    26.94,
+    27.0426
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s8-done-46",
    "sound": "chime/fs-570243-point-in-space-ogg-1",
    "files": [
     "audio/kit\\chime/fs-570243-point-in-space-ogg-1.wav"
@@ -732,939 +778,893 @@
    "align": "peak",
    "cue_s": 27.45,
    "peak_s": 27.45,
-   "pan": -0.3,
+   "pan": 0.3,
    "gain_db": -15.15,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    27.44,
-    27.5566
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s6-wipe-39",
-   "sound": "whoosh/fs-30241-swoop2g-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 29.402,
-   "peak_s": 29.402,
-   "pan": -0.2,
-   "gain_db": -12.26,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    29.392,
-    29.4446
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "dashboard-40",
-   "sound": "thump/fs-133282-thump-on-carpet-2+boom",
-   "files": [
-    "audio/kit\\thump/fs-133282-thump-on-carpet-2.wav",
-    "audio/kit\\boom/fs-636624-deep-hit-2.wav"
-   ],
-   "weight": "hero",
-   "align": "peak",
-   "cue_s": 30.15,
-   "peak_s": 30.15,
-   "pan": -0.2,
-   "gain_db": -4.6,
-   "limited_by": "main-band target (hero)",
-   "band_hz": [
-    125,
-    250
-   ],
-   "win_s": [
-    30.14,
-    30.3
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s6-stat-43",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 30.4,
-   "peak_s": 30.4,
-   "pan": -0.3,
-   "gain_db": -13.4,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    30.39,
-    30.44
+    27.44,
+    27.5553
    ],
    "visual": "appear"
   },
   {
-   "id": "s6-stat-44",
+   "id": "s9-47",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 28.65,
+   "peak_s": 28.65,
+   "pan": 0.0,
+   "gain_db": -16.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    28.64,
+    28.6926
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "dashboard-49",
+   "sound": "hit+boom",
+   "files": [
+    "audio/kit\\hit/fs-578790-metal-hit-1-1.wav",
+    "audio/kit\\boom/fs-636624-deep-hit-2.wav"
+   ],
+   "weight": "hero",
+   "align": "peak",
+   "cue_s": 29.4,
+   "peak_s": 29.4,
+   "pan": 0.3,
+   "gain_db": -19.61,
+   "limited_by": "main-band target (hero)",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    29.39,
+    29.55
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s9-stat-51",
    "sound": "tick/fs-130388-clock-ticking-2",
    "files": [
     "audio/kit\\tick/fs-130388-clock-ticking-2.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 30.7,
-   "peak_s": 30.7,
-   "pan": -0.3,
-   "gain_db": -29.2,
+   "cue_s": 29.8,
+   "peak_s": 29.8,
+   "pan": 0.3,
+   "gain_db": -27.35,
    "limited_by": "best-band target",
    "band_hz": [
     4000,
     8000
    ],
    "win_s": [
-    30.69,
-    30.7429
+    29.79,
+    29.8426
    ],
    "visual": "appear"
   },
   {
-   "id": "s6-stat-45",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 31.0,
-   "peak_s": 31.0,
-   "pan": -0.3,
-   "gain_db": -12.16,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    30.99,
-    31.04
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s6-row-in-46",
+   "id": "s9-row-in-52",
    "sound": "swish/fs-14171-23-wav-1",
    "files": [
     "audio/kit\\swish/fs-14171-23-wav-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 32.5,
-   "peak_s": 32.5,
-   "pan": -0.3,
-   "gain_db": -15.12,
+   "cue_s": 31.1,
+   "peak_s": 31.1,
+   "pan": 0.3,
+   "gain_db": -12.09,
    "limited_by": "best-band target",
    "band_hz": [
     250,
     500
    ],
    "win_s": [
-    32.49,
-    32.54
+    31.09,
+    31.14
    ],
    "visual": "move"
   },
   {
-   "id": "s6-alert-47",
+   "id": "s9-alert-53",
    "sound": "chime/kenney-interface-glass-001",
    "files": [
     "audio/kit\\chime/kenney-interface-glass-001.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 32.82,
-   "peak_s": 32.82,
-   "pan": -0.3,
-   "gain_db": -17.0,
+   "cue_s": 31.42,
+   "peak_s": 31.42,
+   "pan": 0.3,
+   "gain_db": -22.02,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    31.41,
+    31.5119
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s10-head-54",
+   "sound": "swish/kenney-rpg-cloth1",
+   "files": [
+    "audio/kit\\swish/kenney-rpg-cloth1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 33.23,
+   "peak_s": 33.23,
+   "pan": 0.0,
+   "gain_db": -9.28,
    "limited_by": "best-band target",
    "band_hz": [
     1000,
     2000
    ],
    "win_s": [
-    32.81,
-    32.9113
+    33.22,
+    33.38
    ],
    "visual": "appear"
   },
   {
-   "id": "s7-wipe-48",
-   "sound": "whoosh/fs-30240-swoop1-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 35.203,
-   "peak_s": 35.203,
-   "pan": -0.2,
-   "gain_db": -19.53,
-   "limited_by": "best-band target",
-   "band_hz": [
-    125,
-    250
-   ],
-   "win_s": [
-    35.193,
-    35.243
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s7-left-49",
-   "sound": "tap/kenney-impact-impact-wood-light-002",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 35.8,
-   "peak_s": 35.8,
-   "pan": -0.4,
-   "gain_db": -9.85,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    35.79,
-    35.844
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s7-right-50",
+   "id": "s10-right-55",
    "sound": "tap/kenney-impact-impact-wood-light-001",
    "files": [
     "audio/kit\\tap/kenney-impact-impact-wood-light-001.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 36.1,
-   "peak_s": 36.1,
+   "cue_s": 33.7,
+   "peak_s": 33.7,
    "pan": 0.4,
-   "gain_db": -11.08,
+   "gain_db": -10.13,
    "limited_by": "best-band target",
    "band_hz": [
-    125,
-    250
+    250,
+    500
    ],
    "win_s": [
-    36.09,
-    36.142
+    33.69,
+    33.7416
    ],
    "visual": "land"
   },
   {
-   "id": "s7-score-build-51",
+   "id": "s10-score-build-56",
    "sound": "riser/fs-503801-reverse-fx-3-wav-1",
    "files": [
     "audio/kit\\riser/fs-503801-reverse-fx-3-wav-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 37.6,
-   "peak_s": 37.6,
+   "cue_s": 35.0,
+   "peak_s": 35.0,
    "pan": 0.4,
-   "gain_db": -17.89,
+   "gain_db": -25.19,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    37.59,
-    37.6571
+    34.99,
+    35.0577
    ],
    "visual": null
   },
   {
-   "id": "s7-cursor-53",
+   "id": "s10-cursor-58",
    "sound": "swish/kenney-rpg-cloth1",
    "files": [
     "audio/kit\\swish/kenney-rpg-cloth1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 38.0,
-   "peak_s": 38.0,
+   "cue_s": 35.4,
+   "peak_s": 35.4,
    "pan": 0.4,
-   "gain_db": -8.28,
+   "gain_db": -13.28,
    "limited_by": "best-band target",
    "band_hz": [
     1000,
     2000
    ],
    "win_s": [
-    37.99,
-    38.15
+    35.39,
+    35.55
    ],
    "visual": "move"
   },
   {
-   "id": "dispatch-54",
-   "sound": "thump/fs-133282-thump-on-carpet-2+boom",
+   "id": "dispatch-59",
+   "sound": "hit+boom",
    "files": [
-    "audio/kit\\thump/fs-133282-thump-on-carpet-2.wav",
+    "audio/kit\\hit/fs-592034-braams-hit-1-1.wav",
     "audio/kit\\boom/fs-337695-transition-bass-1.wav"
    ],
    "weight": "hero",
    "align": "peak",
-   "cue_s": 38.77,
-   "peak_s": 38.77,
+   "cue_s": 36.07,
+   "peak_s": 36.07,
    "pan": 0.4,
-   "gain_db": -6.6,
+   "gain_db": -15.61,
    "limited_by": "main-band target (hero)",
    "band_hz": [
     125,
     250
    ],
    "win_s": [
-    38.76,
-    38.92
+    36.06,
+    36.22
    ],
    "visual": "move"
   },
   {
-   "id": "s7-way-56",
+   "id": "s10-way-61",
    "sound": "chime/fs-570243-point-in-space-ogg-1",
    "files": [
     "audio/kit\\chime/fs-570243-point-in-space-ogg-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 39.3,
-   "peak_s": 39.3,
+   "cue_s": 36.6,
+   "peak_s": 36.6,
    "pan": -0.4,
-   "gain_db": -13.84,
+   "gain_db": -14.22,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    39.29,
-    39.406
+    36.59,
+    36.7059
    ],
    "visual": "appear"
   },
   {
-   "id": "s8-wipe-57",
-   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "id": "s11-iris-62",
+   "sound": "transition/fs-444623-swoosh-10-wav-1",
    "files": [
-    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+    "audio/kit\\transition/fs-444623-swoosh-10-wav-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 41.403,
-   "peak_s": 41.403,
-   "pan": -0.2,
-   "gain_db": -12.6,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    41.393,
-    41.4462
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s8-tilerow-59",
-   "sound": "tap/kenney-impact-impact-wood-light-002",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 41.85,
-   "peak_s": 41.85,
-   "pan": -0.4,
-   "gain_db": -7.26,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    41.84,
-    41.8934
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s8-tilerow-62",
-   "sound": "tap/kenney-impact-impact-wood-light-002",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 42.21,
-   "peak_s": 42.21,
-   "pan": -0.25,
-   "gain_db": -7.03,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    42.2,
-    42.2529
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s8-card-65",
-   "sound": "tap/kenney-impact-impact-wood-light-002",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 43.7,
-   "peak_s": 43.7,
-   "pan": 0.3,
-   "gain_db": -7.85,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    43.69,
-    43.7444
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s8-hot-67",
-   "sound": "pop/fs-507006-soap-bubbles-pop-1",
-   "files": [
-    "audio/kit\\pop/fs-507006-soap-bubbles-pop-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 44.3,
-   "peak_s": 44.3,
-   "pan": 0.3,
-   "gain_db": -19.16,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    44.29,
-    44.34
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s8-hot-68",
-   "sound": "pop/fs-796298-bubble-pop-2",
-   "files": [
-    "audio/kit\\pop/fs-796298-bubble-pop-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 44.7,
-   "peak_s": 44.7,
-   "pan": 0.3,
-   "gain_db": -18.49,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    44.69,
-    44.74
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-wipe-69",
-   "sound": "whoosh/fs-30241-swoop2g-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 47.602,
-   "peak_s": 47.602,
-   "pan": -0.2,
-   "gain_db": -10.26,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    47.592,
-    47.6443
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s9-card-70",
-   "sound": "tap/kenney-impact-impact-wood-light-003",
-   "files": [
-    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 48.0,
-   "peak_s": 48.0,
-   "pan": -0.3,
-   "gain_db": -8.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    47.99,
-    48.0415
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s9-head-71",
-   "sound": "swish/fs-14175-27-wav-2",
-   "files": [
-    "audio/kit\\swish/fs-14175-27-wav-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 48.5,
-   "peak_s": 48.5,
-   "pan": 0.3,
-   "gain_db": -7.21,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    48.49,
-    48.54
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-key-73",
-   "sound": "key/fs-194799-keyboard5-wav-1",
-   "files": [
-    "audio/kit\\key/fs-194799-keyboard5-wav-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 49.1,
-   "peak_s": 49.1,
-   "pan": -0.3,
-   "gain_db": -6.68,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    49.09,
-    49.14
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-key-74",
-   "sound": "key/fs-194796-vintage-keyboard-2-1",
-   "files": [
-    "audio/kit\\key/fs-194796-vintage-keyboard-2-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 49.6,
-   "peak_s": 49.6,
-   "pan": -0.3,
-   "gain_db": -4.2,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    49.59,
-    49.6592
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-key-75",
-   "sound": "key/fs-180974-key-1",
-   "files": [
-    "audio/kit\\key/fs-180974-key-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 50.1,
-   "peak_s": 50.1,
-   "pan": -0.3,
-   "gain_db": -19.86,
-   "limited_by": "best-band target",
-   "band_hz": [
-    4000,
-    8000
-   ],
-   "win_s": [
-    50.09,
-    50.14
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-key-76",
-   "sound": "key/fs-194799-keyboard5-wav-1",
-   "files": [
-    "audio/kit\\key/fs-194799-keyboard5-wav-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 50.6,
-   "peak_s": 50.6,
-   "pan": -0.3,
-   "gain_db": -8.14,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    50.59,
-    50.64
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-key-77",
-   "sound": "key/fs-194796-vintage-keyboard-2-1",
-   "files": [
-    "audio/kit\\key/fs-194796-vintage-keyboard-2-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 51.1,
-   "peak_s": 51.1,
-   "pan": -0.3,
-   "gain_db": -4.27,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    51.09,
-    51.1594
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s9-guard-78",
-   "sound": "chime/kenney-interface-glass-001",
-   "files": [
-    "audio/kit\\chime/kenney-interface-glass-001.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 51.55,
-   "peak_s": 51.55,
-   "pan": -0.3,
-   "gain_db": -15.69,
-   "limited_by": "best-band target",
-   "band_hz": [
-    2000,
-    4000
-   ],
-   "win_s": [
-    51.54,
-    51.6411
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s10-wipe-79",
-   "sound": "whoosh/fs-30241-swoop2g-flac-1",
-   "files": [
-    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 53.403,
-   "peak_s": 53.403,
-   "pan": -0.2,
-   "gain_db": -11.23,
-   "limited_by": "best-band target",
-   "band_hz": [
-    500,
-    1000
-   ],
-   "win_s": [
-    53.393,
-    53.4457
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "s10-title-81",
-   "sound": "swish/kenney-rpg-cloth1",
-   "files": [
-    "audio/kit\\swish/kenney-rpg-cloth1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 53.7,
-   "peak_s": 53.7,
+   "cue_s": 38.65,
+   "peak_s": 38.65,
    "pan": 0.0,
-   "gain_db": -6.12,
+   "gain_db": -17.21,
    "limited_by": "best-band target",
    "band_hz": [
-    1000,
-    2000
+    500,
+    1000
    ],
    "win_s": [
-    53.69,
-    53.85
+    38.64,
+    38.8
    ],
-   "visual": "appear"
+   "visual": "cut"
   },
   {
-   "id": "s10-chip-82",
+   "id": "s11-blip-63",
    "sound": "tick/fs-188033-ticking-clock-1",
    "files": [
     "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 53.95,
-   "peak_s": 53.95,
-   "pan": -0.4,
-   "gain_db": -10.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    53.94,
-    53.99
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s10-chip-84",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 54.403,
-   "peak_s": 54.403,
-   "pan": 0.4,
-   "gain_db": -14.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    54.393,
-    54.443
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s10-chip-86",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 54.857,
-   "peak_s": 54.857,
-   "pan": 0.20000000000000007,
-   "gain_db": -10.96,
-   "limited_by": "best-band target",
-   "band_hz": [
-    1000,
-    2000
-   ],
-   "win_s": [
-    54.847,
-    54.897
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s10-chip-88",
-   "sound": "tick/fs-188033-ticking-clock-1",
-   "files": [
-    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 55.31,
-   "peak_s": 55.31,
-   "pan": 0.0,
-   "gain_db": -10.96,
+   "cue_s": 39.25,
+   "peak_s": 39.25,
+   "pan": 0.3,
+   "gain_db": -23.66,
    "limited_by": "best-band target",
    "band_hz": [
     2000,
     4000
    ],
    "win_s": [
-    55.3,
-    55.35
+    39.24,
+    39.29
    ],
    "visual": "appear"
   },
   {
-   "id": "s11-wipe-90",
-   "sound": "whoosh/fs-30240-swoop1-flac-1",
+   "id": "s11-blip-64",
+   "sound": "tick/fs-188033-ticking-clock-1",
    "files": [
-    "audio/kit\\whoosh/fs-30240-swoop1-flac-1.wav"
+    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 57.203,
-   "peak_s": 57.203,
-   "pan": -0.2,
-   "gain_db": -23.53,
-   "limited_by": "best-band target",
-   "band_hz": [
-    125,
-    250
-   ],
-   "win_s": [
-    57.193,
-    57.243
-   ],
-   "visual": "cut"
-  },
-  {
-   "id": "outro-91",
-   "sound": "thump/fs-133282-thump-on-carpet-2+boom",
-   "files": [
-    "audio/kit\\thump/fs-133282-thump-on-carpet-2.wav",
-    "audio/kit\\boom/fs-535615-low-bit-boom-1.wav"
-   ],
-   "weight": "hero",
-   "align": "peak",
-   "cue_s": 57.55,
-   "peak_s": 57.55,
-   "pan": 0.0,
-   "gain_db": -4.35,
-   "limited_by": "main-band target (hero)",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    57.54,
-    57.6352
-   ],
-   "visual": "land"
-  },
-  {
-   "id": "s11-word-93",
-   "sound": "swish/fs-14175-27-wav-2",
-   "files": [
-    "audio/kit\\swish/fs-14175-27-wav-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 58.3,
-   "peak_s": 58.3,
-   "pan": 0.0,
-   "gain_db": -5.84,
+   "cue_s": 39.65,
+   "peak_s": 39.65,
+   "pan": 0.3,
+   "gain_db": -19.66,
    "limited_by": "best-band target",
    "band_hz": [
     2000,
     4000
    ],
    "win_s": [
-    58.29,
-    58.34
+    39.64,
+    39.69
    ],
    "visual": "appear"
   },
   {
-   "id": "s11-tag-94",
+   "id": "s11-blip-65",
+   "sound": "tick/fs-188033-ticking-clock-1",
+   "files": [
+    "audio/kit\\tick/fs-188033-ticking-clock-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 40.05,
+   "peak_s": 40.05,
+   "pan": 0.3,
+   "gain_db": -19.66,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    40.04,
+    40.09
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s11-card-67",
    "sound": "pop/fs-269583-bubble-1",
    "files": [
     "audio/kit\\pop/fs-269583-bubble-1.wav"
    ],
    "weight": "support",
    "align": "peak",
-   "cue_s": 59.0,
-   "peak_s": 59.0,
-   "pan": 0.0,
-   "gain_db": -12.6,
-   "limited_by": "best-band target",
-   "band_hz": [
-    250,
-    500
-   ],
-   "win_s": [
-    58.99,
-    59.04
-   ],
-   "visual": "appear"
-  },
-  {
-   "id": "s11-pill-95",
-   "sound": "pop/fs-796298-bubble-pop-2",
-   "files": [
-    "audio/kit\\pop/fs-796298-bubble-pop-2.wav"
-   ],
-   "weight": "support",
-   "align": "peak",
-   "cue_s": 59.65,
-   "peak_s": 59.65,
-   "pan": 0.0,
-   "gain_db": -22.49,
+   "cue_s": 40.9,
+   "peak_s": 40.9,
+   "pan": -0.3,
+   "gain_db": -14.96,
    "limited_by": "best-band target",
    "band_hz": [
     500,
     1000
    ],
    "win_s": [
-    59.64,
-    59.69
+    40.89,
+    40.94
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-head-68",
+   "sound": "swish/fs-14171-23-wav-1",
+   "files": [
+    "audio/kit\\swish/fs-14171-23-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 42.73,
+   "peak_s": 42.73,
+   "pan": -0.3,
+   "gain_db": -12.65,
+   "limited_by": "best-band target",
+   "band_hz": [
+    125,
+    250
+   ],
+   "win_s": [
+    42.72,
+    42.77
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-card-69",
+   "sound": "tap/kenney-impact-impact-wood-light-003",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 43.35,
+   "peak_s": 43.35,
+   "pan": 0.3,
+   "gain_db": -11.07,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    43.34,
+    43.3911
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s12-key-71",
+   "sound": "key/fs-194799-keyboard5-wav-1",
+   "files": [
+    "audio/kit\\key/fs-194799-keyboard5-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 44.1,
+   "peak_s": 44.1,
+   "pan": 0.3,
+   "gain_db": -5.52,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    44.09,
+    44.14
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-key-72",
+   "sound": "key/fs-194796-vintage-keyboard-2-1",
+   "files": [
+    "audio/kit\\key/fs-194796-vintage-keyboard-2-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 44.6,
+   "peak_s": 44.6,
+   "pan": 0.3,
+   "gain_db": -6.91,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    44.59,
+    44.6594
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-key-73",
+   "sound": "key/fs-180974-key-1",
+   "files": [
+    "audio/kit\\key/fs-180974-key-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 45.1,
+   "peak_s": 45.1,
+   "pan": 0.3,
+   "gain_db": -16.22,
+   "limited_by": "best-band target",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    45.09,
+    45.14
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-key-74",
+   "sound": "key/fs-194799-keyboard5-wav-1",
+   "files": [
+    "audio/kit\\key/fs-194799-keyboard5-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 45.6,
+   "peak_s": 45.6,
+   "pan": 0.3,
+   "gain_db": -7.84,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    45.59,
+    45.64
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-key-75",
+   "sound": "key/fs-194796-vintage-keyboard-2-1",
+   "files": [
+    "audio/kit\\key/fs-194796-vintage-keyboard-2-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 46.1,
+   "peak_s": 46.1,
+   "pan": 0.3,
+   "gain_db": -9.16,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    46.09,
+    46.1591
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s12-guard-76",
+   "sound": "chime/kenney-interface-glass-001",
+   "files": [
+    "audio/kit\\chime/kenney-interface-glass-001.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 46.45,
+   "peak_s": 46.45,
+   "pan": 0.3,
+   "gain_db": -22.95,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    46.44,
+    46.5399
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-77",
+   "sound": "swish/kenney-rpg-cloth1",
+   "files": [
+    "audio/kit\\swish/kenney-rpg-cloth1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 47.71,
+   "peak_s": 47.71,
+   "pan": -0.3,
+   "gain_db": -9.28,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    47.7,
+    47.86
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-78",
+   "sound": "tap/kenney-impact-impact-wood-light-001",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-001.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 48.21,
+   "peak_s": 48.21,
+   "pan": 0.3,
+   "gain_db": -12.13,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    48.2,
+    48.2519
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-79",
+   "sound": "swish/fs-14171-23-wav-1",
+   "files": [
+    "audio/kit\\swish/fs-14171-23-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 48.71,
+   "peak_s": 48.71,
+   "pan": -0.3,
+   "gain_db": -9.03,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    48.7,
+    48.75
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-80",
+   "sound": "tap/kenney-impact-impact-wood-light-002",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-002.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 49.21,
+   "peak_s": 49.21,
+   "pan": 0.3,
+   "gain_db": -18.2,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    49.2,
+    49.254
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-81",
+   "sound": "swish/fs-14175-27-wav-2",
+   "files": [
+    "audio/kit\\swish/fs-14175-27-wav-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 49.71,
+   "peak_s": 49.71,
+   "pan": -0.3,
+   "gain_db": -17.05,
+   "limited_by": "best-band target",
+   "band_hz": [
+    2000,
+    4000
+   ],
+   "win_s": [
+    49.7,
+    49.75
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s13-word-82",
+   "sound": "tap/kenney-impact-impact-wood-light-003",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 50.21,
+   "peak_s": 50.21,
+   "pan": 0.3,
+   "gain_db": -15.07,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    50.2,
+    50.2514
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s14-83",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 51.25,
+   "peak_s": 51.25,
+   "pan": 0.0,
+   "gain_db": -19.85,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    51.24,
+    51.2923
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "s14-shot-85",
+   "sound": "tap/kenney-impact-impact-wood-light-003",
+   "files": [
+    "audio/kit\\tap/kenney-impact-impact-wood-light-003.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 51.67,
+   "peak_s": 51.67,
+   "pan": -0.10000000000000003,
+   "gain_db": -14.84,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    51.66,
+    51.7115
+   ],
+   "visual": "land"
+  },
+  {
+   "id": "s14-title-87",
+   "sound": "swish/kenney-rpg-cloth1",
+   "files": [
+    "audio/kit\\swish/kenney-rpg-cloth1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 52.68,
+   "peak_s": 52.68,
+   "pan": 0.0,
+   "gain_db": -9.28,
+   "limited_by": "best-band target",
+   "band_hz": [
+    1000,
+    2000
+   ],
+   "win_s": [
+    52.67,
+    52.83
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s15-89",
+   "sound": "whoosh/fs-30241-swoop2g-flac-1",
+   "files": [
+    "audio/kit\\whoosh/fs-30241-swoop2g-flac-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 55.45,
+   "peak_s": 55.45,
+   "pan": 0.0,
+   "gain_db": -16.81,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    55.44,
+    55.4923
+   ],
+   "visual": "cut"
+  },
+  {
+   "id": "s15-line-90",
+   "sound": "swish/fs-14171-23-wav-1",
+   "files": [
+    "audio/kit\\swish/fs-14171-23-wav-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 55.8,
+   "peak_s": 55.8,
+   "pan": 0.0,
+   "gain_db": -9.22,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    55.79,
+    55.84
+   ],
+   "visual": "move"
+  },
+  {
+   "id": "s15-res-91",
+   "sound": "pop/fs-269583-bubble-1",
+   "files": [
+    "audio/kit\\pop/fs-269583-bubble-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 56.35,
+   "peak_s": 56.35,
+   "pan": 0.0,
+   "gain_db": -10.96,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    56.34,
+    56.39
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "outro-92",
+   "sound": "hit+boom",
+   "files": [
+    "audio/kit\\hit/fs-337831-long-metal-hit-02-wav-1.wav",
+    "audio/kit\\boom/fs-535615-low-bit-boom-1.wav"
+   ],
+   "weight": "hero",
+   "align": "peak",
+   "cue_s": 56.98,
+   "peak_s": 56.98,
+   "pan": 0.0,
+   "gain_db": -17.61,
+   "limited_by": "main-band target (hero)",
+   "band_hz": [
+    4000,
+    8000
+   ],
+   "win_s": [
+    56.97,
+    57.13
+   ],
+   "visual": "appear"
+  },
+  {
+   "id": "s15-pill-94",
+   "sound": "pop/fs-796298-bubble-pop-2",
+   "files": [
+    "audio/kit\\pop/fs-796298-bubble-pop-2.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 58.65,
+   "peak_s": 58.65,
+   "pan": 0.0,
+   "gain_db": -15.94,
+   "limited_by": "best-band target",
+   "band_hz": [
+    500,
+    1000
+   ],
+   "win_s": [
+    58.64,
+    58.69
    ],
    "visual": "appear"
   }
