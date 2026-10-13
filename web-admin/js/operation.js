@@ -32,11 +32,11 @@ const INCIDENT_TYPES = {
         severity: "high",
     },
     domestic_violence: { label: "Domestic Violence", severity: "high" },
-    traffic_accident: { label: "Traffic Accident", severity: "high" },
+    traffic_accident: { label: "Traffic Accident", severity: "medium" },
     illegal_weapons: { label: "Illegal Weapons", severity: "high" },
     drug_related_activity: {
         label: "Drug-Related Activity",
-        severity: "medium",
+        severity: "high",
     },
     public_disturbance: { label: "Public Disturbance", severity: "medium" },
     suspicious_activity: {

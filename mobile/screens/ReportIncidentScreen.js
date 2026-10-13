@@ -46,7 +46,7 @@ const INCIDENT_TYPES = [
     id: 'traffic_accident',
     label: 'Traffic Accidents',
     icon: '🚑',
-    severity: 'high',
+    severity: 'medium',
     description: 'Road collisions or injuries',
   },
   {
@@ -67,7 +67,7 @@ const INCIDENT_TYPES = [
     id: 'drug_related_activity',
     label: 'Drug-Related Activity',
     icon: '💊',
-    severity: 'medium',
+    severity: 'high',
     description: 'Illegal selling or usage',
   },
   {

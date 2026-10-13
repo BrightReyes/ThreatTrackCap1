@@ -34,17 +34,19 @@ For production, we would further improve AI accuracy by adding more validation r
 
 **Answer:**
 
-Severity is assigned based on the selected incident type. The system classifies incident categories into high, medium, or low severity depending on urgency and potential harm.
+Severity is assigned based on the selected incident type and whether the submission is a **Normal Report** (non-emergency) or an **SOS Report** (active emergency distress).
 
-Examples:
+In **Normal Reports**, severity determines whether an incident routes to **Police Admin** (High severity) or **Barangay Admin** (Medium / Low severity) based on Philippine legal jurisdiction:
 
-| Severity | Incident types |
-| --- | --- |
-| High | Robbery / Hold-up, Physical Assault / Injury, Domestic Violence, Traffic Accident, Illegal Weapons |
-| Medium | Theft / Snatching, Drug-Related Activity, Public Disturbance, Suspicious Activity |
-| Low | Vandalism / Property Damage |
+| Severity | Incident Types (Normal Mode) | Target Jurisdiction |
+| --- | --- | --- |
+| High | Robbery / Hold-up, Physical Assault / Injury, Domestic Violence, Illegal Weapons, Drug-Related Activity | 🚔 Police Station / WCPD / DEU |
+| Medium | Theft / Snatching, Traffic Accident, Public Disturbance, Suspicious Activity | 🏛️ Barangay Hall / Traffic Enforcers / Lupon |
+| Low | Vandalism / Property Damage | 🏛️ Barangay Hall (Mediation / Restitution) |
 
-This makes reporting more consistent because users do not freely decide the severity. Instead, the selected incident type automatically maps to a predefined severity level. SOS reports and high-severity reports are treated as high priority so admins can respond faster.
+In **SOS Reports**, because an active tactical distress signal is triggered with live GPS streaming, all incident categories automatically map to **High Severity**, ensuring immediate priority dispatch and siren alerts to the Police Command Center.
+
+This makes reporting consistent and tamper-resistant because users do not manually guess severity levels. Instead, system rules map the report type and category directly to the appropriate responder jurisdiction.
 
 ## 5. How Does The Heatmap Formula Work?
 

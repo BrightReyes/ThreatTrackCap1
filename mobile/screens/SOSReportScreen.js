@@ -53,31 +53,31 @@ const INCIDENT_TYPES = [
   {
     id: 'theft_snatching',
     label: 'Theft / Snatching',
-    severity: 'medium',
+    severity: 'high',
     description: 'Phone or bag snatching',
   },
   {
     id: 'drug_related_activity',
     label: 'Drug-Related Activity',
-    severity: 'medium',
+    severity: 'high',
     description: 'Illegal selling or usage',
   },
   {
     id: 'public_disturbance',
     label: 'Public Disturbance',
-    severity: 'medium',
+    severity: 'high',
     description: 'Noise, conflict, riot',
   },
   {
     id: 'suspicious_activity',
     label: 'Suspicious Activity',
-    severity: 'medium',
+    severity: 'high',
     description: 'Unusual behavior',
   },
   {
     id: 'vandalism_property_damage',
     label: 'Vandalism / Damage',
-    severity: 'low',
+    severity: 'high',
     description: 'Property damage',
   },
 ];
@@ -129,7 +129,7 @@ const getIncidentIconName = (type) => {
 };
 
 const getSeverityFromType = (type) => {
-  return getIncidentByType(type)?.severity || 'medium';
+  return getIncidentByType(type)?.severity || 'high';
 };
 
 const isValidReportLocation = (location) => {
