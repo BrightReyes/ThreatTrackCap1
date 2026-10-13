@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from './CustomAlert';
+import { scheduleLocalNotification } from '../utils/notifications';
 
 const ResponseAlertListener = () => {
   const shownRef = useRef(new Set());
@@ -57,6 +58,17 @@ const ResponseAlertListener = () => {
         if (unreadResponse) {
           shownRef.current.add(unreadResponse.id);
           setActiveNotification(unreadResponse);
+
+          // Trigger native device local push notification
+          scheduleLocalNotification({
+            title: unreadResponse.title || '🚨 ThreatTrack Alert',
+            body: unreadResponse.body || 'New incident response update received.',
+            data: {
+              incidentId: unreadResponse.incidentId,
+              notificationId: unreadResponse.id,
+              type: unreadResponse.type,
+            },
+          }).catch(() => {});
         }
       },
       (error) => {

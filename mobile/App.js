@@ -5,6 +5,7 @@ import { enableFreeze, enableScreens } from 'react-native-screens';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './utils/firebase';
 import { handleLogout as authLogout } from './utils/auth';
+import { registerForPushNotificationsAsync, addNotificationResponseReceivedListener } from './utils/notifications';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
 import MainNavigator from './navigation/MainNavigator';
@@ -47,19 +48,39 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('login');
 
   useEffect(() => {
+    let responseSubscription = null;
+
     // Listen to Firebase authentication state changes.
     // AsyncStorage persistence automatically checks for an existing session on app startup.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsAuthenticated(true);
+        // Register device for free push notifications with FCM
+        registerForPushNotificationsAsync(user.uid).catch((err) => {
+          console.warn('[PUSH] Registration failed:', err?.message || err);
+        });
       } else {
         setIsAuthenticated(false);
       }
       setIsLoadingAuth(false);
     });
 
-    // Clean up the auth subscription on unmount to prevent memory leaks
-    return () => unsubscribe();
+    try {
+      responseSubscription = addNotificationResponseReceivedListener((response) => {
+        const data = response?.notification?.request?.content?.data;
+        console.log('[PUSH] Notification tapped with data:', data);
+      });
+    } catch (e) {
+      // Ignore if not supported in environment
+    }
+
+    // Clean up the subscriptions on unmount to prevent memory leaks
+    return () => {
+      unsubscribe();
+      if (responseSubscription?.remove) {
+        responseSubscription.remove();
+      }
+    };
   }, []);
 
   const handleLoginSuccess = () => {
