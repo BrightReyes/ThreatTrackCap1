@@ -34,18 +34,30 @@
     tl.to("#sweep", { opacity: 0, duration: 0.2 }, t + 0.5);
   }
 
-  // ===== S1 · radar finds the mark =====
+  // ===== S1 · mystery hook: "Imagine a safer city." =====
   { const S = T.s1;
-    tl.set(["#s1-logo", "#s1-word", "#s1-eb", "#s1-b1", "#s1-b2", "#s1-b3"], { opacity: 0 }, 0);
-    $$("#s1-radar .ring").forEach((r, i) => tl.fromTo(r, { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7, ease: "power3.out" }, S.radar + i * 0.1));
-    tl.fromTo("#s1-beam", { rotate: 0, opacity: 0 }, { rotate: 720, opacity: 1, duration: S.logo - S.radar + 0.2, ease: "power1.inOut" }, S.radar);
-    blip("#s1-b1", S.radar + 0.5); blip("#s1-b2", S.radar + 0.85); blip("#s1-b3", S.radar + 1.15);
-    rise("#s1-eb", S.radar + 0.3, 16, 0.4);
-    tl.to(["#s1-beam", "#s1-eb"], { opacity: 0, duration: 0.3 }, S.logo);
-    tl.to("#s1-radar .ring", { opacity: 0.3, duration: 0.5 }, S.logo);
-    pop("#s1-logo", S.logo, 0.55); punch("#s1", S.logo + 0.1);
-    rise("#s1-word", S.word, 40, 0.5);
-    drive("#s1", S.logo, S.end, 1.08);
+    tl.set(["#s1-eb", "#s1-b1", "#s1-b2", "#s1-b3"], { opacity: 0 }, 0);
+    tl.set("#s1-w1", { opacity: 1, display: "block", zIndex: 10 }, 0);
+    tl.set("#s1-w2", { opacity: 1, display: "none", zIndex: 10 }, 0);
+
+    // Dynamic radar sweeps & pulsing blips
+    $$("#s1-radar .ring").forEach((r, i) => tl.fromTo(r, { scale: 0.1, opacity: 0 }, { scale: 1, opacity: 0.85, duration: 0.8, ease: "power3.out" }, S.radar + i * 0.1));
+    tl.fromTo("#s1-beam", { rotate: 0, opacity: 0 }, { rotate: 720, opacity: 0.85, duration: S.end - S.radar, ease: "none" }, S.radar);
+    blip("#s1-b1", S.radar + 0.3); blip("#s1-b2", S.radar + 1.0); blip("#s1-b3", S.radar + 1.7);
+    rise("#s1-eb", S.radar + 0.15, 14, 0.45);
+
+    // Beat 1 (0.2s – 1.4s): "Imagine a safer city." (Kinetic word stagger + camera punch)
+    snap("#s1-w1", S.b1, 0.12);
+    punch("#s1", S.b1 + 0.35);
+    snapOut("#s1-w1", S.b1End);
+    tl.set("#s1-w1", { display: "none" }, S.b1End + 0.2);
+
+    // Beat 2 (1.6s – 3.0s): "...where help is always within reach." (Kinetic word snap + drive)
+    tl.set("#s1-w2", { display: "block", opacity: 1 }, S.b2 - 0.05);
+    snap("#s1-w2", S.b2, 0.1);
+    drive("#s1", S.b2, S.end, 1.08);
+    snapOut("#s1-w2", S.b2End);
+    tl.to(["#s1-radar", "#s1-eb"], { opacity: 0, duration: 0.25 }, S.end - 0.25);
   }
   // ===== S2 / S3 · kinetic type =====
   { const S = T.s2; snap("#s2-kt", S.w1, 0.3); drive("#s2", S.start, S.end, 1.07); snapOut("#s2-kt", S.end - 0.25); }
@@ -244,15 +256,15 @@
     pop("#s15-pill", S.pill, 0.45);
     drive("#s15", S.logo, S.end, 1.05);
   }
-  // ===== persistent dispatch HUD + log ticker =====
+  // ===== persistent dispatch HUD =====
   { const h0 = 17.65, hEnd = 51.2, jump = T.s11.start;
     const fmt = (sec) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60); return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":"); };
     const base1 = 18 * 3600 + 41 * 60 + 7, base2 = 19 * 3600 + 12 * 60 + 7;
     for (let t = h0; t < hEnd; t += 1) { const sec = t < jump ? base1 + Math.round(t - h0) : base2 + Math.round(t - jump); tl.set("#hud-clock", { textContent: fmt(sec) }, +t.toFixed(2)); }
+    tl.set("#hud-case", { display: "flex", y: 0, opacity: 1 }, 0);
+    tl.set("#hud-brand", { display: "none", opacity: 0, y: 24 }, 0);
     tl.fromTo("#hud", { y: -30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, h0);
-    tl.fromTo("#ticker", { y: 46 }, { y: 0, duration: 0.5, ease: "power3.out" }, h0);
-    const tape = $("#tape"); const w = Math.max(tape.scrollWidth, 4000);
-    tl.fromTo(tape, { x: 0 }, { x: -w, duration: hEnd - h0, ease: "none" }, h0);
+    tl.to("#hud", { y: -30, opacity: 0, duration: 0.4, ease: "power2.in" }, hEnd - 0.4);
     const status = (t, text, bg) => { const dark = bg === "#ff9f0a" || bg === "#30d158"; tl.to("#hud-st", { scale: 0.85, opacity: 0, duration: 0.15, ease: "power2.in" }, t - 0.15); tl.set("#hud-st", { textContent: text, backgroundColor: bg, color: dark ? "#111111" : "#ffffff" }, t); tl.to("#hud-st", { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" }, t); };
     status(T.s7.sent, "SUBMITTED", "#ff3b30");
     status(T.s8.p2, "UNDER REVIEW", "#ff9f0a");
@@ -260,6 +272,13 @@
     status(T.s8.p4, "RESPONDING", "#7c3aed");
     status(T.s10.way, "HELP ON THE WAY", "#7c3aed");
     status(T.s11.start + 0.3, "RESOLVED", "#30d158");
+
+    // Morph from Case tracking to ThreatTrack Brand Header after case resolution
+    const morphT = T.s11.start + 1.1;
+    tl.to("#hud-case", { y: -24, opacity: 0, duration: 0.35, ease: "power2.in" }, morphT);
+    tl.set("#hud-case", { display: "none" }, morphT + 0.35);
+    tl.set("#hud-brand", { display: "flex", y: 24, opacity: 0 }, morphT + 0.35);
+    tl.to("#hud-brand", { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, morphT + 0.35);
   }
 
   tl.set({}, {}, T.duration);

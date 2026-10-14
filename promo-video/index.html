@@ -2,9 +2,9 @@
 <html lang="en" data-resolution="landscape">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ThreatTrack — system showcase</title>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="assets/gsap.min.js"></script>
     <link rel="stylesheet" href="assets/fonts/fonts.css" />
     <link rel="stylesheet" href="assets/style.css" />
     <script src="timeline.js"></script>
@@ -20,18 +20,21 @@
             <div class="beam" id="s1-beam"></div>
             <div class="blip" id="s1-b1" style="left:72%;top:36%;"><i></i></div><div class="blip a" id="s1-b2" style="left:30%;top:62%;"><i></i></div><div class="blip" id="s1-b3" style="left:58%;top:74%;"><i></i></div>
           </div>
-          <div class="eyebrow" id="s1-eb" style="position:absolute;left:0;right:0;top:300px;text-align:center;color:#6b7280;">Valenzuela City · 14.70°N 120.98°E</div>
-          <div class="logo" id="s1-logo"><img src="assets/brand/logo-tight.png" alt="" /></div>
-          <div class="wordmark" id="s1-word"><span class="line">Threat<span class="r">Track</span></span></div>
+          <div class="eyebrow" id="s1-eb">
+            <span class="s1-live-pill"><i></i>SENSORS ACTIVE</span>
+            <span>VALENZUELA CITY · 14.70°N 120.98°E</span>
+          </div>
+          <div class="kt" id="s1-w1" style="font-size:112px;"><span class="w">Imagine </span><span class="w">a </span><span class="w gw">safer city.</span></div>
+          <div class="kt" id="s1-w2" style="font-size:96px;"><span class="w">where </span><span class="w">help is </span><span class="w gw">always within reach.</span></div>
         </div>
       </section>
 
       <!-- S2 / S3 · kinetic type -->
       <section id="s2" class="clip scene black" data-start="3.2" data-duration="2.2" data-track-index="2">
-        <div class="in"><div class="kt" id="s2-kt"><span class="w">Something </span><span class="w">happens.</span></div></div>
+        <div class="in"><div class="kt" id="s2-kt"><span class="w">When something </span><span class="w">happens.</span></div></div>
       </section>
       <section id="s3" class="clip scene black" data-start="5.4" data-duration="2.6" data-track-index="1">
-        <div class="in"><div class="kt" id="s3-kt"><span class="w gw">Help </span><br><span class="w">should already </span><span class="w">be moving.</span></div></div>
+        <div class="in"><div class="kt" id="s3-kt"><span class="w gw">Make </span><br><span class="w">it known </span><span class="w">instantly.</span></div></div>
       </section>
 
       <!-- S4 · collage of real screens -->
@@ -57,8 +60,8 @@
       <!-- S6 · Hold. -->
       <section id="s6" class="clip scene black" data-start="13.6" data-duration="6.3" data-track-index="2">
         <div class="in">
-          <div class="kt left" id="s6-kt" style="top:380px;"><span class="w">Hold.</span><br><span class="w gw">Help </span><span class="w">moves.</span></div>
-          <div class="sub-kt" id="s6-sub">A <b>three-second hold</b> sends your live GPS to the nearest sub-station. No form, no typing.</div>
+          <div class="kt left" id="s6-kt" style="top:380px;"><span class="w">Just </span><span class="w">hold.</span><br><span class="w gw">Help </span><span class="w">moves.</span></div>
+          <div class="sub-kt" id="s6-sub">Hold for <b>3 seconds</b>. Your exact location goes straight to the nearest police station — no forms, no typing.</div>
           <div class="card" id="s6-card" style="left:1000px; width:800px;">
             <div class="ct"><i class="red"></i>SOS Gateway <span class="mono">hold 3 s</span></div>
             <div id="s6-gate">
@@ -66,10 +69,10 @@
               <div class="sos-label" id="s6-label">Release before 3 seconds to cancel</div>
             </div>
             <div class="rows" id="s6-rows">
-              <div class="row hot" id="s6-r0"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 3v10M12 17v.5"/></svg></span>SOS dispatched<span class="mono">18:41:07</span></div>
-              <div class="row" id="s6-r1"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/></svg></span>Live GPS streaming<span class="mono">14.7245, 120.9620</span></div>
-              <div class="row" id="s6-r2"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M4 20V9l8-5 8 5v11M9 20v-6h6v6"/></svg></span>Mapulang Lupa Police Sub-station<span class="mono">1.4 km</span></div>
-              <div class="row ok" id="s6-r3"><span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Unit assigned · help is on the way<span class="mono">5 min ETA</span></div>
+              <div class="row hot" id="s6-r0"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M12 3v10M12 17v.5"/></svg></span>SOS sent<span class="mono">18:41:07</span></div>
+              <div class="row" id="s6-r1"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/></svg></span>Sharing live location with police<span class="mono">14.7245, 120.9620</span></div>
+              <div class="row" id="s6-r2"><span class="ic navy"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M4 20V9l8-5 8 5v11M9 20v-6h6v6"/></svg></span>Mapulang Lupa Sub-Station alerted<span class="mono">1.4 km</span></div>
+              <div class="row ok" id="s6-r3"><span class="ic green"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-10"/></svg></span>Patrol on the way · help is coming<span class="mono">5 min ETA</span></div>
             </div>
           </div>
         </div>
@@ -79,7 +82,7 @@
       <section id="s7" class="clip scene black" data-start="19.9" data-duration="4.6" data-track-index="1">
         <div class="in">
           <div class="kt left" id="s7-kt" style="top:380px;"><span class="w">Report in</span><br><span class="w gw">three </span><span class="w">taps.</span></div>
-          <div class="sub-kt" id="s7-sub">Category, your role, a photo. Every report is tied to a <b>verified account</b>.</div>
+          <div class="sub-kt" id="s7-sub">Pick what happened, snap a photo, hit send. <b>No paperwork,</b> no waiting in line at the station.</div>
           <div class="persp" id="s7-persp" style="left:1180px; top:110px;">
             <div class="phone" id="s7-phone"><div class="notch"></div>
               <div class="screen">
@@ -100,8 +103,8 @@
       <!-- S8 · Track every step. -->
       <section id="s8" class="clip scene black" data-start="24.5" data-duration="4.1" data-track-index="2">
         <div class="in">
-          <div class="kt left" id="s8-kt" style="top:380px;"><span class="w">Track</span><br><span class="w gw">every </span><span class="w">step.</span></div>
-          <div class="sub-kt" id="s8-sub">Residents see each status change <b>the moment</b> an officer makes it.</div>
+          <div class="kt left" id="s8-kt" style="top:380px;"><span class="w">Never left</span><br><span class="w gw">in the </span><span class="w">dark.</span></div>
+          <div class="sub-kt" id="s8-sub">See what's happening in <b>real time</b> — from received, to officers on the way, to resolved.</div>
           <div class="card" id="s8-card" style="left:1000px; width:800px;">
             <div class="ct"><i></i>Report Status · TR-4821 <span class="mono">Theft / Snatching</span></div>
             <div class="pills">
@@ -119,7 +122,7 @@
       <section id="s9" class="clip scene black" data-start="28.6" data-duration="4.3" data-track-index="1">
         <div class="in">
           <div class="kt left" id="s9-kt" style="top:380px;"><span class="w">A live</span><br><span class="w gw">command </span><span class="w">center.</span></div>
-          <div class="sub-kt" id="s9-sub">Every report streams into the dispatcher's queue <b>the second</b> it is filed.</div>
+          <div class="sub-kt" id="s9-sub">Every alert pops up on the police screen <b>the second</b> it is sent.</div>
           <div class="card dark" id="s9-card" style="left:1000px; width:800px;">
             <div class="ct"><i></i>Dispatch Command Center <span class="mono" id="s9-clock">18:42:07 PHT</span></div>
             <div class="stats">
@@ -142,13 +145,13 @@
         <div class="in">
           <div class="half l" id="s10-l">
             <div class="who">CITIZEN · MAPULANG LUPA</div><div class="name">Maria</div>
-            <div class="mini" id="s10-ml"><h3><i></i>Report TR-4821</h3><div class="big" id="s10-ml-big">Sent. Waiting for review.</div><div class="sub" id="s10-ml-sub">Live location shared with the sub-station</div><div class="eta" id="s10-eta"><span>Distance<b>1.4 km</b></span><span>Arrival<b>5 min</b></span></div></div>
+            <div class="mini" id="s10-ml"><h3><i></i>Report TR-4821</h3><div class="big" id="s10-ml-big">Sent. Waiting for review.</div><div class="sub" id="s10-ml-sub">Live location shared with local police</div><div class="eta" id="s10-eta"><span>Distance<b>1.4 km</b></span><span>Arrival<b>5 min</b></span></div></div>
           </div>
           <div class="half r" id="s10-r">
             <div class="who">DISPATCHER · SS-MPL</div><div class="name">PO2 Reyes</div>
-            <div class="mini" id="s10-mr"><h3><i></i>Legitimacy assessment</h3><div class="bar"><i id="s10-bar"></i></div><div class="score"><span id="s10-score">0</span><small>/100</small></div><div class="verdict" id="s10-verdict">High Confidence Legit · AI Verified</div><div class="cta" id="s10-cta">Dispatch Precinct</div></div>
+            <div class="mini" id="s10-mr"><h3><i></i>Location verified · Real resident</h3><div class="bar"><i id="s10-bar"></i></div><div class="score"><span id="s10-score">0</span><small>/100</small></div><div class="verdict" id="s10-verdict">87% Confidence · Real Resident</div><div class="cta" id="s10-cta">Send Patrol Unit</div></div>
           </div>
-          <div class="kt" id="s10-kt" style="top:120px; transform:none; font-size:96px;"><span class="w">One </span><span class="w gw">click.</span></div>
+          <div class="kt" id="s10-kt" style="top:144px; transform:none; font-size:90px;"><span class="w">One </span><span class="w gw">click.</span></div>
           <div class="vs" id="s10-vs"><span id="s10-vs-t">T+05:48</span><small>RESPONDING</small></div>
           <svg class="cursor" id="s10-cursor" viewBox="0 0 24 24" style="left:1500px; top:980px;"><path d="M5 3l14 8.5-6.5 1.2 3.7 7.3-2.6 1.3-3.7-7.4L5 18z" fill="#fff" stroke="#0b1220" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
@@ -165,35 +168,35 @@
             <div class="lbl" style="left:190px;top:330px;">Balangkas</div><div class="lbl" style="left:440px;top:470px;">Mapulang Lupa</div>
             <div class="blip" id="s11-b1" style="left:63%;top:58%;"><i></i></div><div class="blip" id="s11-b2" style="left:34%;top:38%;"><i></i></div><div class="blip a" id="s11-b3" style="left:58%;top:40%;"><i></i></div><div class="blip g" id="s11-b4" style="left:42%;top:68%;"><i></i></div><div class="blip a" id="s11-b5" style="left:70%;top:72%;"><i></i></div><div class="blip" id="s11-b6" style="left:28%;top:56%;"><i></i></div>
           </div>
-          <div class="kt left" id="s11-kt" style="top:360px;"><span class="w">See it</span><br><span class="w gw">coming.</span></div>
-          <div class="sub-kt" id="s11-sub" style="top:600px;">Clusters surface on the <b>hotspot radar</b> before they surface in the news.</div>
+          <div class="kt left" id="s11-kt" style="top:360px;"><span class="w">Spot trouble</span><br><span class="w gw">before it </span><span class="w">spreads.</span></div>
+          <div class="sub-kt" id="s11-sub" style="top:600px;">See crime hotspots early, so police can patrol <b>where people need them most</b>.</div>
           <div class="hotcard" id="s11-hot" style="left:120px; top:720px; width:780px; height:220px; padding:22px 30px;"><h3><i></i>Top hotspots · 30 days</h3><div class="hr" id="s11-h1">Market road · Theft / Snatching<span class="badge high">31</span></div></div>
         </div>
       </section>
 
-      <!-- S12 · AI drafts. Officers decide. -->
-      <section id="s12" class="clip scene black" data-start="42.6" data-duration="5.0" data-track-index="2">
+      <!-- S12 · RAG-powered. Tailored response. -->
+      <section id="s12" class="clip scene black" data-start="42.6" data-duration="4.4" data-track-index="2">
         <div class="in">
-          <div class="kt left" id="s12-kt" style="top:380px; font-size:116px;"><span class="w gw">AI </span><span class="w">drafts.</span><br><span class="w">Officers </span><span class="w">decide.</span></div>
-          <div class="sub-kt" id="s12-sub" style="top:660px;">Gemini reads <b>aggregated counts only</b>, never names. Every plan is approved by a human.</div>
+          <div class="kt left" id="s12-kt" style="top:380px; font-size:112px;"><span class="w gw">RAG-powered.</span><br><span class="w">Tailored </span><span class="w">response.</span></div>
+          <div class="sub-kt" id="s12-sub" style="top:660px;">An <b>optional tool when admins need it</b>: our RAG pipeline pairs live reports with Philippine laws and AI management rules to draft tailored action plans.</div>
           <div class="card" id="s12-card" style="left:1000px; width:800px;">
-            <div class="ct"><i></i>AI Decision Support · Gemini <span class="mono">hotspot #1</span></div>
+            <div class="ct"><i></i>AI Decision Support · Optional RAG <span class="mono">hotspot #1</span></div>
             <div class="plan"><span id="s12-plan"></span><span class="caret" id="s12-caret"></span></div>
-            <div class="guard" id="s12-guard"><span class="g">Guardrails passed · 0 violations</span><span class="c">High confidence</span><span class="r">Approve · Modify · Reject</span></div>
+            <div class="guard" id="s12-guard"><span class="g">On-Demand RAG</span><span class="c">Laws & Rules Checked</span><span class="r">Approve · Modify · Reject</span></div>
           </div>
         </div>
       </section>
 
       <!-- S13 · role storm -->
-      <section id="s13" class="clip scene black" data-start="47.6" data-duration="3.6" data-track-index="1">
+      <section id="s13" class="clip scene black" data-start="47.0" data-duration="4.2" data-track-index="1">
         <div class="in storm">
-          <div class="kt" id="s13-w0"><span class="w">Barangay desk.</span></div>
-          <div class="kt" id="s13-w1"><span class="w gw">Police sub-station.</span></div>
-          <div class="kt" id="s13-w2"><span class="w">Head police HQ.</span></div>
-          <div class="kt" id="s13-w3"><span class="w gw">Audit log.</span></div>
-          <div class="kt" id="s13-w4"><span class="w">35 PH laws.</span></div>
-          <div class="kt" id="s13-w5"><span class="w gw">Zero names </span><span class="w">to the AI.</span></div>
-          <div class="tag" id="s13-t" style="left:0;right:0;bottom:120px;text-align:center;">THREE ADMIN TIERS · SEVERITY ROUTING · JURISDICTION BY DISTANCE</div>
+          <div class="kt" id="s13-w0"><span class="w">Your barangay.</span></div>
+          <div class="kt" id="s13-w1"><span class="w gw">Your local station.</span></div>
+          <div class="kt" id="s13-w2"><span class="w">Valenzuela police.</span></div>
+          <div class="kt" id="s13-w3"><span class="w gw">Total transparency.</span></div>
+          <div class="kt" id="s13-w4"><span class="w">Privacy protected.</span></div>
+          <div class="kt" id="s13-w5"><span class="w gw">One safer </span><span class="w">city.</span></div>
+          <div class="tag" id="s13-t" style="left:0;right:0;bottom:120px;text-align:center;">CONNECTED NEIGHBORHOODS · RAPID DISPATCH · VALENZUELA CITY</div>
         </div>
       </section>
 
@@ -208,7 +211,7 @@
             <div class="shot sh2 dark" style="left:520px;top:720px;width:400px;height:300px;"><div class="bar"><i></i>Hotspot radar</div><div class="px"><div class="map" style="height:120px;"></div><div class="ln red w60"></div></div></div>
             <div class="shot sh2 dark" style="left:1240px;top:700px;width:560px;height:300px;"><div class="bar"><i></i>Analytics · AI decision support</div><div class="px"><div class="bars" style="height:90px;"><i style="height:30%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:55%"></i></div></div></div>
           </div>
-          <div class="kt" id="s14-kt" style="font-size:118px;"><span class="w">One incident.</span><br><span class="w gw">Every role </span><span class="w">in the loop.</span></div>
+          <div class="kt" id="s14-kt" style="font-size:118px;"><span class="w">One community.</span><br><span class="w gw">Everyone </span><span class="w">protected.</span></div>
         </div>
       </section>
 
@@ -227,18 +230,382 @@
 
       <div class="sweep" id="sweep"></div>
       <div class="clip" id="hud" data-start="17.65" data-duration="33.55" data-track-index="6">
-        <div class="l"><span class="dot"></span><span class="case">CASE TR-4821 · THEFT / SNATCHING</span><span class="st" id="hud-st">SOS RECEIVED</span></div>
+        <div class="l" id="hud-case">
+          <span class="dot"></span>
+          <span class="case">CASE TR-4821 · THEFT / SNATCHING</span>
+          <span class="st" id="hud-st">SOS RECEIVED</span>
+        </div>
+        <div class="l hud-brand-wrap" id="hud-brand" style="display:none; opacity:0;">
+          <img src="assets/brand/logo-tight.png" class="hud-logo" alt="ThreatTrack" />
+          <span class="hud-name">Threat<span class="r">Track</span></span>
+          <span class="hud-badge"><i class="hud-live-dot"></i>BUILT FOR VALENZUELANOS</span>
+        </div>
         <span class="clock" id="hud-clock">18:41:07</span>
       </div>
-      <div class="clip" id="ticker" data-start="17.65" data-duration="33.55" data-track-index="7">
-        <div class="tape" id="tape"><b>18:41:07</b> SOS received · Mapulang Lupa · live GPS 14.7245, 120.9620<span class="sep">//</span><b>18:41:09</b> validateIncident · score 87 · High Confidence Legit<span class="sep">//</span><b>18:41:10</b> nearest unit · Mapulang Lupa Police Sub-station · 1.4 km<span class="sep">//</span><b>18:41:12</b> push alert · 212 residents within 5 km<span class="sep">//</span><b>18:43:21</b> status · UNDER REVIEW · PO2 Reyes<span class="sep">//</span><b>18:46:02</b> status · VERIFIED · photo evidence attached<span class="sep">//</span><b>18:46:55</b> DISPATCH · SS-MPL · ETA 5 min<span class="sep">//</span><b>18:47:03</b> citizen notified · HELP IS ON THE WAY<span class="sep">//</span><b>18:52:10</b> unit on scene<span class="sep">//</span><b>19:12:07</b> status · DONE · audit log written<span class="sep">//</span><b>19:12:08</b> analytics · hotspot weight +1 · market road</div>
-      </div>
-      <audio id="music" data-start="0" data-duration="62" data-track-index="9" data-volume="0.0" data-timeline-role="music" src="audio/music.wav"></audio>
+      <!-- Audio skipped per request -->
     </div>
     <script src="assets/anim.js"></script>
     <script>
       window.__timelines = window.__timelines || {};
       window.__timelines["main"] = window.__mainTimeline;
     </script>
+
+    <!-- In-Browser Preview Controller HUD (Method 2) [COMMENTED OUT FOR FULL-SCREEN RENDER]:
+    <style>
+      html, body {
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        background: #0f172a !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+      }
+      #root {
+        position: absolute !important;
+        width: 1920px !important;
+        height: 1080px !important;
+        left: 50% !important;
+        top: 50% !important;
+        margin-left: -960px !important;
+        margin-top: -540px !important;
+        transform-origin: center center !important;
+        box-shadow: 0 20px 80px rgba(15, 23, 42, 0.45) !important;
+        cursor: pointer;
+      }
+      /* Big Play Overlay in center when paused */
+      #center-play {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: rgba(0, 0, 0, 0.45);
+        cursor: pointer;
+        transition: opacity 0.25s ease;
+      }
+      #center-play.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .play-circle {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        background: #dc2626;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        box-shadow: 0 0 50px rgba(220, 38, 38, 0.6), 0 10px 30px rgba(0, 0, 0, 0.6);
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+      #center-play:hover .play-circle {
+        transform: scale(1.08);
+        background: #ef4444;
+      }
+      .play-label {
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      }
+      /* Bottom HUD Bar */
+      #preview-hud {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7);
+        user-select: none;
+      }
+      .hud-main-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .hud-scenes-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .hud-btn {
+        background: none;
+        border: none;
+        color: #ffffff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border-radius: 50%;
+        transition: background 0.15s, transform 0.1s;
+      }
+      .hud-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .hud-play-btn {
+        width: 36px;
+        height: 36px;
+        background: #dc2626;
+        border-radius: 50%;
+      }
+      .hud-play-btn:hover {
+        background: #ef4444;
+      }
+      .hud-scrubber {
+        width: 280px;
+        height: 6px;
+        accent-color: #dc2626;
+        cursor: pointer;
+      }
+      @font-face {
+        font-family: 'SFMono-Regular';
+        src: local('Consolas'), local('monospace');
+      }
+      .hud-time {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        color: #cbd5e1;
+        min-width: 90px;
+        text-align: center;
+      }
+      .scene-pill {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .scene-pill:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      .scene-pill.active {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #ef4444;
+      }
+    </style>
+
+    /* Center Play Overlay */
+    <div id="center-play">
+      <div class="play-circle">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <div class="play-label">Click anywhere to Play (or press Space)</div>
+    </div>
+
+    /* Bottom Controls HUD */
+    <div id="preview-hud">
+      <div class="hud-main-row">
+        <button class="hud-btn hud-play-btn" id="hud-play" title="Play / Pause (Space)">
+          <svg id="hud-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="hud-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button class="hud-btn" id="hud-restart" title="Restart (R)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        </button>
+        <input type="range" class="hud-scrubber" id="hud-seek" min="0" max="62" step="0.1" value="0.5">
+        <span class="hud-time" id="hud-timer">00:00 / 01:02</span>
+      </div>
+      <div class="hud-scenes-row">
+        <span class="scene-pill" data-t="0.5">Radar</span>
+        <span class="scene-pill" data-t="8.1">Collage</span>
+        <span class="scene-pill" data-t="14.0">SOS Hold</span>
+        <span class="scene-pill" data-t="20.0">Report</span>
+        <span class="scene-pill" data-t="24.8">Status</span>
+        <span class="scene-pill" data-t="28.9">Command</span>
+        <span class="scene-pill" data-t="33.0">Dispatch</span>
+        <span class="scene-pill" data-t="38.5">Radar 2</span>
+        <span class="scene-pill" data-t="42.8">AI</span>
+        <span class="scene-pill" data-t="55.5">Outro</span>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        const root = document.getElementById("root");
+        const playBtn = document.getElementById("hud-play");
+        const iconPlay = document.getElementById("hud-icon-play");
+        const iconPause = document.getElementById("hud-icon-pause");
+        const restartBtn = document.getElementById("hud-restart");
+        const seekInput = document.getElementById("hud-seek");
+        const timer = document.getElementById("hud-timer");
+        const centerPlay = document.getElementById("center-play");
+        const pills = document.querySelectorAll(".scene-pill");
+
+        // 1. HyperFrames Clip Visibility Engine
+        // In HyperFrames, scenes stack at inset:0. An element is ONLY visible when playhead is in [data-start, data-start + data-duration]
+        const timedClips = Array.from(root.querySelectorAll("[data-start]")).filter(el => el !== root);
+        function syncClips(time) {
+          for (let i = 0; i < timedClips.length; i++) {
+            const el = timedClips[i];
+            const start = parseFloat(el.getAttribute("data-start")) || 0;
+            const dur = parseFloat(el.getAttribute("data-duration")) || 0;
+            const active = time >= start && time < (start + dur);
+            el.style.visibility = active ? "visible" : "hidden";
+          }
+          // Highlight active scene pill
+          pills.forEach(p => {
+            const pt = parseFloat(p.getAttribute("data-t"));
+            p.classList.toggle("active", Math.abs(time - pt) < 2.5);
+          });
+        }
+
+        // 2. Responsive scaling to fit any display without cropping
+        function fitScale() {
+          const availW = window.innerWidth - 32;
+          const availH = window.innerHeight - 80;
+          const scale = Math.min(availW / 1920, availH / 1080);
+          root.style.transform = `scale(${Math.max(0.1, scale)})`;
+        }
+        window.addEventListener("resize", fitScale);
+        fitScale();
+
+        // 3. Time formatting
+        function fmt(s) {
+          const m = Math.floor(s / 60);
+          const sec = Math.floor(s % 60);
+          return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+        }
+
+        let isSeeking = false;
+        function updateUI() {
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          const cur = tl.time();
+          const dur = tl.duration() || 62;
+          if (!isSeeking) seekInput.value = cur;
+          timer.textContent = `${fmt(cur)} / ${fmt(dur)}`;
+          const playing = !tl.paused();
+          iconPlay.style.display = playing ? "none" : "block";
+          iconPause.style.display = playing ? "block" : "none";
+          centerPlay.classList.toggle("hidden", playing);
+          syncClips(cur);
+        }
+
+        function togglePlay() {
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          if (tl.paused()) {
+            if (tl.time() >= (tl.duration() - 0.2)) tl.restart();
+            else tl.play();
+          } else {
+            tl.pause();
+          }
+          updateUI();
+        }
+
+        // Hook into GSAP timeline
+        const timerInterval = setInterval(() => {
+          if (window.__mainTimeline) {
+            const tl = window.__mainTimeline;
+            tl.eventCallback("onUpdate", updateUI);
+            clearInterval(timerInterval);
+            // Seek to 0.5s initially so the radar is visible immediately on load!
+            tl.seek(0.5);
+            updateUI();
+          }
+        }, 80);
+
+        playBtn.addEventListener("click", (e) => { e.stopPropagation(); togglePlay(); });
+        centerPlay.addEventListener("click", togglePlay);
+        root.addEventListener("click", togglePlay);
+
+        restartBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (window.__mainTimeline) {
+            window.__mainTimeline.restart();
+            updateUI();
+          }
+        });
+
+        seekInput.addEventListener("input", (e) => {
+          isSeeking = true;
+          const t = parseFloat(e.target.value);
+          const tl = window.__mainTimeline;
+          if (tl) {
+            tl.pause();
+            tl.seek(t);
+            syncClips(t);
+          }
+          timer.textContent = `${fmt(t)} / ${fmt(tl ? tl.duration() : 62)}`;
+        });
+        seekInput.addEventListener("change", () => {
+          isSeeking = false;
+          updateUI();
+        });
+
+        // Quick scene jumps
+        pills.forEach(p => {
+          p.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const t = parseFloat(p.getAttribute("data-t"));
+            const tl = window.__mainTimeline;
+            if (tl) {
+              tl.pause();
+              tl.seek(t);
+              syncClips(t);
+              updateUI();
+            }
+          });
+        });
+
+        // Keyboard hotkeys
+        window.addEventListener("keydown", (e) => {
+          if (e.target.tagName === "INPUT") return;
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          if (e.code === "Space") {
+            e.preventDefault();
+            togglePlay();
+          } else if (e.code === "ArrowLeft") {
+            e.preventDefault();
+            const target = Math.max(0, tl.time() - 3);
+            tl.seek(target);
+            syncClips(target);
+            updateUI();
+          } else if (e.code === "ArrowRight") {
+            e.preventDefault();
+            const target = Math.min(tl.duration(), tl.time() + 3);
+            tl.seek(target);
+            syncClips(target);
+            updateUI();
+          } else if (e.code === "KeyR") {
+            e.preventDefault();
+            tl.restart();
+            updateUI();
+          }
+        });
+      })();
+    </script>
+    -->
   </body>
 </html>

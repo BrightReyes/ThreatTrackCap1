@@ -50,3 +50,4 @@ Thumbs.db
 # Build
 build/
 dist/
+video-renders/

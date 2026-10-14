@@ -33,7 +33,7 @@ const hero = (id, t, pan = 0, visual = "land") => { add(id, t, "hit+boom", { wei
 const word = (id, t, pan = 0) => add(id, t + 0.08, pick(SWISH, n), { visual: "appear", pan });
 const cut = (id, t) => add(id, t + 0.05, pick(WHOOSH, n), { visual: "cut" });
 
-{ const S = T.s1; add("s1-radar", S.radar + 0.4, pick(TICK, 0), { visual: "move" }); hero("logo", S.logo + 0.07, 0, "appear"); word("s1-word", S.word); }
+{ const S = T.s1; add("s1-radar", S.radar + 0.4, pick(TICK, 0), { visual: "move" }); word("s1-b1", S.b1); word("s1-b2", S.b2); }
 { const S = T.s2; cut("s2", S.start); word("s2-w1", S.w1, -0.2); word("s2-w2", S.w2, 0.2); }
 { const S = T.s3; cut("s3", S.start); word("s3-w1", S.w1); add("s3-glow", S.w1 + 0.1, SHIMMER, { visual: "appear" }); word("s3-w2", S.w2, -0.2); word("s3-w3", S.w3, 0.2); }
 { const S = T.s4; for (let i = 0; i < 6; i += 2) add("s4-shot", S.fly + i * 0.07 + 0.3, pick(TAP, i), { visual: "land", pan: -0.4 + i * 0.15 }); add("s4-icons", S.settle + 0.2, pick(TICK, 1), { visual: "appear" }); add("s4-zoom", S.zoom + 0.1, WHOOSH[1], { visual: "move" }); }
