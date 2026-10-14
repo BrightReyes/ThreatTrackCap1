@@ -1,0 +1,282 @@
+pass  offset                 encoded audio vs mix.wav: worst 0 samples (0.00 ms), lags [0, 0, 0]
+pass  loudness               integrated -14.04 LUFS, target -14
+pass  true peak              -1.83 dBTP (limit -1.0)
+warn  picture s1-phone-in-0  move at frame 7: motion peak at frame 10
+warn  picture s1-headline-2  appear at frame 27: change at frame 28 (2.51 vs local 1.68)
+pass  picture s1-pin-3       appear at frame 33: change at frame 32 (3.94 vs local 1.10)
+pass  picture s1-exit-6      cut at frame 135: largest change at frame 135 (8.4 vs local 1.0)
+FAIL  picture logo-7         land at frame 154: no motion before the landing
+pass  picture s2-wordmark-9  appear at frame 172: change at frame 173 (1.68 vs local 0.01)
+warn  picture s2-tagline-11  appear at frame 196: change at frame 197 (0.10 vs local 0.00)
+warn  picture s2-exit-12     cut at frame 248: largest change at frame 249 (1.7 vs local 1.4)
+warn  picture s3-touch-in-13 move at frame 274: motion peak at frame 277
+pass  picture s3-press-14    land at frame 288: motion stops at frame 286
+pass  picture s3-callout-23  appear at frame 298: change at frame 298 (0.78 vs local 0.08)
+FAIL  picture sos-release-16 move at frame 382: motion peak at frame 385
+warn  picture s3-callout-24  appear at frame 388: change at frame 388 (0.79 vs local 0.28)
+warn  picture s3-ping-19     appear at frame 405: change at frame 404 (0.33 vs local 0.19)
+warn  picture s3-ping-20     appear at frame 423: change at frame 424 (0.02 vs local 0.00)
+warn  picture s3-ping-21     appear at frame 441: change at frame 441 (0.00 vs local 0.00)
+pass  picture s3-exit-26     move at frame 468: motion peak at frame 466
+warn  picture s4-chip-27     land at frame 507: motion stops at frame 502
+warn  picture s4-step2-29    move at frame 537: motion peak at frame 537
+warn  picture s4-role-30     land at frame 550: no motion before the landing
+warn  picture s4-sev-32      land at frame 561: motion stops at frame 556
+warn  picture s4-step3-33    move at frame 573: motion peak at frame 573
+pass  picture s4-key-35      appear at frame 579: change at frame 580 (0.72 vs local 0.07)
+warn  picture s4-key-36      appear at frame 592: change at frame 593 (0.01 vs local 0.01)
+warn  picture s4-key-37      appear at frame 604: change at frame 605 (0.01 vs local 0.01)
+warn  picture s4-key-38      appear at frame 616: change at frame 615 (0.01 vs local 0.01)
+warn  picture s4-photo-39    appear at frame 622: change at frame 623 (0.01 vs local 0.00)
+warn  picture s4-submit-40   land at frame 639: no motion before the landing
+pass  picture s4-flip-41     move at frame 650: motion peak at frame 653
+warn  picture s4-c4-42       appear at frame 662: change at frame 661 (0.78 vs local 0.28)
+warn  picture s4-status2-43  appear at frame 689: change at frame 690 (0.01 vs local 0.00)
+warn  picture s4-status3-44  appear at frame 713: change at frame 714 (0.00 vs local 0.00)
+pass  picture s4-exit-45     move at frame 732: motion peak at frame 730
+pass  picture s5-line1-46    appear at frame 747: change at frame 748 (5.37 vs local 0.11)
+pass  picture s5-tag-47      land at frame 756: motion stops at frame 757
+warn  picture s5-tag-49      land at frame 763: motion stops at frame 757
+warn  picture s5-zoom-51     move at frame 808: motion peak at frame 811
+warn  picture s5-line2-52    land at frame 814: motion does not stop near the cue
+warn  picture s5-exit-53     cut at frame 880: largest change at frame 880 (2.3 vs local 1.8)
+pass  picture dashboard-54   land at frame 891: motion stops at frame 891
+pass  picture s6-stat-56     appear at frame 920: change at frame 919 (0.88 vs local 0.06)
+warn  picture s6-stat-57     appear at frame 927: change at frame 926 (0.21 vs local 0.08)
+warn  picture s6-pin-60      appear at frame 933: change at frame 932 (0.09 vs local 0.08)
+warn  picture s6-stat-59     appear at frame 942: change at frame 941 (0.08 vs local 0.07)
+warn  picture s6-heat-62     appear at frame 951: change at frame 952 (0.06 vs local 0.06)
+warn  picture s6-row-in-63   move at frame 989: motion peak at frame 992
+pass  picture s6-row-land-64 land at frame 998: motion stops at frame 998
+warn  picture s6-focus-66    cut at frame 1079: largest change at frame 1080 (3.1 vs local 1.4)
+warn  picture s7-pill-70     appear at frame 1148: change at frame 1147 (0.04 vs local 0.02)
+warn  picture s7-precinct-72 appear at frame 1161: change at frame 1162 (0.03 vs local 0.03)
+warn  picture s7-cursor-73   move at frame 1173: motion peak at frame 1171
+FAIL  picture dispatch-74    move at frame 1195: motion peak at frame 1195
+warn  picture s7-sent-76     appear at frame 1210: change at frame 1211 (0.06 vs local 0.06)
+warn  picture s7-phone-in-77 move at frame 1223: motion peak at frame 1226
+warn  picture s7-phone-land-78 land at frame 1239: motion stops at frame 1235
+warn  picture s7-exit-79     move at frame 1305: motion peak at frame 1308
+pass  picture s8-kpi-80      appear at frame 1338: change at frame 1339 (0.95 vs local 0.05)
+warn  picture s8-bar-84      appear at frame 1345: change at frame 1344 (0.61 vs local 0.14)
+warn  picture s8-kpi-82      appear at frame 1353: change at frame 1352 (0.17 vs local 0.21)
+warn  picture s8-hot-86      appear at frame 1364: change at frame 1363 (0.28 vs local 0.12)
+warn  picture s8-gen-88      land at frame 1389: no motion before the landing
+warn  picture s8-stream-89   appear at frame 1404: change at frame 1404 (0.02 vs local 0.01)
+warn  picture s8-stream-90   appear at frame 1423: change at frame 1422 (0.01 vs local 0.01)
+warn  picture s8-stream-91   appear at frame 1442: change at frame 1442 (0.01 vs local 0.01)
+warn  picture s8-stream-92   appear at frame 1460: change at frame 1460 (0.01 vs local 0.01)
+warn  picture s8-stream-93   appear at frame 1479: change at frame 1479 (0.01 vs local 0.01)
+warn  picture s8-guard-94    appear at frame 1490: change at frame 1490 (0.04 vs local 0.01)
+warn  picture s8-exit-95     move at frame 1533: motion peak at frame 1530
+pass  picture s9-title-96    appear at frame 1545: change at frame 1546 (2.49 vs local 0.02)
+warn  picture s9-n0-97       appear at frame 1558: change at frame 1558 (0.47 vs local 0.78)
+pass  picture s9-node-98     appear at frame 1566: change at frame 1565 (4.12 vs local 0.43)
+pass  picture s9-node-99     appear at frame 1571: change at frame 1571 (3.64 vs local 0.43)
+warn  picture s9-node-100    appear at frame 1576: change at frame 1575 (0.25 vs local 0.17)
+warn  picture s9-route-high-101 move at frame 1599: motion peak at frame 1602
+warn  picture s9-badge-high-102 appear at frame 1606: change at frame 1605 (0.02 vs local 0.01)
+warn  picture s9-route-low-103 move at frame 1617: motion peak at frame 1615
+warn  picture s9-badge-low-104 appear at frame 1624: change at frame 1625 (0.02 vs local 0.01)
+warn  picture s9-hq-105      move at frame 1635: motion peak at frame 1633
+pass  picture s9-exit-106    move at frame 1674: motion peak at frame 1675
+warn  picture s10-streak-107 cut at frame 1684: largest change at frame 1685 (0.0 vs local 1.5)
+warn  picture s10-node-108   appear at frame 1700: change at frame 1699 (0.95 vs local 0.61)
+warn  picture s10-node-109   appear at frame 1706: change at frame 1706 (0.69 vs local 0.61)
+warn  picture s10-node-110   appear at frame 1712: change at frame 1711 (0.91 vs local 0.46)
+warn  picture s10-link-111   move at frame 1725: motion peak at frame 1727
+warn  picture s10-link-112   move at frame 1732: motion peak at frame 1735
+warn  picture s10-exit-113   cut at frame 1786: largest change at frame 1787 (1.2 vs local 1.0)
+FAIL  picture outro-114      land at frame 1807: no motion before the landing
+pass  picture s11-wordmark-116 appear at frame 1818: change at frame 1819 (2.72 vs local 0.02)
+warn  picture s11-tagline-118 appear at frame 1836: change at frame 1837 (0.21 vs local 0.01)
+pass  sync s1-phone-in-0     peak 0.00 frames from its cue
+pass  audible s1-phone-in-0  stands out by 1.8 dB in 500-1000 Hz over music+voice
+pass  sync s1-headline-2     peak 0.00 frames from its cue
+pass  audible s1-headline-2  stands out by 7.7 dB in 1000-2000 Hz over music+voice
+pass  sync s1-pin-3          peak 0.00 frames from its cue
+pass  audible s1-pin-3       stands out by 8.0 dB in 500-1000 Hz over music+voice
+pass  sync s1-exit-6         peak 1.14 frames from its cue
+pass  audible s1-exit-6      stands out by 3.0 dB in 250-500 Hz over music+voice
+pass  sync logo-7            peak 0.00 frames from its cue
+pass  audible logo-7         stands out by 13.0 dB in 250-500 Hz over music+voice
+pass  hero body logo-7       main band 250-500 Hz lifted 13.0 dB (needs 3)
+pass  sync s2-wordmark-9     peak 0.00 frames from its cue
+pass  audible s2-wordmark-9  stands out by 1.9 dB in 2000-4000 Hz over music+voice
+pass  sync s2-tagline-11     peak 0.00 frames from its cue
+pass  audible s2-tagline-11  stands out by 7.3 dB in 500-1000 Hz over music+voice
+pass  sync s2-exit-12        peak 0.00 frames from its cue
+pass  audible s2-exit-12     stands out by 4.0 dB in 250-500 Hz over music+voice
+pass  sync s3-touch-in-13    peak 0.00 frames from its cue
+pass  audible s3-touch-in-13 stands out by 1.8 dB in 250-500 Hz over music+voice
+pass  sync s3-press-14       peak 0.00 frames from its cue
+pass  audible s3-press-14    stands out by 7.7 dB in 1000-2000 Hz over music+voice
+pass  sync s3-callout-23     peak 0.00 frames from its cue
+pass  audible s3-callout-23  stands out by 5.4 dB in 250-500 Hz over music+voice
+pass  sync s3-hold-15        peak 1.20 frames from its cue
+pass  audible s3-hold-15     stands out by 9.1 dB in 500-1000 Hz over music+voice
+pass  sync sos-release-16    peak 0.00 frames from its cue
+pass  audible sos-release-16 stands out by 7.8 dB in 500-1000 Hz over music+voice
+pass  hero body sos-release-16 main band 250-500 Hz lifted 5.2 dB (needs 3)
+pass  sync s3-callout-24     peak 0.00 frames from its cue
+FAIL  audible s3-callout-24  stands out by 0.6 dB in 500-1000 Hz over music+voice
+pass  sync s3-ping-19        peak 0.00 frames from its cue
+pass  audible s3-ping-19     stands out by 8.2 dB in 1000-2000 Hz over music+voice
+pass  sync s3-ping-20        peak 0.00 frames from its cue
+pass  audible s3-ping-20     stands out by 15.6 dB in 4000-8000 Hz over music+voice
+pass  sync s3-ping-21        peak 0.00 frames from its cue
+pass  audible s3-ping-21     stands out by 2.0 dB in 1000-2000 Hz over music+voice
+pass  sync s3-exit-26        peak 0.00 frames from its cue
+pass  audible s3-exit-26     stands out by 1.8 dB in 500-1000 Hz over music+voice
+pass  sync s4-chip-27        peak 0.00 frames from its cue
+pass  audible s4-chip-27     stands out by 2.2 dB in 1000-2000 Hz over music+voice
+pass  sync s4-step2-29       peak 0.01 frames from its cue
+pass  audible s4-step2-29    stands out by 2.1 dB in 500-1000 Hz over music+voice
+pass  sync s4-role-30        peak 0.00 frames from its cue
+pass  audible s4-role-30     stands out by 2.4 dB in 250-500 Hz over music+voice
+pass  sync s4-sev-32         peak 0.00 frames from its cue
+pass  audible s4-sev-32      stands out by 2.0 dB in 1000-2000 Hz over music+voice
+pass  sync s4-step3-33       peak 0.00 frames from its cue
+pass  audible s4-step3-33    stands out by 2.2 dB in 2000-4000 Hz over music+voice
+pass  sync s4-key-35         peak 0.00 frames from its cue
+pass  audible s4-key-35      stands out by 6.0 dB in 4000-8000 Hz over music+voice
+pass  sync s4-key-36         peak 0.00 frames from its cue
+pass  audible s4-key-36      stands out by 3.4 dB in 1000-2000 Hz over music+voice
+pass  sync s4-key-37         peak 0.01 frames from its cue
+pass  audible s4-key-37      stands out by 2.1 dB in 1000-2000 Hz over music+voice
+pass  sync s4-key-38         peak 0.00 frames from its cue
+pass  audible s4-key-38      stands out by 1.7 dB in 4000-8000 Hz over music+voice
+pass  sync s4-photo-39       peak 0.00 frames from its cue
+pass  audible s4-photo-39    stands out by 1.9 dB in 500-1000 Hz over music+voice
+pass  sync s4-submit-40      peak 0.00 frames from its cue
+pass  audible s4-submit-40   stands out by 2.3 dB in 1000-2000 Hz over music+voice
+pass  sync s4-flip-41        peak 0.00 frames from its cue
+FAIL  audible s4-flip-41     stands out by 1.1 dB in 125-250 Hz over music+voice
+pass  sync s4-c4-42          peak 0.00 frames from its cue
+pass  audible s4-c4-42       stands out by 2.6 dB in 500-1000 Hz over music+voice
+pass  sync s4-status2-43     peak 0.00 frames from its cue
+pass  audible s4-status2-43  stands out by 1.9 dB in 2000-4000 Hz over music+voice
+pass  sync s4-status3-44     peak 0.01 frames from its cue
+pass  audible s4-status3-44  stands out by 2.1 dB in 1000-2000 Hz over music+voice
+pass  sync s4-exit-45        peak 0.00 frames from its cue
+pass  audible s4-exit-45     stands out by 2.7 dB in 500-1000 Hz over music+voice
+pass  sync s5-line1-46       peak 0.00 frames from its cue
+pass  audible s5-line1-46    stands out by 2.7 dB in 500-1000 Hz over music+voice
+pass  sync s5-tag-47         peak 0.00 frames from its cue
+pass  audible s5-tag-47      stands out by 4.7 dB in 250-500 Hz over music+voice
+pass  sync s5-tag-49         peak 0.00 frames from its cue
+pass  audible s5-tag-49      stands out by 1.7 dB in 500-1000 Hz over music+voice
+pass  sync s5-zoom-51        peak 0.00 frames from its cue
+pass  audible s5-zoom-51     stands out by 2.4 dB in 500-1000 Hz over music+voice
+pass  sync s5-line2-52       peak 0.00 frames from its cue
+pass  audible s5-line2-52    stands out by 4.0 dB in 250-500 Hz over music+voice
+pass  sync s5-exit-53        peak 0.00 frames from its cue
+pass  audible s5-exit-53     stands out by 11.0 dB in 250-500 Hz over music+voice
+pass  sync dashboard-54      peak 0.00 frames from its cue
+pass  audible dashboard-54   stands out by 3.4 dB in 500-1000 Hz over music+voice
+FAIL  hero body dashboard-54 main band 250-500 Hz lifted 2.4 dB (needs 3)
+pass  sync s6-stat-56        peak 0.00 frames from its cue
+pass  audible s6-stat-56     stands out by 2.6 dB in 2000-4000 Hz over music+voice
+pass  sync s6-stat-57        peak 0.00 frames from its cue
+pass  audible s6-stat-57     stands out by 2.2 dB in 4000-8000 Hz over music+voice
+pass  sync s6-pin-60         peak 0.00 frames from its cue
+FAIL  audible s6-pin-60      stands out by 1.2 dB in 500-1000 Hz over music+voice
+pass  sync s6-stat-59        peak 0.00 frames from its cue
+pass  audible s6-stat-59     stands out by 1.8 dB in 4000-8000 Hz over music+voice
+pass  sync s6-heat-62        peak 0.00 frames from its cue
+pass  audible s6-heat-62     stands out by 1.9 dB in 1000-2000 Hz over music+voice
+pass  sync s6-row-in-63      peak 0.00 frames from its cue
+FAIL  audible s6-row-in-63   stands out by 0.9 dB in 125-250 Hz over music+voice
+pass  sync s6-row-land-64    peak 0.00 frames from its cue
+FAIL  audible s6-row-land-64 stands out by 1.3 dB in 500-1000 Hz over music+voice
+pass  sync s6-focus-66       peak 0.00 frames from its cue
+FAIL  audible s6-focus-66    stands out by 0.7 dB in 250-500 Hz over music+voice
+pass  sync s7-legit-build-67 peak 0.76 frames from its cue
+pass  audible s7-legit-build-67 stands out by 2.7 dB in 500-1000 Hz over music+voice
+pass  sync s7-pill-70        peak 0.00 frames from its cue
+pass  audible s7-pill-70     stands out by 2.1 dB in 500-1000 Hz over music+voice
+pass  sync s7-precinct-72    peak 0.00 frames from its cue
+pass  audible s7-precinct-72 stands out by 1.9 dB in 4000-8000 Hz over music+voice
+pass  sync s7-cursor-73      peak 0.01 frames from its cue
+pass  audible s7-cursor-73   stands out by 2.1 dB in 1000-2000 Hz over music+voice
+pass  sync dispatch-74       peak 0.00 frames from its cue
+pass  audible dispatch-74    stands out by 5.7 dB in 500-1000 Hz over music+voice
+pass  hero body dispatch-74  main band 250-500 Hz lifted 3.5 dB (needs 3)
+pass  sync s7-sent-76        peak 0.00 frames from its cue
+FAIL  audible s7-sent-76     stands out by 1.4 dB in 1000-2000 Hz over music+voice
+pass  sync s7-phone-in-77    peak 0.00 frames from its cue
+FAIL  audible s7-phone-in-77 stands out by 1.3 dB in 500-1000 Hz over music+voice
+pass  sync s7-phone-land-78  peak 0.00 frames from its cue
+pass  audible s7-phone-land-78 stands out by 2.6 dB in 500-1000 Hz over music+voice
+pass  sync s7-exit-79        peak 0.00 frames from its cue
+pass  audible s7-exit-79     stands out by 2.3 dB in 500-1000 Hz over music+voice
+pass  sync s8-kpi-80         peak 0.00 frames from its cue
+pass  audible s8-kpi-80      stands out by 2.2 dB in 2000-4000 Hz over music+voice
+pass  sync s8-bar-84         peak 0.00 frames from its cue
+pass  audible s8-bar-84      stands out by 2.6 dB in 250-500 Hz over music+voice
+pass  sync s8-kpi-82         peak 0.00 frames from its cue
+pass  audible s8-kpi-82      stands out by 2.0 dB in 2000-4000 Hz over music+voice
+pass  sync s8-hot-86         peak 0.00 frames from its cue
+pass  audible s8-hot-86      stands out by 1.6 dB in 500-1000 Hz over music+voice
+pass  sync s8-gen-88         peak 0.00 frames from its cue
+FAIL  audible s8-gen-88      stands out by 1.4 dB in 500-1000 Hz over music+voice
+pass  sync s8-stream-89      peak 0.00 frames from its cue
+pass  audible s8-stream-89   stands out by 1.7 dB in 4000-8000 Hz over music+voice
+pass  sync s8-stream-90      peak 0.00 frames from its cue
+pass  audible s8-stream-90   stands out by 1.9 dB in 1000-2000 Hz over music+voice
+pass  sync s8-stream-91      peak 0.01 frames from its cue
+pass  audible s8-stream-91   stands out by 2.0 dB in 2000-4000 Hz over music+voice
+pass  sync s8-stream-92      peak 0.00 frames from its cue
+pass  audible s8-stream-92   stands out by 2.2 dB in 4000-8000 Hz over music+voice
+pass  sync s8-stream-93      peak 0.00 frames from its cue
+pass  audible s8-stream-93   stands out by 1.7 dB in 2000-4000 Hz over music+voice
+pass  sync s8-guard-94       peak 0.01 frames from its cue
+pass  audible s8-guard-94    stands out by 1.8 dB in 2000-4000 Hz over music+voice
+pass  sync s8-exit-95        peak 0.00 frames from its cue
+pass  audible s8-exit-95     stands out by 2.0 dB in 250-500 Hz over music+voice
+pass  sync s9-title-96       peak 0.01 frames from its cue
+FAIL  audible s9-title-96    stands out by 0.9 dB in 500-1000 Hz over music+voice
+pass  sync s9-n0-97          peak 0.00 frames from its cue
+pass  audible s9-n0-97       stands out by 2.9 dB in 500-1000 Hz over music+voice
+pass  sync s9-node-98        peak 0.00 frames from its cue
+pass  audible s9-node-98     stands out by 1.6 dB in 250-500 Hz over music+voice
+pass  sync s9-node-99        peak 0.00 frames from its cue
+pass  audible s9-node-99     stands out by 1.7 dB in 250-500 Hz over music+voice
+pass  sync s9-node-100       peak 0.00 frames from its cue
+pass  audible s9-node-100    stands out by 3.5 dB in 125-250 Hz over music+voice
+pass  sync s9-route-high-101 peak 0.00 frames from its cue
+pass  audible s9-route-high-101 stands out by 1.7 dB in 2000-4000 Hz over music+voice
+pass  sync s9-badge-high-102 peak 0.00 frames from its cue
+pass  audible s9-badge-high-102 stands out by 2.1 dB in 500-1000 Hz over music+voice
+pass  sync s9-route-low-103  peak 0.00 frames from its cue
+pass  audible s9-route-low-103 stands out by 1.7 dB in 250-500 Hz over music+voice
+pass  sync s9-badge-low-104  peak 0.00 frames from its cue
+pass  audible s9-badge-low-104 stands out by 1.9 dB in 500-1000 Hz over music+voice
+pass  sync s9-hq-105         peak 0.00 frames from its cue
+pass  audible s9-hq-105      stands out by 2.9 dB in 2000-4000 Hz over music+voice
+pass  sync s9-exit-106       peak 0.00 frames from its cue
+pass  audible s9-exit-106    stands out by 2.5 dB in 500-1000 Hz over music+voice
+pass  sync s10-streak-107    peak 0.00 frames from its cue
+FAIL  audible s10-streak-107 stands out by 0.9 dB in 250-500 Hz over music+voice
+pass  sync s10-node-108      peak 0.00 frames from its cue
+pass  audible s10-node-108   stands out by 2.2 dB in 500-1000 Hz over music+voice
+pass  sync s10-node-109      peak 0.00 frames from its cue
+pass  audible s10-node-109   stands out by 2.2 dB in 250-500 Hz over music+voice
+pass  sync s10-node-110      peak 0.00 frames from its cue
+FAIL  audible s10-node-110   stands out by 0.8 dB in 125-250 Hz over music+voice
+pass  sync s10-link-111      peak 0.00 frames from its cue
+pass  audible s10-link-111   stands out by 2.0 dB in 2000-4000 Hz over music+voice
+pass  sync s10-link-112      peak 0.00 frames from its cue
+FAIL  audible s10-link-112   stands out by 1.5 dB in 2000-4000 Hz over music+voice
+pass  sync s10-exit-113      peak 1.14 frames from its cue
+pass  audible s10-exit-113   stands out by 2.2 dB in 500-1000 Hz over music+voice
+pass  sync outro-114         peak 0.00 frames from its cue
+pass  audible outro-114      stands out by 2.3 dB in 500-1000 Hz over music+voice
+FAIL  hero body outro-114    main band 250-500 Hz lifted 0.7 dB (needs 3)
+pass  sync s11-wordmark-116  peak 0.00 frames from its cue
+pass  audible s11-wordmark-116 stands out by 2.0 dB in 2000-4000 Hz over music+voice
+pass  sync s11-tagline-118   peak 0.00 frames from its cue
+FAIL  audible s11-tagline-118 stands out by 1.4 dB in 500-1000 Hz over music+voice
+pass  music                  median -14.3 LUFS short-term; unplanned dips at []
+pass  silence                none
+
