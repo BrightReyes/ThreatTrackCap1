@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
   StatusBar,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -108,6 +109,22 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
     return VALENZUELA_BARANGAYS.filter((b) => b.toLowerCase().includes(q));
   }, [barangaySearchQuery]);
 
+  // Android Hardware Back Button Handling
+  useEffect(() => {
+    const onBackPress = () => {
+      if (barangayModalVisible) {
+        setBarangayModalVisible(false);
+        setBarangaySearchQuery('');
+        return true;
+      }
+      onNavigateToLogin();
+      return true;
+    };
+
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSub.remove();
+  }, [barangayModalVisible, onNavigateToLogin]);
+
   const onSelectBarangay = (selected) => {
     setBarangay(selected);
     setBarangayModalVisible(false);
@@ -166,6 +183,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
 
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
+      const cleanEmail = email.trim().toLowerCase();
       const userData = {
         firstName,
         lastName,
@@ -178,7 +196,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
         falseReportAcknowledged,
       };
 
-      const result = await handleSignup(email.trim(), password, userData);
+      const result = await handleSignup(cleanEmail, password, userData);
       const message = result?.verificationEmailSent
         ? 'Your citizen account has been created. A verification email has been sent to your address.\n\nYou can submit an emergency report right away, but must verify your email before filing ongoing reports.'
         : 'Your citizen account has been created successfully.\n\nYou can now log in and access Valenzuela City safety features.';
@@ -198,7 +216,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
       <StatusBar barStyle="light-content" backgroundColor="#991b1b" translucent />
       <View style={styles.container}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
           <ScrollView
@@ -597,7 +615,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
         type={alertConfig.type}
         buttons={alertConfig.buttons}
         onClose={hideAlert}
-        autoCloseDelay={5000}
+        autoCloseDelay={0}
       />
     </>
   );

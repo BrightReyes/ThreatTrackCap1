@@ -79,10 +79,10 @@ const CustomAlert = ({
   useEffect(() => {
     if (visible && autoCloseDelay > 0) {
       timerRef.current = setTimeout(() => {
-        if (buttons.length > 0 && buttons[0].onPress) {
-          buttons[0].onPress();
+        // Only auto-close if no interactive action buttons are waiting for user choice
+        if (buttons.length === 0) {
+          onClose();
         }
-        onClose();
       }, autoCloseDelay);
     }
 

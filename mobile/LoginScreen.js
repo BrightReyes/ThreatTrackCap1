@@ -68,7 +68,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   };
 
   const onSubmitResetPassword = async () => {
-    const cleanEmail = resetEmail.trim();
+    const cleanEmail = resetEmail.trim().toLowerCase();
     if (!cleanEmail) {
       showAlert('Email Required', 'Please enter your registered email address.', 'warning');
       return;
@@ -92,7 +92,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   };
 
   const onLogin = async () => {
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password) {
       showAlert('Missing Credentials', 'Please enter both your email address and password.', 'warning');
       return;
@@ -105,13 +105,8 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
       if (onLoginSuccess) {
         onLoginSuccess();
       }
-
-      setTimeout(() => {
-        showAlert('Welcome Back', `Logged in successfully as ${result?.user?.name || 'Citizen'}.`, 'success');
-      }, 100);
     } catch (error) {
       showAlert('Sign In Failed', error?.message || 'Invalid email or password. Please try again.', 'error');
-    } finally {
       setLoading(false);
     }
   };
@@ -121,7 +116,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
       <StatusBar barStyle="light-content" backgroundColor="#991b1b" translucent />
       <View style={styles.container}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
         >
           <ScrollView

@@ -4,6 +4,10 @@ import {
   Easing,
   Modal,
   StyleSheet,
+  TouchableWithoutFeedback,
+  View,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 const SmoothModal = ({
@@ -90,34 +94,46 @@ const SmoothModal = ({
       animationType="none"
       onRequestClose={onRequestClose}
     >
-      <Animated.View
-        style={[
-          styles.overlay,
-          position === 'center' && styles.centerOverlay,
-          overlayStyle,
-          { opacity: backdropOpacity },
-        ]}
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Animated.View
           style={[
-            contentStyle,
-            {
-              opacity: contentOpacity,
-              transform: [
-                { translateY },
-                { scale },
-              ],
-            },
+            styles.overlay,
+            position === 'center' && styles.centerOverlay,
+            overlayStyle,
+            { opacity: backdropOpacity },
           ]}
         >
-          {children}
+          <TouchableWithoutFeedback onPress={onRequestClose}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <Animated.View
+            style={[
+              contentStyle,
+              {
+                opacity: contentOpacity,
+                transform: [
+                  { translateY },
+                  { scale },
+                ],
+              },
+            ]}
+          >
+            {children}
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardContainer: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

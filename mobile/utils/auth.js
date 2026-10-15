@@ -44,12 +44,14 @@ export const validateRequiredText = (value, minLength = 2) => {
 };
 
 export const handleLogin = async (email, password) => {
+  const cleanEmail = String(email || '').trim().toLowerCase();
+
   // Validate inputs
-  if (!email || !password) {
+  if (!cleanEmail || !password) {
     throw new Error('Please fill in all fields');
   }
 
-  if (!validateEmail(email)) {
+  if (!validateEmail(cleanEmail)) {
     throw new Error('Please enter a valid email');
   }
 
@@ -59,7 +61,7 @@ export const handleLogin = async (email, password) => {
 
   try {
     // Firebase authentication
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
     const user = userCredential.user;
     await reload(user);
 
@@ -113,15 +115,16 @@ export const handleLogin = async (email, password) => {
 };
 
 export const handleSignup = async (email, password, userData = {}) => {
-  console.log('[AUTH] handleSignup called with:', { email, userData });
+  const cleanEmail = String(email || '').trim().toLowerCase();
+  console.log('[AUTH] handleSignup called with:', { email: cleanEmail, userData });
 
   // Validate inputs
-  if (!email || !password) {
+  if (!cleanEmail || !password) {
     console.log('[AUTH] Validation failed: missing email or password');
     throw new Error('Please fill in all fields');
   }
 
-  if (!validateEmail(email)) {
+  if (!validateEmail(cleanEmail)) {
     console.log('[AUTH] Validation failed: invalid email');
     throw new Error('Please enter a valid email');
   }
@@ -154,7 +157,7 @@ export const handleSignup = async (email, password, userData = {}) => {
   try {
     console.log('[AUTH] Creating user with Firebase...');
     // Create user with Firebase
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
     const user = userCredential.user;
     console.log('[AUTH] User created:', user.uid);
 
@@ -201,16 +204,23 @@ export const handleSignup = async (email, password, userData = {}) => {
       console.error('[AUTH] Verification email failed:', verificationError);
     }
 
+    // Explicitly sign out so App.js onAuthStateChanged does NOT prematurely
+    // unmount SignUpScreen before the citizen reads their confirmation alert.
+    try {
+      await signOut(auth);
+    } catch (signOutErr) {
+      console.warn('[AUTH] Post-signup sign-out warning:', signOutErr);
+    }
+
     return {
       success: true,
       verificationEmailSent,
       user: {
         uid: user.uid,
-        email: user.email,
+        email: cleanEmail,
         name: displayName,
         emailVerified: user.emailVerified,
       },
-      token: await user.getIdToken(true)
     };
   } catch (error) {
     // Handle Firebase errors
@@ -352,7 +362,7 @@ export const handleLogout = async () => {
  * @param {string} email - Registered email address.
  */
 export const handleResetPassword = async (email) => {
-  const cleanEmail = String(email || '').trim();
+  const cleanEmail = String(email || '').trim().toLowerCase();
   if (!cleanEmail) {
     throw new Error('Please enter your email address');
   }
