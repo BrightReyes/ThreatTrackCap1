@@ -1,0 +1,14 @@
+{
+  "name": "promo-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.146 preview --foreground",
+    "check": "npx --yes hyperframes@0.8.146 check",
+    "render": "npx --yes hyperframes@0.8.146 render",
+    "publish": "npx --yes hyperframes@0.8.146 publish"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}

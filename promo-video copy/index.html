@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatTrack — system showcase</title>
+    <script src="assets/gsap.min.js"></script>
+    <link rel="stylesheet" href="assets/fonts/fonts.css">
+    <link rel="stylesheet" href="assets/style.css">
+    <script src="timeline.js"></script>
+    <script type="module" src="assets/audio-engine.js"></script>
+  </head>
+  <body>
+    <div data-hf-id="hf-uwzq" id="root" data-composition-id="main" data-start="0" data-duration="72.0" data-width="1920" data-height="1080">
+
+      <!-- S1 · The Live City Signal Hook (Clean Architectural Intro) -->
+      <section data-hf-id="hf-tur7" id="s1" class="clip scene arch-grid-bg" data-start="0" data-duration="3.2" data-track-index="1">
+        <div data-hf-id="hf-sz59" class="in">
+          <!-- Top Floating Telemetry Pill -->
+          <div data-hf-id="hf-top-pill" id="s1-top-pill">
+            <span class="live-dot"></span>
+            <span>VALENZUELA CITY · 14.70°N 120.98°E · 33 BARANGAYS LIVE</span>
+          </div>
+
+          <!-- 4 Connected Barangay Nodes with SVG Connector Lines -->
+          <svg class="arch-flow-svg" id="s1-network-svg" viewBox="0 0 1920 1080">
+            <line x1="290" y1="260" x2="960" y2="540" stroke="rgba(220, 38, 38, 0.22)" stroke-width="1.5" stroke-dasharray="4 6" />
+            <line x1="1630" y1="260" x2="960" y2="540" stroke="rgba(34, 197, 94, 0.22)" stroke-width="1.5" stroke-dasharray="4 6" />
+            <line x1="290" y1="800" x2="960" y2="540" stroke="rgba(34, 197, 94, 0.22)" stroke-width="1.5" stroke-dasharray="4 6" />
+            <line x1="1630" y1="800" x2="960" y2="540" stroke="rgba(220, 38, 38, 0.22)" stroke-width="1.5" stroke-dasharray="4 6" />
+          </svg>
+
+          <div class="s1-node-card" id="s1-node-tl" style="left:160px; top:236px;"><span class="arch-node-dot" style="margin:0;"></span>Brgy. Mapulang Lupa · Active</div>
+          <div class="s1-node-card" id="s1-node-tr" style="right:160px; top:236px;"><span class="arch-node-dot emerald" style="margin:0;"></span>Brgy. Karuhatan · Connected</div>
+          <div class="s1-node-card" id="s1-node-bl" style="left:160px; top:776px;"><span class="arch-node-dot emerald" style="margin:0;"></span>Brgy. Malinta · Patrol Ready</div>
+          <div class="s1-node-card" id="s1-node-br" style="right:160px; top:776px;"><span class="arch-node-dot" style="margin:0;"></span>Valenzuela PNP Command · 0.2s Sync</div>
+
+          <!-- Flat 2D Sonar Rings -->
+          <div class="s1-sonar-ring" id="s1-ring-1" style="width:340px; height:340px;"></div>
+          <div class="s1-sonar-ring" id="s1-ring-2" style="width:680px; height:680px;"></div>
+          <div class="s1-sonar-ring" id="s1-ring-3" style="width:1040px; height:1040px;"></div>
+
+          <div data-hf-id="hf-0uex" class="camera-rig" id="rig-s1">
+            <!-- Center Kinetic Typography -->
+            <div id="s1-beat1-wrap" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+              <div id="s1-cmd-pill" style="margin-bottom:24px; padding:8px 20px; border-radius:999px; background:rgba(220,38,38,0.08); border:1px solid rgba(220,38,38,0.22); color:#dc2626; font-family:var(--mono); font-size:14px; font-weight:700; letter-spacing:0.12em;">⚡ REAL-TIME CRIME REPORTING &amp; HOTSPOT MAPPING</div>
+              <div data-hf-id="hf-g0cc" class="kt" id="s1-w1" style="position:relative; top:auto; transform:none; font-size:104px; font-weight:800;"><span data-hf-id="hf-7gd4" class="w">Imagine </span><span data-hf-id="hf-b7a3" class="w">a </span><span data-hf-id="hf-gelo" class="w">safer city.</span></div>
+            </div>
+
+            <div id="s1-beat2-wrap" style="position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; opacity:0;">
+              <div data-hf-id="hf-2fui" class="kt" id="s1-w2" style="position:relative; top:auto; transform:none; font-size:92px; font-weight:800;"><span data-hf-id="hf-py37" class="w">Where </span><span data-hf-id="hf-kn8h" class="w">help is </span><span data-hf-id="hf-e4wx" class="w">always within reach.</span></div>
+              <div id="s1-telemetry-bar" style="margin-top:32px; padding:10px 24px; border-radius:999px; background:#ffffff; border:1px solid #e2e8f0; box-shadow:0 10px 30px rgba(15,23,42,0.06); font-family:var(--mono); font-size:14px; font-weight:600; color:#334155;">Citizen SOS ───●─── Nearest Police Sub-Station · Instant GPS Lock</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S2 / S3 · kinetic type -->
+      <section data-hf-id="hf-hswf" id="s2" class="clip scene black" data-start="3.2" data-duration="2.2" data-track-index="2">
+        <div data-hf-id="hf-1v35" class="in">
+          <div data-hf-id="hf-2dip" id="s2-vignette"></div>
+          <div data-hf-id="hf-4siy" class="camera-rig" id="rig-s2">
+            <div data-hf-id="hf-3id4" class="kt" id="s2-kt"><span data-hf-id="hf-76ys" class="w">When something </span><span data-hf-id="hf-758p" class="w">happens.</span></div>
+          </div>
+        </div>
+      </section>
+      <section data-hf-id="hf-v3h1" id="s3" class="clip scene black" data-start="5.4" data-duration="2.6" data-track-index="1">
+        <div data-hf-id="hf-3208" class="in">
+          <div data-hf-id="hf-8qmz" class="camera-rig" id="rig-s3">
+            <div data-hf-id="hf-7qnj" class="kt" id="s3-kt"><span data-hf-id="hf-du6z" class="w gw" id="s3-make">Make </span><br data-hf-id="hf-x5px"><span data-hf-id="hf-63hq" class="w">it known </span><span data-hf-id="hf-g3h8" class="w">instantly.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S4 · Connected System Architecture Flow -->
+      <section data-hf-id="hf-j6fl" id="s4" class="clip scene arch-grid-bg" data-start="8.0" data-duration="3.4" data-track-index="2" data-layout-allow-overflow="true" aria-label="System Architecture">
+        <div data-hf-id="hf-2np7" class="in" data-layout-allow-overflow="true">
+          <div data-hf-id="hf-l95g" class="camera-rig" id="rig-s4" data-layout-allow-overflow="true">
+            <div class="s4-header" id="s4-header">THREATTRACK SYSTEM ARCHITECTURE · END-TO-END INCIDENT FLOW</div>
+
+            <div class="s4-grid" id="s4-grid">
+              <!-- CARD 1: Top-Left (Starts Sharp & Active) -->
+              <div class="arch-flow-card is-active" id="s4-c1">
+                <div class="arch-node-dot crimson"></div>
+                <h3 class="arch-title">SOS Gateway</h3>
+                <p class="arch-sub">3-second emergency trigger</p>
+                <div class="arch-preview">
+                  <div class="arch-sos-circle badge-red">SOS</div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>GPS LOCK: 0.3s</span>
+                  <span>NEAREST STATION: 1.4 KM</span>
+                </div>
+                <!-- Bridge 1: Flows Right to Card 2 -->
+                <div class="flow-bridge bridge-right" id="s4-b1">
+                  <div class="flow-bridge-fill"></div>
+                </div>
+              </div>
+
+              <!-- CARD 2: Top-Center (Starts Blurred -> Unblurs when Bridge 1 hits) -->
+              <div class="arch-flow-card" id="s4-c2">
+                <div class="arch-node-dot crimson"></div>
+                <h3 class="arch-title">Community Report</h3>
+                <p class="arch-sub">3-tap mobile submission</p>
+                <div class="arch-preview">
+                  <div class="arch-chip-row">
+                    <span class="arch-chip red">Theft</span>
+                    <span class="arch-chip red">Assault</span>
+                    <span class="arch-chip slate">Traffic</span>
+                  </div>
+                  <div class="arch-micro-note">Witness Evidence Attached</div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>✓ PHOTO ATTACHED</span>
+                  <span>WITNESS VERIFIED</span>
+                </div>
+                <!-- Bridge 2: Flows Right to Card 3 -->
+                <div class="flow-bridge bridge-right" id="s4-b2">
+                  <div class="flow-bridge-fill"></div>
+                </div>
+              </div>
+
+              <!-- CARD 3: Top-Right (Starts Blurred -> Unblurs when Bridge 2 hits) -->
+              <div class="arch-flow-card" id="s4-c3">
+                <div class="arch-node-dot emerald"></div>
+                <h3 class="arch-title">Live Status Pipeline</h3>
+                <p class="arch-sub">Real-time citizen tracking</p>
+                <div class="arch-preview">
+                  <div class="arch-status-tag emerald">● POLICE RESPONDING · 5 MIN ETA</div>
+                  <div class="arch-mini-bar"><span class="fill-80"></span></div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>STAGE 4 OF 5</span>
+                  <span>TR-4821 LIVE</span>
+                </div>
+                <!-- Bridge 3: Flows Down to Card 4 (Bottom-Right) -->
+                <div class="flow-bridge bridge-down" id="s4-b3">
+                  <div class="flow-bridge-fill"></div>
+                </div>
+              </div>
+
+              <!-- CARD 4: Bottom-Right (Starts Blurred -> Unblurs when Bridge 3 hits) -->
+              <div class="arch-flow-card" id="s4-c4">
+                <div class="arch-node-dot crimson"></div>
+                <h3 class="arch-title">Dispatch Command</h3>
+                <p class="arch-sub">Police triage &amp; live queue</p>
+                <div class="arch-preview">
+                  <div class="arch-status-tag crimson">CASE TR-4821 · HIGH PRIORITY</div>
+                  <div class="arch-micro-note">SS-MPL · PO2 Reyes Assigned</div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>14 OPEN INCIDENTS</span>
+                  <span>QUEUE SYNC: 0.2s</span>
+                </div>
+                <!-- Bridge 4: Flows Left to Card 5 (Bottom-Center) -->
+                <div class="flow-bridge bridge-left" id="s4-b4">
+                  <div class="flow-bridge-fill"></div>
+                </div>
+              </div>
+
+              <!-- CARD 5: Bottom-Center (Starts Blurred -> Unblurs when Bridge 4 hits) -->
+              <div class="arch-flow-card" id="s4-c5">
+                <div class="arch-node-dot amber"></div>
+                <h3 class="arch-title">Hotspot Radar</h3>
+                <p class="arch-sub">Barangay spatial intelligence</p>
+                <div class="arch-preview">
+                  <div class="arch-status-tag amber">BALANGKAS &amp; MAPULANG LUPA</div>
+                  <div class="arch-micro-note">Density: High Theft Concentration</div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>30-DAY WINDOW</span>
+                  <span>31 INCIDENTS MAPPED</span>
+                </div>
+                <!-- Bridge 5: Flows Left to Card 6 (Bottom-Left) -->
+                <div class="flow-bridge bridge-left" id="s4-b5">
+                  <div class="flow-bridge-fill"></div>
+                </div>
+              </div>
+
+              <!-- CARD 6: Bottom-Left (Starts Blurred -> Unblurs when Bridge 5 hits) -->
+              <div class="arch-flow-card" id="s4-c6">
+                <div class="arch-node-dot emerald"></div>
+                <h3 class="arch-title">AI &amp; RAG Engine</h3>
+                <p class="arch-sub">Law-grounded action plans</p>
+                <div class="arch-preview">
+                  <div class="arch-status-tag emerald">REVISED PENAL CODE + PNP SOP</div>
+                  <div class="arch-micro-note">Automated Tactical Blueprint</div>
+                </div>
+                <div class="arch-card-meta">
+                  <span>ART. 308 RPC</span>
+                  <span>✓ HUMAN APPROVED</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S5 · Report. Track. Respond. -->
+      <section data-hf-id="hf-eggg" id="s5" class="clip scene black" data-start="11.4" data-duration="2.2" data-track-index="1">
+        <div data-hf-id="hf-0o62" class="in">
+          <div data-hf-id="hf-yg2j" class="s5-strobe-bg" id="s5-bg-light"></div>
+          <div data-hf-id="hf-u705" class="s5-strobe-bg" id="s5-bg-dark"></div>
+          <div data-hf-id="hf-05r4" class="s5-strobe-bg" id="s5-bg-crimson"></div>
+          <div data-hf-id="hf-cuvw" id="s5-wireframe"></div>
+          <div data-hf-id="hf-5tf1" id="s5-nodes"></div>
+          <div data-hf-id="hf-m0t9" class="camera-rig" id="rig-s5">
+            <div class="s5-beat" id="s5-beat-1"><div class="kt" style="position:relative; top:auto; transform:none; font-size:190px;"><span class="w" id="s5-a">Report.</span></div></div>
+            <div class="s5-beat" id="s5-beat-2"><div class="kt" style="position:relative; top:auto; transform:none; font-size:190px;"><span class="w" id="s5-b">Track.</span></div></div>
+            <div class="s5-beat" id="s5-beat-3"><div class="kt" style="position:relative; top:auto; transform:none; font-size:190px;"><span class="w" id="s5-c">Respond.</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S6 · Hold. -->
+      <section data-hf-id="hf-ik97" id="s6" class="clip scene black" data-start="13.6" data-duration="6.3" data-track-index="2">
+        <div data-hf-id="hf-09v1" class="in">
+          <div data-hf-id="hf-s6j2" class="camera-rig" id="rig-s6">
+            <div data-hf-id="hf-aih2" class="kt left" id="s6-kt" style="top:380px;"><span data-hf-id="hf-8tku" class="w">Just </span><span data-hf-id="hf-9j7l" class="w">hold.</span><br data-hf-id="hf-rsrt"><span data-hf-id="hf-kym5" class="w gw">Help </span><span data-hf-id="hf-mkp0" class="w">moves.</span></div>
+            <div data-hf-id="hf-h0zp" class="sub-kt" id="s6-sub">Hold for <b data-hf-id="hf-dimr">3 seconds</b>. Your exact location goes straight to the nearest police station — no forms, no typing.</div>
+            <div data-hf-id="hf-8km4" class="ui-card-3d sos-card" id="s6-card" style="position:absolute; left:1040px; top:240px;">
+              <div data-hf-id="hf-y0pp" class="light-sheen"></div>
+              <div class="sos-card-head">
+                <div class="sos-head-left">
+                  <span class="dot red"></span>
+                  <strong>SOS Gateway</strong>
+                </div>
+                <span class="mono muted">hold 3 s</span>
+              </div>
+
+              <div class="sos-stage">
+                <!-- PHASE 1 (13.6s - 16.35s): Centered SOS Hold Circle + Bottom Hint Text -->
+                <div class="sos-wrap" id="sos-wrap">
+                  <div class="sos-circle-box">
+                    <div class="sos-rings">
+                      <span></span><span></span>
+                    </div>
+                    <svg class="sos-arc" viewBox="0 0 220 220">
+                      <circle class="track" cx="110" cy="110" r="96"></circle>
+                      <circle class="prog" id="sos-prog" cx="110" cy="110" r="96"></circle>
+                    </svg>
+                    <div class="sos-btn" id="sos-btn">
+                      <div class="sos-label">SOS</div>
+                      <div class="sos-sub" id="sos-timer">0.0s</div>
+                    </div>
+                  </div>
+                  <div class="sos-hint" id="sos-hint">Keep holding to confirm emergency</div>
+                </div>
+
+                <!-- PHASE 2 (16.4s - 19.9s): Perfectly Padded Full-Width Status Rows -->
+                <div class="sos-rows" id="sos-rows">
+                  <div class="sos-row" id="sos-r1">
+                    <div class="sos-ic red">!</div>
+                    <div class="sos-txt"><strong>SOS sent</strong></div>
+                    <span class="sos-meta">18:41:07</span>
+                  </div>
+                  <div class="sos-row" id="sos-r2">
+                    <div class="sos-ic">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13Z"/><circle cx="12" cy="9" r="2.8"/></svg>
+                    </div>
+                    <div class="sos-txt"><strong>Sharing live location with police</strong></div>
+                    <span class="sos-meta">14.7245, 120.9620</span>
+                  </div>
+                  <div class="sos-row" id="sos-r3">
+                    <div class="sos-ic">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V10Z"/><path d="M9 21V12h6v9"/></svg>
+                    </div>
+                    <div class="sos-txt"><strong>Mapulang Lupa Sub-Station alerted</strong></div>
+                    <span class="sos-meta">1.4 km</span>
+                  </div>
+                  <div class="sos-row ok" id="sos-r4">
+                    <div class="sos-ic green">✓</div>
+                    <div class="sos-txt"><strong>Patrol on the way · help is coming</strong></div>
+                    <span class="sos-meta">5 min ETA</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S7 · Report in three taps. -->
+      <section data-hf-id="hf-kh4r" id="s7" class="clip scene black" data-start="19.9" data-duration="4.6" data-track-index="1">
+        <div data-hf-id="hf-1gs4" class="in">
+          <div data-hf-id="hf-w4n3" class="camera-rig" id="rig-s7">
+            <div data-hf-id="hf-cnqv" class="touch-cursor" id="s7-cursor"></div>
+            <div data-hf-id="hf-qzez" class="kt left" id="s7-kt" style="top:380px;"><span data-hf-id="hf-8fe1" class="w">Report in</span><br data-hf-id="hf-szow"><span data-hf-id="hf-5k3e" class="w gw">three </span><span data-hf-id="hf-vg8c" class="w">taps.</span></div>
+            <div data-hf-id="hf-flzo" class="sub-kt" id="s7-sub">Pick what happened, snap a photo, hit send. <b data-hf-id="hf-ctdf">No paperwork,</b> no waiting in line at the station.</div>
+            <div data-hf-id="hf-w0mz" class="persp" id="s7-persp" style="left:1100px; top:110px;">
+              <div data-hf-id="hf-s9ys" class="phone ui-card-3d" id="s7-phone"><div data-hf-id="hf-yf0q" class="light-sheen"></div><div data-hf-id="hf-8kjy" class="notch"></div>
+                <div data-hf-id="hf-cdmk" class="screen">
+                  <div data-hf-id="hf-4j5y" class="rp"><div data-hf-id="hf-1txz" class="lbl">COMMUNITY REPORT</div><h2 data-hf-id="hf-7i0x">Report Incident</h2>
+                    <div data-hf-id="hf-70xd" class="steps"><i data-hf-id="hf-l5u7" class="on"></i><i data-hf-id="hf-0v0l" id="s7-st2"></i><i data-hf-id="hf-03cs" id="s7-st3"></i></div>
+                    <div data-hf-id="hf-p6j3" class="cats"><div data-hf-id="hf-zmjc" class="cat" id="s7-cat-robbery">Robbery / Hold-up<s data-hf-id="hf-pfph">Force or intimidation</s></div><div data-hf-id="hf-ojtw" class="cat" id="s7-cat">Theft / Snatching<s data-hf-id="hf-yl2o">Phone or bag snatching</s></div><div data-hf-id="hf-g7qe" class="cat">Physical Assault<s data-hf-id="hf-h22w">Fight or injury</s></div><div data-hf-id="hf-9g76" class="cat">Traffic Accident<s data-hf-id="hf-4zcu">Collision or injured</s></div></div>
+                    <div data-hf-id="hf-296k" class="role" id="s7-role">Witness<s data-hf-id="hf-m8z6">I saw or heard the incident happen.</s></div>
+                    <div data-hf-id="hf-a7wq" class="photo" id="s7-photo">Evidence photo<span data-hf-id="hf-u9l7" class="ok">Photo attached</span></div>
+                  </div>
+                  <div data-hf-id="hf-yeaf" class="btn" id="s7-btn"><strong>Submit Report</strong></div>
+                  <div data-hf-id="hf-w1rv" class="toast" id="s7-toast"><strong data-hf-id="hf-7k8y">SUBMITTED</strong><span>TR-4821 · Theft / Snatching · Mapulang Lupa</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S8 · Track every step. -->
+      <section data-hf-id="hf-o5ou" id="s8" class="clip scene black" data-start="24.5" data-duration="4.1" data-track-index="2">
+        <div data-hf-id="hf-12h3" class="in">
+          <div data-hf-id="hf-rico" class="camera-rig" id="rig-s8">
+            <div data-hf-id="hf-4pvw" class="kt left" id="s8-kt" style="top:380px;"><span data-hf-id="hf-tthf" class="w">Never left</span><br data-hf-id="hf-sldv"><span data-hf-id="hf-xdiy" class="w gw">in the </span><span data-hf-id="hf-v5j2" class="w">dark.</span></div>
+            <div data-hf-id="hf-gnih" class="sub-kt" id="s8-sub">See what's happening in <b data-hf-id="hf-l4dy">real time</b> — from received, to officers on the way, to resolved.</div>
+            <div data-hf-id="hf-lhqd" class="card ui-card-3d" id="s8-card" style="left:1020px; width:780px;">
+              <div data-hf-id="hf-3l03" class="light-sheen"></div>
+              <div data-hf-id="hf-b742" class="ct"><i data-hf-id="hf-oz7w"></i>Report Status · TR-4821 <span data-hf-id="hf-n2x5" class="mono">Theft / Snatching</span></div>
+              <div data-hf-id="hf-c9cw" class="pills">
+                <div data-hf-id="hf-7tr3" class="pill" id="s8-p1"><span data-hf-id="hf-qbaf" class="chk"><svg data-hf-id="hf-bq0j" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path data-hf-id="hf-54uu" d="M5 12l5 5 9-10" /></svg></span>Submitted<span data-hf-id="hf-sh8n" class="t">18:41</span></div>
+                <div data-hf-id="hf-otmv" class="pill" id="s8-p2"><span data-hf-id="hf-vuiv" class="chk"><svg data-hf-id="hf-chjn" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path data-hf-id="hf-5j5v" d="M5 12l5 5 9-10" /></svg></span>Under review<span data-hf-id="hf-roml" class="t">18:43</span></div>
+                <div data-hf-id="hf-6d5c" class="pill" id="s8-p3"><span data-hf-id="hf-vg7u" class="chk"><svg data-hf-id="hf-c38m" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path data-hf-id="hf-5xgw" d="M5 12l5 5 9-10" /></svg></span>Verified<span data-hf-id="hf-to5q" class="t">18:46</span></div>
+                <div data-hf-id="hf-uohs" class="pill" id="s8-p4"><span data-hf-id="hf-v1wt" class="chk"><svg data-hf-id="hf-boxl" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path data-hf-id="hf-35bp" d="M5 12l5 5 9-10" /></svg></span>Responding<span data-hf-id="hf-t9up" class="t">18:47</span></div>
+                <div data-hf-id="hf-1y8i" class="pill" id="s8-p5"><span data-hf-id="hf-xu20" class="chk"><svg data-hf-id="hf-bamk" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path data-hf-id="hf-3jmq" d="M5 12l5 5 9-10" /></svg></span>Done<span data-hf-id="hf-i2sq" class="t">19:12</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S9 · Live queue. -->
+      <section data-hf-id="hf-ij8j" id="s9" class="clip scene black" data-start="28.6" data-duration="4.3" data-track-index="1">
+        <div data-hf-id="hf-5fue" class="in">
+          <div data-hf-id="hf-sa0h" class="camera-rig" id="rig-s9">
+            <div data-hf-id="hf-hjzt" class="kt left" id="s9-kt" style="top:380px;"><span data-hf-id="hf-tl4j" class="w">A live</span><br data-hf-id="hf-qluq"><span data-hf-id="hf-weh7" class="w gw">command </span><span data-hf-id="hf-sorh" class="w">center.</span></div>
+            <div data-hf-id="hf-u4ug" class="sub-kt" id="s9-sub">Every alert pops up on the police screen <b data-hf-id="hf-oteo">the second</b> it is sent.</div>
+            <div data-hf-id="hf-7egp" class="card dark ui-card-3d dark-glass" id="s9-card" style="left:1020px; width:780px;">
+              <div data-hf-id="hf-3zb4" class="light-sheen"></div>
+              <div data-hf-id="hf-cgan" class="ct"><i data-hf-id="hf-okwv"></i>Dispatch Command Center <span data-hf-id="hf-z1up" class="mono" id="s9-clock">18:42:07 PHT</span></div>
+              <div data-hf-id="hf-rhep" class="stats">
+                <div data-hf-id="hf-xa0m" class="stat"><div data-hf-id="hf-j30j" class="l">OPEN INCIDENTS</div><div data-hf-id="hf-soel" class="v s9-num" data-to="14">0</div></div>
+                <div data-hf-id="hf-x5lv" class="stat hot"><div data-hf-id="hf-nb72" class="l">SOS ALERTS</div><div data-hf-id="hf-872h" class="v s9-num" data-to="3">0</div></div>
+                <div data-hf-id="hf-tx7e" class="stat"><div data-hf-id="hf-ope8" class="l">TODAY'S REPORTS</div><div data-hf-id="hf-nzsv" class="v s9-num" data-to="23">0</div></div>
+              </div>
+              <div data-hf-id="hf-ffll" class="queue" id="s9-queue">
+                <div data-hf-id="hf-0q3y" class="q new z-lift-md" id="s9-new"><span data-hf-id="hf-xs5q" class="code">TR-4821</span><div data-hf-id="hf-qri1">Theft / Snatching<div data-hf-id="hf-wkce" class="loc">Mapulang Lupa · just now</div></div><span data-hf-id="hf-u7sm" class="badge high">HIGH</span><span data-hf-id="hf-qppi" class="badge pending">PENDING</span></div>
+                <div data-hf-id="hf-xt7l" class="q"><span data-hf-id="hf-xdup" class="code">TR-4820</span><div data-hf-id="hf-72va">Traffic Accident<div data-hf-id="hf-ysx2" class="loc">Balangkas · MacArthur Hwy</div></div><span data-hf-id="hf-xg1n" class="badge med">MEDIUM</span><span data-hf-id="hf-d4ly" class="badge review">REVIEW</span></div>
+                <div data-hf-id="hf-dbn9" class="q"><span data-hf-id="hf-051n" class="code">TR-4817</span><div data-hf-id="hf-lxjd">Public Disturbance<div data-hf-id="hf-tvfy" class="loc">Mapulang Lupa · Blk 12</div></div><span data-hf-id="hf-titm" class="badge low">LOW</span><span data-hf-id="hf-cm92" class="badge verified">VERIFIED</span></div>
+                <div data-hf-id="hf-eikc" class="q"><span data-hf-id="hf-yy4k" class="code">TR-4812</span><div data-hf-id="hf-n0oy">Physical Assault<div data-hf-id="hf-lgxk" class="loc">Balangkas · Riverside</div></div><span data-hf-id="hf-7wwq" class="badge high">HIGH</span><span data-hf-id="hf-vnm4" class="badge responding">RESPONDING</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S10 · 3-Way Real-Time Dispatch Bridge -->
+      <section data-hf-id="hf-tcuh" id="s10" class="clip scene" data-start="32.9" data-duration="11.5" data-track-index="2" aria-label="3-Way Real-Time Dispatch Bridge">
+        <div class="camera-rig" id="rig-s10">
+
+          <!-- TOP BAR: Eyebrow Pill (Left) + Master Benchmark Clock (Right) -->
+          <div class="s10-top-bar">
+            <div class="s10-eyebrow-pill">
+              <span class="dot red"></span>
+              <span>VALENZUELA 3-TIER MUNICIPAL DISPATCH SYNCHRONIZATION</span>
+            </div>
+
+            <div class="s10-benchmark-box" id="s10-bench-box">
+              <div class="s10-bench-label">END-TO-END DISPATCH BENCHMARK</div>
+              <div class="s10-bench-readout">
+                <span class="s10-bench-prefix" id="s10-bench-prefix">ELAPSED TIME:</span>
+                <span class="s10-bench-time" id="s10-bench-timer">0.00s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MAIN 3-COLUMN STAGE (Top: 150px, Height: 604px) -->
+          <div class="s10-stage-grid">
+
+            <!-- COLUMN 1 (LEFT - 510px): CITIZEN MARIA (CLEAN WHITE CARD) -->
+            <div class="s10-col" id="s10-col-1">
+              <div class="s10-col-header light-hdr">
+                <span class="s10-step-num crimson">01</span>
+                <span class="s10-col-title">CITIZEN · MARIA</span>
+                <span class="s10-col-tag crimson">BRGY. MAPULANG LUPA</span>
+              </div>
+
+              <div class="s10-card s10-citizen-card" id="s10-card-1">
+                <div class="s10-card-top light-top">
+                  <span>18:41 PHT · CASE TR-4821</span>
+                  <span class="s10-gps-tag">● 14.7245° N, 120.9620° E</span>
+                </div>
+
+                <div class="s10-incident-box">
+                  <div class="s10-inc-row">
+                    <span class="s10-inc-label">INCIDENT</span>
+                    <strong class="s10-inc-val crimson-txt">Theft / Snatching</strong>
+                  </div>
+                  <div class="s10-inc-row">
+                    <span class="s10-inc-label">LOCATION</span>
+                    <strong class="s10-inc-val">Market Rd · Mapulang Lupa</strong>
+                  </div>
+                </div>
+
+                <div class="s10-c1-status-panel" id="s10-c1-panel">
+                  <div class="s10-c1-status-badge" id="s10-c1-badge">
+                    <span>●</span>
+                    <span id="s10-c1-status-txt">READY TO TRANSMIT</span>
+                  </div>
+                  <h3 class="s10-c1-hero-title" id="s10-c1-hero">Emergency SOS Packet</h3>
+                  <p class="s10-c1-hero-sub" id="s10-c1-sub">
+                    Direct telemetry link to Valenzuela PNP Command &amp; nearest precinct.
+                  </p>
+
+                  <div class="s10-c1-route-wrap">
+                    <div class="s10-route-ends">
+                      <span>Sub-Station MPL</span>
+                      <span class="emerald-txt" id="s10-c1-eta-lbl">Unit MPL-04 · 5 min ETA</span>
+                    </div>
+                    <div class="s10-route-bar">
+                      <div class="s10-route-prog" id="s10-c1-route-prog"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="s10-c1-btn" id="s10-c1-btn" type="button">
+                  <span id="s10-c1-btn-txt">🚨 Send SOS / Submit Report</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- BRIDGE 1 (70px): UPLINK (COL 1 -> COL 2) -->
+            <div class="s10-bridge" id="s10-bridge-1">
+              <div class="s10-bridge-label">UPLINK</div>
+              <div class="s10-fiber-track">
+                <div class="s10-fiber-fill crimson-beam" id="s10-beam-1"></div>
+              </div>
+              <div class="s10-bridge-ms">0.18s</div>
+            </div>
+
+            <!-- COLUMN 2 (CENTER - 560px): VALENZUELA PNP HQ COMMAND -->
+            <div class="s10-col dark-glass" id="s10-col-2">
+              <div class="s10-col-header dark-hdr">
+                <span class="s10-step-num crimson">02</span>
+                <span class="s10-col-title">VALENZUELA PNP HQ COMMAND</span>
+                <span class="s10-col-tag amber">CENTRAL TRIAGE</span>
+              </div>
+
+              <div class="s10-card s10-dark-card" id="s10-card-2">
+                <div class="s10-hq-alert-banner" id="s10-hq-banner">
+                  <span class="s10-strobe-dot"></span>
+                  <strong>🚨 SOS EMERGENCY (HQ COMMAND) · Theft / Snatching</strong>
+                </div>
+
+                <div class="s10-hq-grid">
+                  <div class="s10-hq-cell">
+                    <span class="s10-cell-label">CASE ID &amp; REPORTER</span>
+                    <strong class="s10-cell-val">TR-4821 · Maria (Resident)</strong>
+                  </div>
+                  <div class="s10-hq-cell">
+                    <span class="s10-cell-label">GPS TELEMETRY</span>
+                    <strong class="s10-cell-val">14.7245° N, 120.9620° E</strong>
+                  </div>
+                </div>
+
+                <!-- Expanded AI Automated Triage Box (2.4s Active Analysis) -->
+                <div class="s10-ai-legit-box" id="s10-ai-box">
+                  <div class="s10-ai-top">
+                    <span class="s10-ai-badge" id="s10-ai-badge">🧠 AI SCANNING REPORT...</span>
+                    <strong class="s10-ai-status" id="s10-ai-score">0% CONFIDENCE</strong>
+                  </div>
+                  <div class="s10-ai-bar-bg">
+                    <div class="s10-ai-bar-fill" id="s10-ai-bar"></div>
+                  </div>
+                  <div class="s10-ai-checks">
+                    <div class="s10-ai-check" id="s10-chk-1">✓ Resident Account &amp; History Verified</div>
+                    <div class="s10-ai-check" id="s10-chk-2">✓ Photo Metadata &amp; GPS Geofence Match</div>
+                    <div class="s10-ai-check highlight" id="s10-chk-3">⚡ Auto-Triaged: No Manual Review Needed</div>
+                  </div>
+                </div>
+
+                <div class="s10-nearest-box">
+                  <div class="s10-nearest-head">AUTO-CALCULATED NEAREST PRECINCT</div>
+                  <div class="s10-nearest-row">
+                    <strong>Mapulang Lupa Sub-Station</strong>
+                    <span class="s10-dist-pill">1.4 km · 5 min ETA</span>
+                  </div>
+                </div>
+
+                <button class="s10-hq-btn" id="s10-hq-btn" type="button">
+                  <span id="s10-hq-btn-txt">[Assign Substation: Mapulang Lupa ➔]</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- BRIDGE 2 (70px): RELAY (COL 2 -> COL 3) -->
+            <div class="s10-bridge" id="s10-bridge-2">
+              <div class="s10-bridge-label">RELAY</div>
+              <div class="s10-fiber-track">
+                <div class="s10-fiber-fill amber-beam" id="s10-beam-2"></div>
+              </div>
+              <div class="s10-bridge-ms">0.24s</div>
+            </div>
+
+            <!-- COLUMN 3 (RIGHT - 550px): MAPULANG LUPA SUB-STATION -->
+            <div class="s10-col dark-glass" id="s10-col-3">
+              <div class="s10-col-header dark-hdr">
+                <span class="s10-step-num emerald">03</span>
+                <span class="s10-col-title">SUB-STATION MAPULANG LUPA</span>
+                <span class="s10-col-tag emerald">PO2 REYES · FIELD</span>
+              </div>
+
+              <div class="s10-card s10-dark-card" id="s10-card-3">
+                <div class="s10-sub-banner">
+                  <span>📢 Assigned by HQ Command to your station!</span>
+                </div>
+
+                <div class="s10-sub-case-box">
+                  <div class="s10-sub-case-top">
+                    <strong class="s10-sub-case-id">CASE TR-4821 · THEFT / SNATCHING</strong>
+                    <span class="s10-prio-pill">URGENT SOS</span>
+                  </div>
+                  <div class="s10-sub-case-loc">
+                    Target: Market Rd, Brgy. Mapulang Lupa (1.4 km away)
+                  </div>
+                </div>
+
+                <div class="s10-unit-status-card" id="s10-unit-card">
+                  <div class="s10-unit-row">
+                    <div>
+                      <div class="s10-unit-lbl">DESIGNATED PATROL UNIT</div>
+                      <strong class="s10-unit-name">Patrol Unit MPL-04</strong>
+                    </div>
+                    <span class="s10-unit-badge" id="s10-unit-badge">STANDBY</span>
+                  </div>
+                  <div class="s10-unit-crew">
+                    <span>Dispatcher: PO2 Reyes</span>
+                    <span>Est. Arrival: 5 min ETA</span>
+                  </div>
+                </div>
+
+                <button class="s10-sub-btn" id="s10-sub-btn" type="button">
+                  <span id="s10-sub-btn-txt">[Confirm Deployment / Respond Now]</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- BOTTOM U-SHAPED RETURN CONDUIT (Connects Bottom of Col 3 -> Bottom of Col 1) -->
+          <div class="s10-return-loop" id="s10-return-loop">
+            <div class="s10-stem-right"><div class="s10-stem-fill" id="s10-stem-r"></div></div>
+            <div class="s10-return-track">
+              <div class="s10-return-fill" id="s10-beam-3"></div>
+            </div>
+            <div class="s10-stem-left"><div class="s10-stem-fill" id="s10-stem-l"></div></div>
+
+            <div class="s10-return-pill" id="s10-return-pill">
+              <span class="s10-ret-dot"></span>
+              <span>FULL-CIRCLE CONFIRMATION · UNIT MPL-04 EN ROUTE TO MARIA (5 MIN ETA)</span>
+            </div>
+          </div>
+
+          <!-- BOTTOM HEADLINE (Cleanly below all 3 screens, never covered!) -->
+          <div class="s10-bottom-bar">
+            <h2 class="s10-bottom-headline" id="s10-title">
+              <span class="word">AI</span> <span class="word">verifies</span> <span class="word">in</span> <span class="word">seconds.</span>
+              <span class="word accent">One</span> <span class="word accent">click</span> <span class="word">dispatches</span> <span class="word">help.</span>
+            </h2>
+          </div>
+
+          <!-- SIMULATION CURSOR -->
+          <div id="s10-cursor" class="s10-cursor">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff" stroke="#0f172a" stroke-width="2.2">
+              <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z"/>
+            </svg>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- S11 · See it coming. (radar) -->
+      <section data-hf-id="hf-gel4" id="s11" class="clip scene black" data-start="44.4" data-duration="4.2" data-track-index="1">
+        <div data-hf-id="hf-bnlv" class="in">
+          <div data-hf-id="hf-hgsi" class="camera-rig" id="rig-s11">
+            <div data-hf-id="hf-axjj" class="radar" id="s11-radar" style="left:1020px; top:150px;">
+              <svg id="s11-deg-ring" viewBox="0 0 780 780" style="position:absolute; inset:0; width:100%; height:100%;">
+                <circle cx="390" cy="390" r="375" fill="none" stroke="rgba(148,163,184,0.3)" stroke-width="1.5" stroke-dasharray="4 8" />
+              </svg>
+              <div data-hf-id="hf-ihqt" class="ring" style="width:195px;height:195px;"></div><div data-hf-id="hf-o11j" class="ring" style="width:390px;height:390px;"></div><div data-hf-id="hf-xwvb" class="ring" style="width:585px;height:585px;"></div><div data-hf-id="hf-n8kp" class="ring" style="width:780px;height:780px;"></div>
+              <div data-hf-id="hf-2hmb" class="axis"></div><div data-hf-id="hf-qf9v" class="axis h"></div>
+              <svg data-hf-id="hf-odsm" class="poly" viewBox="0 0 780 780"><path data-hf-id="hf-0tp6" d="M150 250 L320 170 L520 150 L660 260 L690 440 L600 620 L420 680 L250 620 L140 470 Z" /></svg>
+              <div data-hf-id="hf-m8so" class="beam" id="s11-beam"></div>
+              <div data-hf-id="hf-z37m" class="lbl" style="left:190px;top:330px;">Balangkas</div><div data-hf-id="hf-fyoy" class="lbl" style="left:440px;top:470px;">Mapulang Lupa</div>
+              <div data-hf-id="hf-g2qi" class="blip" id="s11-b1" style="left:63%;top:58%;"><i data-hf-id="hf-qkg0"></i></div><div data-hf-id="hf-pjbz" class="blip" id="s11-b2" style="left:34%;top:38%;"><i data-hf-id="hf-q64z"></i></div><div data-hf-id="hf-jx4c" class="blip a" id="s11-b3" style="left:58%;top:40%;"><i data-hf-id="hf-prty"></i></div><div data-hf-id="hf-xd0m" class="blip g" id="s11-b4" style="left:42%;top:68%;"><i data-hf-id="hf-pdix"></i></div><div data-hf-id="hf-7laf" class="blip a" id="s11-b5" style="left:70%;top:72%;"><i data-hf-id="hf-hqsk"></i></div><div data-hf-id="hf-8mac" class="blip" id="s11-b6" style="left:28%;top:56%;"><i data-hf-id="hf-hchj"></i></div>
+            </div>
+            <div data-hf-id="hf-mj3q" class="kt left" id="s11-kt" style="top:340px;"><span data-hf-id="hf-ru9j" class="w">Spot trouble</span><br data-hf-id="hf-q7jp"><span data-hf-id="hf-u71e" class="w gw">before it </span><span data-hf-id="hf-xlfa" class="w">spreads.</span></div>
+            <div data-hf-id="hf-v9rm" class="sub-kt" id="s11-sub" style="top:580px;">See crime hotspots early, so police can patrol <b data-hf-id="hf-bce0">where people need them most</b>.</div>
+            <div data-hf-id="hf-rt01" class="hotcard ui-card-3d dark-glass" id="s11-hot" style="left:120px; top:680px; width:780px; height:260px; padding:22px 30px;"><div data-hf-id="hf-82e6" class="light-sheen"></div><h3 data-hf-id="hf-zdta"><i data-hf-id="hf-8d0n"></i>Top hotspots · 30 days</h3>
+              <div data-hf-id="hf-4hxv" class="hr" id="s11-h1" style="position:relative; overflow:hidden;">
+                <div style="position:relative; z-index:2; display:flex; justify-content:space-between; width:100%;">
+                  <span>1. Market road · Theft / Snatching</span><span data-hf-id="hf-lk7u" class="badge high" id="s11-count1">0</span>
+                </div>
+                <div class="s11-fill-bar" id="s11-bar1" style="position:absolute; left:0; top:0; bottom:0; width:0%; background:rgba(220,38,38,0.25); border-radius:10px; z-index:1;"></div>
+              </div>
+              <div class="hr" id="s11-h2" style="position:relative; overflow:hidden; margin-top:8px;">
+                <div style="position:relative; z-index:2; display:flex; justify-content:space-between; width:100%;">
+                  <span>2. MacArthur Highway · Traffic Incident</span><span class="badge med" id="s11-count2">0</span>
+                </div>
+                <div class="s11-fill-bar" id="s11-bar2" style="position:absolute; left:0; top:0; bottom:0; width:0%; background:rgba(245,158,11,0.25); border-radius:10px; z-index:1;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S12 · RAG-powered. Tailored response. -->
+      <section data-hf-id="hf-e1kx" id="s12" class="clip scene black" data-start="48.6" data-duration="8.4" data-track-index="2">
+        <div data-hf-id="hf-c1ww" class="in">
+          <div data-hf-id="hf-bb2p" class="camera-rig" id="rig-s12">
+            <div data-hf-id="hf-tq65" class="kt left" id="s12-kt" style="top:380px; font-size:112px;"><span data-hf-id="hf-k8nd" class="w gw">RAG-powered.</span><br data-hf-id="hf-regs"><span data-hf-id="hf-12eu" class="w">Tailored </span><span data-hf-id="hf-7c6z" class="w">response.</span></div>
+            <div data-hf-id="hf-u1ei" class="sub-kt" id="s12-sub" style="top:660px;">An <b data-hf-id="hf-6vb4">optional tool when admins need it</b>: our RAG pipeline pairs live reports with Philippine laws and AI management rules to draft tailored action plans.</div>
+
+            <div style="position:absolute; left:1020px; width:760px; top:110px;" class="col-right" data-layout-allow-overflow="true">
+              <!-- Top 3-Node RAG Pipeline Flow -->
+              <div class="rag-pipeline-bar" id="s12-pipeline">
+                <div class="rag-node-pill" id="s12-node-1"><span class="arch-node-dot" style="margin:0;"></span>Case TR-4821</div>
+                <div class="rag-connector-line"><div class="rag-connector-fill" id="s12-cfill-1"></div></div>
+                <div class="rag-node-pill" id="s12-node-2"><span class="arch-node-dot amber" style="margin:0;"></span>PH Penal Code &amp; SOP</div>
+                <div class="rag-connector-line"><div class="rag-connector-fill" id="s12-cfill-2"></div></div>
+                <div class="rag-node-pill" id="s12-node-3"><span class="arch-node-dot emerald" style="margin:0;"></span>RAG Synthesizer</div>
+              </div>
+
+              <!-- Main Tactical Action Plan Card -->
+              <div data-hf-id="hf-4nyv" class="ui-card-3d rag-main-card" id="s12-card" data-layout-allow-overflow="true">
+                <div data-hf-id="hf-7o35" class="light-sheen"></div>
+                <div class="rag-card-header">
+                  <div><span class="arch-node-dot emerald" style="display:inline-block; margin:0 8px 0 0; vertical-align:middle;"></span><strong>AI Decision Support · Case TR-4821</strong></div>
+                  <span class="rag-mono-tag">Mapulang Lupa · RPC Art. 308</span>
+                </div>
+
+                <!-- Interactive RAG Standby & Synthesis Launcher -->
+                <div class="rag-launcher" id="s12-launcher">
+                  <div class="rag-launcher-top">
+                    <span class="rag-launcher-badge">⚡ ON-DEMAND LEGAL &amp; TACTICAL SYNTHESIS</span>
+                    <span class="rag-launcher-status" id="s12-launcher-status">STANDBY</span>
+                  </div>
+                  <p class="rag-launcher-desc" id="s12-launcher-desc">
+                    Case TR-4821 verified. Query Revised Penal Code &amp; Valenzuela PNP SOP to synthesize tactical response.
+                  </p>
+                  <button class="rag-gen-btn" id="s12-gen-btn" type="button">
+                    <span class="rag-btn-sparkle">⚡</span>
+                    <span id="s12-gen-btn-txt">Generate AI Decision Support</span>
+                  </button>
+
+                  <div class="rag-loader-box" id="s12-loader-box" style="display:none; opacity:0;">
+                    <div class="rag-loader-top">
+                      <span class="rag-loader-pulse-dot"></span>
+                      <span class="rag-loader-label" id="s12-loader-label">QUERYING PHILIPPINE PENAL CODE &amp; DISPATCH SOP...</span>
+                      <strong class="rag-loader-pct" id="s12-loader-pct">0%</strong>
+                    </div>
+                    <div class="rag-loader-track">
+                      <div class="rag-loader-bar" id="s12-loader-bar"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rag-action-list" id="s12-action-list">
+                  <div class="rag-action-item border-crimson" id="s12-row-1">
+                    <div class="rag-item-label">[LEGAL BASIS · REVISED PENAL CODE]</div>
+                    <div class="rag-item-body">Art. 308 (Theft / Snatching) — Elements verified with witness photo &amp; GPS timestamp.</div>
+                  </div>
+                  <div class="rag-action-item border-amber" id="s12-row-2">
+                    <div class="rag-item-label">[DISPATCH SOP · VALENZUELA PNP]</div>
+                    <div class="rag-item-body">Deploy Mobile Patrol Unit 04 from Mapulang Lupa Sub-Station (1.4 km · 5 min ETA).</div>
+                  </div>
+                  <div class="rag-action-item border-emerald" id="s12-row-3">
+                    <div class="rag-item-label">[CONTAINMENT &amp; BARANGAY COORDINATION]</div>
+                    <div class="rag-item-body">Alert adjacent Balangkas exit checkpoints &amp; pull Market Road CCTV feed.</div>
+                  </div>
+                </div>
+
+                <div class="rag-card-footer" id="s12-guard">
+                  <div class="rag-guard-badges">
+                    <span class="rag-badge">On-Demand RAG</span>
+                    <span class="rag-badge">Laws &amp; Rules Checked</span>
+                  </div>
+                  <div id="s12-approve-pill" class="rag-approve-btn">✓ Approved · PO2 Reyes</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SIMULATION CURSOR FOR SCENE 12 -->
+            <div id="s12-cursor" class="s12-cursor">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#ffffff" stroke="#0f172a" stroke-width="2.2">
+                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.85a.5.5 0 0 0-.85.35Z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S13 · role storm -->
+      <section data-hf-id="hf-yboc" id="s13" class="clip scene black" data-start="57.0" data-duration="4.2" data-track-index="1">
+        <div data-hf-id="hf-05k2" class="in storm">
+          <div data-hf-id="hf-ajew" class="camera-rig" id="rig-s13">
+            <div data-hf-id="hf-6yoy" class="kt" id="s13-w0"><span data-hf-id="hf-rlwq" class="w">Your barangay.</span></div>
+            <div data-hf-id="hf-awsz" class="kt" id="s13-w1"><span data-hf-id="hf-r8fc" class="w gw">Your local station.</span></div>
+            <div data-hf-id="hf-28x4" class="kt" id="s13-w2"><span data-hf-id="hf-5m83" class="w">Valenzuela police.</span></div>
+            <div data-hf-id="hf-30kx" class="kt" id="s13-w3"><span data-hf-id="hf-k0j0" class="w gw">Total transparency.</span></div>
+            <div data-hf-id="hf-ucp2" class="kt" id="s13-w4"><span data-hf-id="hf-05oo" class="w">Privacy protected.</span></div>
+            <div data-hf-id="hf-yat3" class="kt" id="s13-w5"><span data-hf-id="hf-x4gj" class="w gw">One safer </span><span data-hf-id="hf-csa3" class="w">city.</span></div>
+            <div data-hf-id="hf-dtpb" class="tag" id="s13-t" style="left:0;right:0;bottom:120px;text-align:center;">CONNECTED NEIGHBORHOODS · RAPID DISPATCH · VALENZUELA CITY</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S14 · Blurred Connected Ecosystem Background + Hero Message -->
+      <section data-hf-id="hf-k44d" id="s14" class="clip scene arch-grid-bg" data-start="61.2" data-duration="4.2" data-track-index="2" data-layout-allow-overlap="true">
+        <div data-hf-id="hf-4h1d" class="in" data-layout-allow-overlap="true">
+          <!-- Background Blurred Network -->
+          <div class="s14-blurred-network" id="s14-bg-net" data-layout-allow-overlap="true" aria-hidden="true">
+            <svg class="arch-flow-svg" id="s14-flow-svg" viewBox="0 0 1920 1080" data-layout-allow-overlap="true">
+              <path id="s14-base-path"
+                d="M 668 355 L 732 355 M 1192 355 L 1256 355 M 1484 490 L 1484 546 M 1256 681 L 1192 681 M 732 681 L 668 681"
+                fill="none" stroke="rgba(220,38,38,0.22)" stroke-width="3" stroke-linecap="round" />
+              <path id="s14-pulse-path"
+                d="M 668 355 L 732 355 M 1192 355 L 1256 355 M 1484 490 L 1484 546 M 1256 681 L 1192 681 M 732 681 L 668 681"
+                fill="none" stroke="#dc2626" stroke-width="4" stroke-linecap="round" />
+            </svg>
+            <div id="s14-grid" class="s4-grid" style="position:relative; width:1640px; height:820px; margin:130px auto 0 auto;" data-layout-allow-overlap="true">
+              <div class="arch-flow-card" style="left:60px; top:40px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">SOS Gateway</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">3-second emergency trigger</div>
+                <div class="arch-card-meta"><span>GPS LOCK: 0.3s</span><span>NEAREST STATION: 1.4 KM</span></div>
+              </div>
+              <div class="arch-flow-card" style="left:600px; top:40px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">Community Report</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">3-tap mobile submission</div>
+                <div class="arch-card-meta"><span>✓ PHOTO ATTACHED</span><span>WITNESS VERIFIED</span></div>
+              </div>
+              <div class="arch-flow-card" style="left:1140px; top:40px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot emerald"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">Live Status Pipeline</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">Real-time citizen tracking</div>
+                <div class="arch-card-meta"><span>STAGE 4 OF 5</span><span>TR-4821 LIVE</span></div>
+              </div>
+              <div class="arch-flow-card" style="left:1140px; top:440px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">Dispatch Command</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">Police triage &amp; live queue</div>
+                <div class="arch-card-meta"><span>14 OPEN INCIDENTS</span><span>QUEUE SYNC: 0.2s</span></div>
+              </div>
+              <div class="arch-flow-card" style="left:600px; top:440px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot amber"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">Hotspot Radar</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">Barangay crime density map</div>
+                <div class="arch-card-meta"><span>33 BARANGAYS</span><span>PATROL READY</span></div>
+              </div>
+              <div class="arch-flow-card" style="left:60px; top:440px; width:440px; height:270px;" data-layout-allow-overlap="true">
+                <div class="arch-node-dot emerald"></div>
+                <div style="font-size:22px; font-weight:800; color:#0f172a; text-align:center;">AI &amp; RAG Engine</div>
+                <div style="font-size:14px; font-weight:600; color:#64748b; text-align:center; margin-top:2px;">Sub-station triage &amp; dispatch</div>
+                <div class="arch-card-meta"><span>RECOMMENDED: SS-MPL</span><span>CONFIDENCE: 94%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Foreground Scrim for High Contrast -->
+          <div class="s14-foreground-scrim" data-layout-allow-overlap="true"></div>
+
+          <!-- Foreground Hero Copy -->
+          <div data-hf-id="hf-7y5l" class="camera-rig" id="rig-s14" style="z-index:10;" data-layout-allow-overlap="true">
+            <div id="s14-hero-copy">
+              <div id="s14-top-pill">
+                <span style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span>VALENZUELA CONNECTED SAFETY NETWORK
+              </div>
+              <div data-hf-id="hf-ffn7" class="kt" id="s14-kt" style="position:relative; top:auto; transform:none; font-size:104px; font-weight:800; text-align:center; color:#0f172a;" data-layout-allow-overlap="true">
+                <span data-hf-id="hf-gwav" class="w" data-layout-allow-overlap="true">One community.</span><br>
+                <span data-hf-id="hf-mqet" class="w s1-highlight-crimson" data-layout-allow-overlap="true">Everyone protected.</span>
+              </div>
+              <div id="s14-node-bar">
+                <span style="background:#ffffff; padding:8px 16px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.04);">Citizens (Maria)</span>
+                <span style="color:#dc2626;">───●───</span>
+                <span style="background:#ffffff; padding:8px 16px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.04);">Barangay &amp; Sub-Stations (Mapulang Lupa)</span>
+                <span style="color:#22c55e;">───●───</span>
+                <span style="background:#ffffff; padding:8px 16px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 4px 12px rgba(0,0,0,0.04);">Valenzuela PNP Command</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- S15 · flatline → resolved → logo -->
+      <section data-hf-id="hf-gm49" id="s15" class="clip scene black" data-start="65.4" data-duration="6.6" data-track-index="1">
+        <div data-hf-id="hf-auzt" class="in">
+          <div data-hf-id="hf-2n6u" class="camera-rig" id="rig-s15">
+            <div data-hf-id="hf-402d" class="glow" id="s15-glow" style="top:470px;"></div>
+            <svg data-hf-id="hf-jwtg" class="flat" viewBox="0 0 1920 120" preserveAspectRatio="none"><path data-hf-id="hf-j2fm" id="s15-line" d="M0 60 H700 L730 60 L750 18 L770 102 L790 34 L805 60 H1920" /></svg>
+            <div data-hf-id="hf-edt9" class="resolved" id="s15-res">CASE TR-4821 · RESOLVED · T+31:00</div>
+            <div data-hf-id="hf-0r76" class="logo ui-card-3d" id="s15-logo" style="top:470px;"><img data-hf-id="hf-59l7" src="assets/brand/logo-tight.png" alt=""></div>
+            <div data-hf-id="hf-tv9f" class="wordmark" id="s15-word"><span data-hf-id="hf-0l7b" class="line">Threat<span data-hf-id="hf-4xq4" class="r">Track</span></span></div>
+            <div data-hf-id="hf-qjse" class="tagline" id="s15-tag">Report. Track. Respond.</div>
+            <div data-hf-id="hf-fvhq" class="pillcta green" id="s15-pill">All clear · Valenzuela City</div>
+          </div>
+        </div>
+      </section>
+
+      <div data-hf-id="hf-9a6y" class="sweep" id="sweep"></div>
+      <div data-hf-id="hf-kfxd" id="vo-caption-bar" style="display:none;"></div>
+      <div data-hf-id="hf-ps92" class="clip" id="hud" data-start="17.65" data-duration="43.55" data-track-index="6">
+        <div data-hf-id="hf-ckuy" class="l" id="hud-case">
+          <span data-hf-id="hf-9gry" class="dot"></span>
+          <span data-hf-id="hf-pfqp" class="case">CASE TR-4821 · THEFT / SNATCHING</span>
+          <span data-hf-id="hf-x5s5" class="st" id="hud-st">SOS RECEIVED</span>
+        </div>
+        <div data-hf-id="hf-vsv0" class="l hud-brand-wrap" id="hud-brand" style="display:none; opacity:0;">
+          <img data-hf-id="hf-8roc" src="assets/brand/logo-tight.png" class="hud-logo" alt="ThreatTrack">
+          <span data-hf-id="hf-83qg" class="hud-name">Threat<span data-hf-id="hf-zcj8" class="r">Track</span></span>
+          <span data-hf-id="hf-ig6w" class="hud-badge"><i data-hf-id="hf-ztsw" class="hud-live-dot"></i>BUILT FOR VALENZUELANOS</span>
+        </div>
+        <span data-hf-id="hf-cdtm" class="clock" id="hud-clock">18:41:07</span>
+      </div>
+    </div>
+    <script src="assets/anim.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = window.__mainTimeline;
+    </script>
+
+    <!-- Active Full-Screen Presentation Mode (Auto-scales 1920x1080 canvas to fit any screen) -->
+    <style>
+      html, body {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #0b1220;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #root {
+        position: absolute;
+        width: 1920px;
+        height: 1080px;
+        left: 50%;
+        top: 50%;
+        margin-left: -960px;
+        margin-top: -540px;
+        transform-origin: center center;
+        box-shadow: 0 0 100px rgba(0, 0, 0, 0.85);
+        cursor: pointer;
+      }
+    </style>
+
+    <script type="module">
+      import { ThreatTrackAudioEngine } from "./assets/audio-engine.js";
+
+      // 1. Dynamic Full-Screen Scaling (auto-scales 1920x1080 stage to fit any screen size)
+      function fitStage() {
+        const root = document.getElementById("root");
+        if (!root) return;
+        const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        root.style.transform = `scale(${scale})`;
+      }
+      window.addEventListener("resize", fitStage);
+      window.addEventListener("orientationchange", fitStage);
+      fitStage();
+
+      // 2. Audio Engine & Clip Visibility Synchronization
+      const root = document.getElementById("root");
+      const audioEngine = new ThreatTrackAudioEngine();
+      audioEngine.init();
+      window.__audioEngine = audioEngine;
+
+      const timedClips = Array.from(root.querySelectorAll("#root > [data-start]"));
+      function syncClips(time) {
+        for (let i = 0; i < timedClips.length; i++) {
+          const el = timedClips[i];
+          const start = parseFloat(el.getAttribute("data-start")) || 0;
+          const dur = parseFloat(el.getAttribute("data-duration")) || 0;
+          const active = time >= start && time < (start + dur);
+          el.style.visibility = active ? "visible" : "hidden";
+        }
+      }
+
+      // Sync clips and audio on each frame update
+      const tl = window.__mainTimeline;
+      if (tl) {
+        tl.eventCallback("onUpdate", () => {
+          const t = tl.time();
+          syncClips(t);
+          audioEngine.update(t);
+        });
+        syncClips(0);
+      }
+
+      // 3. Clean Full-Screen Playback (Space or Click anywhere on canvas to toggle)
+      function togglePlay() {
+        const mainTl = window.__mainTimeline;
+        if (!mainTl) return;
+        audioEngine.unlock();
+        if (mainTl.paused()) {
+          mainTl.play();
+        } else {
+          mainTl.pause();
+        }
+      }
+
+      // Click on canvas to toggle playback; double-click for browser fullscreen
+      document.addEventListener("click", (e) => {
+        if (e.detail === 2) {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+          return;
+        }
+        togglePlay();
+      });
+
+      // Keyboard controls (Space = Play/Pause, F = Fullscreen, R = Restart, Arrows = Seek)
+      window.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+        const mainTl = window.__mainTimeline;
+        if (!mainTl) return;
+        if (e.code === "Space") {
+          e.preventDefault();
+          togglePlay();
+        } else if (e.code === "KeyF") {
+          e.preventDefault();
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+        } else if (e.code === "KeyR") {
+          e.preventDefault();
+          audioEngine.unlock();
+          audioEngine.reset(0);
+          mainTl.restart();
+          syncClips(0);
+        } else if (e.code === "ArrowLeft") {
+          e.preventDefault();
+          const target = Math.max(0, mainTl.time() - 3);
+          audioEngine.reset(target);
+          mainTl.seek(target);
+          syncClips(target);
+        } else if (e.code === "ArrowRight") {
+          e.preventDefault();
+          const target = Math.min(mainTl.duration(), mainTl.time() + 3);
+          audioEngine.reset(target);
+          mainTl.seek(target);
+          syncClips(target);
+        }
+      });
+    </script>
+
+    <!-- In-Browser Preview Controller HUD (Method 2) [COMMENTED OUT FOR CLEAN FULL-SCREEN VIEW]:
+    /* Big Play Overlay in center when paused */
+    #center-play {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: rgba(0, 0, 0, 0.45);
+        cursor: pointer;
+      }
+      #center-play.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .play-circle {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        background: #dc2626;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        box-shadow: 0 0 50px rgba(220, 38, 38, 0.6), 0 10px 30px rgba(0, 0, 0, 0.6);
+      }
+      #center-play:hover .play-circle {
+        transform: scale(1.08);
+        background: #ef4444;
+      }
+      .play-label {
+        color: #ffffff;
+        font-family: var(--font);
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      }
+      /* Bottom HUD Bar */
+      #preview-hud {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        color: #ffffff;
+        font-family: var(--font);
+        font-size: 13px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7);
+        user-select: none;
+      }
+      .hud-main-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .hud-scenes-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .hud-btn {
+        background: none;
+        border: none;
+        color: #ffffff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px;
+        border-radius: 50%;
+      }
+      .hud-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .hud-play-btn {
+        width: 36px;
+        height: 36px;
+        background: #dc2626;
+        border-radius: 50%;
+      }
+      .hud-play-btn:hover {
+        background: #ef4444;
+      }
+      .hud-scrubber {
+        width: 280px;
+        height: 6px;
+        accent-color: #dc2626;
+        cursor: pointer;
+      }
+      .hud-time {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: #cbd5e1;
+        min-width: 90px;
+        text-align: center;
+      }
+      .scene-pill {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #94a3b8;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        cursor: pointer;
+      }
+      .scene-pill:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      .scene-pill.active {
+        background: #dc2626;
+        color: #ffffff;
+        border-color: #ef4444;
+      }
+    </style>
+
+    <!-- Center Play Overlay -->
+    <div data-hf-id="hf-u6g1" id="center-play">
+      <div data-hf-id="hf-s2qj" class="play-circle">
+        <svg data-hf-id="hf-0da6" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path data-hf-id="hf-y4mp" d="M8 5v14l11-7z" /></svg>
+      </div>
+      <div data-hf-id="hf-6382" class="play-label">Click anywhere to Play (or press Space)</div>
+    </div>
+
+    <!-- Bottom Controls HUD -->
+    <div data-hf-id="hf-nxef" id="preview-hud">
+      <div data-hf-id="hf-pc94" class="hud-main-row">
+        <button data-hf-id="hf-0tur" class="hud-btn hud-play-btn" id="hud-play" title="Play / Pause (Space)">
+          <svg data-hf-id="hf-lnwg" id="hud-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path data-hf-id="hf-ivad" d="M8 5v14l11-7z" /></svg>
+          <svg data-hf-id="hf-07yl" id="hud-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path data-hf-id="hf-y4nz" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+        </button>
+        <button data-hf-id="hf-iu39" class="hud-btn" id="hud-restart" title="Restart (R)">
+          <svg data-hf-id="hf-rshk" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path data-hf-id="hf-oqbi" d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
+        </button>
+        <button data-hf-id="hf-xuad" class="hud-btn" id="hud-mute" title="Toggle Sound / Audio Engine">
+          <svg data-hf-id="hf-hfin" id="hud-icon-sound" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path data-hf-id="hf-v2cj" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" /></svg>
+          <svg data-hf-id="hf-pce8" id="hud-icon-muted" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path data-hf-id="hf-6mgh" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" /></svg>
+        </button>
+        <input data-hf-id="hf-ux26" type="range" class="hud-scrubber" id="hud-seek" min="0" max="72" step="0.1" value="0.5">
+        <span data-hf-id="hf-qnn7" class="hud-time" id="hud-timer">00:00 / 01:12</span>
+      </div>
+      <div data-hf-id="hf-wfpw" class="hud-scenes-row">
+        <span data-hf-id="hf-2yja" class="scene-pill" data-t="0.5">Radar</span>
+        <span data-hf-id="hf-4z3j" class="scene-pill" data-t="8.1">Collage</span>
+        <span data-hf-id="hf-etjy" class="scene-pill" data-t="14.0">SOS Hold</span>
+        <span data-hf-id="hf-ev59" class="scene-pill" data-t="20.0">Report</span>
+        <span data-hf-id="hf-ythl" class="scene-pill" data-t="24.8">Status</span>
+        <span data-hf-id="hf-3k43" class="scene-pill" data-t="28.9">Command</span>
+        <span data-hf-id="hf-xgfp" class="scene-pill" data-t="33.0">Dispatch</span>
+        <span data-hf-id="hf-j7uh" class="scene-pill" data-t="44.4">Radar 2</span>
+        <span data-hf-id="hf-k3t5" class="scene-pill" data-t="48.6">AI</span>
+        <span data-hf-id="hf-g0hh" class="scene-pill" data-t="65.4">Outro</span>
+      </div>
+    </div>
+
+    <script type="module">
+      import { ThreatTrackAudioEngine } from "./assets/audio-engine.js";
+
+      (async function() {
+        const root = document.getElementById("root");
+        const playBtn = document.getElementById("hud-play");
+        const iconPlay = document.getElementById("hud-icon-play");
+        const iconPause = document.getElementById("hud-icon-pause");
+        const restartBtn = document.getElementById("hud-restart");
+        const muteBtn = document.getElementById("hud-mute");
+        const iconSound = document.getElementById("hud-icon-sound");
+        const iconMuted = document.getElementById("hud-icon-muted");
+        const seekInput = document.getElementById("hud-seek");
+        const timer = document.getElementById("hud-timer");
+        const centerPlay = document.getElementById("center-play");
+        const pills = document.querySelectorAll(".scene-pill");
+
+        // Audio Engine instantiation & initialization
+        const audioEngine = new ThreatTrackAudioEngine();
+        await audioEngine.init();
+        window.__audioEngine = audioEngine;
+
+        muteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          audioEngine.muted = !audioEngine.muted;
+          iconSound.style.display = audioEngine.muted ? "none" : "block";
+          iconMuted.style.display = audioEngine.muted ? "block" : "none";
+        });
+
+        // 1. HyperFrames Clip Visibility Engine
+        const timedClips = Array.from(root.querySelectorAll("[data-start]")).filter(el => el !== root);
+        function syncClips(time) {
+          for (let i = 0; i < timedClips.length; i++) {
+            const el = timedClips[i];
+            const start = parseFloat(el.getAttribute("data-start")) || 0;
+            const dur = parseFloat(el.getAttribute("data-duration")) || 0;
+            const active = time >= start && time < (start + dur);
+            el.style.visibility = active ? "visible" : "hidden";
+          }
+          pills.forEach(p => {
+            const pt = parseFloat(p.getAttribute("data-t"));
+            p.classList.toggle("active", Math.abs(time - pt) < 2.5);
+          });
+        }
+        window.syncClips = syncClips;
+
+        // 2. Responsive scaling to fit any display without cropping
+        function fitScale() {
+          const availW = window.innerWidth - 32;
+          const availH = window.innerHeight - 80;
+          const scale = Math.min(availW / 1920, availH / 1080);
+          root.style.transform = `scale(${Math.max(0.1, scale)})`;
+        }
+        window.addEventListener("resize", fitScale);
+        fitScale();
+
+        // 3. Time formatting
+        function fmt(s) {
+          const m = Math.floor(s / 60);
+          const sec = Math.floor(s % 60);
+          return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+        }
+
+        let isSeeking = false;
+        function updateUI() {
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          const cur = tl.time();
+          const dur = tl.duration() || 62;
+          if (!isSeeking) seekInput.value = cur;
+          timer.textContent = `${fmt(cur)} / ${fmt(dur)}`;
+          const playing = !tl.paused();
+          iconPlay.style.display = playing ? "none" : "block";
+          iconPause.style.display = playing ? "block" : "none";
+          centerPlay.classList.toggle("hidden", playing);
+          syncClips(cur);
+
+          // Update audio cues & voiceover sync
+          audioEngine.update(cur, playing);
+        }
+
+        function togglePlay() {
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          audioEngine.unlock();
+          if (tl.paused()) {
+            if (tl.time() >= (tl.duration() - 0.2)) {
+              audioEngine.reset(0);
+              tl.restart();
+            } else {
+              tl.play();
+            }
+          } else {
+            tl.pause();
+          }
+          updateUI();
+        }
+
+        // Hook into GSAP timeline
+        const timerInterval = setInterval(() => {
+          if (window.__mainTimeline) {
+            const tl = window.__mainTimeline;
+            tl.eventCallback("onUpdate", updateUI);
+            clearInterval(timerInterval);
+            tl.seek(0.5);
+            audioEngine.reset(0.5);
+            updateUI();
+          }
+        }, 80);
+
+        playBtn.addEventListener("click", (e) => { e.stopPropagation(); togglePlay(); });
+        centerPlay.addEventListener("click", togglePlay);
+        root.addEventListener("click", togglePlay);
+
+        restartBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          audioEngine.unlock();
+          audioEngine.reset(0);
+          if (window.__mainTimeline) {
+            window.__mainTimeline.restart();
+            updateUI();
+          }
+        });
+
+        seekInput.addEventListener("input", (e) => {
+          isSeeking = true;
+          const t = parseFloat(e.target.value);
+          const tl = window.__mainTimeline;
+          if (tl) {
+            audioEngine.unlock();
+            tl.pause();
+            tl.seek(t);
+            audioEngine.reset(t);
+            syncClips(t);
+          }
+          timer.textContent = `${fmt(t)} / ${fmt(tl ? tl.duration() : 62)}`;
+        });
+        seekInput.addEventListener("change", () => {
+          isSeeking = false;
+          updateUI();
+        });
+
+        // Quick scene jumps
+        pills.forEach(p => {
+          p.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const t = parseFloat(p.getAttribute("data-t"));
+            const tl = window.__mainTimeline;
+            if (tl) {
+              audioEngine.unlock();
+              tl.pause();
+              tl.seek(t);
+              audioEngine.reset(t);
+              syncClips(t);
+              updateUI();
+            }
+          });
+        });
+
+        // Keyboard hotkeys
+        window.addEventListener("keydown", (e) => {
+          if (e.target.tagName === "INPUT") return;
+          const tl = window.__mainTimeline;
+          if (!tl) return;
+          if (e.code === "Space") {
+            e.preventDefault();
+            togglePlay();
+          } else if (e.code === "ArrowLeft") {
+            e.preventDefault();
+            const target = Math.max(0, tl.time() - 3);
+            audioEngine.reset(target);
+            tl.seek(target);
+            syncClips(target);
+            updateUI();
+          } else if (e.code === "ArrowRight") {
+            e.preventDefault();
+            const target = Math.min(tl.duration(), tl.time() + 3);
+            audioEngine.reset(target);
+            tl.seek(target);
+            syncClips(target);
+            updateUI();
+          } else if (e.code === "KeyR") {
+            e.preventDefault();
+            audioEngine.unlock();
+            audioEngine.reset(0);
+            tl.restart();
+            updateUI();
+          }
+        });
+      })();
+    </script>
+    -->
+  </body>
+</html>

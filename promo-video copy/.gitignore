@@ -1,0 +1,16 @@
+node_modules/
+renders/
+.thumbnails/
+.hyperframes/
+scratch/
+out/
+snapshots/
+beats/
+audio/kit/
+audio/music-candidates/
+audio/browse*.png
+audio/*.wav
+audio/kit-build.log
+out/*.mp4
+*.hf-transaction-*
+audio/stems/

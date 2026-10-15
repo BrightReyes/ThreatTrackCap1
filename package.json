@@ -9,7 +9,10 @@
     "build": "npm --prefix web-admin run build",
     "preview": "npm --prefix web-admin run preview",
     "admin:dev": "npm --prefix web-admin run dev",
-    "admin:build": "npm --prefix web-admin run build"
+    "admin:build": "npm --prefix web-admin run build",
+    "promo:dev": "npm --prefix \"promo-video copy\" run dev",
+    "promo:check": "npm --prefix \"promo-video copy\" run check",
+    "promo:render": "npm --prefix \"promo-video copy\" run render"
   },
   "dependencies": {}
 }

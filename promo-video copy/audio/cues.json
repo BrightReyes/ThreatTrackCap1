@@ -1,0 +1,78 @@
+{
+  "version": "2.0",
+  "duration": 72.0,
+  "cues": [
+    { "time": 0.05, "type": "sub_drop", "freq": 55, "duration": 1.2, "gain": 0.85, "note": "Scene 1 Crimson Intro Impact" },
+    { "time": 0.20, "type": "kinetic_snap", "freq": 180, "gain": 0.65, "note": "Beat 1: Imagine a safer city" },
+    { "time": 0.85, "type": "radar_ping", "freq": 1320, "gain": 0.35, "note": "Valenzuela Radar Pulse 1" },
+    { "time": 1.60, "type": "whoosh_3d", "freq": 320, "duration": 0.55, "gain": 0.70, "note": "Radar 3D Pitch + Beat 2" },
+    { "time": 2.30, "type": "radar_ping", "freq": 1320, "gain": 0.30, "note": "Valenzuela Radar Pulse 2" },
+
+    { "time": 3.20, "type": "whoosh_3d", "freq": 420, "duration": 0.45, "gain": 0.75, "note": "Scene 2 Transition" },
+    { "time": 3.35, "type": "kinetic_snap", "freq": 160, "gain": 0.70, "note": "When something happens" },
+    { "time": 5.40, "type": "sub_drop", "freq": 60, "duration": 0.9, "gain": 0.80, "note": "Scene 3 Immediate Action" },
+    { "time": 6.10, "type": "kinetic_snap", "freq": 220, "gain": 0.80, "note": "Make highlight shake" },
+    { "time": 7.65, "type": "whoosh_3d", "freq": 580, "duration": 0.50, "gain": 0.85, "note": "Portal Zoom into Collage" },
+
+    { "time": 8.05, "type": "sub_drop", "freq": 50, "duration": 1.4, "gain": 0.90, "note": "Scene 4 3D Collage Explosion" },
+    { "time": 8.35, "type": "tactile_tap", "freq": 1600, "gain": 0.45, "note": "Badge stagger 1" },
+    { "time": 8.55, "type": "tactile_tap", "freq": 1800, "gain": 0.45, "note": "Badge stagger 2" },
+    { "time": 8.75, "type": "tactile_tap", "freq": 2000, "gain": 0.45, "note": "Badge stagger 3" },
+    { "time": 11.00, "type": "whoosh_3d", "freq": 640, "duration": 0.45, "gain": 0.85, "note": "Zoom through SOS Card" },
+
+    { "time": 11.40, "type": "sub_drop", "freq": 65, "duration": 0.5, "gain": 0.90, "note": "Creed 1: Report." },
+    { "time": 12.10, "type": "sub_drop", "freq": 58, "duration": 0.5, "gain": 0.90, "note": "Creed 2: Track." },
+    { "time": 12.80, "type": "sub_drop", "freq": 48, "duration": 0.8, "gain": 0.95, "note": "Creed 3: Respond." },
+
+    { "time": 13.60, "type": "whoosh_3d", "freq": 380, "duration": 0.5, "gain": 0.65, "note": "Scene 6 SOS Card Entrance" },
+    { "time": 14.40, "type": "sos_riser", "freq": 220, "duration": 2.0, "gain": 0.75, "note": "3.0s SOS Hold Tension Riser" },
+    { "time": 16.40, "type": "sub_drop", "freq": 45, "duration": 1.1, "gain": 0.95, "note": "SOS Shockwave Release" },
+    { "time": 16.55, "type": "emerald_chime", "freq": 880, "gain": 0.60, "note": "Live Coordinates Locked" },
+    { "time": 17.65, "type": "tactile_tap", "freq": 1400, "gain": 0.55, "note": "Top HUD Case TR-4821 Active" },
+
+    { "time": 19.90, "type": "whoosh_3d", "freq": 440, "duration": 0.5, "gain": 0.70, "note": "Scene 7 Mobile Phone Entrance" },
+    { "time": 20.80, "type": "tactile_tap", "freq": 1900, "gain": 0.65, "note": "Tap 1: Theft / Snatching" },
+    { "time": 21.70, "type": "tactile_tap", "freq": 2100, "gain": 0.65, "note": "Tap 2: Witness" },
+    { "time": 22.60, "type": "tactile_tap", "freq": 2300, "gain": 0.65, "note": "Tap 3: Evidence Photo" },
+    { "time": 23.40, "type": "emerald_chime", "freq": 1046, "gain": 0.70, "note": "Submit + Toast TR-4821" },
+
+    { "time": 24.50, "type": "whoosh_3d", "freq": 360, "duration": 0.45, "gain": 0.65, "note": "Scene 8 Match Cut to Pipeline" },
+    { "time": 25.00, "type": "emerald_chime", "freq": 587, "gain": 0.50, "note": "Stage 1: Submitted" },
+    { "time": 25.55, "type": "emerald_chime", "freq": 659, "gain": 0.50, "note": "Stage 2: Under review" },
+    { "time": 26.10, "type": "emerald_chime", "freq": 784, "gain": 0.55, "note": "Stage 3: Verified" },
+    { "time": 26.65, "type": "emerald_chime", "freq": 880, "gain": 0.60, "note": "Stage 4: Responding" },
+    { "time": 27.20, "type": "emerald_chime", "freq": 1174, "gain": 0.75, "note": "Stage 5: Done" },
+
+    { "time": 28.60, "type": "sub_drop", "freq": 52, "duration": 0.9, "gain": 0.80, "note": "Scene 9 Command Center Dark Glass" },
+    { "time": 30.30, "type": "emergency_alert", "freq": 960, "duration": 0.45, "gain": 0.75, "note": "Row TR-4821 Triage Slam" },
+
+    { "time": 32.90, "type": "whoosh_3d", "freq": 500, "duration": 0.45, "gain": 0.75, "note": "Scene 10 3-Tier Bridge Entrance" },
+    { "time": 35.00, "type": "sos_riser", "freq": 300, "duration": 2.3, "gain": 0.55, "note": "Credibility Counter 0 -> 87%" },
+    { "time": 38.00, "type": "tactile_tap", "freq": 1500, "gain": 0.85, "note": "HQ Clicks Assign" },
+    { "time": 39.85, "type": "tactile_tap", "freq": 1600, "gain": 0.85, "note": "Substation Deploys" },
+    { "time": 41.45, "type": "emerald_chime", "freq": 1046, "gain": 0.70, "note": "Return Loop Reaches Maria" },
+
+    { "time": 44.40, "type": "whoosh_3d", "freq": 340, "duration": 0.5, "gain": 0.65, "note": "Scene 11 3D Hotspot Radar Pitch" },
+    { "time": 45.50, "type": "emerald_chime", "freq": 987, "gain": 0.55, "note": "HUD Morphs to ThreatTrack Brand" },
+    { "time": 46.20, "type": "radar_ping", "freq": 1480, "gain": 0.45, "note": "Mapulang Lupa Hotspot Ping" },
+
+    { "time": 48.60, "type": "whoosh_3d", "freq": 460, "duration": 0.45, "gain": 0.65, "note": "Scene 12 Card Entrance" },
+    { "time": 50.10, "type": "tactile_tap", "freq": 1600, "gain": 0.75, "note": "Dispatcher Clicks Generate AI Support" },
+    { "time": 50.20, "type": "sos_riser", "freq": 260, "duration": 2.0, "gain": 0.50, "note": "RAG Knowledge Base Synthesis Riser" },
+    { "time": 52.40, "type": "tactile_tap", "freq": 2200, "gain": 0.45, "note": "Action Plan Revealed" },
+    { "time": 53.60, "type": "tactile_tap", "freq": 2400, "gain": 0.40, "note": "Human-in-the-loop Badges Lock" },
+    { "time": 54.60, "type": "emerald_chime", "freq": 987, "gain": 0.65, "note": "Dispatcher Approves Plan" },
+
+    { "time": 57.00, "type": "kinetic_snap", "freq": 170, "gain": 0.75, "note": "Storm 1: Your barangay." },
+    { "time": 57.70, "type": "kinetic_snap", "freq": 185, "gain": 0.75, "note": "Storm 2: Your local station." },
+    { "time": 58.40, "type": "kinetic_snap", "freq": 200, "gain": 0.80, "note": "Storm 3: Valenzuela police." },
+    { "time": 59.10, "type": "kinetic_snap", "freq": 215, "gain": 0.80, "note": "Storm 4: Total transparency." },
+    { "time": 59.80, "type": "kinetic_snap", "freq": 230, "gain": 0.85, "note": "Storm 5: Privacy protected." },
+    { "time": 60.50, "type": "sub_drop", "freq": 46, "duration": 0.9, "gain": 0.95, "note": "Storm 6: One safer city." },
+
+    { "time": 61.20, "type": "whoosh_3d", "freq": 400, "duration": 0.7, "gain": 0.80, "note": "Scene 14 6-Card Orbital Convergence" },
+    { "time": 65.40, "type": "radar_ping", "freq": 1100, "gain": 0.55, "note": "Scene 15 EKG Pulse Start" },
+    { "time": 66.60, "type": "emerald_chime", "freq": 1318, "gain": 0.80, "note": "CASE TR-4821 RESOLVED T+31:00" },
+    { "time": 67.60, "type": "sub_drop", "freq": 42, "duration": 2.2, "gain": 1.00, "note": "Hero ThreatTrack Shield Logo Reveal" }
+  ]
+}
