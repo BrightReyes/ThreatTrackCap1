@@ -97,6 +97,7 @@ const SmoothModal = ({
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
       >
         <Animated.View
           style={[

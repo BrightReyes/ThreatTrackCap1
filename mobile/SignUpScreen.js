@@ -217,11 +217,13 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
       <View style={styles.container}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
           style={styles.keyboardView}
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
           >
             {/* Branded ThreatTrack Crimson Hero Banner */}
@@ -768,11 +770,6 @@ const styles = StyleSheet.create({
   inputWrapFocused: {
     borderColor: '#dc2626',
     backgroundColor: '#fffdfd',
-    shadowColor: '#dc2626',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 1,
   },
   inputLeadingIcon: {
     marginRight: 10,
