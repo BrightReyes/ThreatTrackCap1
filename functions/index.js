@@ -22,6 +22,7 @@ exports.recordDecisionSupportAction = require("./src/recordDecisionSupportAction
 exports.recordAIFeedback = require("./src/recordAIFeedback").recordAIFeedback;
 exports.findNearestPrecinct = require("./src/findNearestPrecinct");
 exports.sendNearbyIncidentAlert = require("./src/sendNearbyIncidentAlert");
+exports.syncUserAuthVerification = require("./src/syncUserAuthVerification").syncUserAuthVerification;
 
 // Health check endpoint
 exports.healthCheck = onRequest((req, res) => {

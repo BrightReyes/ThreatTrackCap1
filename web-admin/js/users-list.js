@@ -3,6 +3,7 @@ import {
     doc,
     getDocs,
     limit,
+    onSnapshot,
     orderBy,
     query,
     serverTimestamp,
@@ -26,6 +27,7 @@ const MIN_PASSWORD_LENGTH = 6;
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
 let allDocs = [];
+let usersRealtimeUnsub = null;
 let toolbarBound = false;
 let addUserBound = false;
 let searchDebounceTimer = null;
@@ -163,6 +165,16 @@ export function verifiedBadgeHtml(isVerified) {
     return `<span class="users-verified-badge users-verified-badge--no" title="Unverified Gmail"><span class="material-symbols-outlined" aria-hidden="true">pending</span>Unverified</span>`;
 }
 
+export function formatUserSystemId(userId) {
+    if (!userId) return "";
+    let hash = 0;
+    const s = String(userId || "");
+    for (let i = 0; i < s.length; i += 1) {
+        hash = (hash * 31 + s.charCodeAt(i)) % 10000;
+    }
+    return `#${String(hash).padStart(4, "0")}`;
+}
+
 function buildRow(docSnap, index) {
     const id = docSnap.id;
     const d = docSnap.data();
@@ -188,7 +200,12 @@ function buildRow(docSnap, index) {
 
     return `<tr data-user-id="${escapeAttr(id)}">
     <td class="users-table__index">${index + 1}</td>
-    <td class="users-table__name">${escapeHtml(name)}</td>
+    <td class="users-table__name">
+      <div class="users-table__name-wrap">
+        <span>${escapeHtml(name)}</span>
+        <span class="users-table__sys-id" title="System ID for incident cross-referencing">${escapeHtml(formatUserSystemId(id))}</span>
+      </div>
+    </td>
     <td class="incidents-table__desc" title="${escapeAttr(email)}">${escapeHtml(email)}</td>
     <td><span class="${roleBadgeClass(d.role)}">${escapeHtml(roleLabel)}</span></td>
     <td>${verifiedCell}</td>
@@ -210,12 +227,16 @@ function docMatchesSearch(docSnap, q) {
     const ln = norm(d.lastName);
     const full = norm(`${d.firstName || ""} ${d.lastName || ""}`);
     const uid = norm(docSnap.id);
+    const sysId = norm(formatUserSystemId(docSnap.id));
+    const sysDigits = sysId.replace("#", "");
     return (
         email.includes(q) ||
         fn.includes(q) ||
         ln.includes(q) ||
         full.includes(q) ||
-        uid.includes(q)
+        uid.includes(q) ||
+        sysId.includes(q) ||
+        sysDigits.includes(q)
     );
 }
 
@@ -534,6 +555,12 @@ function bindToolbar() {
     const searchEl = document.getElementById("users-search");
     const roleEl = document.getElementById("users-filter-role");
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchParam = urlParams.get("search");
+    if (searchParam && searchEl) {
+        searchEl.value = searchParam;
+    }
+
     const rerender = () => renderFilteredTable();
 
     searchEl?.addEventListener("input", () => {
@@ -659,7 +686,7 @@ function bindAddUserModal() {
             status: EDIT_STATUSES_FOR_CREATE.includes(status)
                 ? status
                 : "active",
-            accountStatus: status === "active" ? "active" : "inactive",
+            accountStatus: status === "active" ? "active" : (status === "suspended" ? "suspended" : "inactive"),
             disabled: status === "inactive",
             suspended: status === "suspended",
             createdAt: serverTimestamp(),
@@ -818,20 +845,45 @@ async function fetchVerificationDocs() {
     verificationUsers = new Map(userEntries);
 }
 
-export async function loadUsersTable() {
+export function loadUsersTable() {
     const tbody = document.getElementById("users-tbody");
     const meta = document.getElementById("users-count");
-    if (!tbody) return;
+    if (!tbody) return Promise.resolve();
+
+    if (usersRealtimeUnsub) {
+        usersRealtimeUnsub();
+        usersRealtimeUnsub = null;
+    }
 
     tbody.innerHTML =
         '<tr class="incidents-table__empty"><td colspan="8">Loading…</td></tr>';
     if (meta) meta.textContent = "Loading…";
 
-    const snap = await fetchUsersQuery();
-    allDocs = snap.docs;
     bindToolbar();
     bindAddUserModal();
-    populateRoleSelect();
-    updateUserStats();
-    renderFilteredTable();
+
+    return new Promise((resolve, reject) => {
+        let isFirst = true;
+        const q = query(collection(db, "users"), limit(LIST_LIMIT));
+        usersRealtimeUnsub = onSnapshot(
+            q,
+            (snap) => {
+                allDocs = snap.docs;
+                populateRoleSelect();
+                updateUserStats();
+                renderFilteredTable();
+                if (isFirst) {
+                    isFirst = false;
+                    resolve(snap);
+                }
+            },
+            (err) => {
+                console.error("[users] realtime snapshot error", err);
+                if (isFirst) {
+                    isFirst = false;
+                    reject(err);
+                }
+            },
+        );
+    });
 }

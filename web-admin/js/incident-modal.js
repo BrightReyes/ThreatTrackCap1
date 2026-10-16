@@ -168,10 +168,74 @@ function reportedAtDisplay(d) {
     return escapeHtml(formatTimestamp(primary));
 }
 
-function reporterSummary(d) {
-    if (d.isAnonymous === true) return "Anonymous";
-    if (d.reporterId) return "Signed-in user";
-    return "—";
+export function formatUserSystemId(userId) {
+    if (!userId) return "";
+    let hash = 0;
+    const s = String(userId || "");
+    for (let i = 0; i < s.length; i += 1) {
+        hash = (hash * 31 + s.charCodeAt(i)) % 10000;
+    }
+    return `#${String(hash).padStart(4, "0")}`;
+}
+
+function renderReporterSource(d, reporterUser = null) {
+    const isAnonymous = d.isAnonymous === true;
+    const reporterId = d.reporterId || d.userId || "";
+    const sysId = reporterId ? formatUserSystemId(reporterId) : "";
+
+    let pseudonym = "Guest / Unauthenticated";
+    if (isAnonymous) {
+        pseudonym = reporterId ? `Anonymous (${sysId})` : "Anonymous Citizen";
+    } else if (reporterId) {
+        pseudonym = `Signed-in user (${sysId})`;
+    }
+
+    // Determine verification status
+    const isVerified =
+        reporterUser?.isVerified === true ||
+        reporterUser?.emailVerified === true ||
+        reporterUser?.verificationStatus === "approved" ||
+        d.reporterEmailVerified === true;
+
+    // Determine suspended status
+    const isSuspended =
+        reporterUser?.accountStatus === "suspended" ||
+        reporterUser?.accountStatus === "banned" ||
+        reporterUser?.status === "suspended" ||
+        reporterUser?.status === "banned" ||
+        reporterUser?.suspended === true ||
+        reporterUser?.disabled === true ||
+        d.reporterAccountStatus === "suspended" ||
+        d.reporterAccountStatus === "banned";
+
+    let statusIcon = "";
+    if (isSuspended) {
+        statusIcon = `<span class="material-symbols-outlined incident-reporter-suspended-icon" title="Account Suspended by administration" aria-label="Suspended">block</span>`;
+    } else if (isVerified) {
+        statusIcon = `<span class="material-symbols-outlined incident-reporter-verified-icon" title="Verified Account" aria-label="Verified">verified</span>`;
+    }
+
+    let actionsHtml = "";
+    if (reporterId) {
+        const copyVal = sysId || reporterId;
+        actionsHtml = `
+        <div class="incident-reporter-actions">
+            <button type="button" class="incident-icon-action-btn" data-copy-id="${escapeAttr(copyVal)}" title="Copy ${escapeAttr(copyVal)}" aria-label="Copy User ID">
+                <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+            </button>
+            <a href="users.html?search=${encodeURIComponent(copyVal)}" target="_blank" rel="noopener noreferrer" class="incident-icon-action-btn" title="Cross-check in User Management" aria-label="Cross-check in User Management">
+                <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+            </a>
+        </div>`;
+    }
+
+    return `
+    <div class="incident-reporter-cell">
+        <span class="material-symbols-outlined incident-reporter-avatar-icon" aria-hidden="true">${isAnonymous ? "person_off" : "person"}</span>
+        <span class="incident-reporter-name">${escapeHtml(pseudonym)}</span>
+        ${statusIcon}
+        ${actionsHtml}
+    </div>`;
 }
 
 function buildPriorityPanel(d) {
@@ -556,7 +620,7 @@ function needsTerminalResponseSync(data = {}, nextStatus = "") {
     return false;
 }
 
-function renderIncidentDetail(docId, d, responderOptions = null) {
+function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = null) {
     const loc = d.location || {};
     const lat =
         loc.latitude != null && !Number.isNaN(Number(loc.latitude))
@@ -618,12 +682,11 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
                 ${reportedAtDisplay(d)}
               </span>
             </div>
-            <div class="incident-triage-item">
+            <div class="incident-triage-item incident-triage-item--reporter">
               <span class="incident-triage-item__label">Reporter Source</span>
-              <span class="incident-triage-item__val">
-                <span class="material-symbols-outlined" aria-hidden="true">person</span>
-                ${escapeHtml(reporterSummary(d))}
-              </span>
+              <div class="incident-triage-item__val incident-triage-item__val--reporter">
+                ${renderReporterSource(d, reporterUser)}
+              </div>
             </div>
             <div class="incident-triage-item">
               <span class="incident-triage-item__label">Initial Priority</span>
@@ -760,6 +823,7 @@ export function initIncidentModal() {
     const tbody = document.getElementById("incidents-tbody");
     let currentIncidentId = null;
     let currentData = null;
+    let currentReporterUser = null;
     let currentResponderOptions = [];
     let openMenu = null;
 
@@ -773,6 +837,7 @@ export function initIncidentModal() {
         document.body.style.overflow = "";
         currentIncidentId = null;
         currentData = null;
+        currentReporterUser = null;
         currentResponderOptions = [];
         window.__threatTrackIncidentModalOpen = false;
         window.dispatchEvent(new CustomEvent("incident-modal:closed"));
@@ -953,6 +1018,24 @@ export function initIncidentModal() {
 
     function bindActionHandlers() {
         const feedback = document.getElementById("incident-actions-feedback");
+
+        body.querySelector("[data-copy-id], [data-copy-uid]")?.addEventListener("click", async (e) => {
+            e.preventDefault();
+            const btn = e.currentTarget;
+            const copyText = btn.getAttribute("data-copy-id") || btn.getAttribute("data-copy-uid");
+            if (!copyText) return;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(copyText);
+                    toastSuccess(`Copied: ${copyText}`);
+                } else {
+                    prompt("User ID:", copyText);
+                }
+            } catch (err) {
+                console.warn("[incident-modal] clipboard copy error", err);
+                prompt("User ID:", copyText);
+            }
+        });
         body.querySelector("[data-action-respond]")?.addEventListener("click", async () => {
             if (!currentIncidentId || !currentData) return;
             const selectedId = document.getElementById("incident-responder-select")?.value;
@@ -1220,7 +1303,7 @@ export function initIncidentModal() {
                 ...currentData,
                 ...responseUpdate,
             };
-            body.innerHTML = renderIncidentDetail(currentIncidentId, currentData);
+            body.innerHTML = renderIncidentDetail(currentIncidentId, currentData, null, currentReporterUser);
             bindActionHandlers();
             updateStatusCell(currentIncidentId, "responding");
             toastSuccess(isHeadPolice ? `Assigned to ${getPrecinctDisplayName(selectedResponder)}` : "Responder alert sent to user");
@@ -1321,7 +1404,19 @@ export function initIncidentModal() {
                     </div>
                 `;
             }
-            body.innerHTML = renderIncidentDetail(snap.id, currentData);
+            let reporterUser = null;
+            if (currentData.reporterId) {
+                try {
+                    const uSnap = await getDoc(doc(db, "users", currentData.reporterId));
+                    if (uSnap.exists()) {
+                        reporterUser = uSnap.data();
+                    }
+                } catch (e) {
+                    console.warn("[incident-modal] unable to load reporter user info", e);
+                }
+            }
+            currentReporterUser = reporterUser;
+            body.innerHTML = renderIncidentDetail(snap.id, currentData, null, currentReporterUser);
             bindActionHandlers();
             loadResponderOptions();
         } catch (err) {

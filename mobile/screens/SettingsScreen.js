@@ -20,7 +20,7 @@ import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
 import { auth, db } from '../utils/firebase';
-import { resendEmailVerification } from '../utils/auth';
+import { resendEmailVerification, syncEmailVerification } from '../utils/auth';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 
@@ -87,7 +87,9 @@ const SettingsScreen = ({ navigation, onLogout }) => {
       setResendingVerification(true);
       const res = await resendEmailVerification();
       if (res.alreadyVerified) {
+        await syncEmailVerification();
         setUser({ ...auth.currentUser });
+        setProfile((prev) => (prev ? { ...prev, emailVerified: true, isVerified: true } : prev));
         showAlert('Email Verified', 'Your email address is already verified!', 'success');
       } else {
         showAlert('Verification Link Sent', 'A verification link has been sent to your email address. Please check your inbox or spam folder.', 'info');
@@ -108,6 +110,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
       try {
         await currentUser.reload();
+        await currentUser.getIdToken(true);
         setUser({ ...auth.currentUser });
       } catch (reloadErr) {
         // Silently continue if network unavailable
@@ -122,6 +125,19 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           setPushNotifications(prefs.pushNotifications !== false);
           setHighPriority(prefs.highPriority !== false);
           setLocationAlerts(prefs.locationAlerts !== false);
+
+          if (auth.currentUser?.emailVerified && (!profileData.emailVerified || !profileData.isVerified)) {
+            try {
+              await updateDoc(doc(db, 'users', currentUser.uid), {
+                emailVerified: true,
+                isVerified: true,
+                lastVerificationCheckAt: new Date().toISOString(),
+              });
+              setProfile({ ...profileData, emailVerified: true, isVerified: true });
+            } catch (syncErr) {
+              console.warn('[AUTH] SettingsScreen profile sync error:', syncErr?.message || syncErr);
+            }
+          }
         }
       } catch (error) {
         console.warn('Unable to load user profile:', error);

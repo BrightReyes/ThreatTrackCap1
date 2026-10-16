@@ -152,6 +152,9 @@ service cloud.firestore {
       return isAuthenticated() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              userDoc(request.auth.uid).data.accountStatus == 'active' &&
+             (!('status' in userDoc(request.auth.uid).data) || userDoc(request.auth.uid).data.status == 'active') &&
+             (!('suspended' in userDoc(request.auth.uid).data) || userDoc(request.auth.uid).data.suspended == false) &&
+             (!('disabled' in userDoc(request.auth.uid).data) || userDoc(request.auth.uid).data.disabled == false) &&
              userDoc(request.auth.uid).data.falseReportAcknowledged == true;
     }
 
@@ -302,6 +305,8 @@ service cloud.firestore {
                     request.resource.data.email == resource.data.email &&
                     (!request.resource.data.keys().hasAny(['emailVerified']) ||
                       request.resource.data.emailVerified == request.auth.token.email_verified) &&
+                    (!request.resource.data.keys().hasAny(['isVerified']) ||
+                      request.resource.data.isVerified == request.auth.token.email_verified) &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly([
                         'firstName',
@@ -313,6 +318,7 @@ service cloud.firestore {
                         'age',
                         'address',
                         'emailVerified',
+                        'isVerified',
                         'lastLoginAt',
                         'lastVerificationCheckAt',
                         'falseReportAcknowledged',
@@ -323,6 +329,8 @@ service cloud.firestore {
                    (canManageTargetUserProfile(resource.data.role) &&
                     canManageTargetUserProfile(request.resource.data.role) &&
                     request.resource.data.uid == userId &&
+                    (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'emailVerified']) ||
+                      isHeadPoliceAdmin()) &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly([
                         'firstName',
@@ -349,7 +357,10 @@ service cloud.firestore {
                         'accountStatus',
                         'trustScore',
                         'falseReportCount',
-                        'adminNotes'
+                        'adminNotes',
+                        'isVerified',
+                        'emailVerified',
+                        'updatedAt'
                       ]));
 
       // Users can delete their own profile; staff can delete profiles within their authority

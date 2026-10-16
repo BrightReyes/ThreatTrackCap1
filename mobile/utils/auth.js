@@ -234,6 +234,37 @@ export const handleSignup = async (email, password, userData = {}) => {
   }
 };
 
+export const syncEmailVerification = async () => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) return false;
+
+  try {
+    await reload(currentUser);
+    await currentUser.getIdToken(true);
+
+    if (currentUser.emailVerified) {
+      const userRef = doc(db, 'users', currentUser.uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (data.emailVerified !== true || data.isVerified !== true) {
+          await updateDoc(userRef, {
+            emailVerified: true,
+            isVerified: true,
+            lastVerificationCheckAt: new Date().toISOString(),
+          });
+          console.log('[AUTH] Synchronized email verification to Firestore.');
+        }
+      }
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn('[AUTH] Error syncing email verification:', err?.message || err);
+    return false;
+  }
+};
+
 export const resendEmailVerification = async () => {
   const currentUser = auth.currentUser;
 
@@ -245,6 +276,15 @@ export const resendEmailVerification = async () => {
   await currentUser.getIdToken(true);
 
   if (currentUser.emailVerified) {
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        emailVerified: true,
+        isVerified: true,
+        lastVerificationCheckAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('[AUTH] Unable to update verification metadata:', err);
+    }
     return { success: true, alreadyVerified: true };
   }
 
@@ -274,6 +314,7 @@ export const getReportEligibility = async () => {
     try {
       await updateDoc(profileRef, {
         emailVerified: currentUser.emailVerified,
+        isVerified: currentUser.emailVerified,
         lastVerificationCheckAt: new Date().toISOString(),
       });
     } catch (profileUpdateError) {
@@ -289,7 +330,23 @@ export const getReportEligibility = async () => {
     };
   }
 
-  if (profile.accountStatus !== 'active') {
+  const isSuspendedOrBanned =
+    profile.accountStatus === 'suspended' ||
+    profile.accountStatus === 'banned' ||
+    profile.status === 'suspended' ||
+    profile.status === 'banned' ||
+    profile.suspended === true ||
+    profile.disabled === true;
+
+  if (isSuspendedOrBanned) {
+    return {
+      allowed: false,
+      title: 'Account Suspended',
+      message: 'This account has been suspended by the administration for policy violations (such as false or prank reporting). You cannot submit incident reports.',
+    };
+  }
+
+  if (profile.accountStatus !== 'active' || (profile.status && profile.status !== 'active')) {
     return {
       allowed: false,
       title: 'Account Restricted',

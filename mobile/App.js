@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { enableFreeze, enableScreens } from 'react-native-screens';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './utils/firebase';
-import { handleLogout as authLogout } from './utils/auth';
+import { handleLogout as authLogout, syncEmailVerification } from './utils/auth';
 import { registerForPushNotificationsAsync, addNotificationResponseReceivedListener } from './utils/notifications';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
@@ -55,6 +55,10 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setIsAuthenticated(true);
+        // Automatically ensure verification state is synchronized with Firestore profile
+        syncEmailVerification().catch((syncErr) => {
+          console.warn('[AUTH] Background verification sync error:', syncErr?.message || syncErr);
+        });
         // Register device for free push notifications with FCM
         registerForPushNotificationsAsync(user.uid).catch((err) => {
           console.warn('[PUSH] Registration failed:', err?.message || err);
@@ -63,6 +67,15 @@ export default function App() {
         setIsAuthenticated(false);
       }
       setIsLoadingAuth(false);
+    });
+
+    // Check verification status whenever user switches back to ThreatTrack (e.g., from verifying in Gmail)
+    const appStateSub = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active' && auth.currentUser) {
+        syncEmailVerification().catch((err) => {
+          console.warn('[AUTH] AppState verification sync error:', err?.message || err);
+        });
+      }
     });
 
     try {
@@ -77,6 +90,9 @@ export default function App() {
     // Clean up the subscriptions on unmount to prevent memory leaks
     return () => {
       unsubscribe();
+      if (appStateSub?.remove) {
+        appStateSub.remove();
+      }
       if (responseSubscription?.remove) {
         responseSubscription.remove();
       }

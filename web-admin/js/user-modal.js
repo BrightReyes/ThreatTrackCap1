@@ -1,10 +1,11 @@
-import { deleteDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../../shared/firebase.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import { COVERED_BARANGAYS, getBarangayNameById } from "../../shared/barangays.js";
 import { COVERED_SUBSTATIONS, getSubstationNameById } from "../../shared/substations.js";
 import { isUserVerified, verifiedBadgeHtml } from "./users-list.js";
+import { getCurrentAdminRole, isHeadPoliceAdminRole } from "./admin-auth.js";
 
 const EDIT_ROLES = ["user", "admin", "police", "head_police"];
 const EDIT_STATUSES = ["active", "inactive", "suspended"];
@@ -88,6 +89,16 @@ function humanizeStatus(status) {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function formatUserSystemId(userId) {
+    if (!userId) return "";
+    let hash = 0;
+    const s = String(userId || "");
+    for (let i = 0; i < s.length; i += 1) {
+        hash = (hash * 31 + s.charCodeAt(i)) % 10000;
+    }
+    return `#${String(hash).padStart(4, "0")}`;
+}
+
 function humanizeRole(role) {
     const normalized = normalizeRole(role);
     if (normalized === "admin") return "Barangay Admin";
@@ -127,6 +138,7 @@ function normalizeRole(role) {
 }
 
 function renderUserDetail(userId, d) {
+    const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
     const name = displayName(d);
     const status = userStatus(d);
     const verified = isUserVerified(d);
@@ -143,7 +155,9 @@ function renderUserDetail(userId, d) {
       <div class="user-profile__avatar" aria-hidden="true">${escapeHtml(userInitials(d))}</div>
       <div class="user-profile__identity">
         <h3>${escapeHtml(name)}</h3>
-        <p>${escapeHtml(d.email || "No email address")}</p>
+        <p class="user-profile__email-line">
+          ${escapeHtml(d.email || "No email address")} • <strong class="users-table__sys-id" title="Deterministic System ID for incident reporting">${escapeHtml(formatUserSystemId(userId))}</strong>
+        </p>
         <div class="user-profile__badges">
           <span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>
           <span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>
@@ -174,12 +188,13 @@ function renderUserDetail(userId, d) {
     <section class="user-profile__section">
       <h4>System</h4>
       <dl class="user-profile__details">
+        <div><dt>System ID</dt><dd><code>${escapeHtml(formatUserSystemId(userId))}</code> <span style="font-size: 0.8rem; color: #64748b;">(pseudonym on incident reports)</span></dd></div>
         <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
         <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
-        ${isCitizen ? `<div><dt>Gmail Verification</dt><dd>${verified ? "✅ Verified Gmail (Can submit incident reports)" : "⏳ Unverified Gmail (Pending verification)"}</dd></div>` : ""}
-        ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd>📍 ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
-        ${d.role === "police" || d.substationId ? `<div><dt>Assigned Substation</dt><dd>🚔 ${escapeHtml(getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned")}</dd></div>` : ""}
-        ${d.role === "head_police" ? `<div><dt>Jurisdiction</dt><dd>🏢 Central Command (City-wide Oversight)</dd></div>` : ""}
+        ${isCitizen ? `<div><dt>Gmail Verification</dt><dd><span class="users-verified-badge ${verified ? "users-verified-badge--yes" : "users-verified-badge--no"}"><span class="material-symbols-outlined" aria-hidden="true">${verified ? "verified" : "pending"}</span>${verified ? "Verified Gmail (Eligible to submit incident reports)" : "Unverified Gmail (Pending citizen verification)"}</span></dd></div>` : ""}
+        ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #dc2626;">location_on</span> ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
+        ${d.role === "police" || d.substationId ? `<div><dt>Assigned Substation</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #2563eb;">local_police</span> ${escapeHtml(getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned")}</dd></div>` : ""}
+        ${d.role === "head_police" ? `<div><dt>Jurisdiction</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #1e3a8a;">corporate_fare</span> Central Command (City-wide Oversight)</dd></div>` : ""}
         <div><dt>Status</dt><dd>${escapeHtml(humanizeStatus(status))}</dd></div>
         <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
@@ -189,6 +204,10 @@ function renderUserDetail(userId, d) {
     <h3 class="incident-actions__title">Profile actions</h3>
     <p class="incident-actions__hint">Edit profile fields, role, or account status. Delete only removes the Firestore profile document.</p>
     <div class="incident-actions__buttons">
+      ${isCitizen && !verified && isHQ ? `
+      <button type="button" class="incident-action-btn incident-action-btn--secondary" data-user-action="verify-account">
+        <span class="material-symbols-outlined" aria-hidden="true">verified</span> Verify account (HQ Override)
+      </button>` : ""}
       <button type="button" class="incident-action-btn" data-user-action="edit-profile">Edit</button>
       <button type="button" class="incident-action-btn incident-action-btn--danger" data-user-action="delete-profile">
         Delete profile
@@ -199,6 +218,7 @@ function renderUserDetail(userId, d) {
 }
 
 function renderUserEditForm(userId, d) {
+    const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
     const cur = normalizeRole(d.role);
     const curStatus = userStatus(d);
     const verified = isUserVerified(d);
@@ -257,9 +277,9 @@ function renderUserEditForm(userId, d) {
           </div>
         </div>
       </div>
-      <div class="user-modal-form__grid" id="user-edit-verified-grid" style="${cur === "user" ? "margin-top: 10px;" : "display:none;margin-top: 10px;"}">
+      <div class="user-modal-form__grid" id="user-edit-verified-grid" style="${cur === "user" && isHQ ? "margin-top: 10px;" : "display:none;margin-top: 10px;"}">
         <div class="user-modal-form__field user-modal-form__field--full">
-          <label class="user-modal-form__label" for="user-edit-verified">Gmail Verification (Report Eligibility)</label>
+          <label class="user-modal-form__label" for="user-edit-verified">Gmail Verification (HQ Override)</label>
           <div class="user-modal-form__select-wrap">
             <select id="user-edit-verified" name="isVerified" class="incidents-select" aria-label="Verification status">
               <option value="true"${verified ? " selected" : ""}>Verified — Eligible to send reports</option>
@@ -267,7 +287,7 @@ function renderUserEditForm(userId, d) {
             </select>
           </div>
           <small style="color: #64748b; font-size: 0.8rem; margin-top: 4px; display: block;">
-            Verified accounts can automatically submit incident reports.
+            Head Police HQ override for manual or testing account verification.
           </small>
         </div>
       </div>
@@ -308,7 +328,7 @@ function renderUserEditForm(userId, d) {
       <div class="user-modal-form__grid" id="user-edit-head-police-note" style="${cur === "head_police" ? "margin-top:10px;" : "display:none;margin-top:10px;"}">
         <div class="user-modal-form__field user-modal-form__field--full">
           <div style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 6px; padding: 10px 12px; font-size: 0.85rem; line-height: 1.4;">
-            <strong>🏢 Central Command (City-wide):</strong> Head Police Admin maintains macro oversight across all substations and can dispatch/reassign incidents.
+            <strong>Central Command (City-wide):</strong> Head Police Admin maintains macro oversight across all substations and can dispatch/reassign incidents.
           </div>
         </div>
       </div>
@@ -406,8 +426,13 @@ export function initUserModal() {
 
     let currentUserId = null;
     let currentData = null;
+    let modalDocUnsubscribe = null;
 
     function closeModal() {
+        if (modalDocUnsubscribe) {
+            modalDocUnsubscribe();
+            modalDocUnsubscribe = null;
+        }
         modal.hidden = true;
         modal.setAttribute("aria-hidden", "true");
         body.innerHTML = "";
@@ -441,6 +466,35 @@ export function initUserModal() {
         const delBtn = body.querySelector(
             '[data-user-action="delete-profile"]',
         );
+        const verifyBtn = body.querySelector(
+            '[data-user-action="verify-account"]',
+        );
+
+        verifyBtn?.addEventListener("click", async () => {
+            if (!currentUserId) return;
+            const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
+            if (!isHQ) {
+                toastError("Only Head Police HQ Admin has permission to override user verification.");
+                return;
+            }
+            verifyBtn.disabled = true;
+            if (feedback) feedback.textContent = "Updating verification status…";
+            try {
+                await updateDoc(doc(db, "users", currentUserId), {
+                    emailVerified: true,
+                    isVerified: true,
+                    updatedAt: serverTimestamp(),
+                });
+                toastSuccess("User account marked as verified (HQ Override)");
+                if (feedback) feedback.textContent = "Account verified successfully.";
+            } catch (err) {
+                console.error("[user-modal] verify account error", err);
+                toastError(err?.message || "Failed to update verification status");
+                if (feedback) feedback.textContent = err?.message || "Verification failed.";
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        });
 
         editBtn?.addEventListener("click", () => {
             if (feedback) feedback.textContent = "";
@@ -492,9 +546,10 @@ export function initUserModal() {
         const substationGrid = body.querySelector("#user-edit-substation-grid");
         const headPoliceNote = body.querySelector("#user-edit-head-police-note");
 
+        const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
         const syncEditRoleVisibility = () => {
             const r = normalizeRole(roleEl?.value ?? "user");
-            if (verifiedGrid) verifiedGrid.style.display = r === "user" ? "" : "none";
+            if (verifiedGrid) verifiedGrid.style.display = (r === "user" && isHQ) ? "" : "none";
             if (barangayGrid) barangayGrid.style.display = r === "admin" ? "" : "none";
             if (substationGrid) substationGrid.style.display = r === "police" ? "" : "none";
             if (headPoliceNote) headPoliceNote.style.display = r === "head_police" ? "" : "none";
@@ -529,25 +584,31 @@ export function initUserModal() {
             const substationId = String(substationEl?.value ?? "").trim();
             const substationName = substationId ? getSubstationNameById(substationId) : null;
             const verifiedEl = body.querySelector("#user-edit-verified");
-            const isVerifiedVal = verifiedEl ? verifiedEl.value === "true" : isUserVerified(currentData);
 
             if (feedback) feedback.textContent = "Saving…";
             saveBtn && (saveBtn.disabled = true);
             cancelBtn && (cancelBtn.disabled = true);
 
             // Always send uid so merged doc satisfies rules (uid must equal document id).
+            const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
             const payload = {
                 uid: currentUserId,
                 firstName,
                 lastName,
                 role,
                 status,
+                accountStatus: status === "active" ? "active" : (status === "suspended" ? "suspended" : "inactive"),
                 disabled: status === "inactive",
                 suspended: status === "suspended",
-                isVerified: isVerifiedVal,
-                emailVerified: isVerifiedVal,
-                verificationStatus: isVerifiedVal ? "approved" : "unverified",
+                updatedAt: serverTimestamp(),
             };
+
+            if (isHQ && verifiedEl) {
+                const isVerifiedVal = verifiedEl.value === "true";
+                payload.isVerified = isVerifiedVal;
+                payload.emailVerified = isVerifiedVal;
+                payload.verificationStatus = isVerifiedVal ? "approved" : "unverified";
+            }
 
             if (role === "admin" && barangayId) {
                 payload.barangayId = barangayId;
@@ -614,7 +675,7 @@ export function initUserModal() {
         if (e.key === "Escape" && !modal.hidden) closeModal();
     });
 
-    tbody.addEventListener("click", async (e) => {
+    tbody.addEventListener("click", (e) => {
         const btn = e.target.closest(".users-more-btn");
         if (!btn) return;
         const tr = btn.closest("tr");
@@ -626,19 +687,30 @@ export function initUserModal() {
         body.innerHTML = '<p class="incident-modal__loading">Loading user…</p>';
         openModal();
 
-        try {
-            const snap = await getDoc(doc(db, "users", id));
-            if (!snap.exists()) {
-                body.innerHTML = `<p class="incident-modal__error">${escapeHtml("User profile not found.")}</p>`;
-                return;
-            }
-            currentData = snap.data();
-            if (titleEl) titleEl.textContent = "Profile";
-            body.innerHTML = renderUserDetail(snap.id, currentData);
-            bindViewActions();
-        } catch (err) {
-            console.error("[user-modal]", err);
-            body.innerHTML = `<p class="incident-modal__error">${escapeHtml(err?.message || "Failed to load user")}</p>`;
+        if (modalDocUnsubscribe) {
+            modalDocUnsubscribe();
+            modalDocUnsubscribe = null;
         }
+
+        modalDocUnsubscribe = onSnapshot(
+            doc(db, "users", id),
+            (snap) => {
+                if (!snap.exists()) {
+                    body.innerHTML = `<p class="incident-modal__error">${escapeHtml("User profile not found.")}</p>`;
+                    return;
+                }
+                currentData = snap.data();
+                const isEditing = body.querySelector("#user-edit-form");
+                if (!isEditing) {
+                    if (titleEl) titleEl.textContent = "Profile";
+                    body.innerHTML = renderUserDetail(snap.id, currentData);
+                    bindViewActions();
+                }
+            },
+            (err) => {
+                console.error("[user-modal] realtime error", err);
+                body.innerHTML = `<p class="incident-modal__error">${escapeHtml(err?.message || "Failed to load user")}</p>`;
+            },
+        );
     });
 }
