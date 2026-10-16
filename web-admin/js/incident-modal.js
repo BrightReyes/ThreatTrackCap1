@@ -290,7 +290,7 @@ function buildResponderSelect(options = null, currentData = null) {
     const optionHtml = [
         '<option value="">Choose police sub-station...</option>',
         ...options.map((option, index) => {
-            const prefix = option.isSubstation ? "🚔 Sub-station" : (index === 0 ? "Nearest" : `Option ${index + 1}`);
+            const prefix = option.isSubstation ? "Sub-station" : (index === 0 ? "Nearest" : `Option ${index + 1}`);
             const distance = formatDistanceKm(option.distanceKm);
             const eta = formatEtaMinutes(option.etaMinutes, option.trafficLevel);
             const optId = String(option.precinctId || option.substationId || "").toLowerCase();
@@ -306,6 +306,141 @@ function buildResponderSelect(options = null, currentData = null) {
       </div>
       <small>Sorted nearest first. Select Balangkas or Mapulang Lupa substation for dispatch.</small>
     </label>`;
+}
+
+function buildDispatchedStatusBadge(d = {}) {
+    const response = d.response || {};
+    const responder = d.responder || response.responder || {};
+    const assignedName =
+        d.assignedSubstationName ||
+        d.substationName ||
+        getPrecinctDisplayName(responder) ||
+        (d.assignedSubstationId ? getSubstationNameById(d.assignedSubstationId) : null) ||
+        "Police Sub-station";
+    const distanceKm = response.distanceKm != null ? response.distanceKm : (d.assignedSubstationDistanceKm != null ? d.assignedSubstationDistanceKm : null);
+    const distText = distanceKm != null ? formatDistanceKm(distanceKm) : null;
+    const eta = response.etaMinutes != null ? response.etaMinutes : (d.assignedSubstationEtaMinutes != null ? d.assignedSubstationEtaMinutes : null);
+    const etaText = eta != null ? `${Math.round(eta)} min ETA` : null;
+
+    return `<div class="incident-dispatched-box" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:0.75rem;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:4px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
+          Precinct Deployed
+        </span>
+        <span style="font-size:0.75rem;font-weight:700;color:#166534;background:#dcfce7;padding:2px 8px;border-radius:999px;">Responding</span>
+      </div>
+      <div style="font-size:0.95rem;font-weight:800;color:#0f172a;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#16a34a;">local_police</span>
+        ${escapeHtml(assignedName)}
+      </div>
+      ${(distText || etaText) ? `
+      <div style="display:flex;align-items:center;gap:8px;font-size:0.78rem;font-weight:600;color:#475569;margin-top:4px;">
+        ${distText ? `<span style="display:inline-flex;align-items:center;gap:3px;"><span class="material-symbols-outlined" style="font-size:14px;">near_me</span> ${escapeHtml(distText)}</span>` : ""}
+        ${etaText ? `<span style="display:inline-flex;align-items:center;gap:3px;"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span> ${escapeHtml(etaText)}</span>` : ""}
+      </div>` : ""}
+      <small style="display:block;margin-top:8px;color:#64748b;font-size:0.75rem;line-height:1.35;">
+        Substation units are actively deployed. Precinct dispatch is locked for this incident.
+      </small>
+    </div>`;
+}
+
+function buildModerationActions(d = {}, { canDispatch = false, isHeadPolice = false, isAlreadyDispatched = false } = {}) {
+    const status = d.status || "under_review";
+
+    // 1. Terminal State: Done
+    if (status === "done") {
+        const isSafe = d.resolutionReason === "user_marked_safe";
+        const completedAt = d.completedAt || d.distressResolvedAt;
+        const timeStr = completedAt ? formatTimestamp(completedAt) : null;
+        return `
+          <div class="incident-terminal-box incident-terminal-box--completed" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-top:6px;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:0.95rem;font-weight:800;color:#166534;margin-bottom:4px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:#16a34a;">check_circle</span>
+              <span>Incident Completed &amp; Resolved</span>
+            </div>
+            <p style="margin:0 0 8px 0;font-size:0.825rem;color:#15803d;line-height:1.4;">
+              ${isSafe ? "Citizen confirmed safe and terminated distress tracking from mobile." : "All response and moderation actions have concluded. Evidence archived."}
+            </p>
+            ${timeStr ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:600;color:#166534;"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span> Resolved at ${escapeHtml(timeStr)}</span>` : ""}
+          </div>
+        `;
+    }
+
+    // 2. Terminal State: Rejected
+    if (status === "rejected") {
+        const rejectedAt = d.rejectedAt;
+        const timeStr = rejectedAt ? formatTimestamp(rejectedAt) : null;
+        return `
+          <div class="incident-terminal-box incident-terminal-box--rejected" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;margin-top:6px;">
+            <div style="display:flex;align-items:center;gap:8px;font-size:0.95rem;font-weight:800;color:#991b1b;margin-bottom:4px;">
+              <span class="material-symbols-outlined" style="font-size:20px;color:#dc2626;">cancel</span>
+              <span>Report Rejected</span>
+            </div>
+            <p style="margin:0 0 8px 0;font-size:0.825rem;color:#b91c1c;line-height:1.4;">
+              ${escapeHtml(d.rejectionReason || "This report was rejected during administrative moderation.")}
+            </p>
+            ${timeStr ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;font-weight:600;color:#991b1b;"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span> Rejected at ${escapeHtml(timeStr)}</span>` : ""}
+          </div>
+        `;
+    }
+
+    // 3. Active Responding State (Dispatched)
+    if (isAlreadyDispatched || status === "responding") {
+        const isSafe = d.resolutionReason === "user_marked_safe";
+        return `
+          ${isSafe ? `
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+              <span class="material-symbols-outlined" style="font-size:18px;color:#2563eb;">health_and_safety</span>
+              <span style="font-size:0.825rem;font-weight:600;color:#1e40af;">Citizen reported safe. Ready for final incident resolution.</span>
+            </div>
+          ` : ""}
+          <div class="incident-actions__buttons incident-actions__buttons--responding" style="display:grid;grid-template-columns:1fr;gap:8px;width:100%;">
+            <button type="button" class="incident-action-btn incident-action-btn--success" data-action-status="done" style="width:100%;min-height:44px;font-size:0.92rem;font-weight:800;">
+              <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+              <span>Mark Done</span>
+            </button>
+          </div>
+          <small style="display:block;margin-top:8px;color:#64748b;font-size:0.75rem;line-height:1.35;text-align:center;">
+            Units are actively deployed. Cannot cancel or reject while responding.
+          </small>
+        `;
+    }
+
+    // 4. Pre-Dispatch Triage (status is pending, under_review, or verified)
+    const isSafe = d.resolutionReason === "user_marked_safe";
+    return `
+      <div class="incident-actions__buttons">
+        ${
+          canDispatch
+            ? `<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true" style="grid-column: 1 / -1;"><span class="material-symbols-outlined" aria-hidden="true">send</span><span>${isHeadPolice ? "Dispatch / Assign Substation" : "Dispatch Precinct"}</span></button>`
+            : ""
+        }
+        <button type="button" class="incident-action-btn${status === "verified" ? " is-active" : ""}" data-action-status="verified"${status === "verified" ? ' disabled title="Report already verified"' : ""}>
+          <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+          <span>${status === "verified" ? "Verified" : "Verify"}</span>
+        </button>
+        ${
+          isSafe
+            ? `<button type="button" class="incident-action-btn incident-action-btn--success" data-action-status="done">
+                <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                <span>Mark Done</span>
+              </button>`
+            : ""
+        }
+        <button type="button" class="incident-action-btn incident-action-btn--danger" data-action-status="rejected">
+          <span class="material-symbols-outlined" aria-hidden="true">cancel</span>
+          <span>Reject</span>
+        </button>
+      </div>
+      ${
+        !isSafe
+          ? `<small style="display:block;margin-top:8px;color:#64748b;font-size:0.75rem;line-height:1.35;text-align:center;">
+              A responder precinct must be dispatched before this incident can be marked done.
+            </small>`
+          : ""
+      }
+    `;
 }
 
 function buildStatusUpdatePayload(nextStatus, currentData = {}, options = {}) {
@@ -455,7 +590,8 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
     const actionStatus = d.status || "under_review";
     const currentRole = getCurrentAdminRole();
     const isHeadPolice = isHeadPoliceAdminRole(currentRole);
-    const canDispatch = canRespondToIncident(d) || (isHeadPolice && d.status !== "done" && d.status !== "rejected");
+    const isAlreadyDispatched = hasResponderAssigned(d) || Boolean(d.assignedSubstationId) || Boolean(d.respondingSubstationId) || d.status === "responding";
+    const canDispatch = !isAlreadyDispatched && canRespondToIncident(d) && d.status !== "done" && d.status !== "rejected";
 
     return `<div class="incident-review-layout">
     <div class="incident-review-main">
@@ -560,11 +696,11 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
                   : '<span class="incident-coords-badge">No GPS coordinates attached</span>'
               }
               <div class="incident-jurisdiction-pill incident-jurisdiction-pill--barangay">
-                <span aria-hidden="true">📍</span>
+                <span class="material-symbols-outlined" style="font-size:16px;">location_on</span>
                 <span>Barangay ${escapeHtml(bName)}${escapeHtml(bDist)}</span>
               </div>
               <div class="incident-jurisdiction-pill incident-jurisdiction-pill--substation">
-                <span aria-hidden="true">🚔</span>
+                <span class="material-symbols-outlined" style="font-size:16px;">local_police</span>
                 <span>Sub-station: ${escapeHtml(sName)}${escapeHtml(hqFlag)}</span>
               </div>
             </div>
@@ -602,31 +738,13 @@ function renderIncidentDetail(docId, d, responderOptions = null) {
           <span class="incident-actions__badge">${isHeadPolice ? "HQ Central Command" : "Officer Controls"}</span>
         </div>
 
-        ${canDispatch ? buildResponderSelect(responderOptions, d) : ""}
+        ${
+          isAlreadyDispatched
+            ? buildDispatchedStatusBadge(d)
+            : (canDispatch ? buildResponderSelect(responderOptions, d) : "")
+        }
 
-        <div class="incident-actions__buttons">
-          ${
-            canDispatch
-              ? `<button type="button" class="incident-action-btn incident-action-btn--respond" data-action-respond="true"><span class="material-symbols-outlined" aria-hidden="true">send</span><span>${isHeadPolice ? "Dispatch / Assign Substation" : "Dispatch Precinct"}</span></button>`
-              : ""
-          }
-          <button type="button" class="incident-action-btn${actionStatus === "under_review" ? " is-active" : ""}" data-action-status="under_review">
-            <span class="material-symbols-outlined" aria-hidden="true">pending_actions</span>
-            <span>Under review</span>
-          </button>
-          <button type="button" class="incident-action-btn${actionStatus === "verified" ? " is-active" : ""}" data-action-status="verified">
-            <span class="material-symbols-outlined" aria-hidden="true">verified</span>
-            <span>Verify</span>
-          </button>
-          <button type="button" class="incident-action-btn${actionStatus === "done" ? " incident-action-btn--success is-active" : " incident-action-btn--success"}" data-action-status="done">
-            <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
-            <span>${actionStatus === "done" ? "Completed" : "Mark Done"}</span>
-          </button>
-          <button type="button" class="incident-action-btn${actionStatus === "rejected" ? " incident-action-btn--danger is-active" : " incident-action-btn--danger"}" data-action-status="rejected">
-            <span class="material-symbols-outlined" aria-hidden="true">cancel</span>
-            <span>Reject</span>
-          </button>
-        </div>
+        ${buildModerationActions(d, { canDispatch, isHeadPolice, isAlreadyDispatched })}
         <p id="incident-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
       </section>
     </aside>
@@ -656,12 +774,15 @@ export function initIncidentModal() {
         currentIncidentId = null;
         currentData = null;
         currentResponderOptions = [];
+        window.__threatTrackIncidentModalOpen = false;
+        window.dispatchEvent(new CustomEvent("incident-modal:closed"));
     }
 
     function openModal() {
         modal.hidden = false;
         modal.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
+        window.__threatTrackIncidentModalOpen = true;
     }
 
     function closeRowMenu() {
@@ -858,6 +979,19 @@ export function initIncidentModal() {
                 const needsSync = needsTerminalResponseSync(currentData, nextStatus);
                 if (currentData.status === nextStatus && !needsSync) return;
 
+                // Defensive Gate: Cannot mark done if not assigned/dispatched unless citizen confirmed safe
+                if (nextStatus === "done") {
+                    const isAlreadyDispatched = hasResponderAssigned(currentData) || Boolean(currentData?.assignedSubstationId) || Boolean(currentData?.respondingSubstationId) || currentData?.status === "responding";
+                    const isUserSafe = currentData?.resolutionReason === "user_marked_safe";
+                    if (!isAlreadyDispatched && !isUserSafe) {
+                        toastError("Cannot complete report: You must assign and dispatch a precinct responder first.");
+                        if (feedback) {
+                            feedback.textContent = "A responder precinct must be dispatched before completing this incident.";
+                        }
+                        return;
+                    }
+                }
+
                 // If rejecting, require reason and explanation
                 if (nextStatus === "rejected") {
                     const code = formatIncidentCode(currentIncidentId);
@@ -1028,7 +1162,8 @@ export function initIncidentModal() {
     async function loadResponderOptions() {
         const currentRole = getCurrentAdminRole();
         const isHeadPolice = isHeadPoliceAdminRole(currentRole);
-        const canDispatch = canRespondToIncident(currentData) || (isHeadPolice && currentData?.status !== "done" && currentData?.status !== "rejected");
+        const isAlreadyDispatched = hasResponderAssigned(currentData) || Boolean(currentData?.assignedSubstationId) || Boolean(currentData?.respondingSubstationId) || currentData?.status === "responding";
+        const canDispatch = !isAlreadyDispatched && canRespondToIncident(currentData) && currentData?.status !== "done" && currentData?.status !== "rejected";
 
         if (!currentIncidentId || !currentData || !canDispatch) {
             return;
@@ -1060,6 +1195,11 @@ export function initIncidentModal() {
 
     async function sendResponderUpdate(selectedResponder) {
         if (!currentIncidentId || !currentData) return;
+        const isAlreadyDispatched = hasResponderAssigned(currentData) || Boolean(currentData?.assignedSubstationId) || Boolean(currentData?.respondingSubstationId) || currentData?.status === "responding";
+        if (isAlreadyDispatched) {
+            toastError("This incident has already been dispatched to a precinct.");
+            return;
+        }
         const currentRole = getCurrentAdminRole();
         const isHeadPolice = isHeadPoliceAdminRole(currentRole);
         const feedback = document.getElementById("incident-actions-feedback");
@@ -1133,27 +1273,41 @@ export function initIncidentModal() {
             }
             currentData = d;
             currentResponderOptions = [];
-            if (!isIncidentOpened(d)) {
-                currentData = { ...currentData, isOpened: true };
-                markRowOpened(id);
+            const needsOpenMark = !isIncidentOpened(d);
+            const isPending = d.status === "pending";
+
+            if (needsOpenMark || isPending) {
+                const updates = {};
+                if (needsOpenMark) {
+                    updates.isOpened = true;
+                    updates.openedBy = auth.currentUser?.uid || null;
+                    updates.openedAt = serverTimestamp();
+                    currentData = { ...currentData, isOpened: true };
+                    markRowOpened(id);
+                }
+                if (isPending) {
+                    updates.status = "under_review";
+                    updates.underReviewAt = serverTimestamp();
+                    updates.underReviewBy = auth.currentUser?.uid || null;
+                    currentData = { ...currentData, status: "under_review" };
+                    updateStatusCell(id, "under_review");
+                }
                 window.dispatchEvent(
                     new CustomEvent("incident:updated", {
                         detail: {
                             id,
-                            isOpened: true,
+                            ...(needsOpenMark ? { isOpened: true } : {}),
+                            ...(isPending ? { status: "under_review" } : {}),
                         },
                     }),
                 );
-                updateDoc(ref, {
-                    isOpened: true,
-                    openedBy: auth.currentUser?.uid || null,
-                    openedAt: serverTimestamp(),
-                }).catch((err) => {
-                    console.warn("[incident-modal] mark opened", err);
+                updateDoc(ref, updates).catch((err) => {
+                    console.warn("[incident-modal] auto-mark under_review/opened", err);
                 });
             }
             if (titleEl) {
                 const code = formatIncidentCode(snap.id);
+                const displayStatus = currentData.status || d.status;
                 titleEl.innerHTML = `
                     <div class="incident-modal__header-bar">
                         <div class="incident-modal__header-left">
@@ -1161,7 +1315,7 @@ export function initIncidentModal() {
                             <span class="incident-modal__type-name">${escapeHtml(getIncidentTypeLabel(d))}</span>
                         </div>
                         <div class="incident-modal__header-badges">
-                            <span class="${statusBadgeClass(d.status)}">${escapeHtml(humanize(d.status))}</span>
+                            <span class="${statusBadgeClass(displayStatus)}">${escapeHtml(humanize(displayStatus))}</span>
                             <span class="${severityBadgeClass(d.severity)}">${escapeHtml(humanize(d.severity))}</span>
                         </div>
                     </div>

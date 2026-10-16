@@ -596,8 +596,10 @@
    ========================================================================== */
 .incidents-table-wrap {
     overflow-x: auto;
+    overflow-y: visible;
     position: relative;
     background: #ffffff;
+    padding-bottom: 20px;
 }
 
 .incidents-table {
@@ -614,7 +616,7 @@
 
 .incidents-table th {
     text-align: left;
-    padding: 13px 18px;
+    padding: 13px 14px;
     font-size: 0.74rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -623,53 +625,69 @@
     white-space: nowrap;
 }
 
-/* Column widths */
+/* Column widths - moved to the left so badges and actions never get cut */
 .incidents-table--incidents th:nth-child(1),
 .incidents-table--incidents td:nth-child(1) {
-    width: 120px;
+    width: 85px;
+    min-width: 85px;
 }
 
 .incidents-table--incidents th:nth-child(2),
 .incidents-table--incidents td:nth-child(2) {
-    width: 175px;
+    width: 125px;
+    min-width: 125px;
     white-space: nowrap;
 }
 
 .incidents-table--incidents th:nth-child(3),
 .incidents-table--incidents td:nth-child(3) {
-    width: auto;
+    width: 22%;
+    min-width: 160px;
 }
 
 .incidents-table--incidents th:nth-child(4),
 .incidents-table--incidents td:nth-child(4) {
-    width: 110px;
+    width: 95px;
+    min-width: 95px;
+    text-align: left;
 }
 
 .incidents-table--incidents th:nth-child(5),
 .incidents-table--incidents td:nth-child(5) {
-    width: 125px;
+    width: 120px;
+    min-width: 120px;
+    text-align: left;
 }
 
 .incidents-table--incidents th:nth-child(6),
 .incidents-table--incidents td:nth-child(6) {
-    width: 175px;
+    width: 160px;
+    min-width: 160px;
     text-align: left;
 }
 
 .incidents-table--incidents th:nth-child(7),
 .incidents-table--incidents td:nth-child(7) {
     width: 65px;
+    min-width: 65px;
     text-align: right;
+    overflow: visible !important;
+    position: relative;
 }
 
 .incidents-table td {
-    padding: 14px 18px;
+    padding: 14px;
     border-bottom: 1px solid #f1f5f9;
     color: #334155;
     vertical-align: middle;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.incidents-table td:last-child {
+    overflow: visible !important;
+    position: relative;
 }
 
 .incidents-table tbody tr:last-child td {
@@ -1596,17 +1614,23 @@
 
     .incidents-row-menu {
         position: absolute;
-        top: calc(100% + 6px);
+        top: calc(100% + 4px);
         right: 0;
-        z-index: 30;
+        z-index: 100;
         display: grid;
         min-width: 140px;
         padding: 6px;
         text-align: left;
         background: #ffffff;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #cbd5e1;
         border-radius: 10px;
-        box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.14), 0 4px 8px -2px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.22), 0 4px 8px -2px rgba(15, 23, 42, 0.08);
+    }
+
+    .incidents-table tbody tr:last-child .incidents-row-menu,
+    .incidents-table tbody tr:nth-last-child(2) .incidents-row-menu {
+        top: auto;
+        bottom: calc(100% + 4px);
     }
 
     .incidents-row-menu[hidden] {

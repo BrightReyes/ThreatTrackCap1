@@ -144,12 +144,19 @@ function buildRow(docSnap) {
     ? ''
     : '<span class="incidents-unread-beacon" aria-hidden="true" title="Unopened incident"></span>';
 
+  const rawDesc = d.description || d.details || d.notes || '';
+  const descSnippet = rawDesc ? rawDesc.trim().replace(/\s+/g, ' ') : '';
+
   return `<tr class="${rowClasses.join(' ')}" data-incident-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="Open incident ${escapeAttr(code)}">
     <td><span class="${codeClass}" title="${opened ? 'Opened incident' : 'Unopened incident'}">${unreadBeaconHtml}<span>${escapeHtml(code)}</span></span></td>
     <td><span class="incidents-reported-time">${escapeHtml(reported)}</span></td>
     <td>
-      <div style="font-weight: 750; color: #0f172a; font-size: 0.88rem; line-height: 1.25;">${escapeHtml(typeLabel)}</div>
-      ${resolvedBName ? `<div style="font-size: 0.74rem; color: #475569; font-weight: 600; margin-top: 3px; display: flex; align-items: center; gap: 3px;"><span style="color: #dc2626; font-size: 0.78rem;">📍</span> ${escapeHtml(resolvedBName)}</div>` : ''}
+      <div style="font-weight: 750; color: #0f172a; font-size: 0.88rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(typeLabel)}</div>
+      <div style="font-size: 0.75rem; color: #64748b; margin-top: 3px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        ${resolvedBName ? `<span style="display: inline-flex; align-items: center; gap: 2px; font-weight: 600; color: #475569; flex-shrink: 0;"><span class="material-symbols-outlined" style="color: #dc2626; font-size: 13px;">location_on</span>${escapeHtml(resolvedBName)}</span>` : ''}
+        ${resolvedBName && descSnippet ? `<span style="color: #cbd5e1; flex-shrink: 0;">•</span>` : ''}
+        ${descSnippet ? `<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b;" title="${escapeAttr(rawDesc)}">${escapeHtml(descSnippet)}</span>` : ''}
+      </div>
     </td>
     <td><span class="${severityBadgeClass(d.severity)}">${escapeHtml(sevLabel)}</span></td>
     <td><span class="${statusBadgeClass(d.status)}">${escapeHtml(statusLabel)}</span></td>

@@ -25,6 +25,18 @@ export function toastError(title) {
   });
 }
 
+export function toastWarning(title) {
+  return Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'warning',
+    title,
+    showConfirmButton: false,
+    timer: 3500,
+    timerProgressBar: true,
+  });
+}
+
 export async function confirmDanger({ title, text, confirmText = 'Confirm' }) {
   const result = await Swal.fire({
     icon: 'warning',

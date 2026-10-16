@@ -13,7 +13,14 @@ const admin = require("firebase-admin");
 const {findNearestCoveredBarangay} = require("./barangays");
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
-const GEMINI_MODEL = "gemini-flash-latest";
+// Candidate models matching AI decision support (web-admin/js/analytics.js)
+const GEMINI_CANDIDATE_MODELS = [
+  "gemini-3.5-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+  "gemini-flash-latest",
+];
+const GEMINI_MODEL = GEMINI_CANDIDATE_MODELS[0];
 
 // Strict JSON Schema for Gemini structured output (no percentages, words only)
 const LEGITIMACY_SCHEMA = {
@@ -614,23 +621,13 @@ async function retrieveVerifiedExemplars(db, incidentType, currentIncidentId) {
 }
 
 /**
- * Triage Incident Legitimacy with RAG (Retrieval-Augmented Generation) + Fast-Path Gate
+ * Triage Incident Legitimacy: Enforces Gemini AI evaluation first,
+ * with graceful fallback to heuristic engine if AI is unavailable.
  */
 async function triageIncidentLegitimacy(db, incident, incidentId) {
   const desc = String(incident.description || "").trim();
 
-  // STAGE 1: Fast-Path Pre-Retrieval Gate (rejects junk in 0ms without DB or API cost)
-  const preCheck = fastPathSpamOrGibberishCheck(desc, incident.isSOSReport === true);
-  if (preCheck.isRejected) {
-    return {
-      rating: "Suspected False / Spam",
-      summary: `Pre-retrieval gate: ${preCheck.reason}.`,
-      flags: [preCheck.reason],
-      source: "pre_retrieval_gate",
-    };
-  }
-
-  // STAGE 2: RAG Pipeline (Retrieve database evidence in parallel)
+  // STAGE 1: Retrieve RAG evidence from Firestore in parallel
   let apiKey = null;
   try {
     apiKey = (typeof GEMINI_API_KEY.value === "function" ? GEMINI_API_KEY.value() : null) || process.env.GEMINI_API_KEY;
@@ -638,13 +635,13 @@ async function triageIncidentLegitimacy(db, incident, incidentId) {
     apiKey = process.env.GEMINI_API_KEY || null;
   }
 
-  // Retrieve grounding evidence from Firestore
   const [corroborations, reporterProfile, exemplars] = await Promise.all([
     retrieveNearbyCorroboration(db, incident.location, incidentId),
     retrieveReporterHistory(db, incident.reporterId),
     retrieveVerifiedExemplars(db, incident.type, incidentId),
   ]);
 
+  // STAGE 2: Enforce trying Gemini AI first across candidate models
   if (apiKey) {
     try {
       const aiResult = await evaluateLegitimacyWithRAG(
@@ -658,129 +655,150 @@ async function triageIncidentLegitimacy(db, incident, incidentId) {
         return aiResult;
       }
     } catch (aiError) {
-      console.warn(`[validateIncident] Gemini RAG triage unavailable (${aiError.message}). Engaging fallback.`);
+      console.warn(`[validateIncident] Gemini AI triage unavailable across candidate models (${aiError.message}). Engaging heuristic fallback engine.`);
     }
   } else {
-    console.info("[validateIncident] No GEMINI_API_KEY secret configured. Running fallback engine.");
+    console.info("[validateIncident] No GEMINI_API_KEY configured. Running heuristic fallback engine.");
   }
 
-  // Graceful deterministic fallback using the retrieved corroboration evidence
+  // STAGE 3: Heuristic Engine Fallback (only reached if Gemini was unreachable)
+  const preCheck = fastPathSpamOrGibberishCheck(desc, incident.isSOSReport === true);
+  if (preCheck.isRejected) {
+    return {
+      rating: "Suspected False / Spam",
+      summary: `Heuristic gate: ${preCheck.reason}.`,
+      flags: [preCheck.reason],
+      source: "heuristic_gate",
+    };
+  }
+
   return evaluateLegitimacyFallback(incident, corroborations);
 }
 
 /**
- * Grounded RAG Call to Google Gemini Flash
+ * Grounded RAG Call to Google Gemini Flash across Candidate Models
  */
 async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfile, exemplars, apiKey) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4500);
+  const corroborationSection = corroborations.length > 0 ?
+    `${corroborations.length} report(s) within ~600m in the last 30 minutes:\n` +
+    corroborations.map((c, i) => `  ${i + 1}. [${c.type}] "${c.description}"`).join("\n") :
+    "No corroborating reports found in immediate vicinity.";
 
-  try {
-    const corroborationSection = corroborations.length > 0 ?
-      `${corroborations.length} report(s) within ~600m in the last 30 minutes:\n` +
-      corroborations.map((c, i) => `  ${i + 1}. [${c.type}] "${c.description}"`).join("\n") :
-      "No corroborating reports found in immediate vicinity.";
+  const exemplarsSection = exemplars.length > 0 ?
+    exemplars.map((e, i) => `  Example ${i + 1}: "${e.description}" (Location: ${e.address})`).join("\n") :
+    "No historical verified reports available for this category yet.";
 
-    const exemplarsSection = exemplars.length > 0 ?
-      exemplars.map((e, i) => `  Example ${i + 1}: "${e.description}" (Location: ${e.address})`).join("\n") :
-      "No historical verified reports available for this category yet.";
+  const hasPhoto = Boolean(
+      incident.photoDataUrl ||
+      incident.photoURL ||
+      incident.imageUrl ||
+      (Array.isArray(incident.images) && incident.images.length > 0) ||
+      (Array.isArray(incident.photoUrls) && incident.photoUrls.length > 0),
+  );
 
-    const hasPhoto = Boolean(
-        incident.photoDataUrl ||
-        incident.photoURL ||
-        incident.imageUrl ||
-        (Array.isArray(incident.images) && incident.images.length > 0) ||
-        (Array.isArray(incident.photoUrls) && incident.photoUrls.length > 0),
-    );
+  const prompt = [
+    "You are the official emergency triage AI for Valenzuela City's ThreatTrack public safety system.",
+    "TASK: Grounded evaluation of whether this report is legitimate, needs review, or is spam/false.",
+    "",
+    "=== 1. CURRENT CITIZEN SUBMISSION ===",
+    `Category: ${incident.type || "unknown"}`,
+    `Severity: ${incident.severity || "normal"}`,
+    `Address: ${incident.location?.address || "No address attached"}`,
+    `Coordinates: lat=${incident.location?.latitude || 0}, lng=${incident.location?.longitude || 0}`,
+    `Direct SOS Distress Signal: ${incident.isSOSReport ? "YES" : "NO"}`,
+    `Photographic Evidence Attached: ${hasPhoto ? "YES" : "NO"}`,
+    `Citizen Description: "${incident.description || ""}"`,
+    "",
+    "=== 2. GROUNDED EVIDENCE RETRIEVED FROM THREATTRACK DATABASE (RAG) ===",
+    `A. Spatial-Temporal Corroboration:\n${corroborationSection}`,
+    `B. Reporter Trust Profile: Verified=${reporterProfile.isVerified}, TotalReports=${reporterProfile.reportCount}, Status=${reporterProfile.status}`,
+    `C. Historical Verified Resident Reports of this Category (Benchmark Examples):\n${exemplarsSection}`,
+    "",
+    "=== 3. CRITICAL EVALUATION RULES ===",
+    "1. CONTENT INTEGRITY FIRST: The description MUST describe an intelligible human incident in English, Tagalog, or Taglish.",
+    "   - Compare against the Benchmark Verified Reports: Does this describe a genuine emergency situation?",
+    "   - Meaningless keyboard mash, random numbers, single vague words, or jokes are an AUTOMATIC 'Suspected False / Spam'.",
+    "   - Proximity to a real incident NEVER validates meaningless or spam text.",
+    "2. HIGH CONFIDENCE: If the description describes an intelligible emergency AND is corroborated by nearby reports OR matches authentic emergency patterns with clear context, assign 'High Confidence Legit'.",
+    "3. UNCORROBORATED / VAGUE: If plausible but isolated, brief, or needs dispatcher confirmation before deploying units, assign 'Needs Verification'.",
+    "",
+    "OUTPUT: Return strictly JSON adhering to the provided schema with NO markdown formatting.",
+  ].join("\n");
 
-    const prompt = [
-      "You are the official emergency triage AI for Valenzuela City's ThreatTrack public safety system.",
-      "TASK: Grounded evaluation of whether this report is legitimate, needs review, or is spam/false.",
-      "",
-      "=== 1. CURRENT CITIZEN SUBMISSION ===",
-      `Category: ${incident.type || "unknown"}`,
-      `Severity: ${incident.severity || "normal"}`,
-      `Address: ${incident.location?.address || "No address attached"}`,
-      `Coordinates: lat=${incident.location?.latitude || 0}, lng=${incident.location?.longitude || 0}`,
-      `Direct SOS Distress Signal: ${incident.isSOSReport ? "YES" : "NO"}`,
-      `Photographic Evidence Attached: ${hasPhoto ? "YES" : "NO"}`,
-      `Citizen Description: "${incident.description || ""}"`,
-      "",
-      "=== 2. GROUNDED EVIDENCE RETRIEVED FROM THREATTRACK DATABASE (RAG) ===",
-      `A. Spatial-Temporal Corroboration:\n${corroborationSection}`,
-      `B. Reporter Trust Profile: Verified=${reporterProfile.isVerified}, TotalReports=${reporterProfile.reportCount}, Status=${reporterProfile.status}`,
-      `C. Historical Verified Resident Reports of this Category (Benchmark Examples):\n${exemplarsSection}`,
-      "",
-      "=== 3. CRITICAL EVALUATION RULES ===",
-      "1. CONTENT INTEGRITY FIRST: The description MUST describe an intelligible human incident in English, Tagalog, or Taglish.",
-      "   - Compare against the Benchmark Verified Reports: Does this describe a genuine emergency situation?",
-      "   - Meaningless keyboard mash, random numbers, single vague words, or jokes are an AUTOMATIC 'Suspected False / Spam'.",
-      "   - Proximity to a real incident NEVER validates meaningless or spam text.",
-      "2. HIGH CONFIDENCE: If the description describes an intelligible emergency AND is corroborated by nearby reports OR matches authentic emergency patterns with clear context, assign 'High Confidence Legit'.",
-      "3. UNCORROBORATED / VAGUE: If plausible but isolated, brief, or needs dispatcher confirmation before deploying units, assign 'Needs Verification'.",
-      "",
-      "OUTPUT: Return strictly JSON adhering to the provided schema with NO markdown formatting.",
-    ].join("\n");
+  let lastError = null;
 
-    const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            contents: [{parts: [{text: prompt}]}],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 500,
-              responseMimeType: "application/json",
-              responseJsonSchema: LEGITIMACY_SCHEMA,
+  // Try each candidate model in order (matching AI decision support pattern)
+  for (const model of GEMINI_CANDIDATE_MODELS) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    try {
+      const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-goog-api-key": apiKey,
             },
-          }),
-          signal: controller.signal,
-        },
-    );
+            body: JSON.stringify({
+              contents: [{parts: [{text: prompt}]}],
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 500,
+                responseMimeType: "application/json",
+                responseJsonSchema: LEGITIMACY_SCHEMA,
+              },
+            }),
+            signal: controller.signal,
+          },
+      );
 
-    clearTimeout(timeoutId);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        const errMsg = errBody?.error?.message || `HTTP ${res.status}`;
+        lastError = new Error(`Model ${model} failed (${errMsg})`);
+        console.warn(`[validateIncident] Candidate model "${model}" failed (${errMsg}). Trying next candidate.`);
+        continue;
+      }
 
-    if (res.status === 429) {
-      throw new Error("Free tier rate limit reached (HTTP 429)");
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        lastError = new Error(`Model ${model} returned empty response`);
+        continue;
+      }
+
+      const parsed = JSON.parse(text.replace(/```json\s*|\s*```/gi, "").trim());
+      const validRatings = ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"];
+      const rating = validRatings.includes(parsed.rating) ? parsed.rating : "Needs Verification";
+
+      const reasons = [];
+      if (incident.isSOSReport) reasons.push("Direct emergency SOS distress signal");
+      if (hasPhoto) reasons.push("Photographic evidence attached");
+      if (incident.location?.latitude && incident.location?.longitude) reasons.push("GPS verified inside Valenzuela");
+      if (reporterProfile.isVerified) reasons.push("Verified resident account");
+      if (corroborations.length > 0) reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
+      if (exemplars.length > 0 && rating === "High Confidence Legit") reasons.push("Matches authentic emergency patterns");
+
+      return {
+        rating,
+        summary: parsed.summary || "AI-evaluated incident report.",
+        flags: Array.isArray(parsed.flags) ? parsed.flags : [],
+        reasons,
+        source: "gemini_rag",
+        modelUsed: model,
+        corroborationCount: corroborations.length,
+      };
+    } catch (err) {
+      lastError = err;
+      console.warn(`[validateIncident] Candidate model "${model}" error: ${err.message}`);
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    if (!res.ok) {
-      const errBody = await res.json().catch(() => null);
-      throw new Error(`Gemini API error: ${errBody?.error?.message || `HTTP ${res.status}`}`);
-    }
-
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error("Empty response from Gemini");
-
-    const parsed = JSON.parse(text.replace(/```json\s*|\s*```/gi, "").trim());
-    const validRatings = ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"];
-    const rating = validRatings.includes(parsed.rating) ? parsed.rating : "Needs Verification";
-
-    const reasons = [];
-    if (incident.isSOSReport) reasons.push("Direct emergency SOS distress signal");
-    if (hasPhoto) reasons.push("Photographic evidence attached");
-    if (incident.location?.latitude && incident.location?.longitude) reasons.push("GPS verified inside Valenzuela");
-    if (reporterProfile.isVerified) reasons.push("Verified resident account");
-    if (corroborations.length > 0) reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
-    if (exemplars.length > 0 && rating === "High Confidence Legit") reasons.push("Matches authentic emergency patterns");
-
-    return {
-      rating,
-      summary: parsed.summary || "AI-evaluated incident report.",
-      flags: Array.isArray(parsed.flags) ? parsed.flags : [],
-      reasons,
-      source: "gemini_rag",
-      corroborationCount: corroborations.length,
-    };
-  } finally {
-    clearTimeout(timeoutId);
   }
+
+  throw lastError || new Error("All Gemini candidate models failed to respond.");
 }
 
 /**

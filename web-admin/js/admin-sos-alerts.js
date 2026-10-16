@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
 import { logAudit } from "./audit.js";
-import { toastError, toastSuccess } from "./alerts.js";
+import { toastError, toastSuccess, toastWarning } from "./alerts.js";
 import {
     closeAdminCustomSelects,
     initAdminCustomSelects,
@@ -391,8 +391,48 @@ function removeQueuedAlert(id) {
     if (index >= 0) alertQueue.splice(index, 1);
 }
 
+export function isOperatorBusyWithIncident() {
+    const modal = document.getElementById("incident-modal");
+    if (
+        modal &&
+        !modal.hidden &&
+        modal.getAttribute("aria-hidden") !== "true" &&
+        modal.style.display !== "none"
+    ) {
+        return true;
+    }
+    const rejectionModal = document.getElementById("rejection-reason-dialog");
+    if (
+        rejectionModal &&
+        !rejectionModal.hidden &&
+        rejectionModal.getAttribute("aria-hidden") !== "true" &&
+        rejectionModal.style.display !== "none"
+    ) {
+        return true;
+    }
+    return Boolean(window.__threatTrackIncidentModalOpen);
+}
+
+let queueNoticeThrottled = false;
+function notifyQueuedEmergencyWaiting() {
+    if (queueNoticeThrottled || !alertQueue.length) return;
+    queueNoticeThrottled = true;
+    window.setTimeout(() => { queueNoticeThrottled = false; }, 8000);
+
+    const topItem = alertQueue[0];
+    playAlertSound(topItem?.data || {});
+    toastWarning(`Emergency reported (${alertQueue.length} queued). Held in queue while you finish responding to current incident.`);
+}
+
 function processPriorityQueue() {
     if (alertOpen || renderingAlert || !alertQueue.length) return;
+
+    // Operator Safety Lock: If currently reviewing/responding to an incident in the detail modal, do not interrupt
+    if (isOperatorBusyWithIncident()) {
+        notifyQueuedEmergencyWaiting();
+        return;
+    }
+
     const next = alertQueue.shift();
     queuedAlertIds.delete(next.id);
 
@@ -569,12 +609,12 @@ async function showPriorityAlert(id, data, options = {}) {
     const audience = determineAlertAudience(data);
     let urgencyLabel;
     if (data.isSOSReport) {
-        urgencyLabel = isHeadPolice ? "🚨 SOS EMERGENCY (HQ COMMAND)" : "🚨 SOS EMERGENCY (YOUR SECTOR)";
+        urgencyLabel = isHeadPolice ? "SOS EMERGENCY (HQ COMMAND)" : "SOS EMERGENCY (YOUR SECTOR)";
     } else if (audience === "police") {
-        urgencyLabel = isHeadPolice ? "🚨 HIGH PRIORITY (HQ COMMAND)" : "🚨 HIGH PRIORITY (YOUR SECTOR)";
+        urgencyLabel = isHeadPolice ? "HIGH PRIORITY (HQ COMMAND)" : "HIGH PRIORITY (YOUR SECTOR)";
     } else {
         const brgyName = getCurrentAdminBarangayName() || "BARANGAY";
-        urgencyLabel = `🔔 INCIDENT REPORT (${brgyName.toUpperCase()})`;
+        urgencyLabel = `INCIDENT REPORT (${brgyName.toUpperCase()})`;
     }
 
     const legitimacy = evaluateIncidentLegitimacy(data);
@@ -606,7 +646,19 @@ async function showPriorityAlert(id, data, options = {}) {
         responderPanelHtml = `
             <div class="admin-priority-alert__responders" aria-label="Assign police substation">
                 <label class="admin-priority-alert__responder-select" for="admin-priority-responder-select">
-                    <span class="admin-priority-alert__select-label">Assign Police Sub-station (Sorted by Distance)</span>
+                    <div class="admin-priority-alert__select-header">
+                        <span class="admin-priority-alert__select-label">Assign Police Sub-station (Sorted by Distance)</span>
+                        <div class="admin-priority-alert__badge-group">
+                            <span class="admin-priority-alert__pill" id="admin-priority-pill-distance">
+                                <span class="material-symbols-outlined" aria-hidden="true">near_me</span>
+                                <span data-substation-distance-text>${escapeHtml(formatDistanceKm(distanceKm))}</span>
+                            </span>
+                            <span class="admin-priority-alert__pill admin-priority-alert__pill--eta" id="admin-priority-pill-eta">
+                                <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+                                <span data-substation-eta-text>${closestSubstation?.etaMinutes || 5} min ETA</span>
+                            </span>
+                        </div>
+                    </div>
                     <div class="admin-priority-alert__select-wrap">
                         <select id="admin-priority-responder-select" data-priority-responder-select class="incidents-select">
                             ${substationSelectHtml}
@@ -626,10 +678,10 @@ async function showPriorityAlert(id, data, options = {}) {
         const myStationName = getCurrentAdminSubstationName() || "Your Sector Substation";
         const isHqAssigned = Boolean(data.assignedByHq);
         responderPanelHtml = `
-            ${isHqAssigned ? '<div class="admin-priority-alert__hq-assigned-banner" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;">📢 Assigned by HQ Command to your station!</div>' : ''}
+            ${isHqAssigned ? '<div class="admin-priority-alert__hq-assigned-banner" style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:18px;">campaign</span> Assigned by HQ Command to your station!</div>' : ''}
             <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px;">
                 <div style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;">Assigned Sector Outpost</div>
-                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;">🚔 ${escapeHtml(myStationName)}</div>
+                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;display:flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:18px;color:#2563eb;">local_police</span> ${escapeHtml(myStationName)}</div>
                 <div style="font-size:0.8rem;color:#475569;margin-top:2px;">Distance to incident: ${escapeHtml(formatDistanceKm(distanceKm))} (${closestSubstation?.etaMinutes || 5} min ETA)</div>
             </div>
         `;
@@ -644,7 +696,7 @@ async function showPriorityAlert(id, data, options = {}) {
         responderPanelHtml = `
             <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:12px;">
                 <div style="font-size:0.8rem;color:#64748b;font-weight:600;text-transform:uppercase;">Community Jurisdiction</div>
-                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;">📍 ${escapeHtml(myBrgyName)}</div>
+                <div style="font-size:0.95rem;color:#0f172a;font-weight:700;margin-top:2px;display:flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:18px;color:#2563eb;">location_on</span> ${escapeHtml(myBrgyName)}</div>
                 <div style="font-size:0.8rem;color:#475569;margin-top:2px;">Local peacekeeping & ordinance enforcement jurisdiction.</div>
             </div>
         `;
@@ -679,11 +731,11 @@ async function showPriorityAlert(id, data, options = {}) {
                 </div>
                 <div>
                     <span>Closest outpost</span>
-                    <strong>${escapeHtml(closestSubstation?.substationName || "No outpost loaded")}</strong>
+                    <strong id="admin-priority-grid-outpost">${escapeHtml(closestSubstation?.substationName || "No outpost loaded")}</strong>
                 </div>
                 <div>
                     <span>Distance</span>
-                    <strong>${escapeHtml(formatDistanceKm(distanceKm))}</strong>
+                    <strong id="admin-priority-grid-distance">${escapeHtml(formatDistanceKm(distanceKm))}</strong>
                 </div>
             </div>
             ${responderPanelHtml}
@@ -706,8 +758,8 @@ async function showPriorityAlert(id, data, options = {}) {
                 if (!hqBanner) {
                     hqBanner = document.createElement("div");
                     hqBanner.className = "admin-priority-alert__hq-assigned-banner";
-                    hqBanner.style.cssText = "background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;";
-                    hqBanner.textContent = "📢 Assigned by HQ Command to your station!";
+                    hqBanner.style.cssText = "background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;";
+                    hqBanner.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">campaign</span> Assigned by HQ Command to your station!';
                     const top = root.querySelector(".admin-priority-alert__top");
                     top?.after(hqBanner);
                 }
@@ -726,9 +778,9 @@ async function showPriorityAlert(id, data, options = {}) {
                 if (!respBanner) {
                     respBanner = document.createElement("div");
                     respBanner.className = "admin-priority-alert__substation-responding-banner";
-                    respBanner.style.cssText = "background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;";
+                    respBanner.style.cssText = "background:#ecfdf5;border:1px solid #10b981;color:#065f46;padding:10px 12px;border-radius:6px;font-size:0.875rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px;";
                     const stationName = liveData.respondingSubstationName || liveData.assignedSubstationName || "Substation";
-                    respBanner.textContent = `🚔 ${stationName} is actively responding to this report!`;
+                    respBanner.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;color:#059669;">local_police</span> ${escapeHtml(stationName)} is actively responding to this report!`;
                     const top = root.querySelector(".admin-priority-alert__top");
                     top?.after(respBanner);
                 }
@@ -900,6 +952,18 @@ async function showPriorityAlert(id, data, options = {}) {
             }
             markActioned(id, data);
             closeActiveAlert({ showNext: false });
+
+            // Fast in-place transition if incident report modal is present on current page (0ms reload)
+            if (typeof window.threatTrackOpenIncident === "function") {
+                window.threatTrackOpenIncident(id);
+                try {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set("incidentId", id);
+                    window.history.replaceState(null, "", newUrl.toString());
+                } catch {}
+                return;
+            }
+
             window.location.href = `incidents.html?incidentId=${encodeURIComponent(id)}`;
             return;
         }
@@ -909,6 +973,35 @@ async function showPriorityAlert(id, data, options = {}) {
     initAdminCustomSelects(root);
     activeAlert = root;
     playAlertSound(data);
+
+    // Dynamic Outpost Selection Listener
+    const responderSelect = root.querySelector("#admin-priority-responder-select");
+    if (responderSelect) {
+        const updateDynamicOutpostDetails = () => {
+            const chosenId = responderSelect.value;
+            const chosen = substationCandidates.find((s) => s.substationId === chosenId) || closestSubstation;
+            if (!chosen) return;
+
+            const distFormatted = formatDistanceKm(chosen.distanceKm);
+            const etaFormatted = `${chosen.etaMinutes || 5} min ETA`;
+
+            // 1. Dynamic header pills
+            const distPill = root.querySelector("[data-substation-distance-text]");
+            if (distPill) distPill.textContent = distFormatted;
+
+            const etaPill = root.querySelector("[data-substation-eta-text]");
+            if (etaPill) etaPill.textContent = etaFormatted;
+
+            // 2. Dynamic 4-column metadata grid
+            const gridOutpost = root.querySelector("#admin-priority-grid-outpost");
+            if (gridOutpost) gridOutpost.textContent = chosen.substationName;
+
+            const gridDist = root.querySelector("#admin-priority-grid-distance");
+            if (gridDist) gridDist.textContent = distFormatted;
+        };
+
+        responderSelect.addEventListener("change", updateDynamicOutpostDetails);
+    }
 }
 
 export function showSosAlertPreview(overrides = {}) {
@@ -1009,6 +1102,15 @@ export function startAdminPriorityAlerts() {
     let initialSnapshotHandled = false;
 
     window.ThreatTrackPreviewSOS = showSosAlertPreview;
+
+    // Resume queue processing when operator closes or completes an incident in the detail modal
+    window.addEventListener("incident-modal:closed", () => {
+        window.setTimeout(() => {
+            if (!alertOpen) {
+                processPriorityQueue();
+            }
+        }, 150);
+    });
 
     const params = new URLSearchParams(window.location.search);
     if (params.get("sosPreview") === "1") {

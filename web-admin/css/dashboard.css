@@ -2610,12 +2610,53 @@ html.sidebar-collapsed-initial
     gap: 8px;
 }
 
+.admin-priority-alert__select-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
 .admin-priority-alert__select-label {
     color: #1d4ed8;
     font-size: 0.78rem;
     font-weight: 900;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    margin: 0;
+}
+
+.admin-priority-alert__badge-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-priority-alert__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    background: #e0f2fe;
+    color: #0369a1;
+    line-height: 1.2;
+    border: 1px solid #bae6fd;
+}
+
+.admin-priority-alert__pill--eta {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.admin-priority-alert__pill .material-symbols-outlined {
+    font-size: 15px;
+    line-height: 1;
 }
 
 .admin-priority-alert__select-wrap {

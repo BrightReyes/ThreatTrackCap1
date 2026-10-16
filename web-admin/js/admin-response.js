@@ -45,13 +45,21 @@ export function hasResponderAssigned(data = {}) {
     return (
         data.responseStatus === "help_on_the_way" ||
         data.response?.status === "help_on_the_way" ||
+        Boolean(data.assignedSubstationId) ||
+        Boolean(data.respondingSubstationId) ||
+        Boolean(data.responder?.precinctId) ||
         RESPONDED_STATUSES.has(String(data.status || "").toLowerCase())
     );
 }
 
 export function canRespondToIncident(data = {}) {
     const status = String(data.status || "").toLowerCase();
-    return isPriorityIncident(data) && !hasResponderAssigned(data) && !CLOSED_STATUSES.has(status);
+    return (
+        isPriorityIncident(data) &&
+        !hasResponderAssigned(data) &&
+        !CLOSED_STATUSES.has(status) &&
+        data.resolutionReason !== "user_marked_safe"
+    );
 }
 
 export function getIncidentTypeLabel(data = {}) {

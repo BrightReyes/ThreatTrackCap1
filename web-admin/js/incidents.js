@@ -6,6 +6,24 @@ import { loadIncidentsTable } from "./incidents-list.js";
 
 const incidentModal = initIncidentModal();
 
+// Fast in-page modal opener for SOS alerts and real-time triggers (0ms reload)
+window.threatTrackOpenIncident = (id) => {
+    if (id && incidentModal?.openIncidentById) {
+        return incidentModal.openIncidentById(id);
+    }
+    return Promise.resolve();
+};
+
+// Immediate kickoff if incidentId is in the URL: starts document fetch in parallel with auth check
+const initialIncidentId = new URLSearchParams(window.location.search).get("incidentId");
+let initialOpened = false;
+if (initialIncidentId && incidentModal?.openIncidentById) {
+    initialOpened = true;
+    incidentModal.openIncidentById(initialIncidentId).catch((err) => {
+        console.error("[incidents] initial open incident error", err);
+    });
+}
+
 initAdminPage({
     pageId: "page-incidents",
     onReady() {
@@ -14,7 +32,7 @@ initAdminPage({
         const incidentId = new URLSearchParams(window.location.search).get(
             "incidentId",
         );
-        if (incidentId && incidentModal?.openIncidentById) {
+        if (incidentId && !initialOpened && incidentModal?.openIncidentById) {
             incidentModal.openIncidentById(incidentId).catch((err) => {
                 console.error("[incidents] open incident", err);
             });
