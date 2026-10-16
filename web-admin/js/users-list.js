@@ -24,6 +24,7 @@ const LIST_LIMIT = 200;
 const EDIT_ROLES_FOR_CREATE = ["user", "admin", "police", "head_police"];
 const EDIT_STATUSES_FOR_CREATE = ["active", "inactive", "suspended"];
 const MIN_PASSWORD_LENGTH = 6;
+const PAGE_SIZE = 15;
 
 /** @type {import('firebase/firestore').QueryDocumentSnapshot[]} */
 let allDocs = [];
@@ -31,6 +32,8 @@ let usersRealtimeUnsub = null;
 let toolbarBound = false;
 let addUserBound = false;
 let searchDebounceTimer = null;
+let currentPage = 1;
+let activeQuickFilter = "all";
 
 function escapeHtml(text) {
     if (text == null || text === "") return "";
@@ -162,7 +165,7 @@ export function verifiedBadgeHtml(isVerified) {
     if (isVerified) {
         return `<span class="users-verified-badge users-verified-badge--yes" title="Verified Gmail (Can send reports)"><span class="material-symbols-outlined" aria-hidden="true">verified</span>Verified</span>`;
     }
-    return `<span class="users-verified-badge users-verified-badge--no" title="Unverified Gmail"><span class="material-symbols-outlined" aria-hidden="true">pending</span>Unverified</span>`;
+    return `<span class="users-verified-badge users-verified-badge--no" title="Unverified Gmail"><span class="material-symbols-outlined" aria-hidden="true">help_outline</span>Unverified</span>`;
 }
 
 export function formatUserSystemId(userId) {
@@ -189,7 +192,8 @@ function buildRow(docSnap, index) {
             : d.role === "head_police"
             ? " (HQ Command)"
             : "";
-    const roleLabel = `${baseRole}${assignedLocation}`;
+    const fullRole = `${baseRole}${assignedLocation}`;
+    const roleLabel = baseRole;
     const joined = formatJoined(d);
     const status = userStatus(d);
     const isVerified = isUserVerified(d);
@@ -198,7 +202,7 @@ function buildRow(docSnap, index) {
         ? verifiedBadgeHtml(isVerified)
         : '<span style="color: #94a3b8; font-weight: 500;">—</span>';
 
-    return `<tr data-user-id="${escapeAttr(id)}">
+    return `<tr class="incidents-table__row--clickable" data-user-id="${escapeAttr(id)}" tabindex="0" role="button" aria-label="View profile for ${escapeAttr(name)}">
     <td class="users-table__index">${index + 1}</td>
     <td class="users-table__name">
       <div class="users-table__name-wrap">
@@ -207,11 +211,10 @@ function buildRow(docSnap, index) {
       </div>
     </td>
     <td class="incidents-table__desc" title="${escapeAttr(email)}">${escapeHtml(email)}</td>
-    <td><span class="${roleBadgeClass(d.role)}">${escapeHtml(roleLabel)}</span></td>
+    <td><span class="${roleBadgeClass(d.role)}" title="${escapeAttr(fullRole)}">${escapeHtml(roleLabel)}</span></td>
     <td>${verifiedCell}</td>
-    <td>${escapeHtml(joined)}</td>
     <td><span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span></td>
-    <td>
+    <td style="text-align: right;">
       <button type="button" class="users-more-btn" title="View profile" aria-label="View profile for ${escapeAttr(name)}">
         <span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>
       </button>
@@ -246,20 +249,40 @@ function docMatchesRole(docSnap, roleVal) {
     return r === norm(roleVal);
 }
 
+function docMatchesStatus(docSnap, statusVal) {
+    if (!statusVal || statusVal === "all") return true;
+    const s = userStatus(docSnap.data());
+    return s === norm(statusVal);
+}
+
+function docMatchesQuickFilter(docSnap, filterVal) {
+    if (!filterVal || filterVal === "all") return true;
+    const r = normalizeRole(docSnap.data().role || "user");
+    if (filterVal === "admin") return r === "admin";
+    if (filterVal === "police") return r === "police" || r === "head_police";
+    if (filterVal === "user") return r === "user";
+    return true;
+}
+
 function getFilterValues() {
     const searchEl = document.getElementById("users-search");
     const roleEl = document.getElementById("users-filter-role");
+    const statusEl = document.getElementById("users-filter-status");
     return {
         search: norm(searchEl?.value || ""),
         role: roleEl?.value || "all",
+        status: statusEl?.value || "all",
     };
 }
 
 function filterDocs() {
-    const { search, role } = getFilterValues();
+    const { search, role, status } = getFilterValues();
     return allDocs.filter(
         (docSnap) =>
-            docMatchesSearch(docSnap, search) && docMatchesRole(docSnap, role),
+            docMatchesSearch(docSnap, search) &&
+            docMatchesRole(docSnap, role) &&
+            docMatchesStatus(docSnap, status) &&
+            docMatchesQuickFilter(docSnap, activeQuickFilter),
     );
 }
 
@@ -321,39 +344,134 @@ function populateRoleSelect() {
     }
 }
 
+function syncFilterUI() {
+    // Stat cards highlight
+    const cardTotal = document.getElementById("card-stat-total");
+    const cardAdmin = document.getElementById("card-stat-admin");
+    const cardPolice = document.getElementById("card-stat-police");
+    const cardUsers = document.getElementById("card-stat-users");
+
+    cardTotal?.classList.toggle("stat-card--filter-active", activeQuickFilter === "all");
+    cardAdmin?.classList.toggle("stat-card--filter-active-high", activeQuickFilter === "admin");
+    cardPolice?.classList.toggle("stat-card--filter-active-pending", activeQuickFilter === "police");
+    cardUsers?.classList.toggle("stat-card--filter-active-resolved", activeQuickFilter === "user");
+
+    // Update filter pill in table header
+    const filterPill = document.getElementById("users-filter-pill");
+    const searchEl = document.getElementById("users-search");
+    const roleEl = document.getElementById("users-filter-role");
+    const statusEl = document.getElementById("users-filter-status");
+    const isFiltered =
+        activeQuickFilter !== "all" ||
+        Boolean(searchEl?.value?.trim()) ||
+        (roleEl && roleEl.value !== "all") ||
+        (statusEl && statusEl.value !== "all");
+
+    if (filterPill) {
+        filterPill.hidden = !isFiltered;
+        if (activeQuickFilter !== "all") {
+            const labels = {
+                admin: "Barangay Admins",
+                police: "Police Admins",
+                user: "Citizen Users",
+            };
+            filterPill.textContent = labels[activeQuickFilter] || "Filtered";
+        } else {
+            filterPill.textContent = "Filtered";
+        }
+    }
+
+    // Update search clear button
+    const searchClear = document.getElementById("users-search-clear");
+    if (searchClear && searchEl) {
+        searchClear.hidden = !searchEl.value.trim();
+    }
+}
+
+function clampPage(page, totalPages) {
+    return Math.min(Math.max(page, 1), Math.max(totalPages, 1));
+}
+
+function renderPagination(totalItems, totalPages) {
+    const pagination = document.getElementById("users-pagination");
+    if (!pagination) return;
+
+    if (totalItems <= PAGE_SIZE) {
+        pagination.hidden = true;
+        pagination.innerHTML = "";
+        return;
+    }
+
+    pagination.hidden = false;
+    const start = (currentPage - 1) * PAGE_SIZE + 1;
+    const end = Math.min(start + PAGE_SIZE - 1, totalItems);
+
+    pagination.innerHTML = `
+        <p class="incidents-pagination__meta">Showing ${start}-${end} of ${totalItems}</p>
+        <div class="incidents-pagination__actions">
+            <button type="button" class="incidents-pagination__btn" data-page-action="prev"${currentPage === 1 ? " disabled" : ""}>Previous</button>
+            <span class="incidents-pagination__page">Page ${currentPage} of ${totalPages}</span>
+            <button type="button" class="incidents-pagination__btn" data-page-action="next"${currentPage === totalPages ? " disabled" : ""}>Next</button>
+        </div>
+    `;
+}
+
 function renderFilteredTable() {
     const tbody = document.getElementById("users-tbody");
     const meta = document.getElementById("users-count");
     if (!tbody) return;
 
+    syncFilterUI();
+
     const filtered = filterDocs();
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    currentPage = clampPage(currentPage, totalPages);
 
     if (!allDocs.length) {
         tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="8">No users yet.</td></tr>';
+            '<tr class="incidents-table__empty"><td colspan="7">No users registered yet.</td></tr>';
         if (meta) meta.textContent = "0 users";
+        renderPagination(0, 1);
         return;
     }
 
     if (!filtered.length) {
-        tbody.innerHTML =
-            '<tr class="incidents-table__empty"><td colspan="8">No users match your search or filter.</td></tr>';
+        tbody.innerHTML = `
+            <tr class="incidents-table__empty">
+                <td colspan="7">
+                    <div style="padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                        <span class="material-symbols-outlined" style="font-size: 38px; color: #94a3b8;">person_search</span>
+                        <div style="font-size: 0.96rem; font-weight: 750; color: #334155;">No users match your search or filters</div>
+                        <p style="margin: 0; font-size: 0.82rem; color: #64748b;">Try adjusting your keywords, changing role/status, or resetting filters.</p>
+                        <button type="button" id="users-empty-reset" class="incidents-filter-reset" style="margin-top: 8px;">
+                            <span class="material-symbols-outlined" style="font-size: 15px;">restart_alt</span>
+                            <span>Reset all filters</span>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
         if (meta) {
             meta.textContent = `0 of ${allDocs.length} shown (filtered)`;
         }
+        renderPagination(0, 1);
         return;
     }
 
-    tbody.innerHTML = filtered
-        .map((docSnap, index) => buildRow(docSnap, index))
+    const pageStart = (currentPage - 1) * PAGE_SIZE;
+    const pageDocs = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+    tbody.innerHTML = pageDocs
+        .map((docSnap, index) => buildRow(docSnap, pageStart + index))
         .join("");
+
+    renderPagination(filtered.length, totalPages);
 
     if (meta) {
         const total = allDocs.length;
-        const shown = filtered.length;
+        const shown = pageDocs.length;
         const suffix =
-            shown < total
-                ? ` (${shown} of ${total} shown)`
+            filtered.length < total
+                ? ` (${filtered.length} of ${total} filtered)`
                 : ` (${total} loaded)`;
         meta.textContent =
             `${shown} user${shown === 1 ? "" : "s"}${suffix}` +
@@ -553,7 +671,10 @@ function bindToolbar() {
     toolbarBound = true;
 
     const searchEl = document.getElementById("users-search");
+    const searchClear = document.getElementById("users-search-clear");
     const roleEl = document.getElementById("users-filter-role");
+    const statusEl = document.getElementById("users-filter-status");
+    const resetBtn = document.getElementById("users-filter-reset");
 
     const urlParams = new URLSearchParams(window.location.search);
     const searchParam = urlParams.get("search");
@@ -561,14 +682,79 @@ function bindToolbar() {
         searchEl.value = searchParam;
     }
 
-    const rerender = () => renderFilteredTable();
+    const rerender = () => {
+        currentPage = 1;
+        renderFilteredTable();
+    };
 
     searchEl?.addEventListener("input", () => {
         if (searchDebounceTimer) window.clearTimeout(searchDebounceTimer);
         searchDebounceTimer = window.setTimeout(rerender, 200);
     });
     searchEl?.addEventListener("search", rerender);
+
+    searchClear?.addEventListener("click", () => {
+        if (searchEl) {
+            searchEl.value = "";
+            searchEl.focus();
+        }
+        rerender();
+    });
+
     roleEl?.addEventListener("change", rerender);
+    statusEl?.addEventListener("change", rerender);
+
+    const resetAllFilters = () => {
+        if (searchEl) searchEl.value = "";
+        if (roleEl) roleEl.value = "all";
+        if (statusEl) statusEl.value = "all";
+        activeQuickFilter = "all";
+        rerender();
+    };
+
+    resetBtn?.addEventListener("click", resetAllFilters);
+
+    // Empty state reset button click
+    document.getElementById("users-tbody")?.addEventListener("click", (e) => {
+        if (e.target.closest("#users-empty-reset")) {
+            resetAllFilters();
+        }
+    });
+
+    // Stat card click to quick-filter
+    document.querySelector(".incidents-stats")?.addEventListener("click", (e) => {
+        const card = e.target.closest("[data-stat-filter]");
+        if (!card) return;
+        const filterVal = card.getAttribute("data-stat-filter");
+        if (activeQuickFilter === filterVal) {
+            activeQuickFilter = "all";
+        } else {
+            activeQuickFilter = filterVal || "all";
+        }
+        rerender();
+    });
+
+    // Keyboard accessibility for stat cards
+    document.querySelector(".incidents-stats")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            const card = e.target.closest("[data-stat-filter]");
+            if (card) {
+                e.preventDefault();
+                card.click();
+            }
+        }
+    });
+
+    // Pagination click delegation
+    document
+        .getElementById("users-pagination")
+        ?.addEventListener("click", (event) => {
+            const btn = event.target.closest("[data-page-action]");
+            if (!btn || btn.disabled) return;
+            const action = btn.getAttribute("data-page-action");
+            currentPage += action === "next" ? 1 : -1;
+            renderFilteredTable();
+        });
 }
 
 function createSecondaryAuth() {
@@ -856,7 +1042,7 @@ export function loadUsersTable() {
     }
 
     tbody.innerHTML =
-        '<tr class="incidents-table__empty"><td colspan="8">Loading…</td></tr>';
+        '<tr class="incidents-table__empty"><td colspan="7">Loading…</td></tr>';
     if (meta) meta.textContent = "Loading…";
 
     bindToolbar();

@@ -59,13 +59,45 @@ function displayName(d) {
 }
 
 function userInitials(d) {
+    const fn = (d.firstName || "").trim();
+    const ln = (d.lastName || "").trim();
+    if (fn || ln) {
+        return `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase();
+    }
+    const email = (d.email || "").trim();
+    if (email) return email.charAt(0).toUpperCase();
+    return "U";
+}
+
+function userAvatarClass(role) {
+    const r = normalizeRole(role);
+    if (r === "head_police") return "user-profile__avatar user-profile__avatar--head-police";
+    if (r === "police") return "user-profile__avatar user-profile__avatar--police";
+    if (r === "admin") return "user-profile__avatar user-profile__avatar--admin";
+    return "user-profile__avatar user-profile__avatar--user";
+}
+
+function updateUserModalHeader(userId, d) {
+    const titleEl = document.getElementById("user-modal-title");
+    if (!titleEl || !d) return;
     const name = displayName(d);
-    if (name === "—") return "?";
-    return name
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part.charAt(0).toUpperCase())
-        .join("");
+    const hasRealName = name !== "—";
+    const headerTitle = hasRealName ? name : (d.email || "User Profile");
+    const sysId = formatUserSystemId(userId);
+    const status = userStatus(d);
+
+    titleEl.innerHTML = `
+        <div class="incident-modal__header-bar">
+            <div class="incident-modal__header-left">
+                <span class="incident-modal__code-badge">${escapeHtml(sysId)}</span>
+                <span class="incident-modal__type-name">${escapeHtml(headerTitle)}</span>
+            </div>
+            <div class="incident-modal__header-badges">
+                <span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>
+                <span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>
+            </div>
+        </div>
+    `;
 }
 
 function userStatus(data) {
@@ -140,6 +172,7 @@ function normalizeRole(role) {
 function renderUserDetail(userId, d) {
     const isHQ = isHeadPoliceAdminRole(getCurrentAdminRole());
     const name = displayName(d);
+    const hasRealName = name !== "—";
     const status = userStatus(d);
     const verified = isUserVerified(d);
     const isCitizen = normalizeRole(d.role) === "user";
@@ -149,68 +182,179 @@ function renderUserDetail(userId, d) {
     const lastSeen = formatTimestamp(
         d.lastLoginAt || d.lastSeenAt || d.lastActiveAt,
     );
+    const sysId = formatUserSystemId(userId);
+
+    const jurisdictionText =
+        d.role === "admin" || d.barangayId
+            ? getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned Barangay"
+            : d.role === "police" || d.substationId
+            ? getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned Substation"
+            : d.role === "head_police"
+            ? "Central Command (City-wide Oversight)"
+            : "General Citizen (No municipal jurisdiction)";
+
+    const jurisdictionIcon =
+        d.role === "admin"
+            ? "location_on"
+            : d.role === "police"
+            ? "local_police"
+            : d.role === "head_police"
+            ? "corporate_fare"
+            : "person";
 
     return `<section class="user-profile" aria-label="User profile summary">
+    <!-- Hero Identity Card -->
     <div class="user-profile__hero">
-      <div class="user-profile__avatar" aria-hidden="true">${escapeHtml(userInitials(d))}</div>
+      <div class="${userAvatarClass(d.role)}" aria-hidden="true">${escapeHtml(userInitials(d))}</div>
       <div class="user-profile__identity">
-        <h3>${escapeHtml(name)}</h3>
+        <div class="user-profile__title-wrap">
+          <h3>${escapeHtml(hasRealName ? name : (d.email || "Unnamed User"))}</h3>
+          ${isCitizen ? verifiedBadgeHtml(verified) : ""}
+        </div>
         <p class="user-profile__email-line">
-          ${escapeHtml(d.email || "No email address")} • <strong class="users-table__sys-id" title="Deterministic System ID for incident reporting">${escapeHtml(formatUserSystemId(userId))}</strong>
+          ${hasRealName && d.email ? `<span>${escapeHtml(d.email)}</span> <span class="user-profile__sep">•</span>` : ""}
+          <span class="user-profile__sys-chip" title="System ID (Click to copy)" data-copy-text="${escapeAttr(sysId)}">
+            <code>${escapeHtml(sysId)}</code>
+            <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+          </span>
         </p>
         <div class="user-profile__badges">
           <span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span>
           <span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>
-          ${isCitizen ? verifiedBadgeHtml(verified) : ""}
         </div>
       </div>
     </div>
 
-    <div class="user-profile__quick-grid" aria-label="Account summary">
+    <!-- Quick Telemetry Overview Ribbon -->
+    <div class="user-profile__quick-grid" aria-label="Account telemetry">
       <div class="user-profile__quick-item">
-        <span>Date joined</span>
-        <strong>${escapeHtml(joined)}</strong>
+        <div class="user-profile__quick-icon-wrap">
+          <span class="material-symbols-outlined" aria-hidden="true">calendar_today</span>
+        </div>
+        <div class="user-profile__quick-content">
+          <span>Date registered</span>
+          <strong>${escapeHtml(joined)}</strong>
+        </div>
       </div>
       <div class="user-profile__quick-item">
-        <span>Last active</span>
-        <strong>${escapeHtml(lastSeen)}</strong>
+        <div class="user-profile__quick-icon-wrap">
+          <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+        </div>
+        <div class="user-profile__quick-content">
+          <span>Last active</span>
+          <strong>${escapeHtml(lastSeen)}</strong>
+        </div>
       </div>
     </div>
 
+    <!-- Section 1: Contact & Verification -->
     <section class="user-profile__section">
-      <h4>Contact</h4>
+      <div class="user-profile__section-header">
+        <span class="material-symbols-outlined user-profile__section-icon" aria-hidden="true">contact_mail</span>
+        <h4>Contact &amp; Verification</h4>
+      </div>
       <dl class="user-profile__details">
-        <div><dt>Email address</dt><dd>${escapeHtml(d.email || "—")}</dd></div>
-        <div><dt>Phone</dt><dd>${escapeHtml(contact)}</dd></div>
+        <div>
+          <dt>Email address</dt>
+          <dd class="user-profile__copy-dd">
+            <span>${escapeHtml(d.email || "—")}</span>
+            ${d.email ? `
+            <button type="button" class="user-profile__inline-copy-btn" data-copy-text="${escapeAttr(d.email)}" title="Copy email address" aria-label="Copy email address">
+              <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+            </button>` : ""}
+          </dd>
+        </div>
+        <div>
+          <dt>Contact phone</dt>
+          <dd>${escapeHtml(contact)}</dd>
+        </div>
+        ${isCitizen ? `
+        <div class="user-profile__details--full">
+          <dt>Gmail Verification</dt>
+          <dd>
+            <div class="user-profile__verified-row">
+              <span class="users-verified-badge ${verified ? "users-verified-badge--yes" : "users-verified-badge--no"}">
+                <span class="material-symbols-outlined" aria-hidden="true">${verified ? "verified" : "help_outline"}</span>
+                ${verified ? "Verified Account" : "Unverified Account"}
+              </span>
+              <span class="user-profile__verified-hint">${verified ? "Verified Gmail (eligible to submit incident reports)" : "Pending verification (citizen reports held until verified)"}</span>
+            </div>
+          </dd>
+        </div>` : ""}
       </dl>
     </section>
 
+    <!-- Section 2: System & Jurisdiction -->
     <section class="user-profile__section">
-      <h4>System</h4>
+      <div class="user-profile__section-header">
+        <span class="material-symbols-outlined user-profile__section-icon" aria-hidden="true">badge</span>
+        <h4>System &amp; Jurisdiction</h4>
+      </div>
       <dl class="user-profile__details">
-        <div><dt>System ID</dt><dd><code>${escapeHtml(formatUserSystemId(userId))}</code> <span style="font-size: 0.8rem; color: #64748b;">(pseudonym on incident reports)</span></dd></div>
-        <div><dt>User ID</dt><dd><span class="incident-detail__mono">${escapeHtml(userId)}</span></dd></div>
-        <div><dt>Role</dt><dd>${escapeHtml(humanizeRole(d.role))}</dd></div>
-        ${isCitizen ? `<div><dt>Gmail Verification</dt><dd><span class="users-verified-badge ${verified ? "users-verified-badge--yes" : "users-verified-badge--no"}"><span class="material-symbols-outlined" aria-hidden="true">${verified ? "verified" : "pending"}</span>${verified ? "Verified Gmail (Eligible to submit incident reports)" : "Unverified Gmail (Pending citizen verification)"}</span></dd></div>` : ""}
-        ${d.role === "admin" || d.barangayId ? `<div><dt>Assigned Barangay</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #dc2626;">location_on</span> ${escapeHtml(getBarangayNameById(d.barangayId) || d.assignedBarangay || "Unassigned")}</dd></div>` : ""}
-        ${d.role === "police" || d.substationId ? `<div><dt>Assigned Substation</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #2563eb;">local_police</span> ${escapeHtml(getSubstationNameById(d.substationId) || d.assignedSubstation || "Unassigned")}</dd></div>` : ""}
-        ${d.role === "head_police" ? `<div><dt>Jurisdiction</dt><dd><span class="material-symbols-outlined" aria-hidden="true" style="font-size: 16px; vertical-align: -3px; color: #1e3a8a;">corporate_fare</span> Central Command (City-wide Oversight)</dd></div>` : ""}
-        <div><dt>Status</dt><dd>${escapeHtml(humanizeStatus(status))}</dd></div>
-        <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
+        <div>
+          <dt>System ID (Pseudonym)</dt>
+          <dd class="user-profile__copy-dd">
+            <code class="user-profile__mono-pill">${escapeHtml(sysId)}</code>
+            <button type="button" class="user-profile__inline-copy-btn" data-copy-text="${escapeAttr(sysId)}" title="Copy System ID" aria-label="Copy System ID">
+              <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+            </button>
+          </dd>
+        </div>
+        <div>
+          <dt>Firestore User ID</dt>
+          <dd class="user-profile__copy-dd">
+            <span class="incident-detail__mono" title="${escapeAttr(userId)}">${escapeHtml(userId)}</span>
+            <button type="button" class="user-profile__inline-copy-btn" data-copy-text="${escapeAttr(userId)}" title="Copy User ID" aria-label="Copy User ID">
+              <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+            </button>
+          </dd>
+        </div>
+        <div>
+          <dt>Assigned Role</dt>
+          <dd><span class="${roleBadgeClass(d.role)}">${escapeHtml(humanizeRole(d.role))}</span></dd>
+        </div>
+        <div>
+          <dt>Jurisdiction Assignment</dt>
+          <dd class="user-profile__jurisdiction-dd">
+            <span class="material-symbols-outlined" aria-hidden="true">${jurisdictionIcon}</span>
+            <span>${escapeHtml(jurisdictionText)}</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Account Status</dt>
+          <dd><span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span></dd>
+        </div>
+        <div>
+          <dt>Last Profile Update</dt>
+          <dd>${escapeHtml(updated)}</dd>
+        </div>
       </dl>
     </section>
   </section>
+
+  <!-- Modal Action Footer -->
   <section class="incident-actions incident-actions--user" aria-label="User actions">
-    <h3 class="incident-actions__title">Profile actions</h3>
-    <p class="incident-actions__hint">Edit profile fields, role, or account status. Delete only removes the Firestore profile document.</p>
+    <div class="incident-actions__head">
+      <h3 class="incident-actions__title">Profile Actions</h3>
+      <p class="incident-actions__hint">Manage account status, credentials, and cross-reference linked incident reports.</p>
+    </div>
     <div class="incident-actions__buttons">
+      <a href="incidents.html?search=${encodeURIComponent(sysId)}" target="_blank" rel="noopener noreferrer" class="incident-action-btn incident-action-btn--secondary" title="Search all incidents involving ${escapeAttr(sysId)}">
+        <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+        <span>View Incidents</span>
+      </a>
+      <button type="button" class="incident-action-btn" data-user-action="edit-profile">
+        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+        <span>Edit Profile</span>
+      </button>
       ${isCitizen && !verified && isHQ ? `
       <button type="button" class="incident-action-btn incident-action-btn--secondary" data-user-action="verify-account">
-        <span class="material-symbols-outlined" aria-hidden="true">verified</span> Verify account (HQ Override)
+        <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+        <span>Verify (HQ Override)</span>
       </button>` : ""}
-      <button type="button" class="incident-action-btn" data-user-action="edit-profile">Edit</button>
       <button type="button" class="incident-action-btn incident-action-btn--danger" data-user-action="delete-profile">
-        Delete profile
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+        <span>Delete Profile</span>
       </button>
     </div>
     <p id="user-actions-feedback" class="incident-actions__feedback" aria-live="polite"></p>
@@ -371,47 +515,43 @@ function patchUsersTableRow(userId, d) {
             : d.role === "head_police"
             ? " (HQ Command)"
             : "";
-    const roleLabel = `${baseRole}${assignedLocation}`;
+    const fullRole = `${baseRole}${assignedLocation}`;
     const badge = roleBadgeClass(d.role);
     const isVerified = isUserVerified(d);
     const isCitizen = normalizeRole(d.role) === "user";
-    const joined = formatTimestamp(d.createdAt);
     const status = userStatus(d);
+    const sysId = formatUserSystemId(userId);
+
     const c1 = row.children[1];
     const c2 = row.children[2];
     const c3 = row.children[3];
     const c4 = row.children[4];
     const c5 = row.children[5];
-    const c6 = row.children[6];
-    if (c1) c1.textContent = name;
+
+    if (c1) {
+        c1.innerHTML = `
+          <div class="users-table__name-wrap">
+            <span>${escapeHtml(name)}</span>
+            <span class="users-table__sys-id" title="System ID for incident cross-referencing">${escapeHtml(sysId)}</span>
+          </div>
+        `;
+    }
     if (c2) {
         c2.textContent = email;
         c2.setAttribute("title", email);
         c2.className = "incidents-table__desc";
     }
-    if (c3)
-        c3.innerHTML = `<span class="${badge}">${escapeHtml(roleLabel)}</span>`;
-    if (c4)
+    if (c3) {
+        c3.innerHTML = `<span class="${badge}" title="${escapeAttr(fullRole)}">${escapeHtml(baseRole)}</span>`;
+    }
+    if (c4) {
         c4.innerHTML = isCitizen
             ? verifiedBadgeHtml(isVerified)
             : '<span style="color: #94a3b8; font-weight: 500;">—</span>';
-    if (c5) {
-        const short =
-            d.createdAt && typeof d.createdAt.toDate === "function"
-                ? (() => {
-                      try {
-                          return d.createdAt.toDate().toLocaleDateString(undefined, {
-                              dateStyle: "short",
-                          });
-                      } catch {
-                          return joined;
-                      }
-                  })()
-                : joined;
-        c5.textContent = short;
     }
-    if (c6)
-        c6.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>`;
+    if (c5) {
+        c5.innerHTML = `<span class="${statusBadgeClass(status)}">${escapeHtml(humanizeStatus(status))}</span>`;
+    }
 }
 
 export function initUserModal() {
@@ -449,12 +589,23 @@ export function initUserModal() {
 
     function showView() {
         if (!currentUserId || !currentData) return;
+        updateUserModalHeader(currentUserId, currentData);
         body.innerHTML = renderUserDetail(currentUserId, currentData);
         bindViewActions();
     }
 
     function showEdit() {
         if (!currentUserId || !currentData) return;
+        if (titleEl) {
+            titleEl.innerHTML = `
+                <div class="incident-modal__header-bar">
+                    <div class="incident-modal__header-left">
+                        <span class="incident-modal__code-badge">EDIT</span>
+                        <span class="incident-modal__type-name">Edit User Profile</span>
+                    </div>
+                </div>
+            `;
+        }
         body.innerHTML = renderUserEditForm(currentUserId, currentData);
         bindEditActions();
         initAdminCustomSelects(modal);
@@ -469,6 +620,26 @@ export function initUserModal() {
         const verifyBtn = body.querySelector(
             '[data-user-action="verify-account"]',
         );
+
+        // Bind 1-click clipboard copy
+        body.querySelectorAll("[data-copy-text]").forEach((btn) => {
+            btn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const val = btn.getAttribute("data-copy-text");
+                if (!val) return;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(val);
+                        toastSuccess(`Copied: ${val}`);
+                    } else {
+                        prompt("Copy to clipboard:", val);
+                    }
+                } catch {
+                    prompt("Copy to clipboard:", val);
+                }
+            });
+        });
 
         verifyBtn?.addEventListener("click", async () => {
             if (!currentUserId) return;
@@ -675,13 +846,8 @@ export function initUserModal() {
         if (e.key === "Escape" && !modal.hidden) closeModal();
     });
 
-    tbody.addEventListener("click", (e) => {
-        const btn = e.target.closest(".users-more-btn");
-        if (!btn) return;
-        const tr = btn.closest("tr");
-        const id = tr?.dataset?.userId;
+    function openUserModalById(id) {
         if (!id) return;
-
         currentUserId = id;
         if (titleEl) titleEl.textContent = "Profile";
         body.innerHTML = '<p class="incident-modal__loading">Loading user…</p>';
@@ -702,7 +868,7 @@ export function initUserModal() {
                 currentData = snap.data();
                 const isEditing = body.querySelector("#user-edit-form");
                 if (!isEditing) {
-                    if (titleEl) titleEl.textContent = "Profile";
+                    updateUserModalHeader(snap.id, currentData);
                     body.innerHTML = renderUserDetail(snap.id, currentData);
                     bindViewActions();
                 }
@@ -712,5 +878,22 @@ export function initUserModal() {
                 body.innerHTML = `<p class="incident-modal__error">${escapeHtml(err?.message || "Failed to load user")}</p>`;
             },
         );
+    }
+
+    tbody.addEventListener("click", (e) => {
+        const tr = e.target.closest("tr[data-user-id]");
+        const id = tr?.dataset?.userId;
+        if (!id) return;
+        openUserModalById(id);
+    });
+
+    tbody.addEventListener("keydown", (e) => {
+        if (e.target.closest("button")) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+        const tr = e.target.closest("tr[data-user-id]");
+        const id = tr?.dataset?.userId;
+        if (!id) return;
+        e.preventDefault();
+        openUserModalById(id);
     });
 }

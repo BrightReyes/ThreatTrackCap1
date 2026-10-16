@@ -4,8 +4,14 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Admin | Users</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -28,7 +34,7 @@
     <body>
         <div id="page-users" class="admin-dashboard" hidden>
             <aside
-                class="admin-dashboard__sidebar"
+                class="admin-dashboard__sidebar admin-dashboard__sidebar--gradient"
                 aria-label="Main navigation"
             >
                 <div class="sidebar__top">
@@ -53,7 +59,7 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
@@ -141,9 +147,9 @@
             <div class="admin-dashboard__shell">
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <h1 class="admin-dashboard__title">Users</h1>
+                        <h1 class="admin-dashboard__title">User Management</h1>
                         <p class="admin-dashboard__tagline">
-                            Registered accounts and roles
+                            Registered accounts, role access control, verification, and directory moderation
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -152,137 +158,283 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
-                                <span
-                                    class="admin-dashboard__clock-sep"
-                                    aria-hidden="true"
-                                    >·</span
-                                >
-                                <span class="admin-dashboard__clock-tz"
-                                    >PHT</span
-                                >
+                                >--:--:--</time>
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
 
                 <main class="admin-dashboard__main incidents-main">
-                    <section class="users-stats" aria-label="User summary">
-                        <article class="users-stat-card users-stat-card--total">
-                            <span
-                                class="users-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >group</span
-                            >
-                            <div>
-                                <p class="users-stat-card__label">
-                                    Total accounts
-                                </p>
-                                <strong id="users-stat-total">0</strong>
+                    <!-- Container 1: Overview & Directory Metrics -->
+                    <section class="incidents-panel incidents-panel--metrics" aria-label="User directory metrics overview">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">manage_accounts</span>
+                                <h2 class="incidents-panel__title">Overview &amp; Directory Metrics</h2>
+                                <span class="incidents-filter-pill">Live Counters</span>
                             </div>
-                        </article>
-                        <article
-                            class="users-stat-card users-stat-card--barangay"
-                        >
-                            <span
-                                class="users-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >admin_panel_settings</span
+                            <p class="incidents-panel__meta">Click any card to filter the directory</p>
+                        </div>
+                        <div class="incidents-panel__body incidents-panel__body--stats">
+                            <div
+                                class="incidents-stats admin-dashboard__stats"
+                                aria-label="User summary"
                             >
-                            <div>
-                                <p class="users-stat-card__label">
-                                    Barangay Admin
-                                </p>
-                                <strong id="users-stat-admin">0</strong>
+                                <!-- Total Accounts -->
+                                <article
+                                    class="stat-card stat-card--total-incidents stat-card--interactive"
+                                    id="card-stat-total"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="View all user accounts"
+                                    data-stat-filter="all"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >group</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Total Accounts
+                                            </p>
+                                            <p
+                                                id="users-stat-total"
+                                                class="stat-card__value"
+                                            >
+                                                0
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            All registered accounts
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Barangay Admin -->
+                                <article
+                                    class="stat-card stat-card--open-incidents stat-card--interactive"
+                                    id="card-stat-admin"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Filter barangay admin accounts"
+                                    data-stat-filter="admin"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >admin_panel_settings</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Barangay Admin
+                                            </p>
+                                            <p
+                                                id="users-stat-admin"
+                                                class="stat-card__value"
+                                            >
+                                                0
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            Local station officers
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Police Admin -->
+                                <article
+                                    class="stat-card stat-card--pending stat-card--interactive"
+                                    id="card-stat-police"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Filter police admin accounts"
+                                    data-stat-filter="police"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >local_police</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Police Admin
+                                            </p>
+                                            <p
+                                                id="users-stat-police"
+                                                class="stat-card__value"
+                                            >
+                                                0
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            Substations &amp; HQ Command
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Citizen Users -->
+                                <article
+                                    class="stat-card stat-card--users stat-card--interactive"
+                                    id="card-stat-users"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Filter citizen user accounts"
+                                    data-stat-filter="user"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >person</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">
+                                                Citizen Users
+                                            </p>
+                                            <p
+                                                id="users-stat-users"
+                                                class="stat-card__value"
+                                            >
+                                                0
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            Public reporter accounts
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
                             </div>
-                        </article>
-                        <article
-                            class="users-stat-card users-stat-card--police"
-                        >
-                            <span
-                                class="users-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >local_police</span
-                            >
-                            <div>
-                                <p class="users-stat-card__label">
-                                    Police Admin
-                                </p>
-                                <strong id="users-stat-police">0</strong>
-                            </div>
-                        </article>
-                        <article class="users-stat-card users-stat-card--users">
-                            <span
-                                class="users-stat-card__icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >person</span
-                            >
-                            <div>
-                                <p class="users-stat-card__label">Users</p>
-                                <strong id="users-stat-users">0</strong>
-                            </div>
-                        </article>
+                        </div>
                     </section>
 
-                    <div class="incidents-toolbar users-toolbar">
-                        <div
-                            class="incidents-toolbar__search users-toolbar__search"
-                        >
-                            <label class="visually-hidden" for="users-search"
-                                >Search users</label
+                    <!-- Container 2: Registered Users Directory -->
+                    <section class="incidents-panel incidents-panel--reports" aria-label="User directory list">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">group</span>
+                                <h2 class="incidents-panel__title">
+                                    Registered Users Directory
+                                </h2>
+                                <span id="users-filter-pill" class="incidents-filter-pill" hidden>Filtered</span>
+                            </div>
+                            <p
+                                class="incidents-panel__meta"
+                                id="users-count"
                             >
-                            <span
-                                class="users-toolbar__search-icon material-symbols-outlined"
-                                aria-hidden="true"
-                                >search</span
-                            >
-                            <input
-                                id="users-search"
-                                type="search"
-                                class="incidents-search-input"
-                                placeholder="Search by email, name, or user ID…"
-                                autocomplete="off"
-                            />
-                        </div>
-                        <div
-                            class="incidents-toolbar__filters users-toolbar__filters"
-                        >
-                            <select
-                                id="users-filter-role"
-                                class="incidents-select"
-                                aria-label="Role filter"
-                            >
-                                <option value="all">All roles</option>
-                            </select>
-                            <button
-                                type="button"
-                                id="users-add-new"
-                                class="users-add-btn"
-                            >
-                                <span
-                                    class="material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >person_add</span
-                                >
-                                Add new user
-                            </button>
-                        </div>
-                    </div>
-
-                    <section class="incidents-panel" aria-label="User list">
-                        <div class="incidents-panel__head">
-                            <h2 class="incidents-panel__title">All users</h2>
-                            <p class="incidents-panel__meta" id="users-count">
                                 Loading…
                             </p>
+                        </div>
+
+                        <!-- Filters & Toolbar Area -->
+                        <div class="incidents-panel__filters">
+                            <div class="incidents-toolbar__primary">
+                                <div class="incidents-search-wrap">
+                                    <span class="material-symbols-outlined incidents-search-icon" aria-hidden="true">search</span>
+                                    <input
+                                        id="users-search"
+                                        type="search"
+                                        class="incidents-search-input"
+                                        placeholder="Search by name, email, role, or ID…"
+                                        autocomplete="off"
+                                    />
+                                    <button
+                                        type="button"
+                                        id="users-search-clear"
+                                        class="incidents-search-clear"
+                                        aria-label="Clear search query"
+                                        hidden
+                                    >
+                                        <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                                    </button>
+                                </div>
+                                <div class="incidents-toolbar__filters">
+                                    <div class="incidents-filter-group">
+                                        <label for="users-filter-role" class="incidents-filter-label">Role</label>
+                                        <select
+                                            id="users-filter-role"
+                                            class="incidents-select"
+                                            aria-label="Role filter"
+                                        >
+                                            <option value="all">All roles</option>
+                                        </select>
+                                    </div>
+                                    <div class="incidents-filter-group">
+                                        <label for="users-filter-status" class="incidents-filter-label">Status</label>
+                                        <select
+                                            id="users-filter-status"
+                                            class="incidents-select"
+                                            aria-label="Status filter"
+                                        >
+                                            <option value="all">All statuses</option>
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                            <option value="suspended">Suspended</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        id="users-filter-reset"
+                                        class="incidents-filter-reset"
+                                        title="Reset all search filters"
+                                    >
+                                        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+                                        <span>Reset Filters</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        id="users-add-new"
+                                        class="users-add-btn"
+                                    >
+                                        <span
+                                            class="material-symbols-outlined"
+                                            aria-hidden="true"
+                                            >person_add</span
+                                        >
+                                        <span>Add New User</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="incidents-table-wrap">
@@ -295,8 +447,7 @@
                                         <th scope="col">Name</th>
                                         <th scope="col">Email address</th>
                                         <th scope="col">Role</th>
-                                        <th scope="col">Verified</th>
-                                        <th scope="col">Date</th>
+                                        <th scope="col">Verification</th>
                                         <th scope="col">Status</th>
                                         <th
                                             scope="col"
@@ -306,11 +457,17 @@
                                 </thead>
                                 <tbody id="users-tbody">
                                     <tr class="incidents-table__empty">
-                                        <td colspan="8">Loading…</td>
+                                        <td colspan="7">Loading users…</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+
+                        <div
+                            id="users-pagination"
+                            class="incidents-pagination"
+                            aria-label="Users pagination"
+                        ></div>
                     </section>
                 </main>
             </div>
