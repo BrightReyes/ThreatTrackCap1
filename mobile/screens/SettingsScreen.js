@@ -319,6 +319,12 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     .trim();
   const displayName = fullName || user?.displayName || 'Citizen User';
   const accountStatus = String(profile?.accountStatus || 'active').replace(/_/g, ' ');
+  const isAccountVerified = Boolean(
+    user?.emailVerified ||
+    profile?.isVerified === true ||
+    profile?.emailVerified === true ||
+    String(profile?.verificationStatus || '').toLowerCase() === 'approved'
+  );
 
   return (
     <>
@@ -377,7 +383,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 <Text style={styles.profileEmail} numberOfLines={1}>{user?.email || 'citizen@threattrack.local'}</Text>
 
                 <View style={styles.profileBadgeRow}>
-                  {user?.emailVerified ? (
+                  {isAccountVerified ? (
                     <View style={styles.verifiedBadge}>
                       <Ionicons name="checkmark-circle" size={12} color="#15803d" />
                       <Text style={styles.verifiedBadgeText}>Verified Citizen</Text>
@@ -606,16 +612,16 @@ const SettingsScreen = ({ navigation, onLogout }) => {
             <View style={styles.profileStatusCard}>
               <Text style={styles.profileStatusLabel}>Email Status</Text>
               <View style={styles.statusPill}>
-                <View style={[styles.statusDot, { backgroundColor: user?.emailVerified ? '#16a34a' : '#d97706' }]} />
-                <Text style={[styles.profileStatusValue, { color: user?.emailVerified ? '#15803d' : '#b45309' }]}>
-                  {user?.emailVerified ? 'Verified' : 'Unverified'}
+                <View style={[styles.statusDot, { backgroundColor: isAccountVerified ? '#16a34a' : '#d97706' }]} />
+                <Text style={[styles.profileStatusValue, { color: isAccountVerified ? '#15803d' : '#b45309' }]}>
+                  {isAccountVerified ? 'Verified' : 'Unverified'}
                 </Text>
               </View>
             </View>
           </View>
 
           {/* Verification Banner if Unverified */}
-          {user && !user.emailVerified && (
+          {user && !isAccountVerified && (
             <View style={styles.emailVerifyBanner}>
               <View style={styles.emailVerifyBannerHeader}>
                 <Ionicons name="shield-outline" size={17} color="#b45309" />

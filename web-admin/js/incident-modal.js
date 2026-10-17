@@ -145,10 +145,10 @@ function buildPhotosHtml(data) {
     return `<div class="incident-photo-list">${unique
         .map((u, i) => {
             const label = `Evidence photo ${i + 1}`;
-            return `<a class="incident-photo-list__item" href="${escapeAttr(u)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttr(label)}">
+            return `<button type="button" class="incident-photo-list__item" data-evidence-photo="${escapeAttr(u)}" data-evidence-index="${i}" aria-label="Preview ${escapeAttr(label)}">
                 <img class="incident-photo-list__image" src="${escapeAttr(u)}" alt="${escapeAttr(label)}" loading="lazy">
                 <span class="incident-photo-list__label"><span class="material-symbols-outlined">zoom_in</span> ${escapeHtml(`Photo ${i + 1}`)}</span>
-            </a>`;
+            </button>`;
         })
         .join("")}</div>`;
 }
@@ -641,7 +641,7 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
     const legitimacyBadge = renderLegitimacyBadge(legitimacy);
     const legitimacyDetails = legitimacy.level === "low"
         ? (legitimacy.flags.length ? `<div class="incident-legitimacy-flags">${legitimacy.flags.map((f) => `<span>⚠ ${escapeHtml(f)}</span>`).join("")}</div>` : "")
-        : (legitimacy.reasons.length ? `<div class="incident-legitimacy-reasons">${legitimacy.reasons.slice(0, 2).map((r) => `<span>✓ ${escapeHtml(r)}</span>`).join("")}</div>` : "");
+        : (legitimacy.reasons.length ? `<div class="incident-legitimacy-reasons">${legitimacy.reasons.slice(0, 4).map((r) => `<span>✓ ${escapeHtml(r)}</span>`).join("")}</div>` : "");
 
     const resolvedBId = resolveIncidentBarangayId(d);
     const bName = d.barangayName || (resolvedBId ? getBarangayNameById(resolvedBId) : null) || d.location?.barangay || "—";
@@ -1016,8 +1016,153 @@ export function initIncidentModal() {
         });
     }
 
+    let activeLightboxCleanup = null;
+
+    function openEvidenceLightbox(photos = [], startIndex = 0) {
+        if (!photos || !photos.length) return;
+
+        let currentIndex = Math.max(0, Math.min(startIndex, photos.length - 1));
+
+        let modalEl = document.getElementById("evidence-lightbox-dialog");
+        if (!modalEl) {
+            modalEl = document.createElement("div");
+            modalEl.id = "evidence-lightbox-dialog";
+            modalEl.className = "evidence-lightbox";
+            modalEl.setAttribute("role", "dialog");
+            modalEl.setAttribute("aria-modal", "true");
+            modalEl.setAttribute("aria-label", "Evidence photo preview");
+            modalEl.hidden = true;
+            modalEl.innerHTML = `
+              <div class="evidence-lightbox__backdrop" data-lightbox-close tabindex="-1"></div>
+              <div class="evidence-lightbox__panel">
+                <div class="evidence-lightbox__topbar">
+                  <div class="evidence-lightbox__meta">
+                    <span class="material-symbols-outlined" style="font-size:18px;">photo_camera</span>
+                    <span id="evidence-lightbox-counter" class="evidence-lightbox__counter">Photo 1</span>
+                  </div>
+                  <div class="evidence-lightbox__actions">
+                    <a id="evidence-lightbox-external" class="evidence-lightbox__action-btn" href="#" target="_blank" rel="noopener noreferrer" title="Open full image in new tab" aria-label="Open full image in new tab">
+                      <span class="material-symbols-outlined">open_in_new</span>
+                    </a>
+                    <button type="button" class="evidence-lightbox__close-btn" data-lightbox-close aria-label="Close preview">
+                      <span class="material-symbols-outlined">close</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="evidence-lightbox__stage">
+                  <button type="button" class="evidence-lightbox__nav evidence-lightbox__nav--prev" id="evidence-lightbox-prev" aria-label="Previous photo">
+                    <span class="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  <div class="evidence-lightbox__img-wrap">
+                    <img id="evidence-lightbox-img" class="evidence-lightbox__img" src="" alt="Evidence photo preview" />
+                  </div>
+                  <button type="button" class="evidence-lightbox__nav evidence-lightbox__nav--next" id="evidence-lightbox-next" aria-label="Next photo">
+                    <span class="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            `;
+            document.body.appendChild(modalEl);
+        }
+
+        if (activeLightboxCleanup) {
+            activeLightboxCleanup();
+            activeLightboxCleanup = null;
+        }
+
+        const counterEl = modalEl.querySelector("#evidence-lightbox-counter");
+        const externalLink = modalEl.querySelector("#evidence-lightbox-external");
+        const imgEl = modalEl.querySelector("#evidence-lightbox-img");
+        const prevBtn = modalEl.querySelector("#evidence-lightbox-prev");
+        const nextBtn = modalEl.querySelector("#evidence-lightbox-next");
+        const closeElements = modalEl.querySelectorAll("[data-lightbox-close]");
+
+        function updateView() {
+            const url = photos[currentIndex];
+            if (imgEl) {
+                imgEl.src = url;
+                imgEl.alt = `Evidence photo ${currentIndex + 1} of ${photos.length}`;
+            }
+            if (externalLink) {
+                externalLink.href = url;
+            }
+            if (counterEl) {
+                counterEl.textContent = photos.length > 1
+                    ? `Evidence Photo ${currentIndex + 1} of ${photos.length}`
+                    : "Evidence Photo";
+            }
+            if (prevBtn) {
+                prevBtn.style.display = photos.length > 1 ? "flex" : "none";
+            }
+            if (nextBtn) {
+                nextBtn.style.display = photos.length > 1 ? "flex" : "none";
+            }
+        }
+
+        function onPrev(e) {
+            e?.stopPropagation?.();
+            currentIndex = (currentIndex - 1 + photos.length) % photos.length;
+            updateView();
+        }
+
+        function onNext(e) {
+            e?.stopPropagation?.();
+            currentIndex = (currentIndex + 1) % photos.length;
+            updateView();
+        }
+
+        function onClose(e) {
+            e?.preventDefault?.();
+            cleanup();
+        }
+
+        function onKeydown(e) {
+            if (e.key === "Escape") {
+                cleanup();
+            } else if (e.key === "ArrowLeft" && photos.length > 1) {
+                onPrev(e);
+            } else if (e.key === "ArrowRight" && photos.length > 1) {
+                onNext(e);
+            }
+        }
+
+        function cleanup() {
+            modalEl.hidden = true;
+            modalEl.setAttribute("aria-hidden", "true");
+            if (imgEl) imgEl.src = "";
+            window.removeEventListener("keydown", onKeydown);
+            prevBtn?.removeEventListener("click", onPrev);
+            nextBtn?.removeEventListener("click", onNext);
+            closeElements.forEach((el) => el.removeEventListener("click", onClose));
+            activeLightboxCleanup = null;
+        }
+
+        activeLightboxCleanup = cleanup;
+
+        prevBtn?.addEventListener("click", onPrev);
+        nextBtn?.addEventListener("click", onNext);
+        closeElements.forEach((el) => el.addEventListener("click", onClose));
+        window.addEventListener("keydown", onKeydown);
+
+        updateView();
+        modalEl.hidden = false;
+        modalEl.setAttribute("aria-hidden", "false");
+    }
+
     function bindActionHandlers() {
         const feedback = document.getElementById("incident-actions-feedback");
+
+        // Lightbox photo preview bindings
+        body.querySelectorAll("[data-evidence-photo]").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                const allPhotos = Array.from(body.querySelectorAll("[data-evidence-photo]"))
+                    .map((b) => b.getAttribute("data-evidence-photo"))
+                    .filter(Boolean);
+                const index = parseInt(btn.getAttribute("data-evidence-index") || "0", 10);
+                openEvidenceLightbox(allPhotos, index);
+            });
+        });
 
         body.querySelector("[data-copy-id], [data-copy-uid]")?.addEventListener("click", async (e) => {
             e.preventDefault();

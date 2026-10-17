@@ -1,10 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from './CustomAlert';
 import { scheduleLocalNotification } from '../utils/notifications';
 
+const formatDistance = (dist) => {
+  const n = Number(dist);
+  if (!Number.isFinite(n)) return null;
+  if (n < 1) return `${Math.round(n * 1000)} m away`;
+  return `${n.toFixed(1)} km away`;
+};
+
 const ResponseAlertListener = () => {
+  const navigation = useNavigation();
   const shownRef = useRef(new Set());
   const [activeNotification, setActiveNotification] = useState(null);
   const [preferences, setPreferences] = useState({
@@ -13,6 +22,7 @@ const ResponseAlertListener = () => {
     locationAlerts: true,
   });
 
+  // Load user notification preferences
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return undefined;
@@ -33,6 +43,7 @@ const ResponseAlertListener = () => {
     );
   }, []);
 
+  // REAL-TIME LISTENER 1: Watch notifications collection
   useEffect(() => {
     const currentUser = auth.currentUser;
     if (!currentUser) return undefined;
@@ -45,7 +56,7 @@ const ResponseAlertListener = () => {
       (snapshot) => {
         if (activeNotification) return;
 
-        const unreadResponse = snapshot.docs
+        const unreadList = snapshot.docs
           .map((snap) => ({ id: snap.id, ...snap.data() }))
           .filter((item) => (
             isPopupNotification(item) &&
@@ -53,16 +64,39 @@ const ResponseAlertListener = () => {
             !item.readAt &&
             !shownRef.current.has(item.id)
           ))
-          .sort((a, b) => getTimeValue(b.sentAt || b.timestamp) - getTimeValue(a.sentAt || a.timestamp))[0];
+          .sort((a, b) => getTimeValue(b.sentAt || b.timestamp) - getTimeValue(a.sentAt || a.timestamp));
 
+        const unreadResponse = unreadList[0];
         if (unreadResponse) {
           shownRef.current.add(unreadResponse.id);
-          setActiveNotification(unreadResponse);
 
-          // Trigger native device local push notification
+          const responder = unreadResponse.responder || {};
+          const response = unreadResponse.response || {};
+          const stationName = responder.precinctName || responder.shortName || 'Valenzuela Police Dispatch';
+          const distanceStr = formatDistance(response.distanceKm || responder.distanceKm);
+          const etaStr = (response.etaMinutes || responder.etaMinutes)
+            ? `${response.etaMinutes || responder.etaMinutes} min ETA`
+            : null;
+          const trafficStr = response.trafficLevel || responder.trafficLevel || null;
+
+          setActiveNotification({
+            id: unreadResponse.id,
+            incidentId: unreadResponse.incidentId,
+            title: unreadResponse.title || 'Help is on the way',
+            body: unreadResponse.body || 'First responders have acknowledged your report and are en route to your live GPS coordinates.',
+            type: 'dispatch',
+            dispatchInfo: {
+              stationName,
+              distance: distanceStr,
+              eta: etaStr,
+              traffic: trafficStr,
+            },
+          });
+
+          // Trigger native push notification
           scheduleLocalNotification({
-            title: unreadResponse.title || '🚨 ThreatTrack Alert',
-            body: unreadResponse.body || 'New incident response update received.',
+            title: unreadResponse.title || '🚨 Help is on the way',
+            body: unreadResponse.body || `Response units deployed from ${stationName}.`,
             data: {
               incidentId: unreadResponse.incidentId,
               notificationId: unreadResponse.id,
@@ -79,39 +113,125 @@ const ResponseAlertListener = () => {
     return unsubscribe;
   }, [activeNotification, preferences]);
 
+  // REAL-TIME LISTENER 2: Direct incident status listener
+  // Provides instantaneous (<100ms) popup when admin clicks "Respond" anywhere
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return undefined;
+
+    const incidentsRef = collection(db, 'incidents');
+    const q = query(incidentsRef, where('reporterId', '==', currentUser.uid));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (activeNotification) return;
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'modified' || change.type === 'added') {
+            const data = change.doc.data();
+            const status = String(data.status || '').toLowerCase().trim();
+            const responseStatus = String(data.responseStatus || data.response?.status || '').toLowerCase().trim();
+            const isResponding = status === 'responding' || responseStatus === 'help_on_the_way';
+
+            if (isResponding) {
+              const responder = data.responder || {};
+              const response = data.response || {};
+              const stationName =
+                data.respondingSubstationName ||
+                data.assignedSubstationName ||
+                responder.precinctName ||
+                'Valenzuela Police Dispatch';
+              const distanceStr = formatDistance(response.distanceKm || responder.distanceKm);
+              const etaStr = (response.etaMinutes || responder.etaMinutes)
+                ? `${response.etaMinutes || responder.etaMinutes} min ETA`
+                : null;
+              const trafficStr = response.trafficLevel || responder.trafficLevel || null;
+
+              const eventKey = `resp_${change.doc.id}_${data.respondedAt?.seconds || data.updatedAt?.seconds || 'active'}`;
+              if (!shownRef.current.has(eventKey)) {
+                shownRef.current.add(eventKey);
+
+                setActiveNotification({
+                  id: eventKey,
+                  incidentId: change.doc.id,
+                  title: 'Help is on the way',
+                  body: 'First responders have acknowledged your report and units are deployed to your location.',
+                  type: 'dispatch',
+                  dispatchInfo: {
+                    stationName,
+                    distance: distanceStr,
+                    eta: etaStr,
+                    traffic: trafficStr,
+                  },
+                });
+
+                scheduleLocalNotification({
+                  title: '🚨 Help is on the way',
+                  body: `Response units deployed from ${stationName}.`,
+                  data: {
+                    incidentId: change.doc.id,
+                    type: 'response_update',
+                  },
+                }).catch(() => {});
+              }
+            }
+          }
+        });
+      },
+      (error) => {
+        console.error('Error listening to user incidents for real-time dispatch:', error);
+      }
+    );
+
+    return unsubscribe;
+  }, [activeNotification]);
+
   const markRead = async () => {
     const current = activeNotification;
     setActiveNotification(null);
     if (!current?.id) return;
 
-    try {
-      await updateDoc(doc(db, 'notifications', current.id), {
-        read: true,
-        readAt: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error('Error marking response notification read:', error);
+    // Only update notification doc if it corresponds to an actual Firestore notification ID
+    if (!current.id.startsWith('resp_')) {
+      try {
+        await updateDoc(doc(db, 'notifications', current.id), {
+          read: true,
+          readAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error('Error marking response notification read:', error);
+      }
     }
   };
 
-  const responder = activeNotification?.responder || {};
-  const response = activeNotification?.response || {};
-  const isPoliceUrgent = activeNotification?.type === 'police_urgent_report';
-  const defaultMessage = responder.precinctName
-    ? `Help is on the way from ${responder.precinctName}.`
-    : 'Help request acknowledged. The admin desk is assigning the nearest available responder.';
-  const distance = Number.isFinite(Number(response.distanceKm))
-    ? ` Distance: ${Number(response.distanceKm).toFixed(1)} km.`
-    : '';
-  const eta = response.etaMinutes ? ` ETA: ${response.etaMinutes} min.` : '';
+  const handleTrackStatus = () => {
+    markRead();
+    try {
+      navigation.navigate('Status');
+    } catch (navErr) {
+      console.warn('Navigation to Status failed:', navErr);
+    }
+  };
 
   return (
     <CustomAlert
       visible={!!activeNotification}
-      title={activeNotification?.title || (isPoliceUrgent ? 'Urgent police alert' : 'Help is on the way')}
-      message={activeNotification?.body || `${defaultMessage}${distance}${eta}`}
-      type="warning"
-      buttons={[{ text: 'OK' }]}
+      title={activeNotification?.title || 'Help is on the way'}
+      message={activeNotification?.body || 'First responders have acknowledged your report and are en route to your location.'}
+      type="dispatch"
+      dispatchInfo={activeNotification?.dispatchInfo}
+      buttons={[
+        {
+          text: 'Acknowledge',
+          style: 'cancel',
+          onPress: markRead,
+        },
+        {
+          text: 'Track Status',
+          onPress: handleTrackStatus,
+        },
+      ]}
       onClose={markRead}
     />
   );

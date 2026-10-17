@@ -16,10 +16,10 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
-import { getReportEligibility, resendEmailVerification } from '../utils/auth';
+import { getReportEligibility, resendEmailVerification, acknowledgeFalseReportPolicy } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
-import QuickDescriptionChips from '../components/QuickDescriptionChips';
+import QuickDescriptionChips, { detectActiveQuickTags } from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
   {
@@ -268,6 +268,35 @@ const ReportIncidentScreen = ({ navigation }) => {
             text: "I've Verified",
             onPress: () => {
               handleConfirmedSubmit();
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ],
+        0,
+      );
+      return;
+    }
+
+    if (eligibility?.needsPolicyAcknowledgment || eligibility?.title === 'Policy Acknowledgment Required') {
+      showAlert(
+        'Policy Acknowledgment Required',
+        'Under Valenzuela City Ordinance, false or prank reporting is strictly prohibited by law. Do you acknowledge and agree to report truthfully?',
+        'warning',
+        [
+          {
+            text: 'I Acknowledge & Submit',
+            onPress: async () => {
+              setLoading(true);
+              const ok = await acknowledgeFalseReportPolicy();
+              if (ok) {
+                handleConfirmedSubmit();
+              } else {
+                setLoading(false);
+                showAlert('Error', 'Unable to record policy agreement. Please try again.', 'error');
+              }
             },
           },
           {
@@ -542,12 +571,15 @@ const ReportIncidentScreen = ({ navigation }) => {
         console.error('Error getting address:', error);
       }
 
+      const detectedQuickTags = detectActiveQuickTags(trimmedDescription);
       const incidentData = {
         type: incidentType,
         typeLabel: selectedIncident?.label || incidentType,
         severity: selectedSeverity,
         reportingAs,
         description: trimmedDescription,
+        quickTags: detectedQuickTags.map((t) => t.label),
+        hasQuickTags: detectedQuickTags.length > 0,
         location: {
           latitude: reportLocation.latitude,
           longitude: reportLocation.longitude,
@@ -558,7 +590,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         reportedAt: serverTimestamp(),
         clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
-        reporterEmailVerified: currentUser.emailVerified === true,
+        reporterEmailVerified: (currentUser.emailVerified === true) || eligibility.profile?.emailVerified === true || eligibility.profile?.isVerified === true,
         reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
       };
 

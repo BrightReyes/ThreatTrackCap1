@@ -29,7 +29,7 @@ const LEGITIMACY_SCHEMA = {
   properties: {
     rating: {
       type: "string",
-      enum: ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"],
+      enum: ["Verified Incident", "Needs Verification", "Suspected False / Spam"],
     },
     summary: {
       type: "string",
@@ -696,6 +696,11 @@ async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfi
       (Array.isArray(incident.photoUrls) && incident.photoUrls.length > 0),
   );
 
+  const detectedQuickTags = detectQuickTags(incident);
+  const quickTagsDisplay = detectedQuickTags.length > 0
+    ? detectedQuickTags.map((t) => `"${t}"`).join(", ")
+    : "None";
+
   const prompt = [
     "You are the official emergency triage AI for Valenzuela City's ThreatTrack public safety system.",
     "TASK: Grounded evaluation of whether this report is legitimate, needs review, or is spam/false.",
@@ -707,6 +712,7 @@ async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfi
     `Coordinates: lat=${incident.location?.latitude || 0}, lng=${incident.location?.longitude || 0}`,
     `Direct SOS Distress Signal: ${incident.isSOSReport ? "YES" : "NO"}`,
     `Photographic Evidence Attached: ${hasPhoto ? "YES" : "NO"}`,
+    `Quick Situational Details Selected: ${quickTagsDisplay}`,
     `Citizen Description: "${incident.description || ""}"`,
     "",
     "=== 2. GROUNDED EVIDENCE RETRIEVED FROM THREATTRACK DATABASE (RAG) ===",
@@ -719,7 +725,7 @@ async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfi
     "   - Compare against the Benchmark Verified Reports: Does this describe a genuine emergency situation?",
     "   - Meaningless keyboard mash, random numbers, single vague words, or jokes are an AUTOMATIC 'Suspected False / Spam'.",
     "   - Proximity to a real incident NEVER validates meaningless or spam text.",
-    "2. HIGH CONFIDENCE: If the description describes an intelligible emergency AND is corroborated by nearby reports OR matches authentic emergency patterns with clear context, assign 'High Confidence Legit'.",
+    "2. VERIFIED INCIDENT: If the description describes an intelligible emergency (especially when matching pre-vetted quick situational tags like 'Held at knifepoint') with verified Valenzuela GPS coordinates, OR is corroborated by nearby reports, assign 'Verified Incident'.",
     "3. UNCORROBORATED / VAGUE: If plausible but isolated, brief, or needs dispatcher confirmation before deploying units, assign 'Needs Verification'.",
     "",
     "OUTPUT: Return strictly JSON adhering to the provided schema with NO markdown formatting.",
@@ -770,16 +776,18 @@ async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfi
       }
 
       const parsed = JSON.parse(text.replace(/```json\s*|\s*```/gi, "").trim());
-      const validRatings = ["High Confidence Legit", "Needs Verification", "Suspected False / Spam"];
-      const rating = validRatings.includes(parsed.rating) ? parsed.rating : "Needs Verification";
+      const validRatings = ["Verified Incident", "High Confidence Legit", "Needs Verification", "Suspected False / Spam"];
+      const rawRating = validRatings.includes(parsed.rating) ? parsed.rating : "Needs Verification";
+      const rating = rawRating === "High Confidence Legit" ? "Verified Incident" : rawRating;
 
       const reasons = [];
+      if (detectedQuickTags.length > 0) reasons.push(`Verified situational detail: "${detectedQuickTags[0]}"`);
       if (incident.isSOSReport) reasons.push("Direct emergency SOS distress signal");
       if (hasPhoto) reasons.push("Photographic evidence attached");
       if (incident.location?.latitude && incident.location?.longitude) reasons.push("GPS verified inside Valenzuela");
       if (reporterProfile.isVerified) reasons.push("Verified resident account");
       if (corroborations.length > 0) reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
-      if (exemplars.length > 0 && rating === "High Confidence Legit") reasons.push("Matches authentic emergency patterns");
+      if (exemplars.length > 0 && rating === "Verified Incident") reasons.push("Matches authentic emergency patterns");
 
       return {
         rating,
@@ -801,6 +809,54 @@ async function evaluateLegitimacyWithRAG(incident, corroborations, reporterProfi
   throw lastError || new Error("All Gemini candidate models failed to respond.");
 }
 
+const QUICK_SITUATIONAL_PHRASES = [
+  {label: "Held at gunpoint", phrase: "held at gunpoint"},
+  {label: "Held at knifepoint", phrase: "threatened me with a knife"},
+  {label: "Took phone and bag", phrase: "took my phone and bag"},
+  {label: "I am hurt", phrase: "hurt and bleeding"},
+  {label: "I am hiding now", phrase: "hiding in a safe place"},
+  {label: "Saw suspect with gun", phrase: "saw a suspect with a gun"},
+  {label: "Saw suspect with knife", phrase: "saw a suspect with a knife"},
+  {label: "Left on motorcycle", phrase: "escape on a motorcycle"},
+  {label: "Victim calling for help", phrase: "calling for help"},
+  {label: "Suspect wearing mask", phrase: "wearing a black mask"},
+  {label: "Phone snatched", phrase: "phone was snatched"},
+  {label: "Bag snatched", phrase: "bag was snatched"},
+  {label: "Two on motorcycle", phrase: "two people on a motorcycle"},
+  {label: "Snatcher ran away", phrase: "ran away on foot"},
+  {label: "I was attacked", phrase: "physically attacked"},
+  {label: "I am bleeding", phrase: "bleeding and need an ambulance"},
+  {label: "Attacker still here", phrase: "person who attacked me is still here"},
+  {label: "Attacker had weapon", phrase: "attacker used a weapon"},
+  {label: "My vehicle was hit", phrase: "vehicle was hit in a crash"},
+  {label: "I am injured", phrase: "injured in the crash"},
+  {label: "Driver ran away", phrase: "hit me and ran away"},
+  {label: "Hit and run", phrase: "hit and run"},
+  {label: "Pointed gun at me", phrase: "pointed a gun at me"},
+  {label: "Threatened with knife", phrase: "threatened me with a knife"},
+  {label: "I am hiding", phrase: "hiding from an armed person"},
+  {label: "Need police rescue", phrase: "need police rescue right now"},
+  {label: "Gunshots heard", phrase: "gunshots were heard"},
+  {label: "I am being hurt", phrase: "being hurt inside the house"},
+  {label: "Children in danger", phrase: "children are inside and in danger"},
+];
+
+function detectQuickTags(incident) {
+  const tags = [];
+  if (Array.isArray(incident?.quickTags)) {
+    for (const t of incident.quickTags) {
+      if (t && !tags.includes(String(t))) tags.push(String(t));
+    }
+  }
+  const desc = String(incident?.description || "").toLowerCase();
+  for (const item of QUICK_SITUATIONAL_PHRASES) {
+    if (desc.includes(item.phrase.toLowerCase()) && !tags.includes(item.label)) {
+      tags.push(item.label);
+    }
+  }
+  return tags;
+}
+
 /**
  * Deterministic rule-based fallback when Gemini is offline, using retrieved corroboration
  */
@@ -809,10 +865,15 @@ function evaluateLegitimacyFallback(incident, corroborations = []) {
   const lat = Number(loc.latitude);
   const lng = Number(loc.longitude);
   const isSos = Boolean(incident.isSOSReport);
+  const detectedQuickTags = detectQuickTags(incident);
 
   const insideValenzuela = lat >= 14.668 && lat <= 14.760 && lng >= 120.925 && lng <= 121.026;
   const reasons = [];
   const flags = [];
+
+  if (detectedQuickTags.length > 0) {
+    reasons.push(`Verified situational detail: "${detectedQuickTags[0]}"`);
+  }
 
   if (insideValenzuela) {
     reasons.push("GPS verified inside Valenzuela");
@@ -820,11 +881,30 @@ function evaluateLegitimacyFallback(incident, corroborations = []) {
     flags.push("Coordinates outside Valenzuela coverage");
   }
 
+  if (loc.address && String(loc.address).length > 6) {
+    reasons.push("Specific street or landmark address attached");
+  }
+
+  if (incident.reporterId) {
+    reasons.push("Authenticated resident account");
+  }
+
   if (isSos) {
     reasons.push("Direct emergency SOS distress signal");
     return {
-      rating: "High Confidence Legit",
+      rating: "Verified Incident",
       summary: "Rule engine: Direct citizen SOS distress signal with verified telemetry.",
+      flags,
+      reasons,
+      source: "rule_engine_fallback",
+    };
+  }
+
+  // If verified situational quick tags attached with valid Valenzuela GPS
+  if (detectedQuickTags.length > 0 && insideValenzuela && flags.length === 0) {
+    return {
+      rating: "Verified Incident",
+      summary: `Rule engine: Verified situational detail ("${detectedQuickTags[0]}") with confirmed Valenzuela coordinates.`,
       flags,
       reasons,
       source: "rule_engine_fallback",
@@ -835,7 +915,7 @@ function evaluateLegitimacyFallback(incident, corroborations = []) {
   if (corroborations && corroborations.length > 0 && insideValenzuela) {
     reasons.push(`Corroborated by ${corroborations.length} nearby report(s)`);
     return {
-      rating: "High Confidence Legit",
+      rating: "Verified Incident",
       summary: `Rule engine: Report corroborated by nearby active incident in Valenzuela.`,
       flags,
       reasons,

@@ -21,18 +21,31 @@ service cloud.firestore {
 
     function callerRole() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? callerUserDoc().data.role
+        ? callerUserDoc().data.get('role', '')
         : null;
     }
 
     function isHeadPoliceAdmin() {
       return isAuthenticated() &&
-             (callerRole() in [
-               'head_police',
-               'head_police_admin',
-               'Head Police Admin',
-               'police_head'
-             ] || (callerRole() in ['police', 'police_admin'] && callerUserDoc().data.isHeadPolice == true));
+             ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+               (callerUserDoc().data.get('role', '') in [
+                 'head_police',
+                 'head_police_admin',
+                 'Head Police Admin',
+                 'head police admin',
+                 'police_head',
+                 'police_chief',
+                 'head_admin',
+                 'hq_police'
+               ] || callerUserDoc().data.get('isHeadPolice', false) == true)) ||
+              request.auth.token.get('role', '') in [
+                'head_police',
+                'head_police_admin',
+                'police_head',
+                'police_chief',
+                'head_admin',
+                'hq_police'
+              ]);
     }
 
     function isBarangayAdmin() {
@@ -301,12 +314,11 @@ service cloud.firestore {
 
       // Users update own profile (email unchanged). Staff may update others based on role boundaries:
       allow update: if (isOwner(userId) &&
-                    request.resource.data.uid == userId &&
-                    request.resource.data.email == resource.data.email &&
-                    (!request.resource.data.keys().hasAny(['emailVerified']) ||
-                      request.resource.data.emailVerified == request.auth.token.email_verified) &&
-                    (!request.resource.data.keys().hasAny(['isVerified']) ||
-                      request.resource.data.isVerified == request.auth.token.email_verified) &&
+                    request.resource.data.get('uid', userId) == userId &&
+                    request.resource.data.get('email', resource.data.email) == resource.data.email &&
+                    (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['emailVerified', 'isVerified', 'verificationStatus']) ||
+                      request.resource.data.emailVerified == request.auth.token.email_verified ||
+                      isHeadPoliceAdmin()) &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly([
                         'firstName',
@@ -319,6 +331,7 @@ service cloud.firestore {
                         'address',
                         'emailVerified',
                         'isVerified',
+                        'verificationStatus',
                         'lastLoginAt',
                         'lastVerificationCheckAt',
                         'falseReportAcknowledged',
@@ -326,10 +339,10 @@ service cloud.firestore {
                         'notificationPreferences',
                         'notificationPreferencesUpdatedAt'
                       ])) ||
-                   (canManageTargetUserProfile(resource.data.role) &&
-                    canManageTargetUserProfile(request.resource.data.role) &&
-                    request.resource.data.uid == userId &&
-                    (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'emailVerified']) ||
+                   (canManageTargetUserProfile(resource.data.get('role', 'user')) &&
+                    canManageTargetUserProfile(request.resource.data.get('role', 'user')) &&
+                    request.resource.data.get('uid', userId) == userId &&
+                    (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'emailVerified', 'verificationStatus', 'verificationReviewedAt']) ||
                       isHeadPoliceAdmin()) &&
                     request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly([
@@ -360,11 +373,23 @@ service cloud.firestore {
                         'adminNotes',
                         'isVerified',
                         'emailVerified',
+                        'verificationStatus',
+                        'verificationReviewedAt',
+                        'rejectionReason',
+                        'lastVerificationCheckAt',
+                        'phoneVerified',
+                        'reportCount',
+                        'lastReportAt',
+                        'falseReportAcknowledged',
+                        'falseReportAcknowledgedAt',
+                        'notificationPreferences',
+                        'notificationPreferencesUpdatedAt',
+                        'lastLoginAt',
                         'updatedAt'
                       ]));
 
       // Users can delete their own profile; staff can delete profiles within their authority
-      allow delete: if isOwner(userId) || canManageTargetUserProfile(resource.data.role);
+      allow delete: if isOwner(userId) || canManageTargetUserProfile(resource.data.get('role', 'user'));
     }
 
     // === INCIDENTS COLLECTION ===

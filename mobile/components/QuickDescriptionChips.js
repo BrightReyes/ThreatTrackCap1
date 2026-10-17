@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
  * - Short button labels (< 3 words)
  * - Complete sentences for insertion to pass AI legitimacy checks (>= 10 chars)
  */
-const QUICK_TAG_MAP = {
+export const QUICK_TAG_MAP = {
   robbery_holdup: {
     victim: [
       { label: 'Held at gunpoint', text: 'I was held at gunpoint' },
@@ -170,6 +170,30 @@ const QUICK_TAG_MAP = {
  */
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Scan a report description and detect any active quick description tags
+ * Returns an array of matched objects: [{ label, text }]
+ */
+export function detectActiveQuickTags(text) {
+  if (!text || typeof text !== 'string') return [];
+  const lower = text.toLowerCase();
+  const matched = [];
+  const seenLabels = new Set();
+
+  for (const category of Object.values(QUICK_TAG_MAP)) {
+    for (const role of ['victim', 'witness']) {
+      const list = category[role] || [];
+      for (const item of list) {
+        if (item && item.text && lower.includes(item.text.toLowerCase()) && !seenLabels.has(item.label)) {
+          seenLabels.add(item.label);
+          matched.push(item);
+        }
+      }
+    }
+  }
+  return matched;
 }
 
 export default function QuickDescriptionChips({

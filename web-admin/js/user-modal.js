@@ -652,12 +652,25 @@ export function initUserModal() {
             if (feedback) feedback.textContent = "Updating verification status…";
             try {
                 await updateDoc(doc(db, "users", currentUserId), {
+                    uid: currentUserId,
                     emailVerified: true,
                     isVerified: true,
+                    verificationStatus: "approved",
+                    falseReportAcknowledged: true,
+                    falseReportAcknowledgedAt: serverTimestamp(),
                     updatedAt: serverTimestamp(),
                 });
+                currentData = {
+                    ...currentData,
+                    emailVerified: true,
+                    isVerified: true,
+                    verificationStatus: "approved",
+                    falseReportAcknowledged: true,
+                };
+                patchUsersTableRow(currentUserId, currentData);
                 toastSuccess("User account marked as verified (HQ Override)");
                 if (feedback) feedback.textContent = "Account verified successfully.";
+                showView();
             } catch (err) {
                 console.error("[user-modal] verify account error", err);
                 toastError(err?.message || "Failed to update verification status");
@@ -779,6 +792,10 @@ export function initUserModal() {
                 payload.isVerified = isVerifiedVal;
                 payload.emailVerified = isVerifiedVal;
                 payload.verificationStatus = isVerifiedVal ? "approved" : "unverified";
+                if (isVerifiedVal) {
+                    payload.falseReportAcknowledged = true;
+                    payload.falseReportAcknowledgedAt = serverTimestamp();
+                }
             }
 
             if (role === "admin" && barangayId) {

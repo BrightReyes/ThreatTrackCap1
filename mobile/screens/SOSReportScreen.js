@@ -14,10 +14,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../utils/firebase';
-import { getReportEligibility, resendEmailVerification } from '../utils/auth';
+import { getReportEligibility, resendEmailVerification, acknowledgeFalseReportPolicy } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates, watchLocation } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
-import QuickDescriptionChips from '../components/QuickDescriptionChips';
+import QuickDescriptionChips, { detectActiveQuickTags } from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
   {
@@ -326,6 +326,35 @@ const SOSReportScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (eligibility?.needsPolicyAcknowledgment || eligibility?.title === 'Policy Acknowledgment Required') {
+      showAlert(
+        'Policy Acknowledgment Required',
+        'Under Valenzuela City Ordinance, false or prank SOS distress alerts are strictly prohibited by law. Do you acknowledge and agree to report truthfully?',
+        'warning',
+        [
+          {
+            text: 'I Acknowledge & Send SOS',
+            onPress: async () => {
+              setLoading(true);
+              const ok = await acknowledgeFalseReportPolicy();
+              if (ok) {
+                handleSubmit();
+              } else {
+                setLoading(false);
+                showAlert('Error', 'Unable to record policy agreement. Please try again.', 'error');
+              }
+            },
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+        ],
+        0,
+      );
+      return;
+    }
+
     showAlert(
       eligibility.title || 'Reporting Unavailable',
       eligibility.message || 'Your account cannot submit reports right now.',
@@ -459,12 +488,15 @@ const SOSReportScreen = ({ navigation, route }) => {
       const safeDescription = description.trim() ||
         `SOS quick report: ${selectedIncident?.label || 'Incident'} reported via emergency flow.`;
 
+      const detectedQuickTags = detectActiveQuickTags(safeDescription);
       const incidentData = {
         type: incidentType,
         typeLabel: selectedIncident?.label || incidentType,
         severity: selectedSeverity,
         description: safeDescription,
         reportingAs,
+        quickTags: detectedQuickTags.map((t) => t.label),
+        hasQuickTags: detectedQuickTags.length > 0,
         location: {
           latitude: reportLocation.latitude,
           longitude: reportLocation.longitude,
@@ -475,7 +507,7 @@ const SOSReportScreen = ({ navigation, route }) => {
         reportedAt: serverTimestamp(),
         clientTimestamp: new Date().toISOString(),
         reporterId: currentUser.uid,
-        reporterEmailVerified: currentUser.emailVerified === true,
+        reporterEmailVerified: (currentUser.emailVerified === true) || eligibility.profile?.emailVerified === true || eligibility.profile?.isVerified === true,
         reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
         isSOSReport: true,
         liveStreamingActive: true,

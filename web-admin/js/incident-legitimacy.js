@@ -5,7 +5,7 @@
  * coordinate validity, and emergency context.
  * 
  * Outputs word-based ratings only (NO percentages):
- * - "High Confidence Legit"
+ * - "Verified Incident"
  * - "Needs Verification"
  * - "Suspected False / Spam"
  */
@@ -85,6 +85,139 @@ const COMMON_LANGUAGE_WORDS = new Set([
     "help", "emergency", "car", "man", "person", "road", "street", "fire", "accident", "medical", "police",
     "flood", "injured", "injury", "danger", "hazard", "assistance", "traffic", "reported", "progress"
 ]);
+
+// Official Quick Situational Tags (matching mobile/components/QuickDescriptionChips.js)
+export const QUICK_SITUATIONAL_TAGS = [
+    // Robbery / Holdup
+    { label: "Held at gunpoint", phrase: "held at gunpoint" },
+    { label: "Held at knifepoint", phrase: "threatened me with a knife" },
+    { label: "Took phone and bag", phrase: "took my phone and bag" },
+    { label: "I am hurt", phrase: "hurt and bleeding" },
+    { label: "I am hiding now", phrase: "hiding in a safe place" },
+    { label: "Saw suspect with gun", phrase: "saw a suspect with a gun" },
+    { label: "Saw suspect with knife", phrase: "saw a suspect with a knife" },
+    { label: "Left on motorcycle", phrase: "escape on a motorcycle" },
+    { label: "Victim calling for help", phrase: "calling for help" },
+    { label: "Suspect wearing mask", phrase: "wearing a black mask" },
+
+    // Theft / Snatching
+    { label: "Phone snatched", phrase: "phone was snatched" },
+    { label: "Bag snatched", phrase: "bag was snatched" },
+    { label: "Two on motorcycle", phrase: "two people on a motorcycle" },
+    { label: "Snatcher ran away", phrase: "ran away on foot" },
+    { label: "Saw phone snatched", phrase: "saw a phone snatched" },
+    { label: "Saw bag snatched", phrase: "saw a bag get snatched" },
+
+    // Physical Assault / Injury
+    { label: "I was attacked", phrase: "physically attacked" },
+    { label: "I am bleeding", phrase: "bleeding and need an ambulance" },
+    { label: "Attacker still here", phrase: "person who attacked me is still here" },
+    { label: "Attacker had weapon", phrase: "attacker used a weapon" },
+    { label: "Saw people fighting", phrase: "saw people fighting in the street" },
+    { label: "Victim is on ground", phrase: "lying on the ground hurt" },
+    { label: "Victim is bleeding", phrase: "victim is bleeding" },
+
+    // Traffic Accidents
+    { label: "My vehicle was hit", phrase: "vehicle was hit in a crash" },
+    { label: "I am injured", phrase: "injured in the crash" },
+    { label: "Driver ran away", phrase: "hit me and ran away" },
+    { label: "Need ambulance for me", phrase: "need an ambulance immediately" },
+    { label: "Saw car crash", phrase: "saw a road crash happen" },
+    { label: "Person hurt on road", phrase: "person is hurt on the road" },
+    { label: "Hit and run", phrase: "hit and run" },
+    { label: "Road is blocked", phrase: "road is completely blocked" },
+
+    // Illegal Weapons
+    { label: "Pointed gun at me", phrase: "pointed a gun at me" },
+    { label: "Threatened with knife", phrase: "threatened me with a knife" },
+    { label: "I am hiding", phrase: "hiding from an armed person" },
+    { label: "Need police rescue", phrase: "need police rescue right now" },
+    { label: "Saw person with gun", phrase: "saw a person carrying a gun" },
+    { label: "Saw person with knife", phrase: "saw a person carrying a knife" },
+    { label: "Gunshots heard", phrase: "gunshots were heard" },
+    { label: "Threatening crowd", phrase: "threatening people with a weapon" },
+
+    // Domestic Violence
+    { label: "I am being hurt", phrase: "being hurt inside the house" },
+    { label: "Children in danger", phrase: "children are inside and in danger" },
+    { label: "Attacker has weapon", phrase: "attacker inside has a weapon" },
+    { label: "Heard screams for help", phrase: "loud screams and fighting" },
+    { label: "Crying heard inside", phrase: "crying for help inside" },
+
+    // Drug-Related Activity
+    { label: "Threatened by users", phrase: "threatened by drug users" },
+    { label: "Outside my house", phrase: "right outside my house" },
+    { label: "Saw selling drugs", phrase: "saw people selling illegal drugs" },
+    { label: "Saw using drugs", phrase: "using illegal drugs in public" },
+
+    // Public Disturbance
+    { label: "Drunk person bothering me", phrase: "drunk person is harassing me" },
+    { label: "Cannot leave area", phrase: "blocking the way" },
+    { label: "Drunk person trouble", phrase: "drunk person is causing trouble" },
+    { label: "Loud shouting", phrase: "shouting and making trouble" },
+    { label: "Blocking the street", phrase: "blocking the street" },
+
+    // Suspicious Activity
+    { label: "Someone following me", phrase: "stranger has been following me" },
+    { label: "Waiting outside gate", phrase: "stranger is waiting outside my gate" },
+    { label: "Looking into my house", phrase: "looking inside my windows" },
+    { label: "Following someone", phrase: "saw a stranger following someone" },
+    { label: "Looking into cars", phrase: "looking inside parked cars" },
+    { label: "Loitering by gates", phrase: "loitering around gates" },
+
+    // Vandalism
+    { label: "My property broken", phrase: "broke my gate, window, or property" },
+    { label: "Rocks thrown at house", phrase: "throwing rocks at my house" },
+    { label: "Saw property broken", phrase: "saw someone breaking property" },
+    { label: "Broken gate or glass", phrase: "gate or window glass was broken" },
+
+    // Default / Emergency
+    { label: "I need police now", phrase: "need police help right now" },
+    { label: "Suspect near me", phrase: "suspect is still near me" },
+    { label: "I am in a safe place", phrase: "currently in a safe place" },
+    { label: "Happening right now", phrase: "emergency is happening right now" },
+];
+
+export const ACTIONABLE_EMERGENCY_KEYWORDS = [
+    "knife", "kutsilyo", "gun", "baril", "weapon", "armas", "patalim", "itak",
+    "holdup", "holdaper", "hold-up", "robbery", "snatch", "snatcher", "snatching",
+    "ninakaw", "magnanakaw", "attacked", "sinaktan", "suntok", "bugbog", "binugbog",
+    "injured", "nasugatan", "bleeding", "dumudugo", "dugo", "ambulance", "ambulansya",
+    "hospital", "ospital", "rescue", "saklolo", "tulong", "emergency", "hiding", "nagtatago",
+    "crash", "bangga", "nabangga", "hit and run", "accident", "aksidente", "collision"
+];
+
+/**
+ * Scan report data for matching quick situational tags (explicitly tagged or detected in description)
+ */
+export function detectQuickSituationalTags(data = {}) {
+    const matched = [];
+    const seen = new Set();
+
+    // 1. Direct explicit tags array passed in incident data
+    if (Array.isArray(data.quickTags)) {
+        for (const tag of data.quickTags) {
+            const clean = String(tag || "").trim();
+            if (clean && !seen.has(clean)) {
+                seen.add(clean);
+                matched.push({ label: clean });
+            }
+        }
+    }
+
+    // 2. Scan text description for known quick situational phrases
+    const text = String(data.description || "").toLowerCase();
+    if (text) {
+        for (const item of QUICK_SITUATIONAL_TAGS) {
+            if (text.includes(item.phrase.toLowerCase()) && !seen.has(item.label)) {
+                seen.add(item.label);
+                matched.push(item);
+            }
+        }
+    }
+
+    return matched;
+}
 
 function isGibberishText(text) {
     if (!text || typeof text !== "string") return { isGibberish: false };
@@ -168,34 +301,48 @@ function lacksRecognizableLanguage(text) {
 }
 
 export function evaluateIncidentLegitimacy(data = {}) {
-    // 0. Priority: If backend Cloud Function evaluated this with Gemini AI or backend rule engine, use it directly
+    // Detect quick situational tags right away
+    const detectedQuickTags = detectQuickSituationalTags(data);
+
+    // 0. Priority: If backend Cloud Function evaluated this with Gemini AI and assigned High Confidence Legit or Spam, respect it.
+    // However, if backend assigned "Needs Verification" (or rule fallback), run our full scoring model so verified quick tags
+    // and authenticated credentials can be evaluated to their full potential!
     if (data.legitimacyRating) {
         const rating = String(data.legitimacyRating);
-        let level = "moderate";
-        let badgeClass = "legit-badge--moderate";
-
-        if (rating.toLowerCase().includes("high") || rating.toLowerCase().includes("legit")) {
-            level = "high";
-            badgeClass = "legit-badge--high";
-        } else if (rating.toLowerCase().includes("spam") || rating.toLowerCase().includes("false")) {
-            level = "low";
-            badgeClass = "legit-badge--spam";
-        }
-
         const isAi = data.legitimacySource === "gemini_ai" || data.legitimacySource === "gemini_rag";
-        const defaultReasons = isAi ? ["AI check confirmed"] : ["Verified report details"];
 
-        return {
-            rating: data.legitimacyRating,
-            level,
-            badgeClass,
-            summary: data.legitimacySummary || "Evaluated incident report.",
-            reasons: Array.isArray(data.legitimacyReasons) && data.legitimacyReasons.length > 0
-                ? data.legitimacyReasons
-                : defaultReasons,
-            flags: Array.isArray(data.legitimacyFlags) ? data.legitimacyFlags : [],
-            source: data.legitimacySource || "cloud_triage",
-        };
+        // If Gemini AI explicitly classified this as Verified/High Legit or Spam, or if it's already Verified Incident, preserve it
+        if ((isAi && !rating.toLowerCase().includes("needs")) || rating.toLowerCase().includes("verified") || rating.toLowerCase().includes("high") || rating.toLowerCase().includes("legit")) {
+            let level = "high";
+            let badgeClass = "legit-badge--high";
+            if (rating.toLowerCase().includes("spam") || rating.toLowerCase().includes("false")) {
+                level = "low";
+                badgeClass = "legit-badge--spam";
+            }
+
+            const existingReasons = Array.isArray(data.legitimacyReasons) && data.legitimacyReasons.length > 0
+                ? [...data.legitimacyReasons]
+                : (isAi ? ["AI check confirmed"] : ["Verified report details"]);
+
+            if (detectedQuickTags.length > 0 && !existingReasons.some(r => r.includes(detectedQuickTags[0].label))) {
+                existingReasons.unshift(`Verified situational detail: "${detectedQuickTags[0].label}"`);
+            }
+
+            const displayRating = (data.legitimacyRating === "High Confidence Legit" || data.legitimacyRating === "Verified Incident")
+                ? "Verified Incident"
+                : data.legitimacyRating;
+
+            return {
+                rating: displayRating,
+                level,
+                badgeClass,
+                summary: data.legitimacySummary || "Evaluated incident report.",
+                reasons: existingReasons,
+                flags: Array.isArray(data.legitimacyFlags) ? data.legitimacyFlags : [],
+                source: data.legitimacySource || "cloud_triage",
+                detectedQuickTags: detectedQuickTags.map((t) => t.label),
+            };
+        }
     }
 
     const loc = data.location || {};
@@ -207,6 +354,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
 
     const reasons = [];
     const flags = [];
+    let credibilityScore = 0;
 
     // =========================================================================
     // HARD GATE 0: STANDALONE CASUAL CHAT (e.g. resident just typed "hello po" with no report)
@@ -220,6 +368,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
             summary: "Casual non-incident greeting or accidental message. No emergency details provided.",
             reasons: [],
             flags,
+            credibilityScore: 0,
             source: "hard_gate_casual_chat",
         };
     }
@@ -238,6 +387,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
             summary: "Potential false alarm or spam description. Dispatcher inspection required.",
             reasons: [],
             flags,
+            credibilityScore: 0,
             source: "hard_gate_spam",
         };
     }
@@ -256,6 +406,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
             summary: "Unintelligible or random keyboard mash description. Flagged as invalid report.",
             reasons: [],
             flags,
+            credibilityScore: 0,
             source: "hard_gate_gibberish",
         };
     }
@@ -263,7 +414,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
     // =========================================================================
     // HARD GATE 3: MULTI-WORD NONSENSE (LACKS HUMAN LANGUAGE STRUCTURE)
     // =========================================================================
-    if (lacksRecognizableLanguage(desc) && !isSos) {
+    if (lacksRecognizableLanguage(desc) && !isSos && detectedQuickTags.length === 0) {
         flags.push("Description contains no recognizable language or emergency words");
         return {
             rating: "Suspected False / Spam",
@@ -272,6 +423,7 @@ export function evaluateIncidentLegitimacy(data = {}) {
             summary: "Unrecognized sentence structure without clear details or emergency context.",
             reasons: [],
             flags,
+            credibilityScore: 0,
             source: "hard_gate_unrecognized",
         };
     }
@@ -287,9 +439,10 @@ export function evaluateIncidentLegitimacy(data = {}) {
                 summary: "Empty report description. Dispatcher confirmation needed.",
                 reasons: [],
                 flags,
+                credibilityScore: 0,
             };
         }
-    } else if (desc.length < 8 && !isSos) {
+    } else if (desc.length < 8 && !isSos && detectedQuickTags.length === 0) {
         flags.push("Description too brief to evaluate");
         return {
             rating: "Needs Verification",
@@ -298,15 +451,21 @@ export function evaluateIncidentLegitimacy(data = {}) {
             summary: "Very brief description. Dispatcher review recommended.",
             reasons: [],
             flags,
+            credibilityScore: 10,
         };
     }
 
-    // 5. GPS & Location Verification
+    // =========================================================================
+    // MULTI-FACTOR CREDIBILITY EVALUATION
+    // =========================================================================
+
+    // 1. Geolocation & Territorial Integrity (Valenzuela Coverage)
     const hasValidCoords = Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
     const insideValenzuela = hasValidCoords &&
         (lat >= VAL_BOUNDS.minLat && lat <= VAL_BOUNDS.maxLat && lng >= VAL_BOUNDS.minLng && lng <= VAL_BOUNDS.maxLng);
 
     if (insideValenzuela) {
+        credibilityScore += 20;
         reasons.push("GPS verified inside Valenzuela");
     } else if (hasValidCoords) {
         flags.push("Coordinates outside Valenzuela coverage");
@@ -315,57 +474,118 @@ export function evaluateIncidentLegitimacy(data = {}) {
     }
 
     if (loc.address && String(loc.address).length > 6) {
+        credibilityScore += 10;
         reasons.push("Specific street or landmark address attached");
     }
 
-    // 6. SOS & Device Signals
-    if (isSos) {
-        reasons.push("Direct emergency SOS distress signal");
-        if (data.liveStreamingActive || data.lastDistressPingAt) {
-            reasons.push("Active device GPS signal / live alert");
-        }
-    }
-
-    // 7. Evidence & Reporter Authenticity
-    const hasMedia = Boolean(data.mediaUrl || data.imageUrl || (Array.isArray(data.images) && data.images.length > 0));
-    if (hasMedia) {
-        reasons.push("Photographic / media evidence attached");
-    }
-
-    if (data.reporterId || data.userId) {
+    // 2. Reporter Identity & Trust Credentials
+    const isVerifiedResident = Boolean(data.reporterEmailVerified || data.isVerified || data.reporterVerified);
+    if (isVerifiedResident) {
+        credibilityScore += 25;
+        reasons.push("Verified resident account");
+    } else if (data.reporterId || data.userId) {
+        credibilityScore += 15;
         reasons.push("Authenticated resident account");
     } else if (data.reporterContact || data.contactNumber) {
+        credibilityScore += 10;
         reasons.push("Contact phone number provided");
     }
 
-    // =========================================================================
-    // STRICT VERDICT ENFORCEMENT
-    // If backend Cloud Function evaluated with Gemini AI, it was already handled above.
-    // Client-side fallback:
-    // - Valid Valenzuela GPS + (SOS or photo evidence) -> "High Confidence Legit"
-    // - Valid Valenzuela GPS + clean description -> "Needs Verification" (awaiting AI triage or dispatcher)
-    // =========================================================================
-    const isLocationValid = insideValenzuela && flags.length === 0;
+    // 3. Quick Situational Detail Tag Recognition
+    if (detectedQuickTags.length > 0) {
+        credibilityScore += 25;
+        const primaryTag = detectedQuickTags[0].label;
+        reasons.unshift(`Verified situational detail: "${primaryTag}"`);
+        if (detectedQuickTags.length > 1) {
+            reasons.push(`Multiple situational indicators (${detectedQuickTags.length})`);
+        }
+    }
 
-    if (isLocationValid && (isSos || hasMedia)) {
+    // 4. Actionable Emergency Context & Keywords
+    const hasEmergencyKeywords = ACTIONABLE_EMERGENCY_KEYWORDS.some((kw) => lowerDesc.includes(kw));
+    if (hasEmergencyKeywords) {
+        credibilityScore += 10;
+        reasons.push("Actionable emergency context");
+    }
+
+    if (desc.length >= 35) {
+        credibilityScore += 5;
+    }
+
+    // 5. Evidence & Direct Distress Signals
+    const hasMedia = Boolean(data.mediaUrl || data.imageUrl || data.photoDataUrl || (Array.isArray(data.images) && data.images.length > 0));
+    if (hasMedia) {
+        credibilityScore += 25;
+        reasons.push("Photographic / media evidence attached");
+    }
+
+    if (isSos) {
+        credibilityScore += 30;
+        reasons.push("Direct emergency SOS distress signal");
+        if (data.liveStreamingActive || data.lastDistressPingAt) {
+            credibilityScore += 15;
+            reasons.push("Active device GPS telemetry");
+        }
+    }
+
+    // =========================================================================
+    // STRICT VERDICT ENFORCEMENT & SCORING THRESHOLDS
+    // =========================================================================
+    const isCleanLocation = insideValenzuela && flags.length === 0;
+
+    // VERIFIED INCIDENT:
+    // Score >= 55 with valid Valenzuela GPS and zero flags
+    if (isCleanLocation && credibilityScore >= 55) {
+        let summary;
+        if (detectedQuickTags.length > 0) {
+            summary = `Verified report with situational detail ("${detectedQuickTags[0].label}"), authenticated resident credentials, and confirmed Valenzuela GPS.`;
+        } else if (isSos) {
+            summary = "Verified high-urgency SOS distress signal with live device telemetry.";
+        } else if (hasMedia) {
+            summary = "Verified incident report with confirmed location and photographic evidence attached.";
+        } else {
+            summary = "Verified incident report with confirmed Valenzuela coordinates and authenticated resident credentials.";
+        }
+
         return {
-            rating: "High Confidence Legit",
+            rating: "Verified Incident",
             level: "high",
             badgeClass: "legit-badge--high",
-            summary: "Verified report location with matching device GPS or photo evidence.",
+            summary,
             reasons,
             flags,
+            credibilityScore,
+            detectedQuickTags: detectedQuickTags.map((t) => t.label),
+            source: detectedQuickTags.length > 0 ? "situational_triage" : "credibility_engine",
         };
     }
 
-    // Clean report without spam, awaiting automated check or dispatcher review
+    // NEEDS VERIFICATION:
+    // Plausible report without spam, awaiting dispatcher review or phone confirmation
+    if (isCleanLocation && credibilityScore >= 30) {
+        return {
+            rating: "Needs Verification",
+            level: "moderate",
+            badgeClass: "legit-badge--moderate",
+            summary: "Preliminary report details received. Dispatcher review or phone verification recommended.",
+            reasons,
+            flags,
+            credibilityScore,
+            detectedQuickTags: detectedQuickTags.map((t) => t.label),
+            source: "credibility_engine",
+        };
+    }
+
+    // SUSPECTED FALSE / SPAM / INSUFFICIENT
     return {
-        rating: "Needs Verification",
-        level: "moderate",
-        badgeClass: "legit-badge--moderate",
-        summary: "Waiting for automated check or dispatcher review.",
+        rating: "Suspected False / Spam",
+        level: "low",
+        badgeClass: "legit-badge--spam",
+        summary: "Insufficient credibility signals or out-of-boundary coordinates. Dispatcher review required.",
         reasons,
-        flags,
+        flags: flags.length > 0 ? flags : ["Insufficient verifiable incident details"],
+        credibilityScore,
+        source: "credibility_engine",
     };
 }
 
@@ -381,7 +601,7 @@ export function renderLegitimacyBanner(assessment) {
 
     const items = isSpam
         ? assessment.flags.map((f) => `<span style="display:inline-flex;align-items:center;background:#fff1f2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">⚠ ${escapeHtml(f)}</span>`).join(" ")
-        : assessment.reasons.slice(0, 3).map((r) => `<span style="display:inline-flex;align-items:center;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">✓ ${escapeHtml(r)}</span>`).join(" ");
+        : assessment.reasons.slice(0, 4).map((r) => `<span style="display:inline-flex;align-items:center;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">✓ ${escapeHtml(r)}</span>`).join(" ");
 
     return `
       <div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 14px;margin:10px 0 14px 0;display:flex;flex-direction:column;gap:6px;">

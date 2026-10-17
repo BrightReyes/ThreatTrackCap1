@@ -36,6 +36,7 @@ import {
         getCurrentAdminSubstationId,
         getCurrentAdminSubstationName,
         getCurrentAdminBarangayName,
+        resolveIncidentSubstationId,
     } from "./admin-auth.js";
     import {
         COVERED_SUBSTATIONS,
@@ -190,6 +191,29 @@ function reportSortMs(data = {}) {
     return 0;
 }
 
+export function isIncidentAlreadyResponded(data = {}) {
+    if (!data) return false;
+    const status = String(data.status || "").toLowerCase().trim();
+    const responseStatus = String(data.responseStatus || data.response?.status || "").toLowerCase().trim();
+
+    if (responseStatus === "help_on_the_way" || responseStatus === "completed" || responseStatus === "resolved") {
+        return true;
+    }
+    if (Boolean(data.respondedAt) || Boolean(data.response?.respondedAt)) {
+        return true;
+    }
+    if (Boolean(data.responder?.precinctId) || Boolean(data.responder?.precinctName)) {
+        return true;
+    }
+    if (Boolean(data.respondingSubstationId) || Boolean(data.respondingSubstationName) || Boolean(data.respondingBarangayName)) {
+        return true;
+    }
+    if (status === "responding" && (responseStatus === "help_on_the_way" || Boolean(data.responder) || Boolean(data.respondedAt))) {
+        return true;
+    }
+    return false;
+}
+
 /**
  * Determines whether an incident belongs to "police" or "barangay".
  * Mirror of the Cloud Function routing logic:
@@ -314,6 +338,8 @@ function isEligibleAlert(id, data = {}, options = {}) {
     const audience = determineAlertAudience(data);
     const currentRole = getCurrentAdminRole();
     const isPolice = isPoliceAdminRole(currentRole);
+    const isHeadPolice = isHeadPoliceAdminRole(currentRole);
+    const isSubstation = isSubstationPoliceAdminRole(currentRole);
     const isForPolice = audience === "police";
 
     if (isPolice && !isForPolice) return false;
@@ -323,14 +349,35 @@ function isEligibleAlert(id, data = {}, options = {}) {
     if (!hasIncidentAccess(data)) return false;
 
     const status = String(data.status || "").toLowerCase().trim();
-    if (["done", "completed", "resolved", "closed", "rejected", "spam"].includes(status)) return false;
+    if (["done", "completed", "resolved", "closed", "rejected", "spam", "cancelled"].includes(status)) return false;
     if (data.adminDismissed === true) return false;
     if (data.resolutionReason === "user_marked_safe") return false;
     if (data.isSOSReport && (data.liveStreamingActive === false || Boolean(data.distressResolvedAt))) return false;
-    const isHqAssignedToMyStation =
-        isSubstationPoliceAdminRole(currentRole) &&
-        data.assignedByHq === true &&
-        !data.respondingSubstationId;
+
+    // 1. If units are already dispatched or response is confirmed, NEVER trigger alert modal on any admin session
+    if (isIncidentAlreadyResponded(data)) return false;
+
+    // 2. For Head Police (HQ Central Command):
+    // If HQ already assigned this incident or dispatched it, HQ should not receive the assignment modal again on login
+    if (isHeadPolice && (data.assignedByHq === true || Boolean(data.assignedSubstationId) || status === "responding")) {
+        return false;
+    }
+
+    // 3. For Substation Police:
+    // If HQ assigned an emergency to a substation, only alert the targeted substation awaiting deployment confirmation
+    const isHqAssignedToMyStation = (() => {
+        if (!isSubstation) return false;
+        if (data.assignedByHq !== true) return false;
+        if (isIncidentAlreadyResponded(data)) return false;
+
+        const mySubstationId = getCurrentAdminSubstationId();
+        const targetSubstationId = data.assignedSubstationId || resolveIncidentSubstationId(data);
+        if (mySubstationId && targetSubstationId && mySubstationId !== targetSubstationId) {
+            return false;
+        }
+        return true;
+    })();
+
     if (!canRespondToIncident(data) && !isHqAssignedToMyStation) return false;
     if (isDismissed(id, data)) return false;
     if (wasActioned(id, data)) return false;
@@ -620,17 +667,14 @@ async function showPriorityAlert(id, data, options = {}) {
     const legitimacy = evaluateIncidentLegitimacy(data);
     const legitimacyBannerHtml = renderLegitimacyBanner(legitimacy);
 
-    // Render substation options for Head Police
+    // Render substation options for Head Police (defaults directly to nearest substation)
     const substationSelectHtml = substationCandidates.length
-        ? [
-              '<option value="">Choose substation to assign...</option>',
-              ...substationCandidates.map((s, idx) => {
-                  const rank = idx === 0 ? "Nearest" : `Option ${idx + 1}`;
-                  const meta = `${formatDistanceKm(s.distanceKm)} / ${s.etaMinutes} min ETA`;
-                  const isSel = idx === 0 ? "selected" : "";
-                  return `<option value="${escapeAttr(s.substationId)}" ${isSel}>${escapeHtml(`${rank}: ${s.substationName} - ${meta}`)}</option>`;
-              }),
-          ].join("")
+        ? substationCandidates.map((s, idx) => {
+              const rank = idx === 0 ? "Nearest" : `Option ${idx + 1}`;
+              const meta = `${formatDistanceKm(s.distanceKm)} / ${s.etaMinutes} min ETA`;
+              const isSel = idx === 0 ? "selected" : "";
+              return `<option value="${escapeAttr(s.substationId)}" ${isSel}>${escapeHtml(`${rank}: ${s.substationName} - ${meta}`)}</option>`;
+          }).join("")
         : '<option value="">No substation options loaded</option>';
 
     const root = document.createElement("div");
@@ -810,38 +854,91 @@ async function showPriorityAlert(id, data, options = {}) {
 
         if (action === "assign-substation") {
             const select = root.querySelector("#admin-priority-responder-select");
-            const targetSubstationId = select?.value;
-            const targetStation = COVERED_SUBSTATIONS.find((s) => s.id === targetSubstationId) || closestSubstation;
-            if (!targetStation) {
+            const targetSubstationId = select?.value || closestSubstation?.substationId;
+            const targetCandidate = substationCandidates.find((s) => s.substationId === targetSubstationId);
+            const targetCovered = COVERED_SUBSTATIONS.find((s) => s.id === targetSubstationId);
+            const targetStationId = targetSubstationId || closestSubstation?.substationId;
+            const targetStationName = targetCandidate?.substationName || targetCovered?.name || closestSubstation?.substationName || "Police Sub-station";
+
+            if (!targetStationId) {
                 toastError("Choose a substation before assigning.");
                 return;
             }
 
             root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = true; });
-            if (feedback) feedback.textContent = `Assigning ${targetStation.name}...`;
+            if (feedback) feedback.textContent = `Assigning ${targetStationName}...`;
 
             try {
                 const incidentRef = doc(db, "incidents", id);
                 await updateDoc(incidentRef, {
                     status: "responding",
-                    assignedSubstationId: targetStation.id,
-                    assignedSubstationName: targetStation.name,
-                    substationId: targetStation.id,
-                    substationName: targetStation.name,
+                    responseStatus: "help_on_the_way",
+                    assignedSubstationId: targetStationId,
+                    assignedSubstationName: targetStationName,
+                    substationId: targetStationId,
+                    substationName: targetStationName,
                     assignedByHq: true,
                     assignedByHqUid: auth.currentUser?.uid || null,
                     assignedByHqEmail: auth.currentUser?.email || null,
+                    responder: {
+                        precinctId: targetStationId,
+                        precinctName: targetStationName,
+                        shortName: targetStationName,
+                        distanceKm,
+                        etaMinutes: closestSubstation?.etaMinutes || 5,
+                    },
+                    response: {
+                        status: "help_on_the_way",
+                        distanceKm,
+                        etaMinutes: closestSubstation?.etaMinutes || 5,
+                    },
                     assignedAt: serverTimestamp(),
+                    respondedAt: serverTimestamp(),
                     updatedAt: serverTimestamp(),
                 });
 
+                // Dispatch real-time user notification
+                const targetReporterId = data.reporterId || data.userId || data.reportedBy;
+                if (targetReporterId) {
+                    try {
+                        await addDoc(collection(db, "notifications"), {
+                            userId: targetReporterId,
+                            incidentId: id,
+                            title: "Help is on the way",
+                            body: `HQ Command has assigned your report to ${targetStationName}. Units are en route.`,
+                            type: "response_update",
+                            severity: "high",
+                            priority: "high",
+                            readAt: null,
+                            sentAt: serverTimestamp(),
+                            timestamp: serverTimestamp(),
+                            responder: {
+                                precinctId: targetStationId,
+                                precinctName: targetStationName,
+                                shortName: targetStationName,
+                                distanceKm,
+                                etaMinutes: closestSubstation?.etaMinutes || 5,
+                            },
+                            response: {
+                                status: "help_on_the_way",
+                                distanceKm,
+                                etaMinutes: closestSubstation?.etaMinutes || 5,
+                            },
+                        });
+                    } catch (notifErr) {
+                        console.warn("[admin-sos-alerts] notification create error", notifErr);
+                    }
+                }
+
                 await logAudit("sos_assigned_by_hq", {
                     incidentId: id,
-                    assignedSubstationId: targetStation.id,
-                    assignedSubstationName: targetStation.name,
+                    assignedSubstationId: targetStationId,
+                    assignedSubstationName: targetStationName,
                 });
 
-                toastSuccess(`Assigned to ${targetStation.name}`);
+                toastSuccess(`Assigned to ${targetStationName}`);
+                dismiss(id, data);
+                markActioned(id, data);
                 closeActiveAlert();
                 window.dispatchEvent(
                     new CustomEvent("incident:updated", {
@@ -860,6 +957,7 @@ async function showPriorityAlert(id, data, options = {}) {
             const mySubstationId = getCurrentAdminSubstationId();
             const mySubstationName = getCurrentAdminSubstationName() || (mySubstationId ? getSubstationNameById(mySubstationId) : "Substation Police");
             const myBrgyName = getCurrentAdminBarangayName();
+            const stationName = isSubstation ? mySubstationName : (myBrgyName || "Community Tanod Patrol");
 
             root.querySelectorAll("[data-priority-action], select").forEach((el) => { el.disabled = true; });
             if (feedback) feedback.textContent = "Deploying emergency response units...";
@@ -869,11 +967,28 @@ async function showPriorityAlert(id, data, options = {}) {
                 const payload = {
                     status: "responding",
                     responseStatus: "help_on_the_way",
+                    responder: {
+                        precinctId: isSubstation ? (mySubstationId || closestSubstation?.substationId) : null,
+                        precinctName: stationName,
+                        shortName: stationName,
+                        distanceKm,
+                        etaMinutes: closestSubstation?.etaMinutes || 5,
+                    },
+                    response: {
+                        status: "help_on_the_way",
+                        distanceKm,
+                        etaMinutes: closestSubstation?.etaMinutes || 5,
+                    },
                     updatedAt: serverTimestamp(),
                 };
 
                 if (isSubstation) {
-                    payload.respondingSubstationId = mySubstationId || null;
+                    const resolvedStationId =
+                        mySubstationId ||
+                        data.assignedSubstationId ||
+                        resolveIncidentSubstationId(data) ||
+                        "substation_dispatched";
+                    payload.respondingSubstationId = resolvedStationId;
                     payload.respondingSubstationName = mySubstationName;
                     payload.respondedAt = serverTimestamp();
                 } else {
@@ -883,12 +998,47 @@ async function showPriorityAlert(id, data, options = {}) {
 
                 await updateDoc(incidentRef, payload);
 
+                // Dispatch real-time user notification
+                const targetReporterId = data.reporterId || data.userId || data.reportedBy;
+                if (targetReporterId) {
+                    try {
+                        await addDoc(collection(db, "notifications"), {
+                            userId: targetReporterId,
+                            incidentId: id,
+                            title: "Help is on the way",
+                            body: `Help is on the way from ${stationName}. ${formatDistanceKm(distanceKm)}.`,
+                            type: "response_update",
+                            severity: "high",
+                            priority: "high",
+                            readAt: null,
+                            sentAt: serverTimestamp(),
+                            timestamp: serverTimestamp(),
+                            responder: {
+                                precinctId: isSubstation ? (mySubstationId || closestSubstation?.substationId) : null,
+                                precinctName: stationName,
+                                shortName: stationName,
+                                distanceKm,
+                                etaMinutes: closestSubstation?.etaMinutes || 5,
+                            },
+                            response: {
+                                status: "help_on_the_way",
+                                distanceKm,
+                                etaMinutes: closestSubstation?.etaMinutes || 5,
+                            },
+                        });
+                    } catch (notifErr) {
+                        console.warn("[admin-sos-alerts] notification create error", notifErr);
+                    }
+                }
+
                 await logAudit("incident_responded", {
                     incidentId: id,
                     stationOrBarangay: isSubstation ? mySubstationName : myBrgyName,
                 });
 
                 toastSuccess("Response units deployed! Help is on the way.");
+                dismiss(id, data);
+                markActioned(id, data);
                 closeActiveAlert();
                 window.dispatchEvent(
                     new CustomEvent("incident:updated", {
@@ -1021,7 +1171,7 @@ export function showSosAlertPreview(overrides = {}) {
                 longitude: 120.982,
                 address: "MacArthur Highway, Karuhatan, Valenzuela City",
             },
-            legitimacyRating: "High Confidence Legit",
+            legitimacyRating: "Verified Incident",
             legitimacySummary: "Verified emergency report with active SOS signal matching authentic incidents.",
             legitimacySource: "gemini_rag",
             ...overrides,
@@ -1048,7 +1198,7 @@ export function showBarangayAlertPreview(overrides = {}) {
                 longitude: 120.975,
                 address: "Purok 4, Barangay Malinta, Valenzuela City",
             },
-            legitimacyRating: "High Confidence Legit",
+            legitimacyRating: "Verified Incident",
             legitimacySummary: "Citizen community report verified with valid local barangay location.",
             legitimacySource: "gemini_rag",
             ...overrides,

@@ -634,6 +634,10 @@ async function setVerificationDecision(userId, decision) {
         await updateDoc(doc(db, "users", userId), {
             accountStatus: isApprove ? "active" : "rejected",
             verificationStatus: isApprove ? "approved" : "rejected",
+            isVerified: isApprove,
+            emailVerified: isApprove,
+            falseReportAcknowledged: isApprove ? true : false,
+            falseReportAcknowledgedAt: serverTimestamp(),
             verificationReviewedAt: serverTimestamp(),
             rejectionReason: reason || "",
             status: isApprove ? "active" : "inactive",
@@ -880,6 +884,8 @@ function bindAddUserModal() {
             isVerified: true,
             emailVerified: true,
             verificationStatus: "approved",
+            falseReportAcknowledged: true,
+            falseReportAcknowledgedAt: serverTimestamp(),
             ...(role === "admin" && barangayId
                 ? {
                       barangayId,

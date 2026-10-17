@@ -314,6 +314,8 @@ export async function respondToIncident(
         assignedSubstationName: targetSubstationName,
         substationId: targetSubstationId,
         substationName: targetSubstationName,
+        respondingSubstationId: targetSubstationId,
+        respondingSubstationName: targetSubstationName,
         assignedByHq: isHeadPolice,
         assignedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -326,10 +328,11 @@ export async function respondToIncident(
 
     batch.update(incidentRef, updatePayload);
 
-    if (incidentData.reporterId) {
+    const targetReporterId = incidentData.reporterId || incidentData.userId || incidentData.reportedBy;
+    if (targetReporterId) {
         const notificationRef = doc(collection(db, "notifications"));
         batch.set(notificationRef, {
-            userId: incidentData.reporterId,
+            userId: targetReporterId,
             incidentId,
             title: "Help is on the way",
             body: message,

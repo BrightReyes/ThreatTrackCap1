@@ -76,8 +76,22 @@ export const handleLogin = async (email, password) => {
         lastLoginAt: new Date().toISOString(),
       };
 
+      const isAlreadyVerified = Boolean(
+        profile.isVerified === true ||
+        profile.emailVerified === true ||
+        String(profile.verificationStatus || '').toLowerCase() === 'approved'
+      );
+
       if (profile.emailVerified !== user.emailVerified) {
-        profileUpdates.emailVerified = user.emailVerified;
+        // Only update if Firebase Auth email is verified, or if account has not been approved by HQ override
+        if (user.emailVerified || !isAlreadyVerified) {
+          profileUpdates.emailVerified = user.emailVerified;
+        }
+      }
+
+      if (isAlreadyVerified && profile.falseReportAcknowledged !== true) {
+        profileUpdates.falseReportAcknowledged = true;
+        profileUpdates.falseReportAcknowledgedAt = new Date().toISOString();
       }
 
       try {
@@ -94,7 +108,7 @@ export const handleLogin = async (email, password) => {
         uid: user.uid,
         email: user.email,
         name: user.displayName || 'User',
-        emailVerified: user.emailVerified,
+        emailVerified: user.emailVerified || isAlreadyVerified,
         accountStatus: profile?.accountStatus || 'active',
       },
       profile,
@@ -310,15 +324,24 @@ export const getReportEligibility = async () => {
   const profileSnap = await getDoc(profileRef);
   const profile = profileSnap.exists() ? profileSnap.data() : null;
 
+  const isProfileAlreadyVerified = Boolean(
+    profile?.isVerified === true ||
+    profile?.emailVerified === true ||
+    String(profile?.verificationStatus || '').toLowerCase() === 'approved'
+  );
+
   if (profileSnap.exists() && profile.emailVerified !== currentUser.emailVerified) {
-    try {
-      await updateDoc(profileRef, {
-        emailVerified: currentUser.emailVerified,
-        isVerified: currentUser.emailVerified,
-        lastVerificationCheckAt: new Date().toISOString(),
-      });
-    } catch (profileUpdateError) {
-      console.warn('[AUTH] Unable to update verification metadata:', profileUpdateError);
+    // Only synchronize if Firebase Auth is verified; never revoke an HQ administrative override
+    if (currentUser.emailVerified || !isProfileAlreadyVerified) {
+      try {
+        await updateDoc(profileRef, {
+          emailVerified: currentUser.emailVerified,
+          isVerified: currentUser.emailVerified,
+          lastVerificationCheckAt: new Date().toISOString(),
+        });
+      } catch (profileUpdateError) {
+        console.warn('[AUTH] Unable to update verification metadata:', profileUpdateError);
+      }
     }
   }
 
@@ -328,6 +351,19 @@ export const getReportEligibility = async () => {
       title: 'Profile Required',
       message: 'Your safety profile is missing. Please contact support before submitting reports.',
     };
+  }
+
+  // If citizen account is already verified by HQ or email, ensure false report policy acknowledgment is populated
+  if (isProfileAlreadyVerified && profile.falseReportAcknowledged !== true) {
+    try {
+      await updateDoc(profileRef, {
+        falseReportAcknowledged: true,
+        falseReportAcknowledgedAt: new Date().toISOString(),
+      });
+      profile.falseReportAcknowledged = true;
+    } catch (healErr) {
+      console.warn('[AUTH] Unable to auto-heal falseReportAcknowledged:', healErr);
+    }
   }
 
   const isSuspendedOrBanned =
@@ -357,8 +393,9 @@ export const getReportEligibility = async () => {
   if (profile.falseReportAcknowledged !== true) {
     return {
       allowed: false,
+      needsPolicyAcknowledgment: true,
       title: 'Policy Acknowledgment Required',
-      message: 'Please acknowledge the false report policy before submitting reports.',
+      message: 'Valenzuela City ordinance strictly prohibits false or prank emergency reports. Please acknowledge and agree to this policy before submitting reports.',
     };
   }
 
@@ -378,9 +415,16 @@ export const getReportEligibility = async () => {
     }
   }
 
+  const isAccountVerified = Boolean(
+    currentUser.emailVerified ||
+    profile.isVerified === true ||
+    profile.emailVerified === true ||
+    String(profile.verificationStatus || '').toLowerCase() === 'approved'
+  );
+
   // Policy: First report is allowed without verification (grace period for initial emergencies).
-  // Subsequent reports (2nd+) strictly require a verified email address.
-  if (!currentUser.emailVerified && hasPriorReport) {
+  // Subsequent reports (2nd+) strictly require a verified email address or HQ admin approval.
+  if (!isAccountVerified && hasPriorReport) {
     return {
       allowed: false,
       needsEmailVerification: true,
@@ -393,12 +437,32 @@ export const getReportEligibility = async () => {
   return {
     allowed: true,
     user: currentUser,
-    isFirstReportGracePeriod: !currentUser.emailVerified && !hasPriorReport,
+    isFirstReportGracePeriod: !isAccountVerified && !hasPriorReport,
     profile: {
       ...profile,
-      emailVerified: currentUser.emailVerified,
+      emailVerified: isAccountVerified,
+      isVerified: isAccountVerified,
     },
   };
+};
+
+/**
+ * Acknowledges the Valenzuela City anti-false reporting policy and updates the citizen's Firestore profile.
+ */
+export const acknowledgeFalseReportPolicy = async () => {
+  const currentUser = auth.currentUser;
+  if (!currentUser?.uid) return false;
+  try {
+    const userRef = doc(db, 'users', currentUser.uid);
+    await updateDoc(userRef, {
+      falseReportAcknowledged: true,
+      falseReportAcknowledgedAt: new Date().toISOString(),
+    });
+    return true;
+  } catch (err) {
+    console.warn('[AUTH] Error acknowledging false report policy:', err);
+    return false;
+  }
 };
 
 /**
