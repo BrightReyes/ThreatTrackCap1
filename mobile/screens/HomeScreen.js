@@ -32,6 +32,7 @@ const APP_LOGO = require('../assets/icons/threattrack-logo-tight.png');
 const BELL_ICON = require('../assets/icons/bell.png');
 const CAMERA_ICON = require('../assets/icons/camera.png');
 const GEAR_ICON = require('../assets/icons/gear.png');
+const POLICE_STATION_ICON = require('../assets/icons/police-station.png');
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 // Valenzuela City center and viewport based on OSM boundary relation 307470.
@@ -316,19 +317,19 @@ const getHeatmapMarkerPoints = (points) => {
     .slice(0, MAX_HEATMAP_MARKERS);
 };
 
-// Valenzuela City bounds matching web-admin admin-map.js with 18% padding
+// Valenzuela City bounds matching web-admin admin-map.js with tight city bounding
 const VALENZUELA_BOUNDS = {
-  northEast: { latitude: 14.775, longitude: 121.042 },
-  southWest: { latitude: 14.652, longitude: 120.908 },
+  northEast: { latitude: 14.775, longitude: 121.035 },
+  southWest: { latitude: 14.655, longitude: 120.915 },
 };
 
 const VALENZUELA_ALLOWED_LIMITS = {
-  minLat: 14.652,
+  minLat: 14.655,
   maxLat: 14.775,
-  minLng: 120.908,
-  maxLng: 121.042,
-  maxLatitudeDelta: 0.098,
-  maxLongitudeDelta: 0.108,
+  minLng: 120.915,
+  maxLng: 121.035,
+  maxLatitudeDelta: 0.085,
+  maxLongitudeDelta: 0.092,
 };
 
 // Simplified Valenzuela City boundary polygon from OSM relation 307470.
@@ -960,7 +961,7 @@ const HomeScreen = ({ navigation }) => {
     let constrainedRegion = { ...region };
     let needsAdjustment = false;
 
-    // Constrain zoom out delta to keep city in focus
+    // Constrain zoom out delta to keep city strictly in focus
     if (constrainedRegion.latitudeDelta > VALENZUELA_ALLOWED_LIMITS.maxLatitudeDelta) {
       constrainedRegion.latitudeDelta = VALENZUELA_ALLOWED_LIMITS.maxLatitudeDelta;
       needsAdjustment = true;
@@ -970,7 +971,7 @@ const HomeScreen = ({ navigation }) => {
       needsAdjustment = true;
     }
 
-    // Keep latitude within padded Valenzuela city limits
+    // Keep latitude within Valenzuela city limits
     if (constrainedRegion.latitude < VALENZUELA_ALLOWED_LIMITS.minLat) {
       constrainedRegion.latitude = VALENZUELA_ALLOWED_LIMITS.minLat;
       needsAdjustment = true;
@@ -979,7 +980,7 @@ const HomeScreen = ({ navigation }) => {
       needsAdjustment = true;
     }
 
-    // Keep longitude within padded Valenzuela city limits
+    // Keep longitude within Valenzuela city limits
     if (constrainedRegion.longitude < VALENZUELA_ALLOWED_LIMITS.minLng) {
       constrainedRegion.longitude = VALENZUELA_ALLOWED_LIMITS.minLng;
       needsAdjustment = true;
@@ -988,9 +989,21 @@ const HomeScreen = ({ navigation }) => {
       needsAdjustment = true;
     }
 
+    // If user flings or moves far outside city boundaries, instantly snap back to Valenzuela Center
+    const isFarOutside =
+      region.latitude < VALENZUELA_ALLOWED_LIMITS.minLat - 0.05 ||
+      region.latitude > VALENZUELA_ALLOWED_LIMITS.maxLat + 0.05 ||
+      region.longitude < VALENZUELA_ALLOWED_LIMITS.minLng - 0.05 ||
+      region.longitude > VALENZUELA_ALLOWED_LIMITS.maxLng + 0.05;
+
+    if (isFarOutside) {
+      constrainedRegion = { ...VALENZUELA_CENTER };
+      needsAdjustment = true;
+    }
+
     // Smoothly animate back to constrained region if user panned or zoomed too far
     if (needsAdjustment) {
-      mapRef.current.animateToRegion(constrainedRegion, 320);
+      mapRef.current.animateToRegion(constrainedRegion, 250);
       setMapRegion(constrainedRegion);
     }
   };
@@ -1736,6 +1749,22 @@ const HomeScreen = ({ navigation }) => {
                 );
               })}
             </View>
+
+            {/* Admin-Identical Severity Legend */}
+            <View style={styles.hotspotLegendBar}>
+              <View style={[styles.hotspotLegendPill, styles.legendPillHigh]}>
+                <View style={[styles.legendDot, styles.legendDotHigh]} />
+                <Text style={styles.legendTextHigh}>High</Text>
+              </View>
+              <View style={[styles.hotspotLegendPill, styles.legendPillMed]}>
+                <View style={[styles.legendDot, styles.legendDotMed]} />
+                <Text style={styles.legendTextMed}>Medium</Text>
+              </View>
+              <View style={[styles.hotspotLegendPill, styles.legendPillLow]}>
+                <View style={[styles.legendDot, styles.legendDotLow]} />
+                <Text style={styles.legendTextLow}>Low</Text>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -1751,7 +1780,15 @@ const HomeScreen = ({ navigation }) => {
                 showsUserLocation={true}
                 showsMyLocationButton={false}
                 customMapStyle={darkMapStyle}
-                onMapReady={() => setMapReady(true)}
+                onMapReady={() => {
+                  setMapReady(true);
+                  if (mapRef.current && typeof mapRef.current.setMapBoundaries === 'function') {
+                    mapRef.current.setMapBoundaries(
+                      VALENZUELA_BOUNDS.northEast,
+                      VALENZUELA_BOUNDS.southWest
+                    );
+                  }
+                }}
                 onRegionChangeComplete={(region) => {
                   setMapRegion(region);
                   handleRegionChange(region);
@@ -1785,19 +1822,19 @@ const HomeScreen = ({ navigation }) => {
                     const isMedium = hotspot.severity === 'medium';
 
                     const auraFill = isHigh
-                      ? 'rgba(239, 68, 68, 0.12)'
+                      ? 'rgba(220, 38, 38, 0.14)'
                       : isMedium
-                      ? 'rgba(249, 115, 22, 0.10)'
-                      : 'rgba(245, 158, 11, 0.08)';
+                      ? 'rgba(249, 115, 22, 0.12)'
+                      : 'rgba(234, 179, 8, 0.10)';
 
                     const coreFill = isHigh
-                      ? 'rgba(220, 38, 38, 0.32)'
+                      ? 'rgba(220, 38, 38, 0.35)'
                       : isMedium
-                      ? 'rgba(234, 88, 12, 0.28)'
-                      : 'rgba(217, 119, 6, 0.22)';
+                      ? 'rgba(249, 115, 22, 0.30)'
+                      : 'rgba(234, 179, 8, 0.25)';
 
-                    const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#f59e0b';
-                    const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#d97706';
+                    const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#eab308';
+                    const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#ca8a04';
 
                     return (
                       <React.Fragment key={`hotspot-circle-${hotspot.id}`}>
@@ -1819,15 +1856,19 @@ const HomeScreen = ({ navigation }) => {
                           strokeWidth={2}
                           zIndex={15}
                         />
-                        {/* High-density center pinpoint core */}
-                        <Circle
-                          center={hotspot.center}
-                          radius={22}
-                          fillColor={centerColor}
-                          strokeColor="#ffffff"
-                          strokeWidth={1.5}
-                          zIndex={16}
-                        />
+                        {/* Center Cluster Count Badge (Identical to Admin Map Cluster Indicator) */}
+                        <Marker
+                          coordinate={hotspot.center}
+                          anchor={{ x: 0.5, y: 0.5 }}
+                          zIndex={18}
+                          tracksViewChanges={false}
+                        >
+                          <View style={[styles.hotspotClusterBadge, { borderColor: strokeColor }]}>
+                            <Text style={[styles.hotspotClusterCountText, { color: centerColor }]}>
+                              {hotspot.count}
+                            </Text>
+                          </View>
+                        </Marker>
                       </React.Fragment>
                     );
                   })}
@@ -1843,7 +1884,7 @@ const HomeScreen = ({ navigation }) => {
                   />
                 )}
 
-                {/* Precinct & Sub-station Tactical Markers */}
+                {/* Precinct & Sub-station Tactical Markers (Official Police Pin Logo) */}
                 {precincts.map((precinct) => {
                   const coordinate = getPrecinctCoordinate(precinct);
 
@@ -1858,26 +1899,42 @@ const HomeScreen = ({ navigation }) => {
                       coordinate={coordinate}
                       title={precinct.name}
                       description={precinct.address}
-                      anchor={{ x: 0.5, y: 1 }}
+                      anchor={{ x: 0.5, y: 0.85 }}
                       zIndex={25}
                       tracksViewChanges={tracksPcpViewChanges}
                       onPress={() => openHomeModal('nearest', precinct)}
                     >
                       <View style={styles.pcpPinWrapper}>
-                        <View style={styles.pcpPinBadge}>
-                          <View style={styles.pcpPinIconWrap}>
-                            <Ionicons name="shield" size={12} color="#ffffff" />
-                          </View>
-                          <Text style={styles.pcpPinText} numberOfLines={1}>
+                        <Image
+                          source={POLICE_STATION_ICON}
+                          style={styles.pcpPinMarkerImage}
+                          resizeMode="contain"
+                        />
+                        <View style={styles.pcpPinCalloutPill}>
+                          <View style={styles.pcpPinLiveDot} />
+                          <Text style={styles.pcpPinCalloutText} numberOfLines={1}>
                             {displayLabel}
                           </Text>
                         </View>
-                        <View style={styles.pcpPinArrow} />
                       </View>
                     </Marker>
                   );
                 })}
               </MapView>
+
+              {/* Quick Recenter Valenzuela Button */}
+              <TouchableOpacity
+                style={styles.recenterCityBtn}
+                onPress={() => {
+                  if (mapRef.current) {
+                    mapRef.current.animateToRegion(VALENZUELA_CENTER, 350);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="scan-outline" size={13} color="#ffffff" />
+                <Text style={styles.recenterCityText}>VALENZUELA</Text>
+              </TouchableOpacity>
 
               {/* Floating Futuristic Radar Badge */}
               <View style={styles.radarLiveBadge} pointerEvents="none">
@@ -3613,55 +3670,152 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
 
-  // Tactical PCP & Sub-station Vector Pins
+  // Tactical PCP & Sub-station Official Pin Markers
   pcpPinWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pcpPinBadge: {
+  pcpPinMarkerImage: {
+    width: 38,
+    height: 38,
+  },
+  pcpPinCalloutPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    borderRadius: 14,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1.5,
-    borderColor: '#38bdf8',
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.75)',
+    marginTop: -2,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.5,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 5,
+    gap: 4,
   },
-  pcpPinIconWrap: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#0284c7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 5,
+  pcpPinLiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#dc2626',
   },
-  pcpPinText: {
+  pcpPinCalloutText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.3,
   },
-  pcpPinArrow: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderBottomWidth: 0,
-    borderTopWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: '#38bdf8',
-    alignSelf: 'center',
-    marginTop: -1,
+
+  // Admin-Identical Hotspot Legend Bar
+  hotspotLegendBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  hotspotLegendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3.5,
+    paddingHorizontal: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    gap: 5,
+  },
+  legendPillHigh: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fee2e2',
+  },
+  legendPillMed: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#ffedd5',
+  },
+  legendPillLow: {
+    backgroundColor: '#fefce8',
+    borderColor: '#fef08a',
+  },
+  legendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  legendDotHigh: {
+    backgroundColor: '#dc2626',
+  },
+  legendDotMed: {
+    backgroundColor: '#f97316',
+  },
+  legendDotLow: {
+    backgroundColor: '#eab308',
+  },
+  legendTextHigh: {
+    color: '#991b1b',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  legendTextMed: {
+    color: '#9a3412',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  legendTextLow: {
+    color: '#854d0e',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  // Hotspot Center Cluster Badge
+  hotspotClusterBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 6,
+  },
+  hotspotClusterCountText: {
+    fontSize: 11.5,
+    fontWeight: '900',
+  },
+
+  // Recenter City Floating Button
+  recenterCityBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.65)',
+    gap: 5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 30,
+  },
+  recenterCityText: {
+    color: '#ffffff',
+    fontSize: 10.5,
+    fontWeight: '900',
+    letterSpacing: 0.6,
   },
   
   // Old location marker styles
