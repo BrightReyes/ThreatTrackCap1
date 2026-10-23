@@ -3071,3 +3071,98 @@ html.sidebar-collapsed-initial
         grid-template-columns: 1fr;
     }
 }
+
+/* ── Real-Time Live GPS Distress Streaming & Movement Indicators ── */
+.admin-map__live-tracking-marker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.admin-map__live-tracking-marker .live-marker-pulse {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.35);
+    border: 2px solid #ef4444;
+    animation: live-gps-radar-pulse 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    pointer-events: none;
+}
+
+.admin-map__live-tracking-marker .live-marker-core {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ef4444;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    z-index: 2;
+}
+
+.admin-map__live-tracking-marker .live-marker-icon {
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+@keyframes live-gps-radar-pulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 1;
+    }
+    70% {
+        transform: scale(1.6);
+        opacity: 0.15;
+    }
+    100% {
+        transform: scale(2.0);
+        opacity: 0;
+    }
+}
+
+.admin-priority-alert__moving-banner {
+    background: #fef2f2;
+    border: 1px solid #f87171;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: admin-priority-border-glow 2s infinite;
+}
+
+.incident-live-stream-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.incident-live-stream-badge .live-dot-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+    animation: live-gps-radar-pulse 1.2s infinite;
+    display: inline-block;
+}
+

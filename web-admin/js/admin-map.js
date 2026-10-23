@@ -102,6 +102,7 @@ const VAL_BOUNDARY_LATLNG = [
 
 let mapInstance = null;
 let incidentsLayer = null;
+let liveTrailsLayer = null;
 let unsubscribeIncidents = null;
 let heatLayerGroup = null;
 let tileLayer = null;
@@ -274,6 +275,67 @@ function findDocInSnapshot(snap, id) {
     return found;
 }
 
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
+    const R = 6371e3;
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return Math.round(R * c);
+}
+
+function isIncidentLiveTracking(data) {
+    if (!data) return false;
+    const status = String(data.status || "").toLowerCase().trim();
+    if (["done", "completed", "resolved", "rejected", "spam"].includes(status)) {
+        return false;
+    }
+    if (data.liveStreamingActive === false || Boolean(data.distressResolvedAt)) {
+        return false;
+    }
+    if (data.liveStreamingActive === true || data.isSOSReport === true) {
+        if (data.lastGpsStreamAt) {
+            let streamMillis = 0;
+            if (typeof data.lastGpsStreamAt.toMillis === "function") {
+                streamMillis = data.lastGpsStreamAt.toMillis();
+            } else if (typeof data.lastGpsStreamAt.toDate === "function") {
+                streamMillis = data.lastGpsStreamAt.toDate().getTime();
+            } else if (typeof data.lastGpsStreamAt === "number") {
+                streamMillis = data.lastGpsStreamAt;
+            } else if (typeof data.lastGpsStreamAt === "string") {
+                streamMillis = new Date(data.lastGpsStreamAt).getTime();
+            }
+            if (streamMillis > 0) {
+                const ageMs = Date.now() - streamMillis;
+                if (ageMs < 10 * 60 * 1000) return true;
+            }
+        }
+        return data.liveStreamingActive === true;
+    }
+    return false;
+}
+
+function createLiveTrackingDivIcon() {
+    return L.divIcon({
+        className: "admin-map__live-tracking-marker",
+        html: `
+            <div class="live-marker-pulse"></div>
+            <div class="live-marker-core">
+                <span class="material-symbols-outlined live-marker-icon">near_me</span>
+            </div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+    });
+}
+
 function buildIncidentPopupHtml(p, options = {}) {
     const code = formatIncidentCode(p.docId);
     const type = p.data?.type ? String(p.data.type) : "Incident";
@@ -286,9 +348,25 @@ function buildIncidentPopupHtml(p, options = {}) {
         ? '<div style="display:inline-flex;margin-bottom:8px;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:0.78rem;font-weight:800;">Selected report</div>'
         : "";
 
+    const isLive = isIncidentLiveTracking(p.data);
+    let liveBannerHtml = "";
+    if (isLive) {
+        const originLat = p.data?.initialLocation?.latitude ?? p.data?.locationTrail?.[0]?.latitude ?? p.lat;
+        const originLng = p.data?.initialLocation?.longitude ?? p.data?.locationTrail?.[0]?.longitude ?? p.lng;
+        const distMoved = calculateDistanceMeters(originLat, originLng, p.lat, p.lng);
+        const trailCount = Array.isArray(p.data?.locationTrail) ? p.data.locationTrail.length : 1;
+        liveBannerHtml = `
+            <div class="incident-live-stream-badge">
+                <span class="live-dot-pulse"></span>
+                <span>LIVE GPS STREAM &bull; ${distMoved >= 15 ? `Moved ~${distMoved}m (${trailCount} pings)` : "Active / Near Origin"}</span>
+            </div>
+        `;
+    }
+
     return `
         <div style="min-width:240px;line-height:1.4;font-size:0.95rem;">
           ${selectedLabel}
+          ${liveBannerHtml}
           <div style="font-weight:700;margin-bottom:6px;">${escapeHtml(code)}</div>
           <div style="margin-bottom:6px;">
             <span style="color:${severityColor(p.severity)};font-weight:600;">${escapeHtml(String(p.severity))}</span>
@@ -312,8 +390,12 @@ function buildIncidentTooltipHtml(p) {
     const type = p.data?.type ? String(p.data.type) : "Incident";
     const status = p.data?.status ? String(p.data.status) : "unknown";
 
+    const isLive = isIncidentLiveTracking(p.data);
+    const liveTag = isLive ? `<span style="color:#ef4444;font-weight:800;display:block;margin-bottom:2px;">● LIVE CITIZEN GPS</span>` : "";
+
     return `
         <div style="line-height:1.2;font-size:0.86rem;">
+          ${liveTag}
           <strong>${escapeHtml(code)}</strong><br>
           <span style="color:${severityColor(p.severity)};font-weight:600;">${escapeHtml(String(p.severity))}</span>
           <span style="color:#6b7280;"> &middot; ${escapeHtml(type)} &middot; ${escapeHtml(status)}</span>
@@ -650,6 +732,11 @@ function startIncidentRender(snap) {
     const buckets = new Map(); // grid bucket -> count
 
     incidentsLayer.clearLayers();
+    if (liveTrailsLayer) {
+        liveTrailsLayer.clearLayers();
+    } else if (mapInstance) {
+        liveTrailsLayer = L.layerGroup().addTo(mapInstance);
+    }
     visibleIncidentMarkers = new Map();
     visibleIncidentPoints = new Map();
 
@@ -775,7 +862,64 @@ function startIncidentRender(snap) {
         </div>
       `;
 
-            if (useIcon) {
+            const isLive = isIncidentLiveTracking(p.data);
+
+            if (isLive) {
+                // Render special animated radar pulse marker for moving/live citizens
+                const marker = L.marker([p.lat, p.lng], {
+                    icon: createLiveTrackingDivIcon(),
+                    zIndexOffset: 1600,
+                    incidentId: p.docId,
+                    incidentSeverity: "high",
+                });
+                marker.bindPopup(popupHtml);
+                marker.bindTooltip(tooltipHtml, {
+                    direction: "top",
+                    offset: [0, -14],
+                    sticky: true,
+                    opacity: 0.95,
+                });
+                marker.addTo(incidentsLayer);
+                visibleIncidentMarkers.set(p.docId, marker);
+
+                // Render breadcrumb polyline route if user has movement history
+                if (Array.isArray(p.data?.locationTrail) && p.data.locationTrail.length > 1 && liveTrailsLayer) {
+                    const validPoints = p.data.locationTrail
+                        .filter((pt) => pt && Number.isFinite(Number(pt.latitude)) && Number.isFinite(Number(pt.longitude)))
+                        .map((pt) => [Number(pt.latitude), Number(pt.longitude)]);
+
+                    if (validPoints.length > 1) {
+                        const originLat = p.data?.initialLocation?.latitude ?? validPoints[0][0];
+                        const originLng = p.data?.initialLocation?.longitude ?? validPoints[0][1];
+                        const distMoved = calculateDistanceMeters(originLat, originLng, p.lat, p.lng);
+
+                        const polyline = L.polyline(validPoints, {
+                            color: "#ef4444",
+                            weight: 3.5,
+                            opacity: 0.85,
+                            dashArray: "6, 6",
+                            lineCap: "round",
+                            lineJoin: "round",
+                        });
+                        polyline.bindTooltip(`Citizen Movement Path (~${distMoved}m traversed, ${validPoints.length} pings)`, {
+                            sticky: true,
+                            direction: "top",
+                        });
+                        polyline.addTo(liveTrailsLayer);
+
+                        // Mark initial distress origin point
+                        const originMarker = L.circleMarker([originLat, originLng], {
+                            radius: 5,
+                            color: "#ffffff",
+                            weight: 2,
+                            fillColor: "#475569",
+                            fillOpacity: 0.9,
+                        });
+                        originMarker.bindTooltip("SOS Initial Origin", { direction: "bottom" });
+                        originMarker.addTo(liveTrailsLayer);
+                    }
+                }
+            } else if (useIcon) {
                 const marker = L.marker([p.lat, p.lng], {
                     incidentId: p.docId,
                     incidentSeverity: String(p.severity).toLowerCase(),
@@ -826,6 +970,7 @@ function startIncidentListener() {
 
     incidentsLayer =
         incidentsLayer || createIncidentClusterLayer().addTo(mapInstance);
+    liveTrailsLayer = liveTrailsLayer || L.layerGroup().addTo(mapInstance);
 
     const markerLimit =
         Number(settings?.mapSettings?.performance?.markerLimit) || 250;

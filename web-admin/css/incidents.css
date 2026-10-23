@@ -2301,8 +2301,8 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    max-width: min(1180px, calc(100vw - 36px));
-    max-height: min(94vh, 860px);
+    max-width: min(1440px, calc(100vw - 28px));
+    max-height: min(95vh, 940px);
     display: flex;
     flex-direction: column;
     overflow-x: hidden;

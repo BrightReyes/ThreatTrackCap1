@@ -5,10 +5,13 @@ import {
     deleteDoc,
     doc,
     getDoc,
+    onSnapshot,
     serverTimestamp,
     updateDoc,
     writeBatch,
 } from "firebase/firestore";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { auth, db } from "../../shared/firebase.js";
 import { confirmDanger, toastError, toastSuccess } from "./alerts.js";
 import {
@@ -620,6 +623,76 @@ function needsTerminalResponseSync(data = {}, nextStatus = "") {
     return false;
 }
 
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+    if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
+    const R = 6371e3;
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+}
+
+function isIncidentLiveTracking(data) {
+    if (!data) return false;
+    const status = String(data.status || "").toLowerCase().trim();
+    if (["done", "completed", "resolved", "rejected", "spam"].includes(status)) {
+        return false;
+    }
+    if (data.liveStreamingActive === false || Boolean(data.distressResolvedAt)) {
+        return false;
+    }
+    if (data.liveStreamingActive === true || data.isSOSReport === true) {
+        if (data.lastGpsStreamAt) {
+            let streamMillis = 0;
+            if (typeof data.lastGpsStreamAt.toMillis === "function") {
+                streamMillis = data.lastGpsStreamAt.toMillis();
+            } else if (typeof data.lastGpsStreamAt.toDate === "function") {
+                streamMillis = data.lastGpsStreamAt.toDate().getTime();
+            } else if (typeof data.lastGpsStreamAt === "number") {
+                streamMillis = data.lastGpsStreamAt;
+            } else if (typeof data.lastGpsStreamAt === "string") {
+                streamMillis = new Date(data.lastGpsStreamAt).getTime();
+            }
+            if (streamMillis > 0) {
+                const ageMs = Date.now() - streamMillis;
+                if (ageMs < 10 * 60 * 1000) return true;
+            }
+        }
+        return data.liveStreamingActive === true;
+    }
+    return false;
+}
+
+function createLiveTrackingDivIcon() {
+    return L.divIcon({
+        className: "admin-map__live-tracking-marker",
+        html: `
+            <div class="live-marker-pulse"></div>
+            <div class="live-marker-core">
+                <span class="material-symbols-outlined live-marker-icon">near_me</span>
+            </div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+    });
+}
+
+function createSubstationDivIcon(name = "Substation") {
+    return L.divIcon({
+        className: "admin-map__substation-marker",
+        html: `
+            <div class="substation-marker-core" title="${escapeAttr(name)}">
+                <span class="material-symbols-outlined" style="font-size:16px;line-height:1;">local_police</span>
+            </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+    });
+}
+
 function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = null) {
     const loc = d.location || {};
     const lat =
@@ -709,31 +782,40 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
         </div>
       </section>
 
-      <!-- CARD 2: Narrative & Description -->
-      <section class="incident-card" aria-label="Incident Description">
-        <header class="incident-card__header">
-          <div class="incident-card__header-left">
-            <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">notes</span>
-            <h4 class="incident-card__title">Citizen Narrative</h4>
-          </div>
-        </header>
-        <div class="incident-card__body">
-          <div class="incident-narrative-box">
-            <p class="incident-narrative-text">${escapeHtml(d.description || "No written narrative provided with this incident submission.")}</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- CARD 3: Geolocation & Jurisdiction -->
+      <!-- CARD 2: Geolocation & Jurisdiction -->
       <section class="incident-card" aria-label="Geolocation & Jurisdiction">
         <header class="incident-card__header">
           <div class="incident-card__header-left">
             <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">location_on</span>
             <h4 class="incident-card__title">Location &amp; Precinct Jurisdiction</h4>
           </div>
+          ${
+            mapsHref
+              ? `<a class="incident-card__header-action-btn" href="${escapeAttr(mapsHref)}" target="_blank" rel="noopener noreferrer" title="View on citywide operations map">
+                   <span class="material-symbols-outlined">open_in_new</span>
+                   <span>View on Map</span>
+                 </a>`
+              : ""
+          }
         </header>
         <div class="incident-card__body">
           <div class="incident-location-block">
+            ${
+              isIncidentLiveTracking(d)
+                ? (() => {
+                    const originLat = d?.initialLocation?.latitude ?? d?.locationTrail?.[0]?.latitude ?? lat;
+                    const originLng = d?.initialLocation?.longitude ?? d?.locationTrail?.[0]?.longitude ?? lng;
+                    const distMoved = calculateDistanceMeters(originLat, originLng, lat, lng);
+                    const trailCount = Array.isArray(d?.locationTrail) ? d.locationTrail.length : 1;
+                    return `
+                      <div class="incident-live-stream-badge">
+                        <span class="live-dot-pulse"></span>
+                        <span>Live Citizen GPS Tracking Active &bull; ${distMoved >= 15 ? `Moved ~${distMoved}m from origin` : "Near Origin"} (${trailCount} pings)</span>
+                      </div>
+                    `;
+                  })()
+                : ""
+            }
             <div class="incident-address-display">
               <span class="material-symbols-outlined incident-address-icon" aria-hidden="true">home_pin</span>
               <div class="incident-address-content">
@@ -743,21 +825,6 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
             </div>
 
             <div class="incident-meta-pills">
-              ${
-                lat != null && lng != null
-                  ? `<div class="incident-coords-badge">
-                       <span class="material-symbols-outlined" aria-hidden="true">my_location</span>
-                       <span class="incident-coords-text">${escapeHtml(String(lat))}, ${escapeHtml(String(lng))}</span>
-                       ${
-                         mapsHref
-                           ? `<a class="incident-detail__link incident-map-link-btn" href="${escapeAttr(mapsHref)}" target="_blank" rel="noopener noreferrer">
-                                <span class="material-symbols-outlined" aria-hidden="true">open_in_new</span> Focus Map
-                              </a>`
-                           : ""
-                       }
-                     </div>`
-                  : '<span class="incident-coords-badge">No GPS coordinates attached</span>'
-              }
               <div class="incident-jurisdiction-pill incident-jurisdiction-pill--barangay">
                 <span class="material-symbols-outlined" style="font-size:16px;">location_on</span>
                 <span>Barangay ${escapeHtml(bName)}${escapeHtml(bDist)}</span>
@@ -767,6 +834,32 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
                 <span>Sub-station: ${escapeHtml(sName)}${escapeHtml(hqFlag)}</span>
               </div>
             </div>
+
+            <!-- DEDICATED TACTICAL MINI-MAP (ISOLATED LIVE FOCUS) -->
+            ${
+              lat != null && lng != null
+                ? `<div class="incident-modal-map-wrap">
+                     <div class="incident-modal-map-header">
+                       <div class="incident-modal-map-title-group">
+                         <span class="live-dot-pulse"></span>
+                         <strong>Target Report Tactical Mini-Map</strong>
+                         <span class="incident-modal-map-subtext">Isolated live GPS stream &amp; movement route</span>
+                       </div>
+                       <div class="incident-modal-map-actions">
+                         <button type="button" class="incident-modal-map-btn incident-modal-map-btn--simulate" id="incident-modal-simulate-btn" title="Simulate ~35m movement for demonstration">
+                           <span class="material-symbols-outlined" style="font-size:16px;">directions_run</span>
+                           Simulate Motion
+                         </button>
+                         <button type="button" class="incident-modal-map-btn" id="incident-modal-recenter-btn" title="Recenter mini-map on citizen">
+                           <span class="material-symbols-outlined" style="font-size:16px;">my_location</span>
+                           Recenter
+                         </button>
+                       </div>
+                     </div>
+                     <div id="incident-modal-mini-map" class="incident-modal-mini-map"></div>
+                   </div>`
+                : ""
+            }
           </div>
         </div>
       </section>
@@ -788,9 +881,24 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
       ${buildResponsePanel(d)}
     </div>
 
-    <!-- SIDEBAR: Evidence & Dispatch Moderation -->
+    <!-- SIDEBAR: Evidence, Citizen Narrative & Dispatch Moderation -->
     <aside class="incident-review-side">
       ${buildEvidenceReviewPanel(d)}
+
+      <!-- Citizen Narrative (under Evidence Photo Review) -->
+      <section class="incident-card" aria-label="Incident Description">
+        <header class="incident-card__header">
+          <div class="incident-card__header-left">
+            <span class="material-symbols-outlined incident-card__icon" aria-hidden="true">notes</span>
+            <h4 class="incident-card__title">Citizen Narrative</h4>
+          </div>
+        </header>
+        <div class="incident-card__body">
+          <div class="incident-narrative-box">
+            <p class="incident-narrative-text">${escapeHtml(d.description || "No written narrative provided with this incident submission.")}</p>
+          </div>
+        </div>
+      </section>
 
       <section class="incident-actions incident-actions--moderation" aria-label="Incident actions">
         <div class="incident-actions__header">
@@ -826,10 +934,36 @@ export function initIncidentModal() {
     let currentReporterUser = null;
     let currentResponderOptions = [];
     let openMenu = null;
+    let activeIncidentDocUnsub = null;
+    let miniMapInstance = null;
+    let miniUserMarker = null;
+    let miniSubstationMarker = null;
+    let miniTrailPolyline = null;
+    let miniOriginMarker = null;
 
     if (!modal || !body || !tbody) return;
 
+    function destroyMiniMap() {
+        if (miniMapInstance) {
+            try {
+                miniMapInstance.remove();
+            } catch (e) {
+                console.warn("[incident-modal] error removing mini-map instance", e);
+            }
+            miniMapInstance = null;
+            miniUserMarker = null;
+            miniSubstationMarker = null;
+            miniTrailPolyline = null;
+            miniOriginMarker = null;
+        }
+    }
+
     function closeModal() {
+        if (activeIncidentDocUnsub) {
+            activeIncidentDocUnsub();
+            activeIncidentDocUnsub = null;
+        }
+        destroyMiniMap();
         modal.hidden = true;
         modal.setAttribute("aria-hidden", "true");
         body.innerHTML = "";
@@ -1199,6 +1333,17 @@ export function initIncidentModal() {
             sendResponderUpdate(selectedResponder);
         });
 
+        body.querySelector("#incident-modal-recenter-btn")?.addEventListener("click", () => {
+            if (miniUserMarker && miniMapInstance) {
+                const pos = miniUserMarker.getLatLng();
+                miniMapInstance.setView(pos, 17, { animate: true });
+            }
+        });
+
+        body.querySelector("#incident-modal-simulate-btn")?.addEventListener("click", async () => {
+            await simulateCitizenMovement(currentIncidentId);
+        });
+
         body.querySelectorAll("[data-action-status]").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 if (!currentIncidentId || !currentData) return;
@@ -1564,9 +1709,236 @@ export function initIncidentModal() {
             body.innerHTML = renderIncidentDetail(snap.id, currentData, null, currentReporterUser);
             bindActionHandlers();
             loadResponderOptions();
+            initMiniMap(snap.id, currentData);
+
+            // Real-Time GPS Tracking & Live State Sync for active open modal
+            if (activeIncidentDocUnsub) {
+                activeIncidentDocUnsub();
+                activeIncidentDocUnsub = null;
+            }
+
+            activeIncidentDocUnsub = onSnapshot(ref, (liveSnap) => {
+                if (!liveSnap.exists() || !modal || modal.hidden) return;
+                const liveData = liveSnap.data();
+                if (!hasIncidentAccess(liveData)) return;
+
+                const prevLat = currentData?.location?.latitude;
+                const prevLng = currentData?.location?.longitude;
+                const nextLat = liveData?.location?.latitude;
+                const nextLng = liveData?.location?.longitude;
+
+                const latChanged = Number.isFinite(nextLat) && nextLat !== prevLat;
+                const lngChanged = Number.isFinite(nextLng) && nextLng !== prevLng;
+                const streamPingChanged = liveData.lastGpsStreamAt && liveData.lastGpsStreamAt !== currentData?.lastGpsStreamAt;
+
+                if (latChanged || lngChanged || streamPingChanged) {
+                    currentData = {
+                        ...currentData,
+                        ...liveData,
+                    };
+
+                    // Live update the coordinates badge without destroying user form focus
+                    const coordsTextEl = body.querySelector(".incident-coords-text");
+                    if (coordsTextEl && Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
+                        coordsTextEl.textContent = `${nextLat}, ${nextLng}`;
+                    }
+
+                    // Live update the address text if changed
+                    const addressTextEl = body.querySelector(".incident-address-text");
+                    if (addressTextEl && liveData.location?.address) {
+                        addressTextEl.textContent = liveData.location.address;
+                    }
+
+                    // Live update or inject movement badge
+                    const isLive = isIncidentLiveTracking(liveData);
+                    let badgeEl = body.querySelector(".incident-live-stream-badge");
+                    if (isLive) {
+                        const originLat = liveData?.initialLocation?.latitude ?? liveData?.locationTrail?.[0]?.latitude ?? nextLat;
+                        const originLng = liveData?.initialLocation?.longitude ?? liveData?.locationTrail?.[0]?.longitude ?? nextLng;
+                        const distMoved = calculateDistanceMeters(originLat, originLng, nextLat, nextLng);
+                        const trailCount = Array.isArray(liveData?.locationTrail) ? liveData.locationTrail.length : 1;
+
+                        if (!badgeEl) {
+                            badgeEl = document.createElement("div");
+                            badgeEl.className = "incident-live-stream-badge";
+                            const locationBlock = body.querySelector(".incident-location-block");
+                            locationBlock?.prepend(badgeEl);
+                        }
+                        badgeEl.innerHTML = `
+                            <span class="live-dot-pulse"></span>
+                            <span>Live Citizen GPS Tracking Active &bull; ${distMoved >= 15 ? `Moved ~${distMoved}m from origin` : "Near Origin"} (${trailCount} pings)</span>
+                        `;
+                    } else if (badgeEl) {
+                        badgeEl.remove();
+                    }
+
+                    // Live update tactical mini-map
+                    if (miniUserMarker && Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
+                        miniUserMarker.setLatLng([nextLat, nextLng]);
+                    }
+
+                    if (miniMapInstance && Array.isArray(liveData.locationTrail) && liveData.locationTrail.length > 1) {
+                        const validCoords = liveData.locationTrail
+                            .filter((pt) => pt && Number.isFinite(Number(pt.latitude)) && Number.isFinite(Number(pt.longitude)))
+                            .map((pt) => [Number(pt.latitude), Number(pt.longitude)]);
+
+                        if (miniTrailPolyline) {
+                            miniTrailPolyline.setLatLngs(validCoords);
+                        } else {
+                            miniTrailPolyline = L.polyline(validCoords, {
+                                color: "#ef4444",
+                                weight: 4,
+                                opacity: 0.85,
+                                dashArray: "6, 6",
+                                lineCap: "round",
+                                lineJoin: "round",
+                            }).addTo(miniMapInstance);
+                        }
+                    }
+
+                    if (miniMapInstance && Number.isFinite(nextLat) && Number.isFinite(nextLng)) {
+                        miniMapInstance.panTo([nextLat, nextLng], { animate: true, duration: 1.0 });
+                    }
+                }
+            }, (err) => {
+                console.warn("[incident-modal] real-time GPS stream listener error", err);
+            });
         } catch (err) {
             console.error("[incident-modal] open by id", err);
             body.innerHTML = `<p class="incident-modal__error">${escapeHtml(err?.message || "Failed to load incident")}</p>`;
+        }
+    }
+
+    function initMiniMap(docId, data) {
+        destroyMiniMap();
+        const container = document.getElementById("incident-modal-mini-map");
+        if (!container) return;
+
+        const loc = data?.location || {};
+        const lat = Number(loc.latitude);
+        const lng = Number(loc.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:0.875rem;">No valid GPS coordinates for mini-map.</div>';
+            return;
+        }
+
+        try {
+            miniMapInstance = L.map(container, {
+                center: [lat, lng],
+                zoom: 17,
+                zoomControl: true,
+                attributionControl: false,
+            });
+
+            L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+                }
+            ).addTo(miniMapInstance);
+
+            // Citizen Live Radar-Pulsing Marker
+            miniUserMarker = L.marker([lat, lng], {
+                icon: createLiveTrackingDivIcon(),
+                zIndexOffset: 1200,
+            }).addTo(miniMapInstance);
+            miniUserMarker.bindTooltip("Reporting Citizen (Live Target)", { direction: "top", offset: [0, -14] });
+
+            // Breadcrumb Route (Polyline)
+            const trail = Array.isArray(data.locationTrail) ? data.locationTrail : [];
+            const validCoords = trail
+                .filter((pt) => pt && Number.isFinite(Number(pt.latitude)) && Number.isFinite(Number(pt.longitude)))
+                .map((pt) => [Number(pt.latitude), Number(pt.longitude)]);
+
+            if (validCoords.length > 1) {
+                miniTrailPolyline = L.polyline(validCoords, {
+                    color: "#ef4444",
+                    weight: 4,
+                    opacity: 0.85,
+                    dashArray: "6, 6",
+                    lineCap: "round",
+                    lineJoin: "round",
+                }).addTo(miniMapInstance);
+
+                const originLat = Number(data?.initialLocation?.latitude ?? validCoords[0][0]);
+                const originLng = Number(data?.initialLocation?.longitude ?? validCoords[0][1]);
+                miniOriginMarker = L.circleMarker([originLat, originLng], {
+                    radius: 5,
+                    color: "#ffffff",
+                    weight: 2,
+                    fillColor: "#475569",
+                    fillOpacity: 0.9,
+                }).addTo(miniMapInstance);
+                miniOriginMarker.bindTooltip("SOS Initial Origin", { direction: "bottom" });
+            }
+
+            // Responding Substation Marker
+            const sId = resolveIncidentSubstationId(data);
+            const matchedSubstation = COVERED_SUBSTATIONS.find(
+                (s) => s.id === sId || s.id === data.assignedSubstationId || s.id === data.respondingSubstationId
+            );
+            if (matchedSubstation && Number.isFinite(matchedSubstation.latitude) && Number.isFinite(matchedSubstation.longitude)) {
+                miniSubstationMarker = L.marker([matchedSubstation.latitude, matchedSubstation.longitude], {
+                    icon: createSubstationDivIcon(matchedSubstation.name),
+                    zIndexOffset: 900,
+                }).addTo(miniMapInstance);
+                miniSubstationMarker.bindTooltip(`Station: ${matchedSubstation.name}`, { direction: "top", offset: [0, -12] });
+            }
+
+            // Invalidate size to guarantee crisp map rendering
+            setTimeout(() => {
+                if (miniMapInstance) {
+                    miniMapInstance.invalidateSize();
+                }
+            }, 180);
+        } catch (err) {
+            console.error("[incident-modal] mini-map init error", err);
+        }
+    }
+
+    async function simulateCitizenMovement(id) {
+        if (!id || !currentData) return;
+        const btn = body.querySelector("#incident-modal-simulate-btn");
+        if (btn) btn.disabled = true;
+
+        try {
+            const loc = currentData.location || {};
+            const curLat = Number(loc.latitude ?? 14.7069);
+            const curLng = Number(loc.longitude ?? 120.9992);
+
+            // Generate realistic walking/driving displacement ~30-40 meters
+            const angle = Math.random() * 2 * Math.PI;
+            const deltaLat = Math.sin(angle) * 0.0003;
+            const deltaLng = Math.cos(angle) * 0.0003;
+
+            const nextLat = parseFloat((curLat + deltaLat).toFixed(6));
+            const nextLng = parseFloat((curLng + deltaLng).toFixed(6));
+
+            const now = Date.now();
+            const newPoint = {
+                latitude: nextLat,
+                longitude: nextLng,
+                timestamp: now,
+            };
+
+            const existingTrail = Array.isArray(currentData.locationTrail) ? currentData.locationTrail : [];
+            const nextTrail = [...existingTrail.slice(-14), newPoint];
+
+            const ref = doc(db, "incidents", id);
+            await updateDoc(ref, {
+                "location.latitude": nextLat,
+                "location.longitude": nextLng,
+                lastGpsStreamAt: serverTimestamp(),
+                locationTrail: nextTrail,
+            });
+
+            toastSuccess(`Motion simulated! Citizen moved to ${nextLat.toFixed(4)}, ${nextLng.toFixed(4)}`);
+        } catch (simErr) {
+            console.error("[incident-modal] simulation error", simErr);
+            toastError(simErr?.message || "Failed to simulate movement");
+        } finally {
+            if (btn) btn.disabled = false;
         }
     }
 

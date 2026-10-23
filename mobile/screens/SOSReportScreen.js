@@ -158,6 +158,7 @@ const SOSReportScreen = ({ navigation, route }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const lastSyncedCoordsRef = useRef(null);
   const lastSyncTimeRef = useRef(0);
+  const locationTrailRef = useRef([]);
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -240,11 +241,26 @@ const SOSReportScreen = ({ navigation, route }) => {
 
               try {
                 const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
-                await updateDoc(incidentRef, {
+                const updatePayload = {
                   'location.latitude': newCoords.latitude,
                   'location.longitude': newCoords.longitude,
                   lastGpsStreamAt: serverTimestamp(),
-                });
+                };
+
+                // Track physical displacement breadcrumbs (capped at last 15 points)
+                if (hasMoved) {
+                  const newBreadcrumb = {
+                    latitude: newCoords.latitude,
+                    longitude: newCoords.longitude,
+                    timestamp: now,
+                  };
+                  const currentTrail = locationTrailRef.current || [];
+                  const updatedTrail = [...currentTrail.slice(-14), newBreadcrumb];
+                  locationTrailRef.current = updatedTrail;
+                  updatePayload.locationTrail = updatedTrail;
+                }
+
+                await updateDoc(incidentRef, updatePayload);
               } catch (firestoreErr) {
                 // Warning only: avoids popup LogBox modal while awaiting manual rules paste in Firebase Console
                 console.warn('GPS stream sync waiting for Firestore rule update:', firestoreErr.message);
@@ -502,6 +518,18 @@ const SOSReportScreen = ({ navigation, route }) => {
           longitude: reportLocation.longitude,
           address: locationAddress,
         },
+        initialLocation: {
+          latitude: reportLocation.latitude,
+          longitude: reportLocation.longitude,
+          address: locationAddress,
+        },
+        locationTrail: [
+          {
+            latitude: reportLocation.latitude,
+            longitude: reportLocation.longitude,
+            timestamp: Date.now(),
+          },
+        ],
         status: 'under_review',
         timestamp: serverTimestamp(),
         reportedAt: serverTimestamp(),

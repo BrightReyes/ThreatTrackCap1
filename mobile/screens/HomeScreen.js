@@ -458,6 +458,7 @@ const HomeScreen = ({ navigation }) => {
   const stickyPulseAnim = useRef(new Animated.Value(1)).current;
   const lastSyncedCoordsRef = useRef(null);
   const lastSyncTimeRef = useRef(0);
+  const locationTrailRef = useRef([]);
 
   // Pulse animation for sticky preview card
   useEffect(() => {
@@ -602,11 +603,28 @@ const HomeScreen = ({ navigation }) => {
 
               try {
                 const incidentRef = doc(db, 'incidents', activeSOSIncident.id);
-                await updateDoc(incidentRef, {
+                const updatePayload = {
                   'location.latitude': newCoords.latitude,
                   'location.longitude': newCoords.longitude,
                   lastGpsStreamAt: serverTimestamp(),
-                });
+                };
+
+                // Track physical displacement breadcrumbs (capped at last 15 points)
+                if (hasMoved) {
+                  const newBreadcrumb = {
+                    latitude: newCoords.latitude,
+                    longitude: newCoords.longitude,
+                    timestamp: now,
+                  };
+                  const currentTrail = locationTrailRef.current && locationTrailRef.current.length > 0
+                    ? locationTrailRef.current
+                    : (activeSOSIncident.locationTrail || []);
+                  const updatedTrail = [...currentTrail.slice(-14), newBreadcrumb];
+                  locationTrailRef.current = updatedTrail;
+                  updatePayload.locationTrail = updatedTrail;
+                }
+
+                await updateDoc(incidentRef, updatePayload);
               } catch (syncErr) {
                 console.warn('GPS stream sync pending Firestore rules update:', syncErr.message);
               }

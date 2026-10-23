@@ -641,6 +641,8 @@ async function showPriorityAlert(id, data, options = {}) {
     const typeLabel = getIncidentTypeLabel(data);
     const lat = Number(data.location?.latitude ?? data.latitude);
     const lng = Number(data.location?.longitude ?? data.longitude);
+    let currentAlertLat = lat;
+    let currentAlertLng = lng;
 
     // Candidates calculation:
     const substationCandidates = getSortedSubstationCandidates(lat, lng);
@@ -771,7 +773,7 @@ async function showPriorityAlert(id, data, options = {}) {
                 </div>
                 <div>
                     <span>Location</span>
-                    <strong>${escapeHtml(locationText)}</strong>
+                    <strong id="admin-priority-grid-location">${escapeHtml(locationText)}</strong>
                 </div>
                 <div>
                     <span>Closest outpost</span>
@@ -836,6 +838,79 @@ async function showPriorityAlert(id, data, options = {}) {
                 }
                 const fb = root.querySelector(".admin-priority-alert__feedback");
                 if (fb) fb.textContent = `Substation deployed units at ${new Date().toLocaleTimeString()}.`;
+            }
+
+            // Scenario C: Real-Time Live GPS Movement Detection
+            const liveLat = Number(liveData.location?.latitude ?? liveData.latitude);
+            const liveLng = Number(liveData.location?.longitude ?? liveData.longitude);
+
+            if (Number.isFinite(liveLat) && Number.isFinite(liveLng) && Number.isFinite(currentAlertLat) && Number.isFinite(currentAlertLng)) {
+                const R = 6371e3;
+                const phi1 = (currentAlertLat * Math.PI) / 180;
+                const phi2 = (liveLat * Math.PI) / 180;
+                const deltaPhi = ((liveLat - currentAlertLat) * Math.PI) / 180;
+                const deltaLambda = ((liveLng - currentAlertLng) * Math.PI) / 180;
+                const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const movedMeters = Math.round(R * c);
+
+                if (movedMeters >= 15) {
+                    currentAlertLat = liveLat;
+                    currentAlertLng = liveLng;
+
+                    // Recalculate substation candidates with updated position
+                    const updatedCandidates = getSortedSubstationCandidates(liveLat, liveLng);
+                    const newClosest = updatedCandidates[0] || null;
+                    const newDistKm = newClosest?.distanceKm ?? null;
+
+                    // Update Location in modal grid
+                    const locCell = root.querySelector("#admin-priority-grid-location");
+                    if (locCell) {
+                        const newAddress = liveData.location?.address || `${liveLat.toFixed(4)}, ${liveLng.toFixed(4)}`;
+                        locCell.innerHTML = `<span style="color:#ef4444;font-weight:800;">● ${escapeHtml(newAddress)}</span>`;
+                    }
+
+                    // Update Outpost and Distance in grid
+                    const outpostCell = root.querySelector("#admin-priority-grid-outpost");
+                    if (outpostCell && newClosest) outpostCell.textContent = newClosest.substationName;
+                    const distCell = root.querySelector("#admin-priority-grid-distance");
+                    if (distCell) distCell.textContent = formatDistanceKm(newDistKm);
+
+                    // Update pills
+                    const pillDist = root.querySelector("[data-substation-distance-text]");
+                    if (pillDist) pillDist.textContent = formatDistanceKm(newDistKm);
+                    const pillEta = root.querySelector("[data-substation-eta-text]");
+                    if (pillEta && newClosest) pillEta.textContent = `${newClosest.etaMinutes || 5} min ETA`;
+
+                    // Show or update dynamic "Citizen in Motion" banner
+                    let moveBanner = root.querySelector(".admin-priority-alert__moving-banner");
+                    if (!moveBanner) {
+                        moveBanner = document.createElement("div");
+                        moveBanner.className = "admin-priority-alert__moving-banner";
+                        const top = root.querySelector(".admin-priority-alert__top");
+                        top?.after(moveBanner);
+                    }
+                    const originLat = Number(liveData.initialLocation?.latitude ?? liveData.locationTrail?.[0]?.latitude ?? currentAlertLat);
+                    const originLng = Number(liveData.initialLocation?.longitude ?? liveData.locationTrail?.[0]?.longitude ?? currentAlertLng);
+                    const dPhi = ((liveLat - originLat) * Math.PI) / 180;
+                    const dLam = ((liveLng - originLng) * Math.PI) / 180;
+                    const aOrig = Math.sin(dPhi / 2) * Math.sin(dPhi / 2) + Math.cos((originLat * Math.PI) / 180) * Math.cos(phi2) * Math.sin(dLam / 2) * Math.sin(dLam / 2);
+                    const totalFromOrigin = Math.round(R * (2 * Math.atan2(Math.sqrt(aOrig), Math.sqrt(1 - aOrig))));
+
+                    moveBanner.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;color:#ef4444;">directions_run</span> Citizen is currently in motion! Traversed ~${totalFromOrigin}m from origin (Nearest outpost: ${escapeHtml(newClosest?.substationName || "Outpost")})`;
+
+                    // Update Substation selection dropdown if HQ role
+                    const select = root.querySelector("#admin-priority-responder-select");
+                    if (select && updatedCandidates.length) {
+                        const prevVal = select.value;
+                        select.innerHTML = updatedCandidates.map((s, idx) => {
+                            const rank = idx === 0 ? "Nearest" : `Option ${idx + 1}`;
+                            const meta = `${formatDistanceKm(s.distanceKm)} / ${s.etaMinutes} min ETA`;
+                            const isSel = (prevVal === s.substationId) || (!prevVal && idx === 0) ? "selected" : "";
+                            return `<option value="${escapeAttr(s.substationId)}" ${isSel}>${escapeHtml(`${rank}: ${s.substationName} - ${meta}`)}</option>`;
+                        }).join("");
+                    }
+                }
             }
         });
     }

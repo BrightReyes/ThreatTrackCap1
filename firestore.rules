@@ -238,14 +238,17 @@ service cloud.firestore {
       let changedKeys = request.resource.data.diff(resource.data).affectedKeys();
       return isOwner(resource.data.reporterId) &&
              request.resource.data.reporterId == resource.data.reporterId &&
-             changedKeys.hasOnly(['location', 'lastGpsStreamAt', 'liveStreamingActive', 'distressResolvedAt']) &&
+             changedKeys.hasOnly(['location', 'lastGpsStreamAt', 'liveStreamingActive', 'distressResolvedAt', 'locationTrail']) &&
              (!request.resource.data.keys().hasAny(['location']) ||
               (request.resource.data.location.latitude is number &&
                request.resource.data.location.longitude is number &&
                request.resource.data.location.latitude >= -90 &&
                request.resource.data.location.latitude <= 90 &&
                request.resource.data.location.longitude >= -180 &&
-               request.resource.data.location.longitude <= 180));
+               request.resource.data.location.longitude <= 180)) &&
+             (!request.resource.data.keys().hasAny(['locationTrail']) ||
+              (request.resource.data.locationTrail is list &&
+               request.resource.data.locationTrail.size() <= 30));
     }
 
     function isValidIncidentUserMarkSafeUpdate() {
