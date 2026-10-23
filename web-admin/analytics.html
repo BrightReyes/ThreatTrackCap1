@@ -28,14 +28,15 @@
         <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
-        <link rel="stylesheet" href="/css/analytics.css" />
-        <link rel="stylesheet" href="/css/admin-readability.css" />
+        <link rel="stylesheet" href="/css/incidents.css?v=4" />
+        <link rel="stylesheet" href="/css/analytics.css?v=4" />
+        <link rel="stylesheet" href="/css/admin-readability.css?v=4" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     </head>
     <body>
         <div id="page-analytics" class="admin-dashboard" hidden>
             <aside
-                class="admin-dashboard__sidebar"
+                class="admin-dashboard__sidebar admin-dashboard__sidebar--gradient"
                 aria-label="Main navigation"
             >
                 <div class="sidebar__top">
@@ -152,316 +153,412 @@
             </aside>
 
             <div class="admin-dashboard__shell">
-                <!-- 1. PAGE HEADER -->
-                <header class="admin-dashboard__header analytics-header">
+                <!-- 1. UNIFIED COMMAND-CENTER HEADER & LIVE PHT TELEMETRY CLOCK -->
+                <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <div class="admin-dashboard__eyebrow">
-                            <span class="eyebrow-beacon" aria-hidden="true"></span>
-                            <span>Incident Overview &amp; Trends</span>
-                        </div>
-                        <h1 class="admin-dashboard__title">Analytics</h1>
+                        <h1 class="admin-dashboard__title">Analytics &amp; Intelligence</h1>
                         <p class="admin-dashboard__tagline">
-                            Monitor incident activity, response workload, and emerging hotspots.
+                            Incident trend telemetry, spatial hotspot clustering, response workload, and AI decision-support briefs
                         </p>
                     </div>
-
-                    <div class="admin-dashboard__header-right analytics-header__controls">
-                        <!-- Date range selector -->
-                        <div class="analytics-control-group">
-                            <label for="analytics-range" class="analytics-control-label">Range</label>
-                            <select id="analytics-range" class="analytics-select">
-                                <option value="24h">Last 24 hours</option>
-                                <option value="7d">Last 7 days</option>
-                                <option value="30d" selected>Last 30 days</option>
-                                <option value="custom">Custom range</option>
-                            </select>
-                        </div>
-
-                        <!-- Custom Date Pickers (Shown only when Custom range selected) -->
-                        <div id="analytics-custom-inputs" class="analytics-custom-dates" style="display: none;">
-                            <input type="date" id="analytics-custom-start" class="analytics-date-input" aria-label="Start date" />
-                            <span class="analytics-date-sep">to</span>
-                            <input type="date" id="analytics-custom-end" class="analytics-date-input" aria-label="End date" />
-                            <button type="button" id="analytics-custom-apply" class="analytics-btn analytics-btn--sm">Apply</button>
-                        </div>
-
-                        <!-- Export Button -->
-                        <button type="button" id="btn-analytics-export" class="analytics-btn analytics-btn--export" title="Export incident records to CSV">
-                            <span class="material-symbols-outlined">download</span>
-                            <span>Export CSV</span>
-                        </button>
-
-                        <!-- Last Updated Timestamp -->
-                        <div class="analytics-last-updated-wrap" title="Data freshness from Firestore">
-                            <span class="material-symbols-outlined analytics-refresh-icon">history</span>
-                            <span id="analytics-last-updated" class="analytics-timestamp">Last updated: --:--</span>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                >--:--:--</time>
+                            </div>
                         </div>
                     </div>
                 </header>
 
-                <main class="admin-dashboard__main analytics-main">
-                    <!-- 2. ATTENTION REQUIRED SECTION -->
-                    <section class="analytics-attention-panel" id="analytics-attention-panel" aria-label="Attention Required">
-                        <div class="analytics-attention-header">
-                            <div class="analytics-attention-badge">
-                                <span class="material-symbols-outlined">crisis_alert</span>
-                                <span>ATTENTION REQUIRED</span>
-                            </div>
-                            <p class="analytics-attention-sub">Key items requiring administrator inspection or dispatch action.</p>
-                        </div>
+                <main class="admin-dashboard__main incidents-main analytics-main">
+                    <!-- 2. ANALYTICS COMMAND CONTROLS & DATE RANGE TOOLBAR -->
+                    <section class="incidents-panel analytics-controls-panel" aria-label="Analytics range and export controls">
+                        <div class="analytics-toolbar">
+                            <div class="analytics-toolbar__primary">
+                                <div class="analytics-filter-group">
+                                    <label for="analytics-range" class="analytics-filter-label">
+                                        <span class="material-symbols-outlined" aria-hidden="true">date_range</span>
+                                        <span>Reporting Range</span>
+                                    </label>
+                                    <select id="analytics-range" class="incidents-select analytics-select" aria-label="Reporting Range">
+                                        <option value="24h">Last 24 hours</option>
+                                        <option value="7d">Last 7 days</option>
+                                        <option value="30d" selected>Last 30 days</option>
+                                        <option value="custom">Custom range</option>
+                                    </select>
+                                </div>
 
-                        <div class="analytics-attention-metrics">
-                            <div class="attention-metric" id="attention-pending-wrap">
-                                <strong id="attention-pending" class="attention-val">0</strong>
-                                <span class="attention-label">Pending Review</span>
+                                <!-- Custom Date Pickers (Shown only when Custom range selected) -->
+                                <div id="analytics-custom-inputs" class="analytics-custom-dates" style="display: none;">
+                                    <input type="date" id="analytics-custom-start" class="analytics-date-input" aria-label="Start date" />
+                                    <span class="analytics-date-sep">to</span>
+                                    <input type="date" id="analytics-custom-end" class="analytics-date-input" aria-label="End date" />
+                                    <button type="button" id="analytics-custom-apply" class="analytics-btn analytics-btn--sm">Apply</button>
+                                </div>
                             </div>
-                            <div class="attention-metric attention-metric--critical" id="attention-high-open-wrap">
-                                <strong id="attention-high-open" class="attention-val">0</strong>
-                                <span class="attention-label">High Severity Open</span>
-                            </div>
-                            <div class="attention-metric" id="attention-hotspots-wrap">
-                                <strong id="attention-hotspots" class="attention-val">0</strong>
-                                <span class="attention-label">Priority Hotspots</span>
-                            </div>
-                        </div>
 
-                        <div class="analytics-attention-actions">
-                            <a href="incidents.html?filter=open" class="attention-action-btn attention-action-btn--primary">
-                                <span class="material-symbols-outlined">shield_person</span>
-                                <span>Review Incidents</span>
-                            </a>
-                            <a href="#hotspots-section" class="attention-action-btn attention-action-btn--ghost">
-                                <span class="material-symbols-outlined">pin_drop</span>
-                                <span>View Hotspots</span>
-                            </a>
+                            <div class="analytics-toolbar__secondary">
+                                <!-- Export Button -->
+                                <button type="button" id="btn-analytics-export" class="analytics-btn analytics-btn--export" title="Export incident records to CSV">
+                                    <span class="material-symbols-outlined">download</span>
+                                    <span>Export CSV</span>
+                                </button>
+
+                                <!-- Last Updated Timestamp -->
+                                <div class="analytics-last-updated-wrap" title="Data freshness from Firestore">
+                                    <span class="material-symbols-outlined analytics-refresh-icon">history</span>
+                                    <span id="analytics-last-updated" class="analytics-timestamp">Last updated: --:--</span>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
-                    <!-- 3. REDUCED PRIMARY OVERVIEW (4 KPI CARDS) -->
-                    <section class="analytics-kpi-grid" aria-label="Primary Overview KPIs">
-                        <!-- Total Incidents -->
-                        <article class="analytics-kpi-card stat-card" id="kpi-total-incidents">
-                            <div class="kpi-card__accent" style="background: linear-gradient(90deg, #dc2626, #ef4444);"></div>
-                            <div class="kpi-card__header">
-                                <span class="kpi-card__label">Total Incidents</span>
-                                <div class="kpi-card__icon-wrap">
-                                    <span class="kpi-card__icon material-symbols-outlined">analytics</span>
+                    <!-- 3. ATTENTION REQUIRED SECTION -->
+                    <section class="incidents-panel analytics-attention-panel" id="analytics-attention-panel" aria-label="Attention Required">
+                        <div class="analytics-attention-content">
+                            <div class="analytics-attention-header">
+                                <div class="analytics-attention-badge">
+                                    <span class="eyebrow-beacon" aria-hidden="true"></span>
+                                    <span class="material-symbols-outlined" aria-hidden="true">crisis_alert</span>
+                                    <span>ATTENTION REQUIRED</span>
+                                </div>
+                                <p class="analytics-attention-sub">Key operational items requiring administrator inspection or rapid dispatch action.</p>
+                            </div>
+
+                            <div class="analytics-attention-metrics">
+                                <div class="attention-metric" id="attention-pending-wrap">
+                                    <strong id="attention-pending" class="attention-val">0</strong>
+                                    <span class="attention-label">Pending Review</span>
+                                </div>
+                                <div class="attention-metric attention-metric--critical" id="attention-high-open-wrap">
+                                    <strong id="attention-high-open" class="attention-val">0</strong>
+                                    <span class="attention-label">High Severity Open</span>
+                                </div>
+                                <div class="attention-metric" id="attention-hotspots-wrap">
+                                    <strong id="attention-hotspots" class="attention-val">0</strong>
+                                    <span class="attention-label">Priority Hotspots</span>
                                 </div>
                             </div>
-                            <div class="kpi-card__value" id="analytics-total">…</div>
-                            <div class="kpi-card__meta">
-                                <span>Today: <strong id="analytics-today">0</strong></span>
-                                <span class="meta-dot">·</span>
-                                <span>Daily avg: <strong id="analytics-daily-average">0</strong></span>
-                            </div>
-                        </article>
 
-                        <!-- SOS Reports -->
-                        <article class="analytics-kpi-card stat-card" id="kpi-sos-reports">
-                            <div class="kpi-card__accent" style="background: linear-gradient(90deg, #ef4444, #f87171);"></div>
-                            <div class="kpi-card__header">
-                                <span class="kpi-card__label">SOS Reports</span>
-                                <div class="kpi-card__icon-wrap" style="background:#fff1f2;color:#dc2626;border-color:#fee2e2;">
-                                    <span class="kpi-card__icon material-symbols-outlined">sos</span>
-                                </div>
+                            <div class="analytics-attention-actions">
+                                <a href="incidents.html?filter=open" class="attention-action-btn attention-action-btn--primary">
+                                    <span class="material-symbols-outlined">shield_person</span>
+                                    <span>Review Incidents</span>
+                                </a>
+                                <a href="#hotspots-section" class="attention-action-btn attention-action-btn--ghost">
+                                    <span class="material-symbols-outlined">pin_drop</span>
+                                    <span>View Hotspots</span>
+                                </a>
                             </div>
-                            <div class="kpi-card__value" id="analytics-sos" style="color:#dc2626;">…</div>
-                            <div class="kpi-card__meta">
-                                <span>Emergency citizen distress alerts</span>
-                            </div>
-                        </article>
-
-                        <!-- Verification Rate -->
-                        <article class="analytics-kpi-card stat-card" id="kpi-verification-rate">
-                            <div class="kpi-card__accent" style="background: linear-gradient(90deg, #10b981, #34d399);"></div>
-                            <div class="kpi-card__header">
-                                <span class="kpi-card__label">Verification Rate</span>
-                                <div class="kpi-card__icon-wrap" style="background:#ecfdf5;color:#10b981;border-color:#d1fae5;">
-                                    <span class="kpi-card__icon material-symbols-outlined">verified</span>
-                                </div>
-                            </div>
-                            <div class="kpi-card__value" id="analytics-verified-rate">…</div>
-                            <div class="kpi-card__meta">
-                                <span>Validated / resolved ratio</span>
-                            </div>
-                        </article>
-
-                        <!-- Mappable Reports -->
-                        <article class="analytics-kpi-card stat-card" id="kpi-mappable-reports">
-                            <div class="kpi-card__accent" style="background: linear-gradient(90deg, #2563eb, #60a5fa);"></div>
-                            <div class="kpi-card__header">
-                                <span class="kpi-card__label">Mappable Reports</span>
-                                <div class="kpi-card__icon-wrap" style="background:#eff6ff;color:#2563eb;border-color:#dbeafe;">
-                                    <span class="kpi-card__icon material-symbols-outlined">location_on</span>
-                                </div>
-                            </div>
-                            <div class="kpi-card__value" id="analytics-location-coverage">…</div>
-                            <div class="kpi-card__meta">
-                                <span>With GPS: <strong id="analytics-mappable-count">0</strong> reports</span>
-                            </div>
-                        </article>
-
-                        <!-- Retained hidden elements for backward compatibility -->
-                        <span id="analytics-high" style="display:none;"></span>
-                        <span id="analytics-pending" style="display:none;"></span>
+                        </div>
                     </section>
 
-                    <!-- 4. INCIDENT ACTIVITY (MAIN CHART) -->
-                    <section class="analytics-section analytics-section--main-chart">
-                        <article class="analytics-panel analytics-panel--wide">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#dc2626;">insights</span>
-                                    <h2>Incident Activity</h2>
-                                    <span id="analytics-trend-comparison" class="trend-badge">Calculating…</span>
-                                </div>
-                                <span id="analytics-trend-meta" class="analytics-trend-meta"></span>
+                    <!-- 4. PRIMARY OVERVIEW & SEVERITY METRICS (4 KPI CARDS) -->
+                    <section class="incidents-panel incidents-panel--metrics" aria-label="Primary Incident Metrics">
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">query_stats</span>
+                                <h2 class="incidents-panel__title">Primary Incident Telemetry</h2>
+                                <span class="incidents-filter-pill">Live Aggregation</span>
                             </div>
+                            <p class="incidents-panel__meta">Aggregated report volume, citizen alerts, and coverage metrics</p>
+                        </div>
+                        <div class="incidents-panel__body incidents-panel__body--stats">
+                            <div
+                                class="incidents-stats admin-dashboard__stats"
+                                aria-label="Primary overview KPIs"
+                            >
+                                <!-- Total Incidents -->
+                                <article
+                                    class="stat-card stat-card--total-incidents stat-card--interactive"
+                                    id="kpi-total-incidents"
+                                    tabindex="0"
+                                    role="article"
+                                    aria-label="Total Incidents"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >analytics</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Total Incidents</p>
+                                            <p id="analytics-total" class="stat-card__value">…</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            Today: <strong id="analytics-today">0</strong> · Daily avg: <strong id="analytics-daily-average">0</strong>
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">trending_flat</span>
+                                    </div>
+                                </article>
+
+                                <!-- SOS Reports -->
+                                <article
+                                    class="stat-card stat-card--open-incidents stat-card--interactive"
+                                    id="kpi-sos-reports"
+                                    tabindex="0"
+                                    role="article"
+                                    aria-label="SOS Distress Reports"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >sos</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">SOS Distress Alerts</p>
+                                            <p id="analytics-sos" class="stat-card__value" style="color:#991b1b;">…</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Citizen emergency distress alerts</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">crisis_alert</span>
+                                    </div>
+                                </article>
+
+                                <!-- Verification Rate -->
+                                <article
+                                    class="stat-card stat-card--users stat-card--interactive"
+                                    id="kpi-verification-rate"
+                                    tabindex="0"
+                                    role="article"
+                                    aria-label="Verification Rate"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >verified</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Verification Rate</p>
+                                            <p id="analytics-verified-rate" class="stat-card__value">…</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Validated / resolved ratio</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">task_alt</span>
+                                    </div>
+                                </article>
+
+                                <!-- Mappable Reports -->
+                                <article
+                                    class="stat-card stat-card--pending stat-card--interactive"
+                                    id="kpi-mappable-reports"
+                                    tabindex="0"
+                                    role="article"
+                                    aria-label="Mappable Reports"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span
+                                                class="stat-card__icon material-symbols-outlined"
+                                                aria-hidden="true"
+                                                >location_on</span
+                                            >
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Mappable Reports</p>
+                                            <p id="analytics-location-coverage" class="stat-card__value">…</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">
+                                            With GPS: <strong id="analytics-mappable-count">0</strong> reports
+                                        </span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">pin_drop</span>
+                                    </div>
+                                </article>
+
+                                <!-- Retained hidden elements for backward compatibility -->
+                                <span id="analytics-high" style="display:none;"></span>
+                                <span id="analytics-pending" style="display:none;"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 5. INCIDENT ACTIVITY (MAIN CHART) -->
+                    <section class="incidents-panel" aria-label="Incident activity trend">
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">insights</span>
+                                <h2 class="incidents-panel__title">Incident Activity Trend</h2>
+                                <span id="analytics-trend-comparison" class="trend-badge">Calculating…</span>
+                            </div>
+                            <span id="analytics-trend-meta" class="incidents-panel__meta"></span>
+                        </div>
+                        <div class="analytics-chart-container">
                             <div
                                 id="analytics-trend-chart"
                                 class="analytics-trend"
                                 role="img"
                                 aria-label="Incident activity trend chart"
                             ></div>
-                        </article>
+                        </div>
                     </section>
 
-                    <!-- 5. HOTSPOTS & RESPONSE WORKLOAD -->
+                    <!-- 6. HOTSPOTS & RESPONSE WORKLOAD -->
                     <section class="analytics-two-col-grid" id="hotspots-section">
                         <!-- Top Hotspots -->
-                        <article class="analytics-panel">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#dc2626;">local_fire_department</span>
-                                    <h2>Top Hotspots</h2>
+                        <article class="incidents-panel" aria-label="Top clustered hotspots">
+                            <div class="incidents-panel__head incidents-panel__head--accented">
+                                <div class="incidents-panel__title-group">
+                                    <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">local_fire_department</span>
+                                    <h2 class="incidents-panel__title">Top Hotspots</h2>
+                                    <span class="incidents-filter-pill">Cluster Density</span>
                                 </div>
                                 <a href="dashboard.html" class="analytics-header-link" title="Open incident map on dashboard">
                                     <span>View Hotspot Map</span>
                                     <span class="material-symbols-outlined" style="font-size:16px;">arrow_forward</span>
                                 </a>
                             </div>
-                            <div class="analytics-hotspot-list-wrap">
-                                <ul id="analytics-hotspot-ranked-list" class="analytics-hotspot-ranked-list">
-                                    <li class="analytics-empty">Loading hotspots…</li>
-                                </ul>
+                            <div class="incidents-panel__body analytics-panel__content-body">
+                                <div class="analytics-hotspot-list-wrap">
+                                    <ul id="analytics-hotspot-ranked-list" class="analytics-hotspot-ranked-list">
+                                        <li class="analytics-empty">Loading hotspots…</li>
+                                    </ul>
+                                </div>
+                                <!-- Retained table tbody for backward compatibility -->
+                                <table style="display:none;"><tbody id="analytics-hotspots"></tbody></table>
                             </div>
-                            <!-- Retained table tbody for backward compatibility -->
-                            <table style="display:none;"><tbody id="analytics-hotspots"></tbody></table>
                         </article>
 
                         <!-- Response Workload -->
-                        <article class="analytics-panel">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#2563eb;">assignment_turned_in</span>
-                                    <h2>Response Workload</h2>
+                        <article class="incidents-panel" aria-label="Response workload distribution">
+                            <div class="incidents-panel__head incidents-panel__head--accented">
+                                <div class="incidents-panel__title-group">
+                                    <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">assignment_turned_in</span>
+                                    <h2 class="incidents-panel__title">Response Workload</h2>
+                                    <span class="incidents-filter-pill">Triage Pipeline</span>
                                 </div>
-                                <span class="analytics-panel-subtitle">Current status distribution</span>
+                                <span class="incidents-panel__meta">Status distribution</span>
                             </div>
-                            <div class="analytics-workload-breakdown">
-                                <div class="workload-summary-cards">
-                                    <div class="workload-status-card workload-status-card--review">
-                                        <span class="workload-label">Under Review</span>
-                                        <strong class="workload-val" id="workload-under-review-val">0</strong>
-                                        <span class="workload-hint">Needs review</span>
+                            <div class="incidents-panel__body analytics-panel__content-body">
+                                <div class="analytics-workload-breakdown">
+                                    <div class="workload-summary-cards">
+                                        <div class="workload-status-card workload-status-card--review">
+                                            <span class="workload-label">Under Review</span>
+                                            <strong class="workload-val" id="workload-under-review-val">0</strong>
+                                            <span class="workload-hint">Needs review</span>
+                                        </div>
+                                        <div class="workload-status-card workload-status-card--verified">
+                                            <span class="workload-label">Verified</span>
+                                            <strong class="workload-val" id="workload-verified-val">0</strong>
+                                            <span class="workload-hint">Confirmed reports</span>
+                                        </div>
+                                        <div class="workload-status-card workload-status-card--responded">
+                                            <span class="workload-label">Responded</span>
+                                            <strong class="workload-val" id="workload-responded-val">0</strong>
+                                            <span class="workload-hint">Handled</span>
+                                        </div>
                                     </div>
-                                    <div class="workload-status-card workload-status-card--verified">
-                                        <span class="workload-label">Verified</span>
-                                        <strong class="workload-val" id="workload-verified-val">0</strong>
-                                        <span class="workload-hint">Confirmed reports</span>
-                                    </div>
-                                    <div class="workload-status-card workload-status-card--responded">
-                                        <span class="workload-label">Responded</span>
-                                        <strong class="workload-val" id="workload-responded-val">0</strong>
-                                        <span class="workload-hint">Handled</span>
-                                    </div>
-                                </div>
 
-                                <div class="workload-priority-alert" id="workload-priority-alert">
-                                    <span class="material-symbols-outlined workload-priority-icon">warning</span>
-                                    <div class="workload-priority-text">
-                                        <div class="workload-priority-title"><strong id="workload-high-open-val">0</strong> High Severity Still Open</div>
-                                        <p class="workload-priority-hint">Immediate dispatcher action recommended.</p>
+                                    <div class="workload-priority-alert" id="workload-priority-alert">
+                                        <span class="material-symbols-outlined workload-priority-icon">warning</span>
+                                        <div class="workload-priority-text">
+                                            <div class="workload-priority-title"><strong id="workload-high-open-val">0</strong> High Severity Still Open</div>
+                                            <p class="workload-priority-hint">Immediate dispatcher action recommended.</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div id="analytics-status-chart" class="analytics-status" style="margin-top:14px;"></div>
-                                <div id="analytics-readiness" class="analytics-readiness" style="display:none;"></div>
+                                    <div id="analytics-status-chart" class="analytics-status" style="margin-top:14px;"></div>
+                                    <div id="analytics-readiness" class="analytics-readiness" style="display:none;"></div>
+                                </div>
                             </div>
                         </article>
                     </section>
 
-                    <!-- 6. INCIDENT PATTERNS -->
+                    <!-- 7. INCIDENT PATTERNS & SEVERITY -->
                     <section class="analytics-two-col-grid">
                         <!-- Crime Types -->
-                        <article class="analytics-panel">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#7c3aed;">category</span>
-                                    <h2>Crime Types</h2>
+                        <article class="incidents-panel" aria-label="Crime types frequency">
+                            <div class="incidents-panel__head incidents-panel__head--accented">
+                                <div class="incidents-panel__title-group">
+                                    <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">category</span>
+                                    <h2 class="incidents-panel__title">Crime Types</h2>
+                                    <span class="incidents-filter-pill">Frequency</span>
                                 </div>
-                                <span class="analytics-panel-subtitle">Ranked by report frequency</span>
+                                <span class="incidents-panel__meta">Ranked by report count</span>
                             </div>
-                            <div
-                                id="analytics-type-chart"
-                                class="analytics-stacked"
-                            ></div>
+                            <div class="incidents-panel__body analytics-panel__content-body">
+                                <div
+                                    id="analytics-type-chart"
+                                    class="analytics-stacked"
+                                ></div>
+                            </div>
                         </article>
 
                         <!-- Severity Distribution -->
-                        <article class="analytics-panel">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#f59e0b;">donut_large</span>
-                                    <h2>Severity Distribution</h2>
+                        <article class="incidents-panel" aria-label="Severity distribution donut">
+                            <div class="incidents-panel__head incidents-panel__head--accented">
+                                <div class="incidents-panel__title-group">
+                                    <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">donut_large</span>
+                                    <h2 class="incidents-panel__title">Severity Distribution</h2>
+                                    <span class="incidents-filter-pill">Urgency</span>
                                 </div>
-                                <span class="analytics-panel-subtitle">By urgency level</span>
+                                <span class="incidents-panel__meta">Urgency levels</span>
                             </div>
-                            <div
-                                id="analytics-severity-chart"
-                                class="analytics-donut"
-                            ></div>
+                            <div class="incidents-panel__body analytics-panel__content-body">
+                                <div
+                                    id="analytics-severity-chart"
+                                    class="analytics-donut"
+                                ></div>
+                            </div>
                         </article>
                     </section>
 
-                    <!-- 7. PEAK REPORTING HOURS -->
-                    <section class="analytics-section">
-                        <article class="analytics-panel analytics-panel--wide">
-                            <div class="analytics-panel__header">
-                                <div class="analytics-panel__title-row">
-                                    <span class="material-symbols-outlined section-icon" style="color:#0f172a;">schedule</span>
-                                    <h2>Peak Reporting Hours</h2>
-                                </div>
-                                <div class="peak-takeaway-badge" id="analytics-peak-takeaway">
-                                    <span>Busiest period: <strong id="peak-busiest-hours">Calculating…</strong></span>
+                    <!-- 8. AI DECISION-SUPPORT INTELLIGENCE -->
+                    <section class="incidents-panel" aria-label="AI Decision-Support Intelligence">
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">psychology</span>
+                                <div>
+                                    <h2 class="incidents-panel__title">AI Decision-Support Intelligence</h2>
+                                    <span class="incidents-panel__meta" style="display:block;font-size:0.8rem;margin-top:2px;">
+                                        Grounded in incident evidence, official city ordinances, &amp; operational guidance
+                                    </span>
                                 </div>
                             </div>
-                            <div
-                                id="analytics-hour-chart"
-                                class="analytics-hour-grid"
-                            ></div>
-                        </article>
-                    </section>
-
-                    <!-- 8. [UNTOUCHED] AI DECISION-SUPPORT INTELLIGENCE -->
-                    <section class="analytics-section">
-                        <article class="analytics-panel analytics-panel--wide">
-                            <div class="analytics-panel__header">
-                                <div>
-                                    <h2>AI Decision-Support Intelligence</h2>
-                                    <span>Grounded in incident evidence, official city ordinances, &amp; operational guidance</span>
-                                </div>
-                                <div>
-                                    <button
-                                        type="button"
-                                        id="btn-generate-ai-summary"
-                                        class="analytics-ai-btn"
-                                    >
-                                        <span class="material-symbols-outlined">auto_awesome</span>
-                                        <span>Generate All Hotspots</span>
-                                    </button>
-                                </div>
+                            <div>
+                                <button
+                                    type="button"
+                                    id="btn-generate-ai-summary"
+                                    class="analytics-ai-btn"
+                                >
+                                    <span class="material-symbols-outlined">auto_awesome</span>
+                                    <span>Generate All Hotspots</span>
+                                </button>
                             </div>
+                        </div>
+                        <div class="incidents-panel__body" style="padding: 22px 24px;">
                             <div
                                 id="analytics-solutions"
                                 class="analytics-solutions"
@@ -470,11 +567,11 @@
                                     <span class="material-symbols-outlined analytics-ai-placeholder-icon">psychology</span>
                                     <div>
                                         <h4>AI Decision-Support System Ready</h4>
-                                        <p>Click "Generate AI Decision Brief" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
+                                        <p>Click "Generate All Hotspots" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
                                     </div>
                                 </div>
                             </div>
-                        </article>
+                        </div>
                     </section>
                 </main>
             </div>
@@ -505,7 +602,7 @@
                             <label class="analytics-rating-btn">
                                 <input type="radio" name="ai-rating" value="helpful" checked />
                                 <span class="material-symbols-outlined">thumb_up</span>
-                                <span>Helpful & Grounded</span>
+                                <span>Helpful &amp; Grounded</span>
                             </label>
                             <label class="analytics-rating-btn">
                                 <input type="radio" name="ai-rating" value="unhelpful" />
@@ -518,7 +615,7 @@
                     <div class="analytics-form-group">
                         <label for="ai-feedback-category" class="analytics-form-label">Category</label>
                         <select id="ai-feedback-category" class="analytics-form-select">
-                            <option value="accurate">Accurate & Feasible</option>
+                            <option value="accurate">Accurate &amp; Feasible</option>
                             <option value="helpful_strategy">Helpful Strategy / Tactic</option>
                             <option value="inaccurate_law">Inaccurate Law / Ordinance Citation</option>
                             <option value="unrealistic_action">Unrealistic Operational Action</option>

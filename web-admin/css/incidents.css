@@ -145,7 +145,7 @@
 .incidents-panel__accent {
     height: 3.5px;
     width: 100%;
-    background: linear-gradient(90deg, #dc2626 0%, #ef4444 50%, #b91c1c 100%);
+    background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 35%, #c2410c 70%, #7f1d1d 100%);
     flex-shrink: 0;
 }
 
@@ -261,7 +261,7 @@
 }
 
 .stat-card--open-incidents .stat-card__accent {
-    background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+    background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 50%, #c2410c 100%);
 }
 
 .stat-card--pending .stat-card__accent {

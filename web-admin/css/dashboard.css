@@ -73,29 +73,29 @@ body {
     max-width: 260px;
     flex-shrink: 0;
     height: 100vh;
-    background: #0f172a;
+    background: linear-gradient(180deg, #4c0505 0%, #2b0404 45%, #170202 100%);
     color: var(--border);
     display: flex;
     flex-direction: column;
     padding: 18px 0 0;
-    border-right: 1px solid #1e293b;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
     position: sticky;
     top: 0;
     overflow: hidden;
-    box-shadow: 12px 0 30px rgba(15, 23, 42, 0.08);
+    box-shadow: 10px 0 35px rgba(23, 2, 2, 0.6);
 }
 
 /* ==========================================================================
    ThreatTrack Red Gradient Sidebar Theme
    ========================================================================== */
 .admin-dashboard__sidebar--gradient {
-    background: linear-gradient(180deg, #991b1b 0%, #7f1d1d 45%, #450a0a 100%) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
-    box-shadow: 10px 0 30px rgba(127, 29, 29, 0.25) !important;
+    background: linear-gradient(180deg, #4c0505 0%, #2b0404 45%, #170202 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 10px 0 35px rgba(23, 2, 2, 0.6) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__brand {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__logo {
@@ -103,12 +103,12 @@ body {
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__logo span {
-    color: #fef08a !important;
+    color: #fca5a5 !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__badge {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
     font-size: 0.62rem !important;
     font-weight: 800 !important;
@@ -119,63 +119,65 @@ body {
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__nav::before {
-    color: rgba(255, 255, 255, 0.7) !important;
+    color: rgba(255, 255, 255, 0.5) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__nav::after {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__link {
-    color: rgba(255, 255, 255, 0.88) !important;
+    color: rgba(255, 255, 255, 0.78) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__icon {
-    background: rgba(0, 0, 0, 0.22) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
     color: #ffffff !important;
 }
 
-.admin-dashboard__sidebar--gradient .sidebar__link:hover {
-    background: rgba(255, 255, 255, 0.14) !important;
-    border-color: rgba(255, 255, 255, 0.25) !important;
+.admin-dashboard__sidebar--gradient .sidebar__link:hover:not(.sidebar__link--active) {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
     color: #ffffff !important;
 }
 
-.admin-dashboard__sidebar--gradient .sidebar__link:hover .sidebar__icon {
-    background: rgba(255, 255, 255, 0.25) !important;
+.admin-dashboard__sidebar--gradient .sidebar__link:hover:not(.sidebar__link--active) .sidebar__icon {
+    background: rgba(255, 255, 255, 0.15) !important;
     color: #ffffff !important;
 }
 
+/* Tactical Frosted Active Tab (Matches Tactical Sunset) */
 .admin-dashboard__sidebar--gradient .sidebar__link--active {
-    background: #ffffff !important;
-    color: #991b1b !important;
+    background: rgba(220, 38, 38, 0.22) !important;
+    color: #ffffff !important;
     font-weight: 850 !important;
-    border-color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(239, 68, 68, 0.45) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(8px);
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__link--active .sidebar__icon {
-    background: #fee2e2 !important;
-    border-color: #fca5a5 !important;
-    color: #dc2626 !important;
+    background: rgba(220, 38, 38, 0.35) !important;
+    border-color: rgba(248, 113, 113, 0.5) !important;
+    color: #fca5a5 !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__link--active::before {
-    background: #ffffff !important;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8) !important;
+    background: #ef4444 !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.8) !important;
 }
 
 /* Frosted Glass Toggle Button with Crisp White Close 'X' */
 .admin-dashboard__sidebar--gradient .sidebar-toggle {
-    background: rgba(255, 255, 255, 0.16) !important;
-    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     color: #ffffff !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.26) !important;
-    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
     color: #ffffff !important;
 }
 
@@ -185,35 +187,35 @@ body {
 
 .admin-dashboard__sidebar--gradient .sidebar__footer {
     background: transparent !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__footer::before {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
     font-size: 0.65rem !important;
     font-weight: 800 !important;
     letter-spacing: 0.12em !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__user-email {
-    background: rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    color: #ffffff !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
     font-weight: 700 !important;
     font-size: 0.78rem !important;
     letter-spacing: 0.01em !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__signout {
-    background: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     color: #ffffff !important;
     font-weight: 750 !important;
 }
 
 .admin-dashboard__sidebar--gradient .sidebar__signout:hover {
-    background: rgba(220, 38, 38, 0.5) !important;
-    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(220, 38, 38, 0.4) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
     color: #ffffff !important;
 }
 
@@ -1479,7 +1481,7 @@ html.sidebar-collapsed-initial
 }
 
 .stat-card--open-incidents .stat-card__accent {
-    background: linear-gradient(90deg, #dc2626, #ef4444);
+    background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 50%, #c2410c 100%);
 }
 
 .stat-card--reports-24h .stat-card__accent {
@@ -1495,7 +1497,7 @@ html.sidebar-collapsed-initial
 }
 
 .stat-card--sos .stat-card__accent {
-    background: linear-gradient(90deg, #dc2626, #f87171);
+    background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 50%, #c2410c 100%);
 }
 
 .stat-card--pending .stat-card__accent {
