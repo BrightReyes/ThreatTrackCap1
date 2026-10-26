@@ -365,7 +365,7 @@ async function loadKnowledge() {
             <td colspan="6" class="ai-mgmt-empty">
                 <div class="ai-mgmt-loading-state">
                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
-                    <span>Loading statutory knowledge entries…</span>
+                    <span>Loading city ordinances and laws…</span>
                 </div>
             </td>
         </tr>
@@ -438,15 +438,15 @@ function renderKnowledgeTable() {
     if (elements.knowledgeCount) {
         const total = knowledgeList.length;
         const showing = filtered.length;
-        elements.knowledgeCount.textContent = `Showing ${showing} of ${total} statutory entries`;
+        elements.knowledgeCount.textContent = `Showing ${showing} of ${total} city ordinances and laws`;
     }
 
     if (!filtered.length) {
         const message = knowledgeSearchQuery
-            ? "No knowledge entries matching your search query."
+            ? "No city ordinances matching your search query."
             : knowledgeStatusFilter !== "all" || knowledgeTypeFilter !== "all"
-              ? "No knowledge entries match the selected filters."
-              : "No knowledge entries yet. Click \"Add Statutory Entry\" to create the first record.";
+              ? "No city ordinances match the selected filters."
+              : "No city ordinances yet. Click \"Add City Ordinance\" to create the first record.";
         elements.knowledgeTbody.innerHTML = `
             <tr>
                 <td colspan="6" class="ai-mgmt-empty">${escapeHtml(message)}</td>
@@ -490,10 +490,10 @@ function renderKnowledgeTable() {
                 <tr data-id="${escapeAttr(item.id)}" class="${isExpanded ? "ai-row--expanded" : ""}">
                     <td>
                         <div class="ai-mgmt-table__title" title="${escapeAttr(item.title)}">
-                            ${escapeHtml(item.title)}
+                            ${escapeHtml(truncate(item.title, 34))}
                         </div>
-                        <div class="ai-mgmt-table__meta-sub" style="color:#64748b;font-size:0.76rem;margin-top:2px;">
-                            ${escapeHtml(truncate(item.content, 65))}
+                        <div class="ai-mgmt-table__meta-sub" style="color:#64748b;font-size:0.75rem;margin-top:2px;" title="${escapeAttr(item.content)}">
+                            ${escapeHtml(truncate(item.content, 36))}
                         </div>
                     </td>
                     <td>
@@ -501,7 +501,7 @@ function renderKnowledgeTable() {
                     </td>
                     <td>
                         <strong style="font-size:0.84rem;color:#0f172a;">${escapeHtml(item.source)}</strong>
-                        ${item.referenceNumber ? `<div class="ai-mgmt-table__meta-sub" style="font-weight:600;color:#2563eb;">${escapeHtml(item.referenceNumber)}</div>` : ""}
+                        ${item.referenceNumber ? `<div class="ai-mgmt-table__meta-sub" style="font-weight:600;color:#b91c1c;">${escapeHtml(item.referenceNumber)}</div>` : ""}
                     </td>
                     <td>
                         ${statusHtml}
@@ -562,12 +562,12 @@ function renderKnowledgeTable() {
                         <div class="ai-mgmt-detail-drawer">
                             <div class="ai-mgmt-detail-drawer__top">
                                 <span class="ai-mgmt-detail-drawer__title">
-                                    <span class="material-symbols-outlined" style="color:#2563eb;font-size:18px;">menu_book</span>
-                                    <span>${escapeHtml(item.title)} &mdash; Statutory Directive Inspection</span>
+                                    <span class="material-symbols-outlined" style="color:#dc2626;font-size:18px;">menu_book</span>
+                                    <span>${escapeHtml(item.title)} &mdash; Ordinance &amp; Legal Details</span>
                                 </span>
                                 <span class="ai-telemetry-pill ${isPublished ? "ai-telemetry-pill--emerald" : "ai-telemetry-pill--amber"}">
                                     <span class="ai-telemetry-dot"></span>
-                                    <span>${isPublished ? "Active in RAG Hotspot Citations" : "Private Draft"}</span>
+                                    <span>${isPublished ? "Active in AI Recommendations" : "Private Draft"}</span>
                                 </span>
                             </div>
                             <div class="ai-mgmt-detail-drawer__quote">"${escapeHtml(item.content)}"</div>
@@ -993,7 +993,7 @@ function renderRulesTable() {
             } else {
                 conditionHtml = `
                     <span class="ai-mgmt-guidance-pill" title="Applies broadly whenever target crime type occurs">
-                        <span class="material-symbols-outlined" style="font-size: 1rem; color: #6366f1;">lightbulb</span>
+                        <span class="material-symbols-outlined" style="font-size: 1rem; color: #d97706;">lightbulb</span>
                         General Guidance
                     </span>
                 `;
@@ -1028,16 +1028,16 @@ function renderRulesTable() {
                 <tr data-id="${escapeAttr(r.id)}" class="${isExpanded ? "ai-row--expanded" : ""}">
                     <td>
                         <div class="ai-mgmt-table__title" title="${escapeAttr(r.name)}">
-                            ${escapeHtml(r.name)}
+                            ${escapeHtml(truncate(r.name, 26))}
                         </div>
-                        ${r.description ? `<div class="ai-mgmt-table__meta-sub" title="${escapeAttr(r.description)}" style="color:#64748b;font-size:0.76rem;margin-top:2px;">${escapeHtml(truncate(r.description, 45))}</div>` : ""}
+                        ${r.description ? `<div class="ai-mgmt-table__meta-sub" title="${escapeAttr(r.description)}" style="color:#64748b;font-size:0.75rem;margin-top:2px;">${escapeHtml(truncate(r.description, 28))}</div>` : ""}
                     </td>
                     <td>
-                        <span class="ai-mgmt-type-tag" style="background:#eef2ff;color:#3730a3;border-color:#c7d2fe;">${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
+                        <span class="ai-mgmt-type-tag" style="background:#f1f5f9;color:#1e293b;border-color:#e2e8f0;">${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
                     </td>
                     <td>
-                        <div class="ai-mgmt-table__title" style="max-width: 260px; font-weight: 500; font-size:0.83rem;" title="${escapeAttr(r.recommendedAction)}">
-                            ${escapeHtml(truncate(r.recommendedAction, 70))}
+                        <div class="ai-mgmt-table__instruction" title="${escapeAttr(r.recommendedAction)}">
+                            ${escapeHtml(truncate(r.recommendedAction, 32))}
                         </div>
                     </td>
                     <td>
@@ -1101,19 +1101,19 @@ function renderRulesTable() {
             const expandedRow = isExpanded ? `
                 <tr class="ai-mgmt-expandable-row" id="expand-r-${escapeAttr(r.id)}">
                     <td colspan="7" style="padding: 0; background: #f8fafc;">
-                        <div class="ai-mgmt-detail-drawer" style="border-left: 4px solid #4f46e5;">
+                        <div class="ai-mgmt-detail-drawer" style="border-left: 4px solid #dc2626;">
                             <div class="ai-mgmt-detail-drawer__top">
                                 <span class="ai-mgmt-detail-drawer__title">
-                                    <span class="material-symbols-outlined" style="color:#4f46e5;font-size:18px;">local_police</span>
-                                    <span>${escapeHtml(r.name)} &mdash; Operational Guidance Directive</span>
+                                    <span class="material-symbols-outlined" style="color:#dc2626;font-size:18px;">local_police</span>
+                                    <span>${escapeHtml(r.name)} &mdash; Patrol Action Details</span>
                                 </span>
-                                <span class="ai-telemetry-pill ${isActive ? "ai-telemetry-pill--indigo" : "ai-telemetry-pill--amber"}">
+                                <span class="ai-telemetry-pill ${isActive ? "ai-telemetry-pill--rose" : "ai-telemetry-pill--amber"}">
                                     <span class="ai-telemetry-dot"></span>
-                                    <span>${isActive ? "Active in AI Tactical Generator" : "Inactive Rule"}</span>
+                                    <span>${isActive ? "Active in AI Recommendations" : "Inactive Rule"}</span>
                                 </span>
                             </div>
-                            <div class="ai-mgmt-detail-drawer__quote" style="border-left-color: #4f46e5;">
-                                <strong>Operational Directive:</strong><br />
+                            <div class="ai-mgmt-detail-drawer__quote" style="border-left-color: #dc2626;">
+                                <strong>Recommended Action:</strong><br />
                                 "${escapeHtml(r.recommendedAction)}"
                             </div>
                             <div class="ai-mgmt-detail-drawer__grid">
@@ -1176,160 +1176,7 @@ async function handleRulesTableAction(e) {
     }
 }
 
-/**
- * RAG Grounding Simulator
- * Interactive sandbox testing knowledge & rule retrieval for any field scenario
- */
-async function handleRunRagSim(e) {
-    if (e) e.preventDefault();
 
-    const queryInput = elements.ragSimQuery?.value || "";
-    const crimeCategory = elements.ragSimCrime?.value || "all";
-    const location = elements.ragSimLocation?.value || "";
-
-    if (!queryInput.trim()) {
-        toastError("Please enter an incident scenario to simulate.");
-        return;
-    }
-
-    if (elements.btnRunRagSim) {
-        elements.btnRunRagSim.disabled = true;
-        elements.btnRunRagSim.innerHTML = `<span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span><span>Retrieving &amp; Scoring…</span>`;
-    }
-
-    // Tokenize search terms (strip punctuation)
-    const terms = queryInput
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length >= 3);
-
-    // Score published knowledge entries
-    const publishedDocs = knowledgeList.filter((k) => k.status === "published");
-    const scoredKnowledge = publishedDocs.map((doc) => {
-        const fullSearchable = `${doc.title} ${doc.content} ${doc.source} ${doc.referenceNumber}`.toLowerCase();
-        let matchCount = 0;
-        terms.forEach((term) => {
-            if (fullSearchable.includes(term)) matchCount++;
-        });
-
-        // Boost if local ordinance or explicitly names location
-        let boost = 0;
-        if (doc.type === "ordinance") boost += 2;
-        if (location && fullSearchable.includes(location.split("/")[0].trim().toLowerCase())) boost += 3;
-
-        const totalScore = matchCount + boost;
-        const normalizedPct = Math.min(98, Math.max(45, Math.round((totalScore / (terms.length + 3)) * 100)));
-
-        return {
-            doc,
-            matchCount,
-            scorePct: normalizedPct,
-        };
-    });
-
-    scoredKnowledge.sort((a, b) => b.scorePct - a.scorePct);
-    const topKnowledge = scoredKnowledge.slice(0, 3);
-
-    // Score active operational rules
-    const activeRules = rulesList.filter((r) => r.status === "active");
-    const scoredRules = activeRules.map((rule) => {
-        let matchScore = 0;
-        if (rule.crimeType === crimeCategory || rule.crimeType === "all") matchScore += 3;
-        const ruleSearchable = `${rule.name} ${rule.recommendedAction} ${rule.description}`.toLowerCase();
-        terms.forEach((term) => {
-            if (ruleSearchable.includes(term)) matchScore += 1;
-        });
-
-        const normalizedPct = Math.min(95, Math.max(50, Math.round((matchScore / (terms.length + 3)) * 100)));
-        return {
-            rule,
-            scorePct: normalizedPct,
-        };
-    });
-
-    scoredRules.sort((a, b) => b.scorePct - a.scorePct);
-    const topRules = scoredRules.slice(0, 3);
-
-    // Render results
-    if (elements.ragSimStatsPill) {
-        elements.ragSimStatsPill.textContent = `${topKnowledge.length} Ordinances & ${topRules.length} Directives Retrieved`;
-    }
-
-    if (elements.ragSimKnowledgeList) {
-        if (topKnowledge.length === 0) {
-            elements.ragSimKnowledgeList.innerHTML = `
-                <div style="padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:0.83rem;color:#991b1b;">
-                    <strong>No Matching Ordinances Found!</strong>
-                    <p style="margin:4px 0 0;">All city ordinances are either unpublished or do not match this scenario. Gemini would fall back to generic guidance.</p>
-                </div>
-            `;
-        } else {
-            elements.ragSimKnowledgeList.innerHTML = topKnowledge
-                .map(({ doc, scorePct }) => {
-                    return `
-                        <div class="ai-sim-match-item">
-                            <div class="ai-sim-match-item__top">
-                                <div>
-                                    <h5 class="ai-sim-match-title">${escapeHtml(doc.title)}</h5>
-                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
-                                        <strong>Source:</strong> ${escapeHtml(doc.source)} &bull; <strong>Ref:</strong> ${escapeHtml(doc.referenceNumber || "Official Act")}
-                                    </div>
-                                </div>
-                                <span class="ai-sim-score-badge">${scorePct}% Relevancy</span>
-                            </div>
-                            <p class="ai-sim-match-excerpt">
-                                "${escapeHtml(truncate(doc.content, 140))}"
-                            </p>
-                        </div>
-                    `;
-                })
-                .join("");
-        }
-    }
-
-    if (elements.ragSimRulesList) {
-        if (topRules.length === 0) {
-            elements.ragSimRulesList.innerHTML = `
-                <div style="padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:0.83rem;color:#991b1b;">
-                    <strong>No Matching Operational Rules Found!</strong>
-                    <p style="margin:4px 0 0;">Create an operational rule for "${escapeHtml(crimeCategory)}" to provide tactical SOP guidance.</p>
-                </div>
-            `;
-        } else {
-            elements.ragSimRulesList.innerHTML = topRules
-                .map(({ rule, scorePct }) => {
-                    return `
-                        <div class="ai-sim-match-item">
-                            <div class="ai-sim-match-item__top">
-                                <div>
-                                    <h5 class="ai-sim-match-title">${escapeHtml(rule.name)}</h5>
-                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
-                                        <strong>Target:</strong> ${escapeHtml(humanizeCrimeType(rule.crimeType))} &bull; <strong>Priority:</strong> ${escapeHtml(rule.priority).toUpperCase()}
-                                    </div>
-                                </div>
-                                <span class="ai-sim-score-badge" style="background:#eef2ff;color:#3730a3;border-color:#c7d2fe;">${scorePct}% Relevancy</span>
-                            </div>
-                            <p class="ai-sim-match-excerpt" style="border-left-color:#4f46e5;">
-                                <strong>Tactical Action:</strong> ${escapeHtml(truncate(rule.recommendedAction, 130))}
-                            </p>
-                        </div>
-                    `;
-                })
-                .join("");
-        }
-    }
-
-    if (elements.ragSimResults) {
-        elements.ragSimResults.style.display = "block";
-        elements.ragSimResults.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-
-    if (elements.btnRunRagSim) {
-        elements.btnRunRagSim.disabled = false;
-        elements.btnRunRagSim.innerHTML = `<span class="material-symbols-outlined">play_circle</span><span>Run RAG Retrieval Simulation</span>`;
-    }
-}
 
 async function toggleRuleStatusDirect(rule, newStatus, btn) {
     if (!rule) return;

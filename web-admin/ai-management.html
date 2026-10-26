@@ -5,8 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Admin | AI Management</title>
         <meta name="description" content="Manage AI knowledge base and operational rules for ThreatTrack decision support." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -54,7 +60,7 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
@@ -159,24 +165,19 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
-                                <span
-                                    class="admin-dashboard__clock-sep"
-                                    aria-hidden="true"
-                                    >·</span
-                                >
-                                <span class="admin-dashboard__clock-tz"
-                                    >PHT</span
-                                >
+                                >--:--:--</time>
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
@@ -205,7 +206,7 @@
                         <article class="ai-telemetry-card ai-telemetry-card--rules" id="telemetry-card-rules">
                             <div class="ai-telemetry-card__header">
                                 <span class="ai-telemetry-card__icon material-symbols-outlined">local_police</span>
-                                <span class="ai-telemetry-pill ai-telemetry-pill--indigo">
+                                <span class="ai-telemetry-pill ai-telemetry-pill--rose">
                                     <span class="ai-telemetry-dot"></span>
                                     <span>Active Rules</span>
                                 </span>
@@ -348,11 +349,11 @@
                                     <thead>
                                         <tr>
                                             <th style="width: 28%;">Law / Ordinance Name &amp; Title</th>
-                                            <th style="width: 18%;">Law Type</th>
-                                            <th style="width: 18%;">Passed By &amp; Ref #</th>
+                                            <th style="width: 14%;">Law Type</th>
+                                            <th style="width: 19%;">Passed By &amp; Ref #</th>
                                             <th style="width: 14%;">AI Status</th>
-                                            <th style="width: 12%;">Last Updated</th>
-                                            <th style="width: 10%;" class="ai-mgmt-th--actions">Actions</th>
+                                            <th style="width: 13%;">Last Updated</th>
+                                            <th style="width: 12%;" class="ai-mgmt-th--actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="knowledge-tbody">
@@ -450,13 +451,13 @@
                                 <table class="ai-mgmt-table" id="rules-table">
                                     <thead>
                                         <tr>
-                                            <th style="width: 24%;">Rule Title &amp; Target</th>
-                                            <th style="width: 16%;">Incident Category</th>
-                                            <th style="width: 26%;">Action Instruction</th>
-                                            <th style="width: 16%;">When Triggered</th>
-                                            <th style="width: 10%;">Priority</th>
-                                            <th style="width: 12%;">Status</th>
-                                            <th style="width: 8%;" class="ai-mgmt-th--actions">Actions</th>
+                                            <th style="width: 20%;">Rule Title &amp; Target</th>
+                                            <th style="width: 12%;">Incident Category</th>
+                                            <th style="width: 22%;">Action Instruction</th>
+                                            <th style="width: 11%;">When Triggered</th>
+                                            <th style="width: 9%;">Priority</th>
+                                            <th style="width: 14%;">Status</th>
+                                            <th style="width: 12%;" class="ai-mgmt-th--actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rules-tbody">
