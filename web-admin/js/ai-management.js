@@ -7,6 +7,7 @@
  */
 
 import { initAdminPage } from "./admin-auth.js";
+import { initAdminCustomSelects } from "./admin-custom-select.js";
 import {
     collection,
     addDoc,
@@ -31,6 +32,7 @@ let knowledgeList = [];
 let knowledgeStatusFilter = "all";
 let knowledgeTypeFilter = "all";
 let knowledgeSearchQuery = "";
+let expandedKnowledgeIds = new Set();
 
 // Rules State
 let rulesList = [];
@@ -38,6 +40,12 @@ let rulesCrimeFilter = "all";
 let rulesPriorityFilter = "all";
 let rulesStatusFilter = "all";
 let rulesSearchQuery = "";
+let expandedRuleIds = new Set();
+
+// National Laws State (Immutable Baseline Preview)
+let nationalLawsList = [];
+let nationalLawsIncidentFilter = "all";
+let nationalLawsSearchQuery = "";
 
 // Enums & Sets
 const VALID_KNOWLEDGE_TYPES = new Set([
@@ -81,20 +89,16 @@ const elements = {
     tabRules: document.getElementById("tab-rules"),
     panelKnowledge: document.getElementById("panel-knowledge"),
     panelRules: document.getElementById("panel-rules"),
-    statsKnowledge: document.getElementById("stats-knowledge"),
-    statsRules: document.getElementById("stats-rules"),
 
-    // Knowledge Stat Counters
+    // Overview Stat Counters
     statTotalKnowledge: document.getElementById("stat-total-knowledge"),
     statPublishedKnowledge: document.getElementById("stat-published-knowledge"),
-    statDraftKnowledge: document.getElementById("stat-draft-knowledge"),
-    statArchivedKnowledge: document.getElementById("stat-archived-knowledge"),
-
-    // Rules Stat Counters
-    statTotalRules: document.getElementById("stat-total-rules"),
     statActiveRules: document.getElementById("stat-active-rules"),
-    statInactiveRules: document.getElementById("stat-inactive-rules"),
-    statArchivedRules: document.getElementById("stat-archived-rules"),
+    statTotalRules: document.getElementById("stat-total-rules"),
+    statDraftTotal: document.getElementById("stat-draft-total"),
+    statGroundingRate: document.getElementById("stat-grounding-rate"),
+    badgeKnowledgeCount: document.getElementById("badge-knowledge-count"),
+    badgeRulesCount: document.getElementById("badge-rules-count"),
 
     // Knowledge Toolbar
     knowledgeSearch: document.getElementById("knowledge-search"),
@@ -112,6 +116,15 @@ const elements = {
     btnAddRule: document.getElementById("btn-add-rule"),
     rulesTbody: document.getElementById("rules-tbody"),
     rulesCount: document.getElementById("rules-count"),
+
+    // National Laws Preview Modal
+    btnViewNationalLaws: document.getElementById("btn-view-national-laws"),
+    nationalLawsModal: document.getElementById("national-laws-modal"),
+    nationalLawsModalClose: document.getElementById("national-laws-modal-close"),
+    nationalLawsModalDone: document.getElementById("national-laws-modal-done"),
+    nationalLawsSearch: document.getElementById("national-laws-search"),
+    nationalLawsGrid: document.getElementById("national-laws-grid"),
+    natLawsVisibleCount: document.getElementById("nat-laws-visible-count"),
 
     // Knowledge Modal
     knowledgeModal: document.getElementById("knowledge-modal"),
@@ -154,23 +167,51 @@ const elements = {
     ruleTimePeriod: document.getElementById("rule-time-period"),
 };
 
+let isEventsBound = false;
+
 // Initialize Page
 initAdminPage({
     pageId: "page-ai-management",
     onReady: async (user) => {
+        initAdminCustomSelects(document.getElementById("page-ai-management"));
         currentAdminUser = user;
         bindEvents();
-        await Promise.all([loadKnowledge(), loadRules()]);
+        await Promise.all([loadKnowledge(), loadRules(), loadNationalLaws()]);
     },
 });
+
+// Bind UI events immediately on script execution so buttons are responsive without waiting for auth
+bindEvents();
+loadNationalLaws();
 
 /**
  * Bind UI event listeners
  */
 function bindEvents() {
-    // Tab switching
+    if (isEventsBound) return;
+    isEventsBound = true;
+    // Tab switching (2 tabs)
     elements.tabKnowledge?.addEventListener("click", () => switchTab("knowledge"));
     elements.tabRules?.addEventListener("click", () => switchTab("rules"));
+
+    // National Laws Preview Modal
+    elements.btnViewNationalLaws?.addEventListener("click", openNationalLawsModal);
+    elements.nationalLawsModalClose?.addEventListener("click", closeNationalLawsModal);
+    elements.nationalLawsModalDone?.addEventListener("click", closeNationalLawsModal);
+    elements.nationalLawsModal?.querySelector(".ai-mgmt-modal__backdrop")?.addEventListener("click", closeNationalLawsModal);
+    elements.nationalLawsSearch?.addEventListener("input", (e) => {
+        nationalLawsSearchQuery = (e.target.value || "").trim().toLowerCase();
+        renderNationalLawsGrid();
+    });
+
+    document.querySelectorAll(".ai-nat-pill").forEach((pill) => {
+        pill.addEventListener("click", () => {
+            document.querySelectorAll(".ai-nat-pill").forEach((p) => p.classList.remove("ai-nat-pill--active"));
+            pill.classList.add("ai-nat-pill--active");
+            nationalLawsIncidentFilter = pill.getAttribute("data-incident") || "all";
+            renderNationalLawsGrid();
+        });
+    });
 
     // Knowledge Search & Filters
     elements.knowledgeSearch?.addEventListener("input", (e) => {
@@ -250,30 +291,66 @@ function toggleConditionInputs(enabled) {
 }
 
 /**
- * Switch top-level tabs
+ * Switch top-level tabs (Knowledge, Rules)
  */
 function switchTab(tabName) {
     activeTab = tabName;
-    if (tabName === "knowledge") {
-        elements.tabKnowledge?.classList.add("ai-mgmt-tab--active");
-        elements.tabKnowledge?.setAttribute("aria-selected", "true");
-        elements.tabRules?.classList.remove("ai-mgmt-tab--active");
-        elements.tabRules?.setAttribute("aria-selected", "false");
+    const isKnowledge = tabName === "knowledge";
+    const isRules = tabName === "rules";
 
-        if (elements.panelKnowledge) elements.panelKnowledge.hidden = false;
-        if (elements.panelRules) elements.panelRules.hidden = true;
-        if (elements.statsKnowledge) elements.statsKnowledge.hidden = false;
-        if (elements.statsRules) elements.statsRules.hidden = true;
-    } else {
-        elements.tabRules?.classList.add("ai-mgmt-tab--active");
-        elements.tabRules?.setAttribute("aria-selected", "true");
-        elements.tabKnowledge?.classList.remove("ai-mgmt-tab--active");
-        elements.tabKnowledge?.setAttribute("aria-selected", "false");
+    elements.tabKnowledge?.classList.toggle("ai-mgmt-tab--active", isKnowledge);
+    elements.tabKnowledge?.setAttribute("aria-selected", String(isKnowledge));
+    elements.tabRules?.classList.toggle("ai-mgmt-tab--active", isRules);
+    elements.tabRules?.setAttribute("aria-selected", String(isRules));
 
-        if (elements.panelRules) elements.panelRules.hidden = false;
-        if (elements.panelKnowledge) elements.panelKnowledge.hidden = true;
-        if (elements.statsRules) elements.statsRules.hidden = false;
-        if (elements.statsKnowledge) elements.statsKnowledge.hidden = true;
+    if (elements.panelKnowledge) elements.panelKnowledge.hidden = !isKnowledge;
+    if (elements.panelRules) elements.panelRules.hidden = !isRules;
+}
+
+/**
+ * Unified Telemetry Strip Update (Reflects both Knowledge and Rules stats)
+ */
+function updateUnifiedTelemetry() {
+    const totalK = knowledgeList.length;
+    const publishedK = knowledgeList.filter((k) => k.status === "published").length;
+    const draftK = knowledgeList.filter((k) => k.status === "draft" || k.status === "archived").length;
+
+    const totalR = rulesList.length;
+    const activeR = rulesList.filter((r) => r.status === "active").length;
+    const inactiveR = rulesList.filter((r) => r.status === "inactive" || r.status === "archived").length;
+
+    if (elements.statPublishedKnowledge) elements.statPublishedKnowledge.textContent = String(publishedK);
+    if (elements.statTotalKnowledge) elements.statTotalKnowledge.textContent = String(totalK);
+    if (elements.statActiveRules) elements.statActiveRules.textContent = String(activeR);
+    if (elements.statTotalRules) elements.statTotalRules.textContent = String(totalR);
+    if (elements.statDraftTotal) elements.statDraftTotal.textContent = String(draftK + inactiveR);
+    if (elements.statGroundingRate) {
+        elements.statGroundingRate.textContent = publishedK > 0 ? "100%" : "0%";
+    }
+    if (elements.badgeKnowledgeCount) elements.badgeKnowledgeCount.textContent = String(totalK);
+    if (elements.badgeRulesCount) elements.badgeRulesCount.textContent = String(totalR);
+}
+
+function updateKnowledgeStats() {
+    updateUnifiedTelemetry();
+}
+
+function updateRulesStats() {
+    updateUnifiedTelemetry();
+}
+
+function getKnowledgeTypeBadge(type) {
+    switch (type) {
+        case "ordinance":
+            return `<span class="ai-type-badge ai-type-badge--ordinance"><span class="material-symbols-outlined" style="font-size:13px;">gavel</span><span>City Ordinance</span></span>`;
+        case "procedure":
+            return `<span class="ai-type-badge ai-type-badge--procedure"><span class="material-symbols-outlined" style="font-size:13px;">shield</span><span>Tactical SOP</span></span>`;
+        case "policy":
+            return `<span class="ai-type-badge ai-type-badge--policy"><span class="material-symbols-outlined" style="font-size:13px;">account_balance</span><span>Dept Policy</span></span>`;
+        case "guideline":
+            return `<span class="ai-type-badge ai-type-badge--policy"><span class="material-symbols-outlined" style="font-size:13px;">campaign</span><span>Guideline</span></span>`;
+        default:
+            return `<span class="ai-type-badge ai-type-badge--reference"><span class="material-symbols-outlined" style="font-size:13px;">menu_book</span><span>National Law</span></span>`;
     }
 }
 
@@ -288,7 +365,7 @@ async function loadKnowledge() {
             <td colspan="6" class="ai-mgmt-empty">
                 <div class="ai-mgmt-loading-state">
                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
-                    <span>Loading knowledge entries…</span>
+                    <span>Loading statutory knowledge entries…</span>
                 </div>
             </td>
         </tr>
@@ -318,7 +395,7 @@ async function loadKnowledge() {
             };
         });
 
-        updateKnowledgeStats();
+        updateUnifiedTelemetry();
         renderKnowledgeTable();
     } catch (error) {
         console.error("[ai-management] Failed to load knowledge:", error);
@@ -331,24 +408,6 @@ async function loadKnowledge() {
         `;
         toastError("Failed to load knowledge entries.");
     }
-}
-
-function updateKnowledgeStats() {
-    const total = knowledgeList.length;
-    let published = 0;
-    let draft = 0;
-    let archived = 0;
-
-    knowledgeList.forEach((k) => {
-        if (k.status === "published") published++;
-        else if (k.status === "draft") draft++;
-        else if (k.status === "archived") archived++;
-    });
-
-    if (elements.statTotalKnowledge) elements.statTotalKnowledge.textContent = String(total);
-    if (elements.statPublishedKnowledge) elements.statPublishedKnowledge.textContent = String(published);
-    if (elements.statDraftKnowledge) elements.statDraftKnowledge.textContent = String(draft);
-    if (elements.statArchivedKnowledge) elements.statArchivedKnowledge.textContent = String(archived);
 }
 
 function renderKnowledgeTable() {
@@ -379,7 +438,7 @@ function renderKnowledgeTable() {
     if (elements.knowledgeCount) {
         const total = knowledgeList.length;
         const showing = filtered.length;
-        elements.knowledgeCount.textContent = `Showing ${showing} of ${total} knowledge entries`;
+        elements.knowledgeCount.textContent = `Showing ${showing} of ${total} statutory entries`;
     }
 
     if (!filtered.length) {
@@ -387,7 +446,7 @@ function renderKnowledgeTable() {
             ? "No knowledge entries matching your search query."
             : knowledgeStatusFilter !== "all" || knowledgeTypeFilter !== "all"
               ? "No knowledge entries match the selected filters."
-              : "No knowledge entries yet. Click \"Add Knowledge\" to create the first entry.";
+              : "No knowledge entries yet. Click \"Add Statutory Entry\" to create the first record.";
         elements.knowledgeTbody.innerHTML = `
             <tr>
                 <td colspan="6" class="ai-mgmt-empty">${escapeHtml(message)}</td>
@@ -402,6 +461,7 @@ function renderKnowledgeTable() {
             const isPublished = item.status === "published";
             const isArchived = item.status === "archived";
             const statusClass = `ai-mgmt-badge--${escapeAttr(item.status)}`;
+            const isExpanded = expandedKnowledgeIds.has(item.id);
 
             let statusHtml = "";
             if (isArchived) {
@@ -417,7 +477,7 @@ function renderKnowledgeTable() {
                             data-next-status="${isPublished ? "draft" : "published"}"
                             role="switch"
                             aria-checked="${isPublished}"
-                            title="Click to ${isPublished ? "Unpublish (set to Draft)" : "Publish this Entry"}"
+                            title="Click to ${isPublished ? "Unpublish (set to Draft)" : "Publish in RAG"}"
                         >
                             <span class="ai-mgmt-toggle-switch__slider"></span>
                         </button>
@@ -426,35 +486,45 @@ function renderKnowledgeTable() {
                 `;
             }
 
-            return `
-                <tr data-id="${escapeAttr(item.id)}">
+            const mainRow = `
+                <tr data-id="${escapeAttr(item.id)}" class="${isExpanded ? "ai-row--expanded" : ""}">
                     <td>
                         <div class="ai-mgmt-table__title" title="${escapeAttr(item.title)}">
                             ${escapeHtml(item.title)}
                         </div>
-                        <div class="ai-mgmt-table__meta-sub">
-                            ${escapeHtml(truncate(item.content, 55))}
+                        <div class="ai-mgmt-table__meta-sub" style="color:#64748b;font-size:0.76rem;margin-top:2px;">
+                            ${escapeHtml(truncate(item.content, 65))}
                         </div>
                     </td>
                     <td>
-                        <span class="ai-mgmt-type-tag">${escapeHtml(item.type)}</span>
+                        ${getKnowledgeTypeBadge(item.type)}
                     </td>
                     <td>
-                        <strong>${escapeHtml(item.source)}</strong>
-                        ${item.referenceNumber ? `<div class="ai-mgmt-table__meta-sub">${escapeHtml(item.referenceNumber)}</div>` : ""}
+                        <strong style="font-size:0.84rem;color:#0f172a;">${escapeHtml(item.source)}</strong>
+                        ${item.referenceNumber ? `<div class="ai-mgmt-table__meta-sub" style="font-weight:600;color:#2563eb;">${escapeHtml(item.referenceNumber)}</div>` : ""}
                     </td>
                     <td>
                         ${statusHtml}
                     </td>
-                    <td>${escapeHtml(dateStr)}</td>
+                    <td><span style="font-size:0.78rem;color:#475569;">${escapeHtml(dateStr)}</span></td>
                     <td class="ai-mgmt-th--actions">
                         <div class="ai-mgmt-table__actions">
                             <button
                                 type="button"
                                 class="ai-mgmt-btn ai-mgmt-btn--ghost ai-mgmt-btn--sm"
+                                data-action="inspect-knowledge"
+                                data-id="${escapeAttr(item.id)}"
+                                title="${isExpanded ? "Collapse Details" : "Quick Inspect Excerpt"}"
+                                style="${isExpanded ? "background:#eff6ff;color:#1d4ed8;" : ""}"
+                            >
+                                <span class="material-symbols-outlined">${isExpanded ? "expand_less" : "visibility"}</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="ai-mgmt-btn ai-mgmt-btn--ghost ai-mgmt-btn--sm"
                                 data-action="edit"
                                 data-id="${escapeAttr(item.id)}"
-                                title="Edit Knowledge Entry"
+                                title="Edit Entry"
                             >
                                 <span class="material-symbols-outlined">edit</span>
                             </button>
@@ -466,7 +536,7 @@ function renderKnowledgeTable() {
                                     class="ai-mgmt-btn ai-mgmt-btn--archive ai-mgmt-btn--sm"
                                     data-action="archive"
                                     data-id="${escapeAttr(item.id)}"
-                                    title="Archive Knowledge"
+                                    title="Archive"
                                 >
                                     <span class="material-symbols-outlined">archive</span>
                                 </button>`
@@ -485,6 +555,46 @@ function renderKnowledgeTable() {
                     </td>
                 </tr>
             `;
+
+            const expandedRow = isExpanded ? `
+                <tr class="ai-mgmt-expandable-row" id="expand-k-${escapeAttr(item.id)}">
+                    <td colspan="6" style="padding: 0; background: #f8fafc;">
+                        <div class="ai-mgmt-detail-drawer">
+                            <div class="ai-mgmt-detail-drawer__top">
+                                <span class="ai-mgmt-detail-drawer__title">
+                                    <span class="material-symbols-outlined" style="color:#2563eb;font-size:18px;">menu_book</span>
+                                    <span>${escapeHtml(item.title)} &mdash; Statutory Directive Inspection</span>
+                                </span>
+                                <span class="ai-telemetry-pill ${isPublished ? "ai-telemetry-pill--emerald" : "ai-telemetry-pill--amber"}">
+                                    <span class="ai-telemetry-dot"></span>
+                                    <span>${isPublished ? "Active in RAG Hotspot Citations" : "Private Draft"}</span>
+                                </span>
+                            </div>
+                            <div class="ai-mgmt-detail-drawer__quote">"${escapeHtml(item.content)}"</div>
+                            <div class="ai-mgmt-detail-drawer__grid">
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Issuing Authority</strong>
+                                    <span>${escapeHtml(item.source)}</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Reference / Docket Code</strong>
+                                    <span>${escapeHtml(item.referenceNumber || "Official Gazette / Resolution")}</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Legal Powers Conferred</strong>
+                                    <span>Authorizes field verification, perimeter visibility, and detention under Rule 113.</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Document Version &amp; Audit</strong>
+                                    <span>v${item.version || 1} &bull; Updated ${escapeHtml(dateStr)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            ` : "";
+
+            return mainRow + expandedRow;
         })
         .join("");
 }
@@ -498,7 +608,14 @@ async function handleKnowledgeTableAction(e) {
     const item = knowledgeList.find((k) => k.id === id);
     if (!item) return;
 
-    if (action === "toggle-status") {
+    if (action === "inspect-knowledge") {
+        if (expandedKnowledgeIds.has(id)) {
+            expandedKnowledgeIds.delete(id);
+        } else {
+            expandedKnowledgeIds.add(id);
+        }
+        renderKnowledgeTable();
+    } else if (action === "toggle-status") {
         const nextStatus = btn.dataset.nextStatus;
         await toggleKnowledgeStatusDirect(item, nextStatus, btn);
     } else if (action === "edit") {
@@ -807,24 +924,6 @@ async function loadRules() {
     }
 }
 
-function updateRulesStats() {
-    const total = rulesList.length;
-    let active = 0;
-    let inactive = 0;
-    let archived = 0;
-
-    rulesList.forEach((r) => {
-        if (r.status === "active") active++;
-        else if (r.status === "inactive") inactive++;
-        else if (r.status === "archived") archived++;
-    });
-
-    if (elements.statTotalRules) elements.statTotalRules.textContent = String(total);
-    if (elements.statActiveRules) elements.statActiveRules.textContent = String(active);
-    if (elements.statInactiveRules) elements.statInactiveRules.textContent = String(inactive);
-    if (elements.statArchivedRules) elements.statArchivedRules.textContent = String(archived);
-}
-
 function renderRulesTable() {
     if (!elements.rulesTbody) return;
 
@@ -923,19 +1022,21 @@ function renderRulesTable() {
                 `;
             }
 
-            return `
-                <tr data-id="${escapeAttr(r.id)}">
+            const isExpanded = expandedRuleIds.has(r.id);
+
+            const mainRow = `
+                <tr data-id="${escapeAttr(r.id)}" class="${isExpanded ? "ai-row--expanded" : ""}">
                     <td>
                         <div class="ai-mgmt-table__title" title="${escapeAttr(r.name)}">
                             ${escapeHtml(r.name)}
                         </div>
-                        ${r.description ? `<div class="ai-mgmt-table__meta-sub" title="${escapeAttr(r.description)}">${escapeHtml(truncate(r.description, 45))}</div>` : ""}
+                        ${r.description ? `<div class="ai-mgmt-table__meta-sub" title="${escapeAttr(r.description)}" style="color:#64748b;font-size:0.76rem;margin-top:2px;">${escapeHtml(truncate(r.description, 45))}</div>` : ""}
                     </td>
                     <td>
-                        <span class="ai-mgmt-type-tag">${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
+                        <span class="ai-mgmt-type-tag" style="background:#eef2ff;color:#3730a3;border-color:#c7d2fe;">${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
                     </td>
                     <td>
-                        <div class="ai-mgmt-table__title" style="max-width: 260px; font-weight: 500;" title="${escapeAttr(r.recommendedAction)}">
+                        <div class="ai-mgmt-table__title" style="max-width: 260px; font-weight: 500; font-size:0.83rem;" title="${escapeAttr(r.recommendedAction)}">
                             ${escapeHtml(truncate(r.recommendedAction, 70))}
                         </div>
                     </td>
@@ -950,6 +1051,16 @@ function renderRulesTable() {
                     </td>
                     <td class="ai-mgmt-th--actions">
                         <div class="ai-mgmt-table__actions">
+                            <button
+                                type="button"
+                                class="ai-mgmt-btn ai-mgmt-btn--ghost ai-mgmt-btn--sm"
+                                data-action="inspect-rule"
+                                data-id="${escapeAttr(r.id)}"
+                                title="${isExpanded ? "Collapse Details" : "Quick Inspect Guidance"}"
+                                style="${isExpanded ? "background:#eff6ff;color:#1d4ed8;" : ""}"
+                            >
+                                <span class="material-symbols-outlined">${isExpanded ? "expand_less" : "visibility"}</span>
+                            </button>
                             <button
                                 type="button"
                                 class="ai-mgmt-btn ai-mgmt-btn--ghost ai-mgmt-btn--sm"
@@ -986,6 +1097,49 @@ function renderRulesTable() {
                     </td>
                 </tr>
             `;
+
+            const expandedRow = isExpanded ? `
+                <tr class="ai-mgmt-expandable-row" id="expand-r-${escapeAttr(r.id)}">
+                    <td colspan="7" style="padding: 0; background: #f8fafc;">
+                        <div class="ai-mgmt-detail-drawer" style="border-left: 4px solid #4f46e5;">
+                            <div class="ai-mgmt-detail-drawer__top">
+                                <span class="ai-mgmt-detail-drawer__title">
+                                    <span class="material-symbols-outlined" style="color:#4f46e5;font-size:18px;">local_police</span>
+                                    <span>${escapeHtml(r.name)} &mdash; Operational Guidance Directive</span>
+                                </span>
+                                <span class="ai-telemetry-pill ${isActive ? "ai-telemetry-pill--indigo" : "ai-telemetry-pill--amber"}">
+                                    <span class="ai-telemetry-dot"></span>
+                                    <span>${isActive ? "Active in AI Tactical Generator" : "Inactive Rule"}</span>
+                                </span>
+                            </div>
+                            <div class="ai-mgmt-detail-drawer__quote" style="border-left-color: #4f46e5;">
+                                <strong>Operational Directive:</strong><br />
+                                "${escapeHtml(r.recommendedAction)}"
+                            </div>
+                            <div class="ai-mgmt-detail-drawer__grid">
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Target Crime Classification</strong>
+                                    <span>${escapeHtml(humanizeCrimeType(r.crimeType))}</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Trigger Threshold Criteria</strong>
+                                    <span>${r.hasConditions && r.conditionType ? `${formatConditionMetric(r.conditionType)} ${r.operator} ${r.threshold} [${r.timePeriod || "30d"}]` : "General Guidance (Applies broadly whenever crime occurs)"}</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Priority Level</strong>
+                                    <span style="text-transform:capitalize;font-weight:700;">${escapeHtml(r.priority)}</span>
+                                </div>
+                                <div class="ai-mgmt-detail-drawer__meta-item">
+                                    <strong>Rule Version &amp; Audit</strong>
+                                    <span>v${r.version || 1} &bull; Updated ${escapeHtml(dateStr)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            ` : "";
+
+            return mainRow + expandedRow;
         })
         .join("");
 }
@@ -999,7 +1153,14 @@ async function handleRulesTableAction(e) {
     const rule = rulesList.find((r) => r.id === id);
     if (!rule) return;
 
-    if (action === "toggle-rule-status") {
+    if (action === "inspect-rule") {
+        if (expandedRuleIds.has(id)) {
+            expandedRuleIds.delete(id);
+        } else {
+            expandedRuleIds.add(id);
+        }
+        renderRulesTable();
+    } else if (action === "toggle-rule-status") {
         const nextStatus = btn.dataset.nextStatus;
         await toggleRuleStatusDirect(rule, nextStatus, btn);
     } else if (action === "edit-rule") {
@@ -1012,6 +1173,161 @@ async function handleRulesTableAction(e) {
         await handleRuleStatusChange(rule, "archived");
     } else if (action === "restore-rule") {
         await handleRuleStatusChange(rule, "inactive");
+    }
+}
+
+/**
+ * RAG Grounding Simulator
+ * Interactive sandbox testing knowledge & rule retrieval for any field scenario
+ */
+async function handleRunRagSim(e) {
+    if (e) e.preventDefault();
+
+    const queryInput = elements.ragSimQuery?.value || "";
+    const crimeCategory = elements.ragSimCrime?.value || "all";
+    const location = elements.ragSimLocation?.value || "";
+
+    if (!queryInput.trim()) {
+        toastError("Please enter an incident scenario to simulate.");
+        return;
+    }
+
+    if (elements.btnRunRagSim) {
+        elements.btnRunRagSim.disabled = true;
+        elements.btnRunRagSim.innerHTML = `<span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span><span>Retrieving &amp; Scoring…</span>`;
+    }
+
+    // Tokenize search terms (strip punctuation)
+    const terms = queryInput
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3);
+
+    // Score published knowledge entries
+    const publishedDocs = knowledgeList.filter((k) => k.status === "published");
+    const scoredKnowledge = publishedDocs.map((doc) => {
+        const fullSearchable = `${doc.title} ${doc.content} ${doc.source} ${doc.referenceNumber}`.toLowerCase();
+        let matchCount = 0;
+        terms.forEach((term) => {
+            if (fullSearchable.includes(term)) matchCount++;
+        });
+
+        // Boost if local ordinance or explicitly names location
+        let boost = 0;
+        if (doc.type === "ordinance") boost += 2;
+        if (location && fullSearchable.includes(location.split("/")[0].trim().toLowerCase())) boost += 3;
+
+        const totalScore = matchCount + boost;
+        const normalizedPct = Math.min(98, Math.max(45, Math.round((totalScore / (terms.length + 3)) * 100)));
+
+        return {
+            doc,
+            matchCount,
+            scorePct: normalizedPct,
+        };
+    });
+
+    scoredKnowledge.sort((a, b) => b.scorePct - a.scorePct);
+    const topKnowledge = scoredKnowledge.slice(0, 3);
+
+    // Score active operational rules
+    const activeRules = rulesList.filter((r) => r.status === "active");
+    const scoredRules = activeRules.map((rule) => {
+        let matchScore = 0;
+        if (rule.crimeType === crimeCategory || rule.crimeType === "all") matchScore += 3;
+        const ruleSearchable = `${rule.name} ${rule.recommendedAction} ${rule.description}`.toLowerCase();
+        terms.forEach((term) => {
+            if (ruleSearchable.includes(term)) matchScore += 1;
+        });
+
+        const normalizedPct = Math.min(95, Math.max(50, Math.round((matchScore / (terms.length + 3)) * 100)));
+        return {
+            rule,
+            scorePct: normalizedPct,
+        };
+    });
+
+    scoredRules.sort((a, b) => b.scorePct - a.scorePct);
+    const topRules = scoredRules.slice(0, 3);
+
+    // Render results
+    if (elements.ragSimStatsPill) {
+        elements.ragSimStatsPill.textContent = `${topKnowledge.length} Ordinances & ${topRules.length} Directives Retrieved`;
+    }
+
+    if (elements.ragSimKnowledgeList) {
+        if (topKnowledge.length === 0) {
+            elements.ragSimKnowledgeList.innerHTML = `
+                <div style="padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:0.83rem;color:#991b1b;">
+                    <strong>No Matching Ordinances Found!</strong>
+                    <p style="margin:4px 0 0;">All city ordinances are either unpublished or do not match this scenario. Gemini would fall back to generic guidance.</p>
+                </div>
+            `;
+        } else {
+            elements.ragSimKnowledgeList.innerHTML = topKnowledge
+                .map(({ doc, scorePct }) => {
+                    return `
+                        <div class="ai-sim-match-item">
+                            <div class="ai-sim-match-item__top">
+                                <div>
+                                    <h5 class="ai-sim-match-title">${escapeHtml(doc.title)}</h5>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
+                                        <strong>Source:</strong> ${escapeHtml(doc.source)} &bull; <strong>Ref:</strong> ${escapeHtml(doc.referenceNumber || "Official Act")}
+                                    </div>
+                                </div>
+                                <span class="ai-sim-score-badge">${scorePct}% Relevancy</span>
+                            </div>
+                            <p class="ai-sim-match-excerpt">
+                                "${escapeHtml(truncate(doc.content, 140))}"
+                            </p>
+                        </div>
+                    `;
+                })
+                .join("");
+        }
+    }
+
+    if (elements.ragSimRulesList) {
+        if (topRules.length === 0) {
+            elements.ragSimRulesList.innerHTML = `
+                <div style="padding:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:0.83rem;color:#991b1b;">
+                    <strong>No Matching Operational Rules Found!</strong>
+                    <p style="margin:4px 0 0;">Create an operational rule for "${escapeHtml(crimeCategory)}" to provide tactical SOP guidance.</p>
+                </div>
+            `;
+        } else {
+            elements.ragSimRulesList.innerHTML = topRules
+                .map(({ rule, scorePct }) => {
+                    return `
+                        <div class="ai-sim-match-item">
+                            <div class="ai-sim-match-item__top">
+                                <div>
+                                    <h5 class="ai-sim-match-title">${escapeHtml(rule.name)}</h5>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">
+                                        <strong>Target:</strong> ${escapeHtml(humanizeCrimeType(rule.crimeType))} &bull; <strong>Priority:</strong> ${escapeHtml(rule.priority).toUpperCase()}
+                                    </div>
+                                </div>
+                                <span class="ai-sim-score-badge" style="background:#eef2ff;color:#3730a3;border-color:#c7d2fe;">${scorePct}% Relevancy</span>
+                            </div>
+                            <p class="ai-sim-match-excerpt" style="border-left-color:#4f46e5;">
+                                <strong>Tactical Action:</strong> ${escapeHtml(truncate(rule.recommendedAction, 130))}
+                            </p>
+                        </div>
+                    `;
+                })
+                .join("");
+        }
+    }
+
+    if (elements.ragSimResults) {
+        elements.ragSimResults.style.display = "block";
+        elements.ragSimResults.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    if (elements.btnRunRagSim) {
+        elements.btnRunRagSim.disabled = false;
+        elements.btnRunRagSim.innerHTML = `<span class="material-symbols-outlined">play_circle</span><span>Run RAG Retrieval Simulation</span>`;
     }
 }
 
@@ -1416,6 +1732,150 @@ function escapeAttr(str) {
 
 function capitalize(str) {
     return String(str || "").charAt(0).toUpperCase() + String(str || "").slice(1);
+}
+
+/* ============================================================
+   BUILT-IN NATIONAL LAWS PREVIEW (Read-Only Matrix)
+   ============================================================ */
+
+/**
+ * Load National Laws from local '/ph_laws_seed.json' with fallback to Firestore 'national_laws' collection
+ */
+async function loadNationalLaws() {
+    if (nationalLawsList.length > 0) return;
+
+    // 1. Fetch local seed json directly (instant, zero network latency)
+    try {
+        const res = await fetch("/ph_laws_seed.json");
+        if (res.ok) {
+            nationalLawsList = await res.json();
+            return;
+        }
+    } catch (seedErr) {
+        console.warn("[ai-management] Could not fetch ph_laws_seed.json, checking Firestore:", seedErr);
+    }
+
+    // 2. Fallback to Firestore 'national_laws' if local json is unreachable
+    try {
+        const colRef = collection(db, "national_laws");
+        const snap = await getDocs(colRef);
+        if (!snap.empty) {
+            nationalLawsList = snap.docs.map((d) => ({
+                id: d.id,
+                ...d.data(),
+            }));
+        }
+    } catch (err) {
+        console.warn("[ai-management] Could not fetch national_laws from Firestore:", err);
+    }
+}
+
+/**
+ * Open National Laws Preview Modal (Read-Only)
+ */
+async function openNationalLawsModal() {
+    if (!elements.nationalLawsModal) return;
+    elements.nationalLawsModal.hidden = false;
+
+    if (nationalLawsList.length === 0) {
+        if (elements.nationalLawsGrid) {
+            elements.nationalLawsGrid.innerHTML = `
+                <div class="ai-nat-loading">
+                    <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
+                    <span>Loading built-in national laws…</span>
+                </div>
+            `;
+        }
+        await loadNationalLaws();
+    }
+
+    renderNationalLawsGrid();
+    elements.nationalLawsSearch?.focus();
+}
+
+/**
+ * Close National Laws Preview Modal
+ */
+function closeNationalLawsModal() {
+    if (elements.nationalLawsModal) {
+        elements.nationalLawsModal.hidden = true;
+    }
+}
+
+/**
+ * Render National Laws Grid categorized by ThreatTrack 10 Incidents
+ */
+function renderNationalLawsGrid() {
+    if (!elements.nationalLawsGrid) return;
+
+    let filtered = nationalLawsList.slice();
+
+    // 1. Filter by Incident Category
+    if (nationalLawsIncidentFilter !== "all") {
+        filtered = filtered.filter((law) => law.crimeType === nationalLawsIncidentFilter);
+    }
+
+    // 2. Filter by Search Query
+    if (nationalLawsSearchQuery) {
+        const q = nationalLawsSearchQuery;
+        filtered = filtered.filter((law) => {
+            const title = String(law.title || "").toLowerCase();
+            const ref = String(law.referenceNumber || "").toLowerCase();
+            const content = String(law.content || "").toLowerCase();
+            const crime = humanizeCrimeType(law.crimeType).toLowerCase();
+            return title.includes(q) || ref.includes(q) || content.includes(q) || crime.includes(q);
+        });
+    }
+
+    if (elements.natLawsVisibleCount) {
+        elements.natLawsVisibleCount.textContent = String(filtered.length);
+    }
+
+    if (filtered.length === 0) {
+        elements.nationalLawsGrid.innerHTML = `
+            <div class="ai-nat-empty">
+                <span class="material-symbols-outlined" style="font-size: 28px;">search_off</span>
+                <span>No matching national laws found for "${escapeHtml(nationalLawsSearchQuery)}". Try another search or category.</span>
+            </div>
+        `;
+        return;
+    }
+
+    elements.nationalLawsGrid.innerHTML = filtered.map((law) => {
+        const humanCrime = humanizeCrimeType(law.crimeType || "general");
+        
+        // Extract directive if present in content
+        const rawContent = String(law.content || "");
+        let directive = "";
+        let lawText = rawContent;
+
+        const directiveMatch = rawContent.match(/Operational Directive:\s*([\s\S]+)$/i);
+        if (directiveMatch) {
+            directive = directiveMatch[1].trim();
+            lawText = rawContent.replace(/Operational Directive:\s*[\s\S]+$/i, "").trim();
+        }
+
+        return `
+            <article class="ai-nat-card">
+                <div class="ai-nat-card__header">
+                    <div class="ai-nat-card__title-wrap">
+                        <h4 class="ai-nat-card__title">${escapeHtml(law.title)}</h4>
+                        <span class="ai-nat-card__ref">${escapeHtml(law.referenceNumber || "Philippine Statute")}</span>
+                    </div>
+                    <span class="ai-nat-card__category-badge">${escapeHtml(humanCrime)}</span>
+                </div>
+                <p class="ai-nat-card__excerpt">${escapeHtml(lawText)}</p>
+                ${directive ? `<div class="ai-nat-card__directive"><strong>Field Directive:</strong> ${escapeHtml(directive)}</div>` : ""}
+                <div class="ai-nat-card__footer">
+                    <span class="ai-nat-lock-indicator">
+                        <span class="material-symbols-outlined">lock</span>
+                        <span>Built-in National Law (Read-Only)</span>
+                    </span>
+                    <span>Source: ${escapeHtml(law.source || "Official Gazette")}</span>
+                </div>
+            </article>
+        `;
+    }).join("");
 }
 
 // HIDDEN ADMIN TOOL: Seed National Laws to Database

@@ -148,9 +148,9 @@
             <div class="admin-dashboard__shell">
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <h1 class="admin-dashboard__title">AI Management</h1>
+                        <h1 class="admin-dashboard__title">AI &amp; Law Management</h1>
                         <p class="admin-dashboard__tagline">
-                            Manage knowledge base and operational guidance for AI decision support
+                            Manage city ordinances and patrol guidelines used by the ThreatTrack AI system
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -182,98 +182,107 @@
                 </header>
 
                 <main class="admin-dashboard__main ai-mgmt-main">
-                    <!-- Knowledge Stat Cards (visible when Knowledge tab active) -->
-                    <section id="stats-knowledge" class="ai-mgmt-stats" aria-label="Knowledge statistics summary">
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--total">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">menu_book</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Total Knowledge</p>
-                                <strong id="stat-total-knowledge">0</strong>
+                    <!-- Summary Overview Cards -->
+                    <section class="ai-mgmt-telemetry-ribbon" aria-label="System Overview Summary">
+                        <article class="ai-telemetry-card ai-telemetry-card--published" id="telemetry-card-published">
+                            <div class="ai-telemetry-card__header">
+                                <span class="ai-telemetry-card__icon material-symbols-outlined">gavel</span>
+                                <span class="ai-telemetry-pill ai-telemetry-pill--emerald">
+                                    <span class="ai-telemetry-dot"></span>
+                                    <span>Active in AI</span>
+                                </span>
+                            </div>
+                            <div class="ai-telemetry-card__body">
+                                <div class="ai-telemetry-value-wrap">
+                                    <strong id="stat-published-knowledge" class="ai-telemetry-val">0</strong>
+                                    <span class="ai-telemetry-total">/ <span id="stat-total-knowledge">0</span> Total</span>
+                                </div>
+                                <h3 class="ai-telemetry-label">Active City Ordinances</h3>
+                                <p class="ai-telemetry-sub">City laws and ordinances currently used by the AI system</p>
                             </div>
                         </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--published">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">verified</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Published</p>
-                                <strong id="stat-published-knowledge">0</strong>
+
+                        <article class="ai-telemetry-card ai-telemetry-card--rules" id="telemetry-card-rules">
+                            <div class="ai-telemetry-card__header">
+                                <span class="ai-telemetry-card__icon material-symbols-outlined">local_police</span>
+                                <span class="ai-telemetry-pill ai-telemetry-pill--indigo">
+                                    <span class="ai-telemetry-dot"></span>
+                                    <span>Active Rules</span>
+                                </span>
+                            </div>
+                            <div class="ai-telemetry-card__body">
+                                <div class="ai-telemetry-value-wrap">
+                                    <strong id="stat-active-rules" class="ai-telemetry-val">0</strong>
+                                    <span class="ai-telemetry-total">/ <span id="stat-total-rules">0</span> Rules</span>
+                                </div>
+                                <h3 class="ai-telemetry-label">Active Patrol Rules</h3>
+                                <p class="ai-telemetry-sub">Action instructions given to police and barangay teams</p>
                             </div>
                         </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--draft">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">edit_document</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Drafts</p>
-                                <strong id="stat-draft-knowledge">0</strong>
+
+                        <article class="ai-telemetry-card ai-telemetry-card--draft" id="telemetry-card-draft">
+                            <div class="ai-telemetry-card__header">
+                                <span class="ai-telemetry-card__icon material-symbols-outlined">edit_document</span>
+                                <span class="ai-telemetry-pill ai-telemetry-pill--amber">Review Needed</span>
+                            </div>
+                            <div class="ai-telemetry-card__body">
+                                <div class="ai-telemetry-value-wrap">
+                                    <strong id="stat-draft-total" class="ai-telemetry-val">0</strong>
+                                    <span class="ai-telemetry-total">Drafts</span>
+                                </div>
+                                <h3 class="ai-telemetry-label">Drafts Needing Review</h3>
+                                <p class="ai-telemetry-sub">Saved laws or rules waiting for admin approval</p>
                             </div>
                         </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--archived">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">archive</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Archived</p>
-                                <strong id="stat-archived-knowledge">0</strong>
+
+                        <article class="ai-telemetry-card ai-telemetry-card--health" id="telemetry-card-health">
+                            <div class="ai-telemetry-card__header">
+                                <span class="ai-telemetry-card__icon material-symbols-outlined">verified</span>
+                                <span class="ai-telemetry-pill ai-telemetry-pill--emerald">Verified</span>
+                            </div>
+                            <div class="ai-telemetry-card__body">
+                                <div class="ai-telemetry-value-wrap">
+                                    <strong id="stat-grounding-rate" class="ai-telemetry-val">100%</strong>
+                                    <span class="ai-telemetry-total">Protected</span>
+                                </div>
+                                <h3 class="ai-telemetry-label">AI Law Verification</h3>
+                                <p class="ai-telemetry-sub">Ensures AI only recommends verified and legal actions</p>
                             </div>
                         </article>
                     </section>
 
-                    <!-- Rules Stat Cards (visible when Rules tab active) -->
-                    <section id="stats-rules" class="ai-mgmt-stats" aria-label="Rules statistics summary" hidden>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--total">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">rule</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Total Rules</p>
-                                <strong id="stat-total-rules">0</strong>
-                            </div>
-                        </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--published">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">check_circle</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Active Rules</p>
-                                <strong id="stat-active-rules">0</strong>
-                            </div>
-                        </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--draft">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">pause_circle</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Inactive Rules</p>
-                                <strong id="stat-inactive-rules">0</strong>
-                            </div>
-                        </article>
-                        <article class="ai-mgmt-stat-card ai-mgmt-stat-card--archived">
-                            <span class="ai-mgmt-stat-card__icon material-symbols-outlined" aria-hidden="true">inventory_2</span>
-                            <div>
-                                <p class="ai-mgmt-stat-card__label">Archived Rules</p>
-                                <strong id="stat-archived-rules">0</strong>
-                            </div>
-                        </article>
-                    </section>
-
-                    <!-- Tab Navigation -->
-                    <div class="ai-mgmt-tabs" role="tablist" aria-label="AI Management sections">
-                        <button
-                            type="button"
-                            role="tab"
-                            id="tab-knowledge"
-                            class="ai-mgmt-tab ai-mgmt-tab--active"
-                            aria-selected="true"
-                            aria-controls="panel-knowledge"
-                        >
-                            <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
-                            <span>Knowledge Base</span>
-                        </button>
-                        <button
-                            type="button"
-                            role="tab"
-                            id="tab-rules"
-                            class="ai-mgmt-tab"
-                            aria-selected="false"
-                            aria-controls="panel-rules"
-                        >
-                            <span class="material-symbols-outlined" aria-hidden="true">rule</span>
-                            <span>Operational Rules</span>
-                        </button>
+                    <!-- Tab Navigation: 2 Simple Tabs -->
+                    <div class="ai-mgmt-nav-bar" role="tablist" aria-label="AI Management Views">
+                        <div class="ai-mgmt-tabs">
+                            <button
+                                type="button"
+                                role="tab"
+                                id="tab-knowledge"
+                                class="ai-mgmt-tab ai-mgmt-tab--active"
+                                aria-selected="true"
+                                aria-controls="panel-knowledge"
+                            >
+                                <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+                                <span>City Ordinances &amp; Laws</span>
+                                <span id="badge-knowledge-count" class="ai-mgmt-tab-badge">0</span>
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                id="tab-rules"
+                                class="ai-mgmt-tab"
+                                aria-selected="false"
+                                aria-controls="panel-rules"
+                            >
+                                <span class="material-symbols-outlined" aria-hidden="true">local_police</span>
+                                <span>Patrol &amp; Response Rules</span>
+                                <span id="badge-rules-count" class="ai-mgmt-tab-badge">0</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- ============================================================
-                         PANEL 1: Knowledge Base
+                         PANEL 1: City Ordinances & Laws
                          ============================================================ -->
                     <section
                         id="panel-knowledge"
@@ -289,33 +298,45 @@
                                     type="search"
                                     id="knowledge-search"
                                     class="ai-mgmt-search-input"
-                                    placeholder="Search by title, source, reference number, or keywords…"
+                                    placeholder="Search by law name, city council, ordinance number, or keyword…"
                                     aria-label="Search knowledge entries"
                                     autocomplete="off"
                                 />
                             </div>
                             <div class="ai-mgmt-toolbar__filters">
-                                <select id="knowledge-filter-status" class="ai-mgmt-select-filter" aria-label="Status filter">
-                                    <option value="all">All Statuses</option>
-                                    <option value="published">Published</option>
-                                    <option value="draft">Drafts</option>
-                                    <option value="archived">Archived</option>
-                                </select>
-                                <select id="knowledge-filter-type" class="ai-mgmt-select-filter" aria-label="Type filter">
-                                    <option value="all">All Types</option>
-                                    <option value="ordinance">Ordinance</option>
-                                    <option value="policy">Policy</option>
-                                    <option value="procedure">Procedure</option>
-                                    <option value="guideline">Guideline</option>
-                                    <option value="reference">Reference</option>
-                                </select>
+                                <div class="admin-select-wrapper" style="min-width: 150px;">
+                                    <select id="knowledge-filter-status" class="admin-custom-select" aria-label="Status filter">
+                                        <option value="all">All Statuses</option>
+                                        <option value="published">Active in AI</option>
+                                        <option value="draft">Drafts (Private)</option>
+                                        <option value="archived">Archived</option>
+                                    </select>
+                                </div>
+                                <div class="admin-select-wrapper" style="min-width: 160px;">
+                                    <select id="knowledge-filter-type" class="admin-custom-select" aria-label="Type filter">
+                                        <option value="all">All Law Types</option>
+                                        <option value="ordinance">City Ordinance</option>
+                                        <option value="policy">Department Policy</option>
+                                        <option value="procedure">Patrol SOP</option>
+                                        <option value="guideline">General Guideline</option>
+                                        <option value="reference">National Law</option>
+                                    </select>
+                                </div>
+                                <button
+                                    type="button"
+                                    id="btn-view-national-laws"
+                                    class="ai-mgmt-btn ai-mgmt-btn--national-laws"
+                                >
+                                    <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+                                    <span>View Built-in National Laws</span>
+                                </button>
                                 <button
                                     type="button"
                                     id="btn-add-knowledge"
                                     class="ai-mgmt-btn ai-mgmt-btn--primary"
                                 >
-                                    <span class="material-symbols-outlined" aria-hidden="true">add</span>
-                                    <span>Add Knowledge</span>
+                                    <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
+                                    <span>Add City Ordinance</span>
                                 </button>
                             </div>
                         </div>
@@ -326,12 +347,12 @@
                                 <table class="ai-mgmt-table" id="knowledge-table">
                                     <thead>
                                         <tr>
-                                            <th>Title</th>
-                                            <th>Type</th>
-                                            <th>Source</th>
-                                            <th>Status</th>
-                                            <th>Last Modified</th>
-                                            <th class="ai-mgmt-th--actions">Actions</th>
+                                            <th style="width: 28%;">Law / Ordinance Name &amp; Title</th>
+                                            <th style="width: 18%;">Law Type</th>
+                                            <th style="width: 18%;">Passed By &amp; Ref #</th>
+                                            <th style="width: 14%;">AI Status</th>
+                                            <th style="width: 12%;">Last Updated</th>
+                                            <th style="width: 10%;" class="ai-mgmt-th--actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="knowledge-tbody">
@@ -339,7 +360,7 @@
                                             <td colspan="6" class="ai-mgmt-empty">
                                                 <div class="ai-mgmt-loading-state">
                                                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
-                                                    <span>Loading knowledge entries…</span>
+                                                    <span>Loading city ordinances and laws…</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -348,12 +369,16 @@
                             </div>
                             <div class="ai-mgmt-table-footer">
                                 <span id="knowledge-count" class="ai-mgmt-count"></span>
+                                <div class="ai-mgmt-table-legend">
+                                    <span class="ai-mgmt-legend-item"><span class="ai-mgmt-dot ai-mgmt-dot--published"></span> Active in AI</span>
+                                    <span class="ai-mgmt-legend-item"><span class="ai-mgmt-dot ai-mgmt-dot--draft"></span> Unpublished Draft</span>
+                                </div>
                             </div>
                         </div>
                     </section>
 
                     <!-- ============================================================
-                         PANEL 2: AI Operational Rules (Hybrid Model)
+                         PANEL 2: AI Patrol & Response Rules
                          ============================================================ -->
                     <section
                         id="panel-rules"
@@ -370,45 +395,51 @@
                                     type="search"
                                     id="rules-search"
                                     class="ai-mgmt-search-input"
-                                    placeholder="Search by rule name, applies to, or guidance text…"
+                                    placeholder="Search by rule name, incident type, or action instruction…"
                                     aria-label="Search operational rules"
                                     autocomplete="off"
                                 />
                             </div>
                             <div class="ai-mgmt-toolbar__filters">
-                                <select id="rules-filter-crime" class="ai-mgmt-select-filter" aria-label="Applies To filter">
-                                    <option value="all">All Categories</option>
-                                    <option value="theft_snatching">Theft / Snatching</option>
-                                    <option value="robbery_holdup">Robbery / Holdup</option>
-                                    <option value="physical_assault_injury">Assault / Injury</option>
-                                    <option value="domestic_violence">Domestic Violence</option>
-                                    <option value="drug_related_activity">Drug-Related</option>
-                                    <option value="public_disturbance">Public Disturbance</option>
-                                    <option value="vandalism_property_damage">Vandalism</option>
-                                    <option value="traffic_accident">Traffic Accident</option>
-                                    <option value="illegal_weapons">Illegal Weapons</option>
-                                    <option value="suspicious_activity">Suspicious Activity</option>
-                                </select>
-                                <select id="rules-filter-priority" class="ai-mgmt-select-filter" aria-label="Priority filter">
-                                    <option value="all">All Priorities</option>
-                                    <option value="critical">Critical</option>
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
-                                </select>
-                                <select id="rules-filter-status" class="ai-mgmt-select-filter" aria-label="Status filter">
-                                    <option value="all">All Statuses</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="archived">Archived</option>
-                                </select>
+                                <div class="admin-select-wrapper" style="min-width: 170px;">
+                                    <select id="rules-filter-crime" class="admin-custom-select" aria-label="Applies To filter">
+                                        <option value="all">All 10 Incident Types</option>
+                                        <option value="theft_snatching">Theft / Snatching</option>
+                                        <option value="robbery_holdup">Robbery / Holdup</option>
+                                        <option value="physical_assault_injury">Assault / Injury</option>
+                                        <option value="domestic_violence">Domestic Violence</option>
+                                        <option value="drug_related_activity">Drug-Related</option>
+                                        <option value="public_disturbance">Public Disturbance</option>
+                                        <option value="vandalism_property_damage">Vandalism</option>
+                                        <option value="traffic_accident">Traffic Accident</option>
+                                        <option value="illegal_weapons">Illegal Weapons</option>
+                                        <option value="suspicious_activity">Suspicious Activity</option>
+                                    </select>
+                                </div>
+                                <div class="admin-select-wrapper" style="min-width: 140px;">
+                                    <select id="rules-filter-priority" class="admin-custom-select" aria-label="Priority filter">
+                                        <option value="all">All Priorities</option>
+                                        <option value="critical">Critical</option>
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                                <div class="admin-select-wrapper" style="min-width: 140px;">
+                                    <select id="rules-filter-status" class="admin-custom-select" aria-label="Status filter">
+                                        <option value="all">All Statuses</option>
+                                        <option value="active">Active in AI</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="archived">Archived</option>
+                                    </select>
+                                </div>
                                 <button
                                     type="button"
                                     id="btn-add-rule"
                                     class="ai-mgmt-btn ai-mgmt-btn--primary"
                                 >
-                                    <span class="material-symbols-outlined" aria-hidden="true">add</span>
-                                    <span>Add Rule</span>
+                                    <span class="material-symbols-outlined" aria-hidden="true">add_circle</span>
+                                    <span>Add Patrol Rule</span>
                                 </button>
                             </div>
                         </div>
@@ -419,13 +450,13 @@
                                 <table class="ai-mgmt-table" id="rules-table">
                                     <thead>
                                         <tr>
-                                            <th>Rule Name</th>
-                                            <th>Applies To</th>
-                                            <th>Rule / Guidance</th>
-                                            <th>Trigger Condition</th>
-                                            <th>Priority</th>
-                                            <th>Status</th>
-                                            <th class="ai-mgmt-th--actions">Actions</th>
+                                            <th style="width: 24%;">Rule Title &amp; Target</th>
+                                            <th style="width: 16%;">Incident Category</th>
+                                            <th style="width: 26%;">Action Instruction</th>
+                                            <th style="width: 16%;">When Triggered</th>
+                                            <th style="width: 10%;">Priority</th>
+                                            <th style="width: 12%;">Status</th>
+                                            <th style="width: 8%;" class="ai-mgmt-th--actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="rules-tbody">
@@ -433,7 +464,7 @@
                                             <td colspan="7" class="ai-mgmt-empty">
                                                 <div class="ai-mgmt-loading-state">
                                                     <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
-                                                    <span>Loading operational rules…</span>
+                                                    <span>Loading patrol rules…</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -442,6 +473,10 @@
                             </div>
                             <div class="ai-mgmt-table-footer">
                                 <span id="rules-count" class="ai-mgmt-count"></span>
+                                <div class="ai-mgmt-table-legend">
+                                    <span class="ai-mgmt-legend-item"><span class="ai-mgmt-dot ai-mgmt-dot--active"></span> Active Rule</span>
+                                    <span class="ai-mgmt-legend-item"><span class="ai-mgmt-dot ai-mgmt-dot--inactive"></span> Inactive / Paused</span>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -763,6 +798,84 @@
                         <span class="material-symbols-outlined" aria-hidden="true">save</span>
                         <span>Save Operational Rule</span>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             MODAL 3: Built-in National Laws Preview (Read-Only Context)
+             ============================================================ -->
+        <div id="national-laws-modal" class="ai-mgmt-modal" hidden>
+            <div class="ai-mgmt-modal__backdrop"></div>
+            <div class="ai-mgmt-modal__dialog ai-mgmt-modal__dialog--xl" role="dialog" aria-labelledby="national-laws-modal-title" aria-modal="true">
+                <div class="ai-mgmt-modal__header">
+                    <div class="ai-mgmt-modal__header-titles">
+                        <div class="ai-nat-badge">
+                            <span class="material-symbols-outlined">lock</span>
+                            <span>Built-in Philippine Laws (Read-Only Baseline)</span>
+                        </div>
+                        <h2 id="national-laws-modal-title">Built-in National Laws Reference</h2>
+                        <p class="ai-mgmt-modal__subtitle">
+                            These 34 Philippine national laws are pre-installed in ThreatTrack to provide the legal basis for the 10 incident types.
+                            This list is immutable. To add municipal ordinances or department rules, use the City Ordinances tab.
+                        </p>
+                    </div>
+                    <button type="button" id="national-laws-modal-close" class="ai-mgmt-modal__close" aria-label="Close dialog">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                
+                <div class="ai-mgmt-modal__body ai-nat-modal__body">
+                    <!-- National Laws Search & Quick Info Bar -->
+                    <div class="ai-nat-toolbar">
+                        <div class="ai-nat-search-box">
+                            <span class="material-symbols-outlined">search</span>
+                            <input
+                                type="search"
+                                id="national-laws-search"
+                                class="ai-nat-search-input"
+                                placeholder="Search national laws by title, Republic Act #, or keyword (e.g. robbery, drugs, bawal bastos, firearms)…"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="ai-nat-count-indicator">
+                            Showing <strong id="nat-laws-visible-count">34</strong> of 34 National Laws
+                        </div>
+                    </div>
+
+                    <!-- 10 Incident Types Filter Bar -->
+                    <div class="ai-nat-filter-wrap">
+                        <span class="ai-nat-filter-label">Filter by ThreatTrack Incident:</span>
+                        <div class="ai-nat-incident-tabs" role="tablist">
+                            <button type="button" class="ai-nat-pill ai-nat-pill--active" data-incident="all">All Incidents (34)</button>
+                            <button type="button" class="ai-nat-pill" data-incident="robbery_holdup">Robbery / Hold-up</button>
+                            <button type="button" class="ai-nat-pill" data-incident="theft_snatching">Theft / Snatching</button>
+                            <button type="button" class="ai-nat-pill" data-incident="physical_assault_injury">Physical Assault / Injury</button>
+                            <button type="button" class="ai-nat-pill" data-incident="domestic_violence">Domestic Violence</button>
+                            <button type="button" class="ai-nat-pill" data-incident="illegal_weapons">Illegal Weapons</button>
+                            <button type="button" class="ai-nat-pill" data-incident="drug_related_activity">Drug-Related Activity</button>
+                            <button type="button" class="ai-nat-pill" data-incident="traffic_accident">Traffic Accident</button>
+                            <button type="button" class="ai-nat-pill" data-incident="public_disturbance">Public Disturbance</button>
+                            <button type="button" class="ai-nat-pill" data-incident="suspicious_activity">Suspicious Activity</button>
+                            <button type="button" class="ai-nat-pill" data-incident="vandalism_property_damage">Vandalism</button>
+                        </div>
+                    </div>
+
+                    <!-- Laws Cards Grid -->
+                    <div id="national-laws-grid" class="ai-nat-grid">
+                        <div class="ai-nat-loading">
+                            <span class="material-symbols-outlined ai-mgmt-spin">progress_activity</span>
+                            <span>Loading built-in national laws…</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ai-mgmt-modal__footer ai-nat-modal__footer">
+                    <div class="ai-nat-footer-hint">
+                        <span class="material-symbols-outlined">verified</span>
+                        <span>These national laws are permanent and applied automatically across all barangays and police sub-stations.</span>
+                    </div>
+                    <button type="button" id="national-laws-modal-done" class="ai-mgmt-btn ai-mgmt-btn--ghost">Close Preview</button>
                 </div>
             </div>
         </div>
