@@ -3369,7 +3369,7 @@
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    border-left: 4px solid #4f46e5;
+    border-left: 4px solid #dc2626;
 }
 
 /* Citations & Guidance Tags */
@@ -3398,12 +3398,12 @@
     align-items: center;
     gap: 5px;
     padding: 4px 10px;
-    background: #f5f3ff;
-    border: 1px solid #ddd6fe;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 650;
-    color: #6d28d9;
+    color: #991b1b;
 }
 
 .analytics-ai-guardrail-badge {
@@ -3454,11 +3454,11 @@
 }
 
 .analytics-ai-loading-card {
-    border: 1.5px solid #818cf8 !important;
-    background: linear-gradient(135deg, #faf5ff 0%, #f0f9ff 100%) !important;
+    border: 1.5px solid #fca5a5 !important;
+    background: linear-gradient(135deg, #fff5f5 0%, #f8fafc 100%) !important;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15) !important;
+    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.12) !important;
 }
 
 .analytics-ai-loading-card::after {
@@ -3499,7 +3499,7 @@
 
 .analytics-ai-references-header .material-symbols-outlined {
     font-size: 15px;
-    color: #6366f1;
+    color: #dc2626;
 }
 
 .analytics-ai-references-panel--empty {
@@ -3577,9 +3577,9 @@
 }
 
 .analytics-ai-ref-badge--rule {
-    background: #f5f3ff;
-    color: #6d28d9;
-    border-color: #ddd6fe;
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fde68a;
 }
 
 .analytics-ai-ref-title {
@@ -3626,8 +3626,8 @@
     width: 28px;
     height: 28px;
     border-radius: 7px;
-    background: #eef2ff;
-    color: #4f46e5;
+    background: #fef2f2;
+    color: #dc2626;
     display: grid;
     place-items: center;
     flex-shrink: 0;
@@ -3986,16 +3986,16 @@
 }
 
 .analytics-ai-ref-badge--sop {
-    background: #f5f3ff !important;
-    color: #6d28d9 !important;
-    border-color: #c4b5fd !important;
+    background: #f0fdfa !important;
+    color: #0f766e !important;
+    border-color: #99f6e4 !important;
 }
 
 /* 7. Action Plan & Tactical Cards */
 .analytics-tactical-card {
     background: #ffffff;
     border: 1.5px solid #e2e8f0;
-    border-left: 5px solid #6366f1;
+    border-left: 5px solid #dc2626;
     border-radius: 12px;
     padding: 16px 20px;
     display: flex;
@@ -4020,10 +4020,10 @@
 }
 
 .analytics-tactical-card--admin {
-    background: linear-gradient(180deg, #faf5ff 0%, #ffffff 60%, #f5f3ff 100%) !important;
-    border-color: #ddd6fe !important;
-    border-left-color: #7c3aed !important;
-    box-shadow: 0 2px 12px rgba(124, 58, 237, 0.06) !important;
+    background: linear-gradient(180deg, #fff5f5 0%, #ffffff 60%, #fef2f2 100%) !important;
+    border-color: #fecdd3 !important;
+    border-left-color: #dc2626 !important;
+    box-shadow: 0 2px 12px rgba(220, 38, 38, 0.06) !important;
 }
 
 .analytics-tactical-card:hover {
@@ -4066,9 +4066,9 @@
 }
 
 .analytics-tactical-card__role--admin {
-    background: #f5f3ff;
-    color: #6d28d9;
-    border-color: #c4b5fd;
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fca5a5;
 }
 
 .analytics-tactical-card__role .material-symbols-outlined {
@@ -4336,7 +4336,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366f1, #38bdf8, #10b981, #6366f1);
+    background: linear-gradient(90deg, #dc2626, #f59e0b, #10b981, #dc2626);
     background-size: 200% 100%;
     animation: advisoryGlow 4s linear infinite;
 }
@@ -4550,7 +4550,7 @@
 }
 
 .analytics-rating-btn input[type="radio"] {
-    accent-color: #4f46e5;
+    accent-color: #dc2626;
 }
 
 .analytics-form-group {
@@ -4581,8 +4581,8 @@
 
 .analytics-form-select:focus,
 .analytics-form-textarea:focus {
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
 }
 
 .analytics-modal__footer {
@@ -4608,13 +4608,16 @@
 }
 
 .analytics-btn--primary {
-    background: #4f46e5;
+    background: linear-gradient(135deg, #dc2626 0%, #be123c 100%);
     color: #ffffff;
-    border-color: #4f46e5;
+    border-color: #dc2626;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.22);
 }
 
 .analytics-btn--primary:hover {
-    background: #4338ca;
+    background: linear-gradient(135deg, #b91c1c 0%, #9f1239 100%);
+    border-color: #b91c1c;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.32);
 }
 
 .analytics-btn--ghost {

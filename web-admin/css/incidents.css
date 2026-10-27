@@ -677,18 +677,19 @@
 
 /* Column widths and spacing for User Management directory (7 columns) */
 .incidents-table--users {
-    min-width: 1100px;
+    width: 100%;
+    table-layout: fixed;
 }
 
 .incidents-table--users th,
 .incidents-table--users td {
-    padding: 16px 20px;
+    padding: 12px 14px;
 }
 
 .incidents-table--users th:nth-child(1),
 .incidents-table--users td:nth-child(1) {
-    width: 60px;
-    min-width: 60px;
+    width: 5%;
+    min-width: 40px;
     color: #94a3b8;
     font-weight: 700;
     text-align: center;
@@ -696,57 +697,57 @@
 
 .incidents-table--users th:nth-child(2),
 .incidents-table--users td:nth-child(2) {
-    width: 23%;
-    min-width: 190px;
-}
-
-.incidents-table--users th:nth-child(3),
-.incidents-table--users td:nth-child(3) {
-    width: 27%;
-    min-width: 220px;
-}
-
-.incidents-table--users th:nth-child(4),
-.incidents-table--users td:nth-child(4) {
-    width: 20%;
-    min-width: 170px;
-    max-width: 220px;
-    overflow: hidden;
-    white-space: nowrap;
-}
-
-.incidents-table--users .incidents-badge {
-    max-width: 100%;
+    width: 22%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.incidents-table--users th:nth-child(3),
+.incidents-table--users td:nth-child(3) {
+    width: 26%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.incidents-table--users th:nth-child(4),
+.incidents-table--users td:nth-child(4) {
+    width: 16%;
+    overflow: visible;
+}
+
+.incidents-table--users .incidents-badge {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
 .incidents-table--users th:nth-child(5),
 .incidents-table--users td:nth-child(5) {
-    width: 170px;
-    min-width: 170px;
+    width: 14%;
     overflow: visible !important;
     text-overflow: clip !important;
-    white-space: nowrap;
 }
 
 .incidents-table--users th:nth-child(6),
 .incidents-table--users td:nth-child(6) {
-    width: 125px;
-    min-width: 125px;
+    width: 11%;
     overflow: visible !important;
     text-overflow: clip !important;
-    white-space: nowrap;
 }
 
 .incidents-table--users th:nth-child(7),
 .incidents-table--users td:nth-child(7) {
-    width: 70px;
-    min-width: 70px;
+    width: 6%;
+    min-width: 48px;
     text-align: right;
     overflow: visible !important;
     position: relative;
+}
+
+.incidents-table--users .users-verified-badge {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
 }
 
 .incidents-table td {

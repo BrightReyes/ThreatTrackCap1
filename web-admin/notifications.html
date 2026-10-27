@@ -4,8 +4,15 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Admin | Notifications</title>
+        <meta name="description" content="ThreatTrack municipal alert center, emergency dispatches, citizen broadcasts, and audit trail." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -23,6 +30,7 @@
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
         <link rel="stylesheet" href="/css/incidents.css" />
+        <link rel="stylesheet" href="/css/notifications.css" />
         <link rel="stylesheet" href="/css/admin-readability.css" />
     </head>
     <body>
@@ -53,7 +61,7 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
@@ -98,6 +106,7 @@
                             >
                             <span>AI Management</span>
                         </a>
+
                         <a href="users.html" class="sidebar__link">
                             <span
                                 class="sidebar__icon material-symbols-outlined"
@@ -139,11 +148,12 @@
             </aside>
 
             <div class="admin-dashboard__shell">
+                <!-- Unified Header with Live PHT Telemetry Clock -->
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <h1 class="admin-dashboard__title">Notifications</h1>
+                        <h1 class="admin-dashboard__title">Notifications &amp; Dispatch Log</h1>
                         <p class="admin-dashboard__tagline">
-                            History of alerts sent to users
+                            Real-time emergency dispatches, citizen safety advisories, and municipal alert audit trail
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -152,134 +162,412 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
-                                <span
-                                    class="admin-dashboard__clock-sep"
-                                    aria-hidden="true"
-                                    >·</span
-                                >
-                                <span class="admin-dashboard__clock-tz"
-                                    >PHT</span
-                                >
+                                >--:--:--</time>
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
 
-                <main
-                    class="admin-dashboard__main incidents-main notifications-main"
-                >
-                    <section
-                        class="notifications-overview"
-                        aria-label="Notification overview"
-                    >
-                        <div class="notifications-overview__title">
-                            <span
-                                class="material-symbols-outlined"
-                                aria-hidden="true"
-                                >notifications_active</span
-                            >
-                            <div>
-                                <h2>Notification center</h2>
-                                <p>Recent alerts sent across ThreatTrack.</p>
+                <main class="admin-dashboard__main incidents-main notifications-main">
+                    <!-- 1. Operational Telemetry Overview (4 Interactive KPI Cards) -->
+                    <section class="incidents-panel incidents-panel--metrics notifications-panel--metrics" aria-label="Notification telemetry overview">
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">notifications_active</span>
+                                <h2 class="incidents-panel__title">Notification Telemetry &amp; Dispatch Log</h2>
+                                <span class="incidents-filter-pill">Live Stream</span>
                             </div>
+                            <p class="incidents-panel__meta">Click any card to filter dispatches by status</p>
                         </div>
-                        <div class="notifications-summary">
-                            <div class="notifications-summary__item">
-                                <span>Total</span>
-                                <strong id="notifications-total-stat">0</strong>
-                            </div>
-                            <div class="notifications-summary__item">
-                                <span>Unread</span>
-                                <strong id="notifications-unread-stat"
-                                    >0</strong
-                                >
-                            </div>
-                            <div class="notifications-summary__item">
-                                <span>Read</span>
-                                <strong id="notifications-read-stat">0</strong>
+                        <div class="incidents-panel__body incidents-panel__body--stats">
+                            <div class="incidents-stats admin-dashboard__stats" aria-label="Notification KPIs">
+                                <!-- Total Alerts -->
+                                <article class="stat-card stat-card--interactive stat-card--active" id="card-stat-total" data-filter="all" tabindex="0" role="button" aria-label="Filter all alerts">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">notifications</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Total Alerts</p>
+                                            <p id="notifications-total-stat" class="stat-card__value">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">All historical dispatch records</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Unread Dispatches -->
+                                <article class="stat-card stat-card--unread stat-card--interactive" id="card-stat-unread" data-filter="unread" tabindex="0" role="button" aria-label="Filter unread alerts">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">mark_email_unread</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Unread Alerts</p>
+                                            <p id="notifications-unread-stat" class="stat-card__value" style="color: #d97706;">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Requires citizen / unit read</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Emergency & SOS Alerts -->
+                                <article class="stat-card stat-card--urgent stat-card--interactive" id="card-stat-urgent" data-filter="urgent" tabindex="0" role="button" aria-label="Filter urgent SOS alerts">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">crisis_alert</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Emergency &amp; SOS</p>
+                                            <p id="notifications-urgent-stat" class="stat-card__value" style="color: #dc2626;">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">High priority &amp; SOS dispatches</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Read & Acknowledged -->
+                                <article class="stat-card stat-card--read stat-card--interactive" id="card-stat-read" data-filter="read" tabindex="0" role="button" aria-label="Filter read alerts">
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">done_all</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Read &amp; Acknowledged</p>
+                                            <p id="notifications-read-stat" class="stat-card__value" style="color: #059669;">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Acknowledged by recipient</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
                             </div>
                         </div>
                     </section>
 
-                    <section
-                        class="incidents-panel notifications-panel"
-                        aria-label="Notification list"
-                    >
-                        <div class="incidents-panel__head">
-                            <h2 class="incidents-panel__title">
-                                All notifications
-                            </h2>
-                            <p
-                                class="incidents-panel__meta"
-                                id="notifications-count"
-                            >
-                                Loading…
-                            </p>
-                        </div>
-                        <div
-                            class="notifications-toolbar"
-                            aria-label="Bulk notification actions"
-                        >
-                            <div class="notifications-toolbar__mode">
-                                <button
-                                    type="button"
-                                    id="notifications-select-mode"
-                                    class="notification-btn notification-btn--secondary"
-                                    aria-pressed="false"
-                                    aria-label="Toggle notification selection"
-                                >
-                                    <span
-                                        class="material-symbols-outlined"
-                                        aria-hidden="true"
-                                        >checklist</span
-                                    >
-                                </button>
-                                <label class="notifications-select-all">
+                    <!-- 2. Operations Toolbar: Search, Filters & Action Controls -->
+                    <section class="notifications-toolbar-panel" aria-label="Notification filters and dispatch actions">
+                        <div class="notifications-toolbar">
+                            <div class="notifications-toolbar__left">
+                                <div class="notifications-search-wrap">
+                                    <span class="material-symbols-outlined" aria-hidden="true">search</span>
                                     <input
-                                        type="checkbox"
-                                        id="notifications-select-all"
+                                        type="search"
+                                        id="notifications-search"
+                                        class="notifications-search-input"
+                                        placeholder="Search by alert title, keywords, recipient ID, or barangay…"
+                                        aria-label="Search notifications"
+                                        autocomplete="off"
                                     />
-                                    <span>Select all</span>
-                                </label>
+                                </div>
+                                <select id="notifications-filter-status" class="notifications-filter-select" aria-label="Filter by delivery status">
+                                    <option value="all">All Delivery Statuses</option>
+                                    <option value="unread">Unread Only</option>
+                                    <option value="read">Read Only</option>
+                                </select>
+                                <select id="notifications-filter-type" class="notifications-filter-select" aria-label="Filter by alert category">
+                                    <option value="all">All Alert Categories</option>
+                                    <option value="sos">Emergency SOS</option>
+                                    <option value="response_update">Response Updates</option>
+                                    <option value="resolved">Incident Resolved</option>
+                                    <option value="report_rejected">Report Rejected</option>
+                                    <option value="broadcast">Citizen Advisories</option>
+                                    <option value="police">Police Command</option>
+                                </select>
                             </div>
-                            <div class="notifications-toolbar__actions">
-                                <button
-                                    type="button"
-                                    id="notifications-archive-selected"
-                                    class="notification-btn notification-btn--secondary"
-                                    disabled
-                                >
-                                    Archive
+                            <div class="notifications-toolbar__right">
+                                <button type="button" id="btn-compose-notification" class="notification-btn notification-btn--primary">
+                                    <span class="material-symbols-outlined" aria-hidden="true">campaign</span>
+                                    <span>Send Broadcast Alert</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    id="notifications-delete-selected"
-                                    class="notification-btn notification-btn--danger"
-                                    disabled
-                                >
-                                    Delete
+                                <button type="button" id="btn-mark-all-read" class="notification-btn notification-btn--secondary" title="Mark all displayed notifications as read">
+                                    <span class="material-symbols-outlined" aria-hidden="true">mark_email_read</span>
+                                    <span>Mark All Read</span>
+                                </button>
+                                <button type="button" id="btn-notifications-refresh" class="notification-btn notification-btn--secondary" title="Refresh notification feed">
+                                    <span class="material-symbols-outlined" id="refresh-icon" aria-hidden="true">refresh</span>
+                                    <span>Refresh</span>
+                                </button>
+                                <button type="button" id="notifications-select-mode" class="notification-btn notification-btn--secondary" aria-pressed="false" aria-label="Toggle batch selection mode" title="Batch selection mode">
+                                    <span class="material-symbols-outlined" aria-hidden="true">checklist</span>
                                 </button>
                             </div>
                         </div>
 
+                        <!-- Bulk Selection Bar (Shows when selection mode is active) -->
+                        <div id="notifications-bulk-bar" class="notifications-bulk-bar" aria-label="Batch operations">
+                            <div class="notifications-bulk-left">
+                                <label class="notifications-select-all" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="notifications-select-all" />
+                                    <span>Select All</span>
+                                </label>
+                                <span id="notifications-selected-count" style="color: #64748b;">(0 selected)</span>
+                            </div>
+                            <div class="notifications-bulk-actions">
+                                <button type="button" id="notifications-archive-selected" class="notification-btn notification-btn--secondary" disabled>
+                                    <span class="material-symbols-outlined" aria-hidden="true">archive</span>
+                                    <span>Archive</span>
+                                </button>
+                                <button type="button" id="notifications-delete-selected" class="notification-btn notification-btn--danger" disabled>
+                                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                    <span>Delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 3. Notification Cards Stream -->
+                    <section class="notifications-list-panel" aria-label="Notification records">
+                        <div class="notifications-list-head">
+                            <div class="notifications-list-title-wrap">
+                                <span class="material-symbols-outlined" style="color: #dc2626;" aria-hidden="true">crisis_alert</span>
+                                <h2 class="notifications-list-title">Dispatch Stream</h2>
+                            </div>
+                            <p class="incidents-panel__meta" id="notifications-count" style="margin: 0;">Loading dispatches…</p>
+                        </div>
                         <div
                             id="notifications-list"
                             class="notifications-list"
                             aria-live="polite"
                         >
-                            <div class="notifications-empty">Loading…</div>
+                            <div class="notifications-empty">
+                                <span class="material-symbols-outlined notifications-empty__icon">hourglass_empty</span>
+                                <p class="notifications-empty__title">Loading notifications…</p>
+                                <p class="notifications-empty__sub">Fetching real-time dispatches from Firestore…</p>
+                            </div>
                         </div>
+
+                        <!-- Pagination Control Bar -->
+                        <div
+                            id="notifications-pagination"
+                            class="incidents-pagination"
+                            aria-label="Notifications pagination"
+                        ></div>
                     </section>
                 </main>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             MODAL 1: Notification Detail Inspector
+             ============================================================ -->
+        <div id="notification-detail-modal" class="notification-modal-backdrop" hidden>
+            <div class="notification-modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
+                <div class="notification-modal__header">
+                    <div class="notification-modal__title-group">
+                        <span class="material-symbols-outlined notification-modal__icon">notifications</span>
+                        <h3 id="detail-modal-title" class="notification-modal__title">Alert Details</h3>
+                    </div>
+                    <button type="button" class="notification-modal__close" id="detail-modal-close" aria-label="Close details">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="notification-modal__body">
+                    <!-- Message Callout Box -->
+                    <div class="notification-detail-box">
+                        <p id="detail-modal-body" class="notification-detail-message"></p>
+                    </div>
+
+                    <!-- Metadata Grid -->
+                    <div class="notification-detail-grid">
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Category</span>
+                            <span id="detail-modal-type" class="notification-detail-val">—</span>
+                        </div>
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Urgency</span>
+                            <span id="detail-modal-priority" class="notification-detail-val">—</span>
+                        </div>
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Sent To</span>
+                            <span id="detail-modal-user" class="notification-detail-val">—</span>
+                        </div>
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Barangay</span>
+                            <span id="detail-modal-barangay" class="notification-detail-val">—</span>
+                        </div>
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Date &amp; Time Sent</span>
+                            <span id="detail-modal-sent" class="notification-detail-val">—</span>
+                        </div>
+                        <div class="notification-detail-item">
+                            <span class="notification-detail-label">Status</span>
+                            <span id="detail-modal-status" class="notification-detail-val">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Linked Incident Callout (if any) -->
+                    <div id="detail-modal-incident-wrap" style="display: none; padding: 12px 14px; background: #faf5ff; border: 1px solid #ddd6fe; border-radius: 10px;">
+                        <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #6d28d9; display: block; margin-bottom: 4px;">Related Incident Report</span>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                            <span id="detail-modal-incident-text" style="font-size: 0.88rem; font-weight: 650; color: #4c1d95;">Incident #—</span>
+                            <a id="detail-modal-incident-link" href="#" class="notification-btn notification-btn--secondary" style="padding: 4px 10px; font-size: 0.78rem;">
+                                <span>View Report</span>
+                                <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="notification-modal__footer">
+                    <button type="button" id="detail-modal-toggle-read" class="notification-btn notification-btn--secondary">
+                        <span class="material-symbols-outlined">mark_email_read</span>
+                        <span id="detail-modal-toggle-text">Toggle Read</span>
+                    </button>
+                    <button type="button" id="detail-modal-archive" class="notification-btn notification-btn--secondary">
+                        <span class="material-symbols-outlined">archive</span>
+                        <span>Archive</span>
+                    </button>
+                    <button type="button" id="detail-modal-delete" class="notification-btn notification-btn--danger">
+                        <span class="material-symbols-outlined">delete</span>
+                        <span>Delete</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================
+             MODAL 2: Send Alert to Citizens
+             ============================================================ -->
+        <div id="notification-compose-modal" class="notification-modal-backdrop" hidden>
+            <div class="notification-modal" role="dialog" aria-modal="true" aria-labelledby="compose-modal-title">
+                <div class="notification-modal__header">
+                    <div class="notification-modal__title-group">
+                        <span class="material-symbols-outlined notification-modal__icon">campaign</span>
+                        <h3 id="compose-modal-title" class="notification-modal__title">Send Alert to Citizens</h3>
+                    </div>
+                    <button type="button" class="notification-modal__close" id="compose-modal-close" aria-label="Close composer">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form id="compose-notification-form" class="notification-modal__body" novalidate>
+                    <div class="notification-form-group">
+                        <label for="compose-title" class="notification-form-label">
+                            Title <span class="required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="compose-title"
+                            class="notification-form-input"
+                            placeholder="e.g. Flash Flood Warning: High water along MacArthur Highway"
+                            required
+                            maxlength="150"
+                        />
+                    </div>
+
+                    <div class="notification-form-row">
+                        <div class="notification-form-group">
+                            <label for="compose-type" class="notification-form-label">
+                                Type of Alert <span class="required">*</span>
+                            </label>
+                            <select id="compose-type" class="notification-form-select" required>
+                                <option value="broadcast">Public Safety Notice</option>
+                                <option value="urgent">Emergency Alert</option>
+                                <option value="weather">Weather or Flood Advisory</option>
+                                <option value="police">Police Advisory</option>
+                                <option value="system">General Notice</option>
+                            </select>
+                        </div>
+                        <div class="notification-form-group">
+                            <label for="compose-priority" class="notification-form-label">
+                                Urgency Level <span class="required">*</span>
+                            </label>
+                            <select id="compose-priority" class="notification-form-select" required>
+                                <option value="normal">Normal</option>
+                                <option value="high">Important</option>
+                                <option value="critical">Urgent (Immediate Help)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="notification-form-row">
+                        <div class="notification-form-group">
+                            <label for="compose-audience" class="notification-form-label">
+                                Who should receive this? <span class="required">*</span>
+                            </label>
+                            <select id="compose-audience" class="notification-form-select" required>
+                                <option value="all">Everyone in the City</option>
+                                <option value="barangay">Residents of one Barangay</option>
+                                <option value="police">Police Officers Only</option>
+                                <option value="direct">One Specific Citizen</option>
+                            </select>
+                        </div>
+                        <div class="notification-form-group" id="compose-barangay-wrap">
+                            <label for="compose-barangay" class="notification-form-label">
+                                Barangay
+                            </label>
+                            <select id="compose-barangay" class="notification-form-select">
+                                <option value="">Select Barangay (Optional)…</option>
+                                <option value="balangkas">Balangkas</option>
+                                <option value="mapulang_lupa">Mapulang Lupa</option>
+                                <option value="karuhatan">Karuhatan</option>
+                                <option value="malinta">Malinta</option>
+                                <option value="marulas">Marulas</option>
+                                <option value="maysan">Maysan</option>
+                                <option value="gen_t_de_leon">Gen. T. de Leon</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="notification-form-group" id="compose-user-wrap" style="display: none;">
+                        <label for="compose-user-id" class="notification-form-label">
+                            Citizen Email or User ID <span class="required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="compose-user-id"
+                            class="notification-form-input"
+                            placeholder="Enter citizen's email or account ID"
+                        />
+                    </div>
+
+                    <div class="notification-form-group">
+                        <label for="compose-body" class="notification-form-label">
+                            Message <span class="required">*</span>
+                        </label>
+                        <textarea
+                            id="compose-body"
+                            class="notification-form-textarea"
+                            rows="4"
+                            placeholder="Write a clear, easy-to-understand message explaining what happened or what residents should do..."
+                            required
+                            maxlength="500"
+                        ></textarea>
+                        <div class="notification-char-counter">
+                            <span id="compose-char-count">0</span> / 500 characters
+                        </div>
+                    </div>
+                </form>
+                <div class="notification-modal__footer">
+                    <button type="button" id="compose-modal-cancel" class="notification-btn notification-btn--ghost">
+                        Cancel
+                    </button>
+                    <button type="submit" form="compose-notification-form" id="compose-modal-submit" class="notification-btn notification-btn--primary">
+                        <span class="material-symbols-outlined">send</span>
+                        <span>Send Alert Now</span>
+                    </button>
+                </div>
             </div>
         </div>
 

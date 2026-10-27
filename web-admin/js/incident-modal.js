@@ -1473,6 +1473,53 @@ export function initIncidentModal() {
                         doc(db, "incidents", currentIncidentId),
                         statusUpdate.firestore,
                     );
+
+                    // Dynamic in-app notification when incident is marked as done (with edge-case protection)
+                    if (nextStatus === "done" && previous !== "done") {
+                        const targetReporterId =
+                            currentData.reporterId ||
+                            currentData.userId ||
+                            currentData.reportedBy ||
+                            null;
+                        const incCode = formatIncidentCode(currentIncidentId);
+                        const bName =
+                            currentData.barangayName ||
+                            currentData.location?.barangay ||
+                            (currentData.barangayId ? getBarangayNameById(currentData.barangayId) : "") ||
+                            null;
+
+                        try {
+                            await addDoc(collection(db, "notifications"), {
+                                userId: targetReporterId,
+                                incidentId: currentIncidentId,
+                                title: "Incident Resolved",
+                                body: `Incident Report ${incCode} has been officially resolved and marked as done by authorities.`,
+                                type: "incident_resolved",
+                                severity: "normal",
+                                priority: "normal",
+                                readAt: null,
+                                sentAt: serverTimestamp(),
+                                timestamp: serverTimestamp(),
+                                barangayId: currentData.barangayId || currentData.location?.barangayId || null,
+                                barangayName: bName,
+                                audience: targetReporterId ? "direct" : (currentData.barangayId ? "barangay" : "all"),
+                                status: "resolved",
+                            });
+                        } catch (notifErr) {
+                            console.warn("[incident-modal] failed to dispatch resolution notification", notifErr);
+                        }
+
+                        try {
+                            await logAudit("incident_marked_done", {
+                                incidentId: currentIncidentId,
+                                incidentCode: incCode,
+                                reporterId: targetReporterId,
+                                barangay: bName,
+                            });
+                        } catch (auditErr) {
+                            console.warn("[incident-modal] audit log failed", auditErr);
+                        }
+                    }
                     currentData = {
                         ...currentData,
                         ...statusUpdate.local,
