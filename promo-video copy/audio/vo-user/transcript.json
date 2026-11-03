@@ -1,0 +1,860 @@
+{
+ "text": "What if getting help was only one tap away? Then disaster strikes, and there's no time to waste. Meet ThreatTrack, connecting citizens, dispatchers, and police in one real-time response system. Report, track, respond. Facing an emergency? Hold SOS for three seconds. Your exact location is sent straight to the nearest station. Not an emergency? Three simple taps. Choose the incident, snap a photo, and send your report. No more wondering what happens next. Track your report and follow every update in real time. Behind the scenes, dispatchers see incoming reports automatically prioritized by urgency. With one click, AI checks the report. Headquarters assigns the response. The nearest unit gets moving, and you stay informed. Live hotspot maps reveal where incidents are happening, helping authorities see patterns before they escalate. AI even prepares response plans based on real protocols. But the final decision? Always human. Your barangay, your local station, Valenzuela Police. One connected system, greater transparency, protected privacy, a safer community. Every report matters. Every response counts. Report, track, respond. ThreatTrack",
+ "words": [
+  {
+   "w": "What",
+   "start": 0.18,
+   "end": 0.28
+  },
+  {
+   "w": "if",
+   "start": 0.34,
+   "end": 0.46
+  },
+  {
+   "w": "getting",
+   "start": 0.5,
+   "end": 0.76
+  },
+  {
+   "w": "help",
+   "start": 0.82,
+   "end": 1.12
+  },
+  {
+   "w": "was",
+   "start": 1.16,
+   "end": 1.28
+  },
+  {
+   "w": "only",
+   "start": 1.32,
+   "end": 1.54
+  },
+  {
+   "w": "one",
+   "start": 1.74,
+   "end": 1.9
+  },
+  {
+   "w": "tap",
+   "start": 2,
+   "end": 2.2
+  },
+  {
+   "w": "away?",
+   "start": 2.26,
+   "end": 2.64
+  },
+  {
+   "w": "Then",
+   "start": 3.42,
+   "end": 3.64
+  },
+  {
+   "w": "disaster",
+   "start": 3.98,
+   "end": 4.5
+  },
+  {
+   "w": "strikes,",
+   "start": 4.64,
+   "end": 5.04
+  },
+  {
+   "w": "and",
+   "start": 5.44,
+   "end": 5.5
+  },
+  {
+   "w": "there's",
+   "start": 5.54,
+   "end": 5.76
+  },
+  {
+   "w": "no",
+   "start": 5.84,
+   "end": 5.98
+  },
+  {
+   "w": "time",
+   "start": 6.08,
+   "end": 6.28
+  },
+  {
+   "w": "to",
+   "start": 6.32,
+   "end": 6.42
+  },
+  {
+   "w": "waste.",
+   "start": 6.46,
+   "end": 6.84
+  },
+  {
+   "w": "Meet",
+   "start": 7.36,
+   "end": 7.56
+  },
+  {
+   "w": "ThreatTrack,",
+   "start": 7.66,
+   "end": 8.34
+  },
+  {
+   "w": "connecting",
+   "start": 8.58,
+   "end": 8.96
+  },
+  {
+   "w": "citizens,",
+   "start": 9.08,
+   "end": 9.56
+  },
+  {
+   "w": "dispatchers,",
+   "start": 9.72,
+   "end": 10.28
+  },
+  {
+   "w": "and",
+   "start": 10.44,
+   "end": 10.54
+  },
+  {
+   "w": "police",
+   "start": 10.62,
+   "end": 11.04
+  },
+  {
+   "w": "in",
+   "start": 11.1,
+   "end": 11.18
+  },
+  {
+   "w": "one",
+   "start": 11.42,
+   "end": 11.54
+  },
+  {
+   "w": "real-time",
+   "start": 11.7,
+   "end": 12.14
+  },
+  {
+   "w": "response",
+   "start": 12.18,
+   "end": 12.58
+  },
+  {
+   "w": "system.",
+   "start": 12.62,
+   "end": 13.02
+  },
+  {
+   "w": "Report,",
+   "start": 13.36,
+   "end": 13.84
+  },
+  {
+   "w": "track,",
+   "start": 14.18,
+   "end": 14.5
+  },
+  {
+   "w": "respond.",
+   "start": 14.8,
+   "end": 15.48
+  },
+  {
+   "w": "Facing",
+   "start": 15.88,
+   "end": 16.16
+  },
+  {
+   "w": "an",
+   "start": 16.2,
+   "end": 16.239
+  },
+  {
+   "w": "emergency?",
+   "start": 16.28,
+   "end": 16.82
+  },
+  {
+   "w": "Hold",
+   "start": 17.14,
+   "end": 17.34
+  },
+  {
+   "w": "SOS",
+   "start": 17.5,
+   "end": 17.96
+  },
+  {
+   "w": "for",
+   "start": 18,
+   "end": 18.14
+  },
+  {
+   "w": "three",
+   "start": 18.18,
+   "end": 18.34
+  },
+  {
+   "w": "seconds.",
+   "start": 18.46,
+   "end": 18.9
+  },
+  {
+   "w": "Your",
+   "start": 19.14,
+   "end": 19.24
+  },
+  {
+   "w": "exact",
+   "start": 19.28,
+   "end": 19.66
+  },
+  {
+   "w": "location",
+   "start": 19.7,
+   "end": 20.14
+  },
+  {
+   "w": "is",
+   "start": 20.16,
+   "end": 20.26
+  },
+  {
+   "w": "sent",
+   "start": 20.3,
+   "end": 20.46
+  },
+  {
+   "w": "straight",
+   "start": 20.64,
+   "end": 20.86
+  },
+  {
+   "w": "to",
+   "start": 20.92,
+   "end": 20.98
+  },
+  {
+   "w": "the",
+   "start": 21.02,
+   "end": 21.06
+  },
+  {
+   "w": "nearest",
+   "start": 21.12,
+   "end": 21.36
+  },
+  {
+   "w": "station.",
+   "start": 21.42,
+   "end": 21.82
+  },
+  {
+   "w": "Not",
+   "start": 22.26,
+   "end": 22.42
+  },
+  {
+   "w": "an",
+   "start": 22.44,
+   "end": 22.52
+  },
+  {
+   "w": "emergency?",
+   "start": 22.54,
+   "end": 23.08
+  },
+  {
+   "w": "Three",
+   "start": 23.4,
+   "end": 23.62
+  },
+  {
+   "w": "simple",
+   "start": 23.78,
+   "end": 24
+  },
+  {
+   "w": "taps.",
+   "start": 24.12,
+   "end": 24.48
+  },
+  {
+   "w": "Choose",
+   "start": 24.74,
+   "end": 24.94
+  },
+  {
+   "w": "the",
+   "start": 24.98,
+   "end": 25.06
+  },
+  {
+   "w": "incident,",
+   "start": 25.12,
+   "end": 25.44
+  },
+  {
+   "w": "snap",
+   "start": 25.72,
+   "end": 25.92
+  },
+  {
+   "w": "a",
+   "start": 25.98,
+   "end": 26.04
+  },
+  {
+   "w": "photo,",
+   "start": 26.06,
+   "end": 26.38
+  },
+  {
+   "w": "and",
+   "start": 26.56,
+   "end": 26.64
+  },
+  {
+   "w": "send",
+   "start": 26.82,
+   "end": 27
+  },
+  {
+   "w": "your",
+   "start": 27.02,
+   "end": 27.1
+  },
+  {
+   "w": "report.",
+   "start": 27.14,
+   "end": 27.58
+  },
+  {
+   "w": "No",
+   "start": 27.94,
+   "end": 28.1
+  },
+  {
+   "w": "more",
+   "start": 28.14,
+   "end": 28.36
+  },
+  {
+   "w": "wondering",
+   "start": 28.4,
+   "end": 28.8
+  },
+  {
+   "w": "what",
+   "start": 28.84,
+   "end": 28.98
+  },
+  {
+   "w": "happens",
+   "start": 29.02,
+   "end": 29.36
+  },
+  {
+   "w": "next.",
+   "start": 29.42,
+   "end": 29.78
+  },
+  {
+   "w": "Track",
+   "start": 30.06,
+   "end": 30.3
+  },
+  {
+   "w": "your",
+   "start": 30.32,
+   "end": 30.4
+  },
+  {
+   "w": "report",
+   "start": 30.44,
+   "end": 30.82
+  },
+  {
+   "w": "and",
+   "start": 30.84,
+   "end": 30.92
+  },
+  {
+   "w": "follow",
+   "start": 31.02,
+   "end": 31.24
+  },
+  {
+   "w": "every",
+   "start": 31.46,
+   "end": 31.68
+  },
+  {
+   "w": "update",
+   "start": 31.76,
+   "end": 32.119
+  },
+  {
+   "w": "in",
+   "start": 32.34,
+   "end": 32.5
+  },
+  {
+   "w": "real",
+   "start": 32.58,
+   "end": 32.74
+  },
+  {
+   "w": "time.",
+   "start": 32.86,
+   "end": 33.22
+  },
+  {
+   "w": "Behind",
+   "start": 33.58,
+   "end": 33.84
+  },
+  {
+   "w": "the",
+   "start": 33.88,
+   "end": 33.98
+  },
+  {
+   "w": "scenes,",
+   "start": 34.02,
+   "end": 34.32
+  },
+  {
+   "w": "dispatchers",
+   "start": 34.54,
+   "end": 35.08
+  },
+  {
+   "w": "see",
+   "start": 35.12,
+   "end": 35.3
+  },
+  {
+   "w": "incoming",
+   "start": 35.36,
+   "end": 35.76
+  },
+  {
+   "w": "reports",
+   "start": 35.8,
+   "end": 36.18
+  },
+  {
+   "w": "automatically",
+   "start": 36.38,
+   "end": 36.9
+  },
+  {
+   "w": "prioritized",
+   "start": 37,
+   "end": 37.68
+  },
+  {
+   "w": "by",
+   "start": 37.72,
+   "end": 37.86
+  },
+  {
+   "w": "urgency.",
+   "start": 37.92,
+   "end": 38.42
+  },
+  {
+   "w": "With",
+   "start": 38.74,
+   "end": 38.9
+  },
+  {
+   "w": "one",
+   "start": 38.94,
+   "end": 39.08
+  },
+  {
+   "w": "click,",
+   "start": 39.18,
+   "end": 39.44
+  },
+  {
+   "w": "AI",
+   "start": 39.7,
+   "end": 39.98
+  },
+  {
+   "w": "checks",
+   "start": 40.12,
+   "end": 40.36
+  },
+  {
+   "w": "the",
+   "start": 40.38,
+   "end": 40.44
+  },
+  {
+   "w": "report.",
+   "start": 40.48,
+   "end": 40.92
+  },
+  {
+   "w": "Headquarters",
+   "start": 41.16,
+   "end": 41.66
+  },
+  {
+   "w": "assigns",
+   "start": 41.72,
+   "end": 42.06
+  },
+  {
+   "w": "the",
+   "start": 42.1,
+   "end": 42.16
+  },
+  {
+   "w": "response.",
+   "start": 42.18,
+   "end": 42.72
+  },
+  {
+   "w": "The",
+   "start": 42.94,
+   "end": 43.04
+  },
+  {
+   "w": "nearest",
+   "start": 43.12,
+   "end": 43.48
+  },
+  {
+   "w": "unit",
+   "start": 43.54,
+   "end": 43.82
+  },
+  {
+   "w": "gets",
+   "start": 43.88,
+   "end": 44.12
+  },
+  {
+   "w": "moving,",
+   "start": 44.16,
+   "end": 44.5
+  },
+  {
+   "w": "and",
+   "start": 44.74,
+   "end": 44.86
+  },
+  {
+   "w": "you",
+   "start": 45.04,
+   "end": 45.3
+  },
+  {
+   "w": "stay",
+   "start": 45.36,
+   "end": 45.52
+  },
+  {
+   "w": "informed.",
+   "start": 45.54,
+   "end": 46.1
+  },
+  {
+   "w": "Live",
+   "start": 46.46,
+   "end": 46.7
+  },
+  {
+   "w": "hotspot",
+   "start": 46.74,
+   "end": 47.2
+  },
+  {
+   "w": "maps",
+   "start": 47.24,
+   "end": 47.48
+  },
+  {
+   "w": "reveal",
+   "start": 47.54,
+   "end": 47.88
+  },
+  {
+   "w": "where",
+   "start": 47.92,
+   "end": 48.12
+  },
+  {
+   "w": "incidents",
+   "start": 48.18,
+   "end": 48.54
+  },
+  {
+   "w": "are",
+   "start": 48.56,
+   "end": 48.64
+  },
+  {
+   "w": "happening,",
+   "start": 48.68,
+   "end": 49.12
+  },
+  {
+   "w": "helping",
+   "start": 49.32,
+   "end": 49.58
+  },
+  {
+   "w": "authorities",
+   "start": 49.6,
+   "end": 50.08
+  },
+  {
+   "w": "see",
+   "start": 50.14,
+   "end": 50.32
+  },
+  {
+   "w": "patterns",
+   "start": 50.38,
+   "end": 50.8
+  },
+  {
+   "w": "before",
+   "start": 50.84,
+   "end": 51.26
+  },
+  {
+   "w": "they",
+   "start": 51.3,
+   "end": 51.4
+  },
+  {
+   "w": "escalate.",
+   "start": 51.46,
+   "end": 51.96
+  },
+  {
+   "w": "AI",
+   "start": 52.26,
+   "end": 52.62
+  },
+  {
+   "w": "even",
+   "start": 52.68,
+   "end": 52.88
+  },
+  {
+   "w": "prepares",
+   "start": 52.9,
+   "end": 53.28
+  },
+  {
+   "w": "response",
+   "start": 53.3,
+   "end": 53.7
+  },
+  {
+   "w": "plans",
+   "start": 53.8,
+   "end": 54.1
+  },
+  {
+   "w": "based",
+   "start": 54.12,
+   "end": 54.34
+  },
+  {
+   "w": "on",
+   "start": 54.38,
+   "end": 54.58
+  },
+  {
+   "w": "real",
+   "start": 54.62,
+   "end": 54.76
+  },
+  {
+   "w": "protocols.",
+   "start": 54.86,
+   "end": 55.5
+  },
+  {
+   "w": "But",
+   "start": 55.78,
+   "end": 55.88
+  },
+  {
+   "w": "the",
+   "start": 55.92,
+   "end": 56
+  },
+  {
+   "w": "final",
+   "start": 56.06,
+   "end": 56.3
+  },
+  {
+   "w": "decision?",
+   "start": 56.32,
+   "end": 56.76
+  },
+  {
+   "w": "Always",
+   "start": 57.14,
+   "end": 57.5
+  },
+  {
+   "w": "human.",
+   "start": 57.54,
+   "end": 57.9
+  },
+  {
+   "w": "Your",
+   "start": 58.36,
+   "end": 58.52
+  },
+  {
+   "w": "barangay,",
+   "start": 58.6,
+   "end": 59.2
+  },
+  {
+   "w": "your",
+   "start": 59.56,
+   "end": 59.8
+  },
+  {
+   "w": "local",
+   "start": 59.84,
+   "end": 60.06
+  },
+  {
+   "w": "station,",
+   "start": 60.18,
+   "end": 60.62
+  },
+  {
+   "w": "Valenzuela",
+   "start": 60.92,
+   "end": 61.5
+  },
+  {
+   "w": "Police.",
+   "start": 61.58,
+   "end": 62.06
+  },
+  {
+   "w": "One",
+   "start": 62.4,
+   "end": 62.54
+  },
+  {
+   "w": "connected",
+   "start": 62.66,
+   "end": 63.12
+  },
+  {
+   "w": "system,",
+   "start": 63.22,
+   "end": 63.62
+  },
+  {
+   "w": "greater",
+   "start": 63.88,
+   "end": 64.14
+  },
+  {
+   "w": "transparency,",
+   "start": 64.22,
+   "end": 64.98
+  },
+  {
+   "w": "protected",
+   "start": 65.26,
+   "end": 65.76
+  },
+  {
+   "w": "privacy,",
+   "start": 65.86,
+   "end": 66.4
+  },
+  {
+   "w": "a",
+   "start": 66.7,
+   "end": 66.72
+  },
+  {
+   "w": "safer",
+   "start": 66.9,
+   "end": 67.2
+  },
+  {
+   "w": "community.",
+   "start": 67.3,
+   "end": 67.82
+  },
+  {
+   "w": "Every",
+   "start": 68.26,
+   "end": 68.48
+  },
+  {
+   "w": "report",
+   "start": 68.56,
+   "end": 68.94
+  },
+  {
+   "w": "matters.",
+   "start": 69.04,
+   "end": 69.5
+  },
+  {
+   "w": "Every",
+   "start": 69.88,
+   "end": 70.12
+  },
+  {
+   "w": "response",
+   "start": 70.16,
+   "end": 70.7
+  },
+  {
+   "w": "counts.",
+   "start": 70.84,
+   "end": 71.26
+  },
+  {
+   "w": "Report,",
+   "start": 71.62,
+   "end": 72.1
+  },
+  {
+   "w": "track,",
+   "start": 72.44,
+   "end": 72.76
+  },
+  {
+   "w": "respond.",
+   "start": 73.04,
+   "end": 73.7
+  },
+  {
+   "w": "ThreatTrack",
+   "start": 74.02,
+   "end": 74.74
+  }
+ ]
+}

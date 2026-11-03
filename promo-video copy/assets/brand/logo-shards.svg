@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 167 178" width="167" height="178">
+  <!-- ThreatTrack cube mark as 3 separate faces, traced from logo-tight.png (IoU 0.96 vs raster).
+       The white "T" between the faces is the background showing through the gaps. -->
+  <g fill="#ff1238" stroke="#ff1238" stroke-width="2.5" stroke-linejoin="round">
+    <polygon id="face-top" points="81.5,8.5 96.5,14.5 155.5,48.5 154.5,51.5 149.5,53.5 139.5,52.5 85.5,68.5 29.5,52.5 17.5,53.5 11.5,50.5 14.5,46.5"/>
+    <polygon id="face-left" points="8.5,60.5 34.5,69.5 65.5,83.5 74.5,159.5 75.5,168.5 73.5,168.5 26.5,135.5"/>
+    <polygon id="face-right" points="156.5,61.5 158.5,62.5 140.5,134.5 96.5,166.5 96.5,159.5 104.5,84.5"/>
+  </g>
+</svg>

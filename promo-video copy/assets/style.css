@@ -189,9 +189,9 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--
 .pulse path { fill: none; stroke: #fca5a5; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
 .logo { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; display: grid; place-items: center; }
 .logo img { width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 0 40px rgba(220,38,38,0.6)); }
-.wordmark { position: absolute; left: 0; right: 0; top: 650px; text-align: center; font-size: 96px; font-weight: 800; letter-spacing: -0.04em; }
+.wordmark { position: absolute; left: 80px; right: 80px; top: 650px; text-align: center; font-size: 96px; font-weight: 800; letter-spacing: -0.04em; }
 .wordmark .r { color: #f87171; }
-.tagline { position: absolute; left: 0; right: 0; top: 770px; text-align: center; font-size: 30px; font-weight: 600; color: #cbd5e1; }
+.tagline { position: absolute; left: 80px; right: 80px; top: 770px; text-align: center; font-size: 30px; font-weight: 600; color: #cbd5e1; }
 .pillcta { position: absolute; left: 50%; top: 850px; transform: translateX(-50%); padding: 14px 28px; border-radius: 999px; background: var(--red); color: #fff; font-size: 22px; font-weight: 800; white-space: nowrap; }
 
 /* ===== v3 · ThreatTrack's own devices: radar, dispatch HUD, log ticker, diagonal split, flatline ===== */
@@ -555,19 +555,23 @@ html, body, #root { background: #ffffff; color: var(--ink); }
 }
 
 /* Broadcast Voiceover Caption Pill */
+/* Sits below the 980px safe line (top ≈ 994px). Centered with auto margins so GSAP's y never fights a CSS translate. */
 #vo-caption-bar {
-  display: none !important;
+  display: block;
   position: absolute;
-  bottom: 68px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 22px;
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 8px 24px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.78);
-  backdrop-filter: blur(12px);
+  background: rgba(15, 23, 42, 0.9);
   color: #ffffff;
   font-family: var(--font);
-  font-size: 20px;
+  font-size: 24px;
+  line-height: 30px;
   font-weight: 600;
   letter-spacing: -0.01em;
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -3125,3 +3129,18 @@ html, body, #root { background: #ffffff; color: var(--ink); }
   color: #dc2626 !important;
 }
 
+
+/* ===== v4 · S15 logo reveal: heartbeat → collapse → 3 shards → lock ===== */
+#s15 .s15-mark { width: 220px; height: 220px; }
+#s15 .s15-shards, #s15 #s15-png { position: absolute; left: 10px; top: 10px; width: 200px; height: 200px; }
+#s15 #s15-png { object-fit: contain; opacity: 0; filter: drop-shadow(0 10px 30px rgba(220, 38, 38, 0.35)); }
+#s15 .s15-shards { overflow: visible; filter: drop-shadow(0 10px 30px rgba(220, 38, 38, 0.35)); }
+#s15 .s15-shards .faces polygon { fill: #ff1238; stroke: #ff1238; stroke-width: 2.5; stroke-linejoin: round; transform-box: fill-box; transform-origin: 50% 50%; }
+#s15 .s15-shards .edges polygon { fill: none; stroke: #ffffff; stroke-width: 3; stroke-linejoin: round; }
+#s15 .s15-shards .edges { opacity: 0; }
+#s15 .s15-spark { position: absolute; left: 950px; top: 490px; width: 20px; height: 20px; border-radius: 50%; background: #ffffff;
+  box-shadow: 0 0 24px 10px rgba(255, 18, 56, 0.85), 0 0 80px 30px rgba(255, 18, 56, 0.35); opacity: 0; }
+#s15 .s15-ring { position: absolute; left: 760px; top: 270px; width: 400px; height: 400px; border-radius: 50%;
+  border: 6px solid rgba(255, 18, 56, 0.85); opacity: 0; }
+#s15 .s15-flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; pointer-events: none; z-index: 50; }
+#s15 #s15-word .line { display: inline-block; }

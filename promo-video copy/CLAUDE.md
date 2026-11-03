@@ -141,7 +141,7 @@ Every active scene (`#s1`–`#s15`) must obey these mathematical bounds at its p
    - Text on crimson or dark slate backgrounds MUST be solid pure white (`#ffffff`) or high-contrast status accents (`#22c55e`, `#f59e0b`).
 
 ## 4. SMOOTH CINEMATOGRAPHY & VOICEOVER SYNC LAWS
-1. **Smooth Easing Only:** Use `power3.out` or `expo.out` (`duration: 0.65s–0.85s`) with subtle vertical glides (`y: 24 -> 0`) and gentle 2D camera drift (`scale: 1.0 -> 1.03`). Never use extreme 3D `rotationX/Y` on multi-card grids, radar labels, or diagonal split-screens.
+1. **Smooth Easing + Motivated 2D Camera:** Element entrances use `power3.out` or `expo.out` (`duration: 0.65s–0.85s`) with vertical glides (`y: 24 -> 0`). The camera (the CAMERA block in `assets/anim.js`, moving `#sN > .in` / `#rig-s10`) may push, track, punch (scale up to 1.35), whip-pan (with `#mblur` motion blur) and zoom-through between scenes — smooth moves for product moments, bold ones for kinetic type. Every scene MUST settle to a reading frame (scale ≤ 1.06, offset ≤ 70px, no blur) before its checkpoint in `tools/qa-audit.mjs`, which enforces it. Never use 3D `rotationX/Y` on multi-card grids, radar labels, or diagonal split-screens (small 2D `rotation` ≤ 2° is fine).
 2. **Voiceover Non-Overlap Rule:** Every segment in `audio/vo-script.json` must satisfy:
    `segment.start + actualMp3DurationSeconds <= nextSegment.start - 0.25`.
    If an MP3 is longer than its scene window, shorten the script text and regenerate the MP3 via `node tools/generate-vo.mjs`.

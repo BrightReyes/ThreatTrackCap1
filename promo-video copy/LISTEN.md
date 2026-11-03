@@ -1,25 +1,36 @@
-# LISTEN.md — ear check for out/final.mp4 (v5 cut, Apple-style kinetic type on black)
+# LISTEN.md — watch & ear check for renders/threattrack-promo.mp4 (v5, 1:20.6)
 
-Claude cannot hear the mix. The scripts measured it; a human decides. Five timecodes to check with headphones:
+v5 = **your own ElevenLabs recording (Nathan)**, used exactly as recorded — cut per scene in the natural pauses (never
+mid-word), placed on each scene cut, with picture beats synced to the spoken words. Plus the camera system and 3-shard logo reveal.
+`node tools/audio-qa.mjs` measures the mix (no overlap, no early/late speech, no dead air, −14 LUFS / −1 dBTP);
+`node tools/qa-audit.mjs` checks layout and that the camera settles before each reading frame. A human decides how it *feels*:
 
-| Timecode | What should happen | What to listen for |
+| Timecode | What should happen | Check |
 |---|---|---|
-| **0:01.6** | Radar finds the mark, logo pops | Music dead-stops for a beat, reverse build, one thump with a low boom under it. No double hit. |
-| **0:17.35** | SOS released after the 3 s hold | A long rise through the hold; the thump lands as the button springs back and the rows slam in. |
-| **0:29.4** | Command center card lands | Second-largest hit. Should sit under the music, not over it. Stat ticks follow at 0:29.5 to 0:30.1. |
-| **0:36.07** | Dispatcher clicks "Dispatch Precinct" | Thump on the click, then a soft glass chime at 0:36.6 when the citizen side flips to "Help is on the way". |
-| **0:56.95** | Outro logo on the flatline | Final hero. The music fades over the last 1.4 s; nothing should click or cut off at 1:02. |
+| **0:00 – 0:08** | "What if getting help was only one tap away?" → "…no time to waste." | Voice starts right on the picture; zoom-through into the architecture. |
+| **0:13.7** | "Report, track, respond." | Each word punches in as it's spoken. |
+| **0:17.7** | "Hold SOS for three seconds" | The hold starts on "Hold"; camera pushes into the button. |
+| **0:42.5 / 0:46.4** | "Headquarters assigns…" / "…you stay informed" | Camera tracks the dispatch columns in step with the narration. |
+| **0:59.0** | "Always human." | AI plan approved on "Always". |
+| **1:00.3 – 1:09** | Community storm (7 phrases) | Each on-screen phrase appears with its spoken phrase. |
+| **1:14.1 → 1:17.9** | Logo reveal | Heartbeat build → flash → shards on "Report," "track," "respond," → lock on "ThreatTrack". |
 
-Every hard cut (0:03.2, 0:05.4, 0:08.0, 0:11.4, 0:13.6, 0:19.9, 0:24.5, 0:28.6, 0:32.9, 0:42.6, 0:47.6, 0:51.2, 0:55.4) carries one air whoosh, and every snapped headline a short cloth swish. If the swishes feel busy, thin the `word()` calls in `tools/cues.mjs`.
+If something feels off:
+- **New recording** → replace `audio/vo-user/nathan.mp3` (or point `voiceProfile.file` at a new file), update the per-scene
+  text in `audio/vo-script.json` to match it word-for-word, then `node tools/build.mjs --vo` (re-transcribes, re-cuts, re-syncs).
+- **A beat should land on a different word** → the `sync` rules in `tools/retime.mjs` (by word text).
+- **Camera too much / too little** → the CAMERA block near the end of `assets/anim.js` (one line per move, per scene).
+- **Music under the voice** → `MUSIC_GAIN_DB` / `sidechaincompress` in `tools/mix.mjs`. **SFX** → `audio/cues.src.json`.
 
-See `audio/qa-v2.txt` for the measured result. Thresholds were not loosened.
-
-Rebuild after any change:
-
+## Rebuild
 ```bash
-node tools/cues.mjs
-uv run <sound-layer>/scripts/mix.py audio/cues.json
-npx hyperframes render . --output renders/promo-silent.mp4 --quality high
-ffmpeg -y -i renders/promo-silent.mp4 -i audio/mix.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 256k -movflags +faststart -shortest out/final.mp4
-uv run <sound-layer>/scripts/qa.py out/final.mp4
+node tools/build.mjs            # retime → cues → SFX → mix → render → mux → audio QA
+node tools/build.mjs --vo       # re-transcribe your recording first (needs ELEVENLABS_API_KEY in .env)
+node tools/qa-audit.mjs         # layout/contrast/camera QA (needs a preview server on :3002)
 ```
+
+## How timing works
+`anim.js`, `audio/cues.src.json` and `tools/qa-audit.mjs` are authored in **source** seconds. `tools/retime.mjs`
+sizes each scene to its spoken line and adds **word-level sync knots** (word times from Speech-to-Text, corrected
+against the actual audio onsets, in `audio/vo/words.json`) so key beats land on the word that names them. It writes `TL.warp` into `timeline.js`;
+picture, camera, SFX and captions all read that warp, so they can't drift from the voice.

@@ -2,30 +2,34 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import { loadTL } from "./tl.mjs";
 
 const URL = process.env.PREVIEW_URL || "http://localhost:3002/index.html";
+const TL = loadTL();
 
-// Peak reading timestamps for all 15 scenes
-const SCENE_CHECKPOINTS = [
+// Peak reading timestamps for all 15 scenes, in SOURCE seconds (same as anim.js);
+// mapped through TL.warp below so they stay on the same beat after every VO retime.
+const SOURCE_CHECKPOINTS = [
   { scene: "#s1", time: 1.0, name: "Scene 1 Beat 1 (City Hook)" },
   { scene: "#s1", time: 2.3, name: "Scene 1 Beat 2 (Reach)" },
   { scene: "#s2", time: 4.3, name: "Scene 2 (Inciting Incident)" },
   { scene: "#s3", time: 6.7, name: "Scene 3 (Immediate Action)" },
-  { scene: "#s4", time: 9.8, name: "Scene 4 (System Architecture Flow)" },
+  { scene: "#s4", time: 11.0, name: "Scene 4 (System Architecture Flow)" },
   { scene: "#s5", time: 11.7, name: "Scene 5 Beat 1 (Report)" },
   { scene: "#s5", time: 12.4, name: "Scene 5 Beat 2 (Track)" },
   { scene: "#s5", time: 13.1, name: "Scene 5 Beat 3 (Respond)" },
   { scene: "#s6", time: 17.8, name: "Scene 6 (SOS Gateway + Status Rows)" },
-  { scene: "#s7", time: 23.6, name: "Scene 7 (Mobile Report Flow)" },
-  { scene: "#s8", time: 27.6, name: "Scene 8 (Live Status Pipeline)" },
+  { scene: "#s7", time: 24.25, name: "Scene 7 (Mobile Report Flow)" },
+  { scene: "#s8", time: 28.3, name: "Scene 8 (Live Status Pipeline)" },
   { scene: "#s9", time: 31.2, name: "Scene 9 (Dispatch Command Center)" },
   { scene: "#s10", time: 43.5, name: "Scene 10 (Split-Screen Sync & Reading Hold)" },
   { scene: "#s11", time: 47.0, name: "Scene 11 (Hotspot Radar)" },
   { scene: "#s12", time: 55.5, name: "Scene 12 (AI & RAG Pipeline Flow)" },
-  { scene: "#s13", time: 59.1, name: "Scene 13 (Community Storm)" },
+  { scene: "#s13", time: 59.6, name: "Scene 13 (Community Storm)" },
   { scene: "#s14", time: 63.5, name: "Scene 14 (Ecosystem Convergence)" },
   { scene: "#s15", time: 69.5, name: "Scene 15 (Case Resolution Outro)" }
 ];
+const SCENE_CHECKPOINTS = SOURCE_CHECKPOINTS.map((cp) => ({ ...cp, time: +TL.warp(cp.time).toFixed(3) }));
 
 async function runAudit() {
   const errors = [];
@@ -113,6 +117,18 @@ async function runAudit() {
           errs.push(`[${label}] .light-sheen is stuck visible (opacity > 0.08) causing a diagonal smudge`);
         }
       });
+
+      // 4. Camera must have settled to a reading frame (CLAUDE.md §4): scale ≤ 1.06, offset ≤ 70 px, no blur
+      const stageEl = sceneSel === "#s10" ? document.querySelector("#rig-s10") : scene.querySelector(":scope > .in");
+      if (stageEl) {
+        const cs = getComputedStyle(stageEl);
+        const m = new DOMMatrix(cs.transform === "none" ? undefined : cs.transform);
+        const s = Math.hypot(m.a, m.b);
+        if (s > 1.06 || Math.abs(m.e) > 70 || Math.abs(m.f) > 70) {
+          errs.push(`[${label}] camera not settled at reading frame (scale ${s.toFixed(3)}, x ${Math.round(m.e)}, y ${Math.round(m.f)})`);
+        }
+        if (cs.filter && cs.filter !== "none") errs.push(`[${label}] camera motion blur still applied (${cs.filter})`);
+      }
 
       return errs;
     }, { sceneSel: cp.scene, label: cp.name });

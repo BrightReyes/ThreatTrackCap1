@@ -1,0 +1,135 @@
+{
+  "voiceProfile": {
+    "engine": "user",
+    "file": "audio/vo-user/nathan.mp3",
+    "voiceName": "Nathan (ElevenLabs, user-supplied)",
+    "_elevenlabs": {
+      "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
+      "model": "eleven_multilingual_v2",
+      "stability": 0.35,
+      "similarity": 0.8,
+      "style": 0.45,
+      "speed": 1.15,
+      "seed": 4821,
+      "auditionVoices": [
+        "Liam",
+        "Eric",
+        "Will",
+        "Chris",
+        "Brian",
+        "Charlie",
+        "Roger"
+      ]
+    },
+    "voice": "en-US-AndrewMultilingualNeural",
+    "rate": "+12%",
+    "pitch": "+0Hz"
+  },
+  "segments": [
+    {
+      "id": "s1",
+      "scene": "s1",
+      "text": "What if getting help was only one tap away?",
+      "start": 0.201,
+      "duration": 2.75
+    },
+    {
+      "id": "s2",
+      "scene": "s2",
+      "text": "Then disaster strikes,",
+      "start": 3.241,
+      "duration": 1.96
+    },
+    {
+      "id": "s3",
+      "scene": "s3",
+      "text": "and there's no time to waste.",
+      "start": 5.484,
+      "duration": 1.67
+    },
+    {
+      "id": "s4",
+      "scene": "s4",
+      "text": "Meet ThreatTrack, connecting citizens, dispatchers, and police in one real-time response system.",
+      "start": 7.469,
+      "duration": 5.95
+    },
+    {
+      "id": "s5",
+      "scene": "s5",
+      "text": "Report, track, respond.",
+      "start": 13.716,
+      "duration": 2.39
+    },
+    {
+      "id": "s6",
+      "scene": "s6",
+      "text": "Facing an emergency? Hold SOS for three seconds. Your exact location is sent straight to the nearest station.",
+      "start": 16.397,
+      "duration": 6.21
+    },
+    {
+      "id": "s7",
+      "scene": "s7",
+      "text": "Not an emergency? Three simple taps. Choose the incident, snap a photo, and send your report.",
+      "start": 22.905,
+      "duration": 5.61
+    },
+    {
+      "id": "s8",
+      "scene": "s8",
+      "text": "No more wondering what happens next. Track your report and follow every update in real time.",
+      "start": 28.818,
+      "duration": 5.6
+    },
+    {
+      "id": "s9",
+      "scene": "s9",
+      "text": "Behind the scenes, dispatchers see incoming reports automatically prioritized by urgency.",
+      "start": 34.716,
+      "duration": 5.085
+    },
+    {
+      "id": "s10",
+      "scene": "s10",
+      "text": "With one click, AI checks the report. Headquarters assigns the response. The nearest unit gets moving, and you stay informed.",
+      "start": 40.082,
+      "duration": 7.64
+    },
+    {
+      "id": "s11",
+      "scene": "s11",
+      "text": "Live hotspot maps reveal where incidents are happening, helping authorities see patterns before they escalate.",
+      "start": 48.025,
+      "duration": 5.765
+    },
+    {
+      "id": "s12",
+      "scene": "s12",
+      "text": "AI even prepares response plans based on real protocols. But the final decision? Always human.",
+      "start": 54.072,
+      "duration": 5.91
+    },
+    {
+      "id": "s13",
+      "scene": "s13",
+      "text": "Your barangay, your local station, Valenzuela Police. One connected system, greater transparency, protected privacy, a safer community.",
+      "start": 60.315,
+      "duration": 9.82
+    },
+    {
+      "id": "s14",
+      "scene": "s14",
+      "text": "Every report matters. Every response counts.",
+      "start": 70.42,
+      "duration": 3.32
+    },
+    {
+      "id": "s15",
+      "scene": "s15",
+      "text": "Report, track, respond. ThreatTrack",
+      "start": 75.5,
+      "duration": 3.345
+    }
+  ]
+}

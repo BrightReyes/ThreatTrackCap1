@@ -14,3 +14,7 @@ audio/kit-build.log
 out/*.mp4
 *.hf-transaction-*
 audio/stems/
+audio/music/
+audio/vo/*.raw.mp3
+.env
+audio/vo/audition/
