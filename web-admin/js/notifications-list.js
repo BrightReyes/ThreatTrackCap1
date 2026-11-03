@@ -1,7 +1,6 @@
 import {
     addDoc,
     collection,
-    deleteDoc,
     deleteField,
     doc,
     getDoc,
@@ -213,7 +212,7 @@ function buildCard(docSnap) {
         aria-label="View alert: ${escapeAttr(title)}"
     >
         <!-- Selection Checkbox -->
-        <label class="notification-card__select" title="Select alert" onclick="event.stopPropagation();">
+        <label class="notification-card__select" title="Select alert">
             <input type="checkbox" class="notification-select" value="${escapeAttr(id)}" aria-label="Select alert" />
         </label>
 
@@ -266,7 +265,7 @@ function buildCard(docSnap) {
                 </span>
 
                 <!-- Quick Action Buttons -->
-                <div class="notification-card__actions" onclick="event.stopPropagation();">
+                <div class="notification-card__actions">
                     <button
                         type="button"
                         class="notification-action-btn"
@@ -307,6 +306,7 @@ function filterDocs() {
     return allDocs.filter((docSnap) => {
         const d = docSnap.data() || {};
         if (d.archivedAt) return false;
+        if (d.isDeleted || d.deletedAt) return false;
 
         // 1. Status Filter
         const isRead = Boolean(d.readAt);
@@ -510,13 +510,16 @@ function syncBulkControls() {
     const boxes = Array.from(list?.querySelectorAll(".notification-select") || []);
     const checked = boxes.filter((b) => b.checked);
     const count = checked.length;
-    const isSelecting = list?.classList.contains("notifications-list--selecting");
+    const isSelecting = list?.classList.contains("notifications-list--selecting") || count > 0;
 
     if (bulkBar) bulkBar.classList.toggle("is-visible", Boolean(isSelecting));
     if (selectedCount) selectedCount.textContent = `(${count} selected)`;
-    if (archiveBtn) archiveBtn.disabled = !isSelecting || count === 0;
-    if (deleteBtn) deleteBtn.disabled = !isSelecting || count === 0;
-    if (modeBtn) modeBtn.disabled = boxes.length === 0;
+    if (archiveBtn) archiveBtn.disabled = count === 0;
+    if (deleteBtn) deleteBtn.disabled = count === 0;
+    if (modeBtn) {
+        modeBtn.disabled = boxes.length === 0;
+        modeBtn.classList.toggle("notification-btn--active", Boolean(isSelecting));
+    }
 
     if (selectAll) {
         selectAll.checked = boxes.length > 0 && count === boxes.length;
@@ -778,15 +781,22 @@ async function handleMarkAllRead() {
 
 async function handleDeleteSingle(id) {
     const ok = await confirmDanger({
-        title: "Delete this alert?",
-        text: "This will permanently remove this alert record.",
-        confirmText: "Delete",
+        title: "Move this alert to Recently Deleted?",
+        text: "This alert will be moved to Recently Deleted where it can be recovered anytime.",
+        confirmText: "Move to Trash",
     });
     if (!ok) return;
 
     try {
-        await deleteDoc(doc(db, "notifications", id));
-        toastSuccess("Alert deleted");
+        await updateDoc(doc(db, "notifications", id), {
+            isDeleted: true,
+            deletedAt: serverTimestamp(),
+            deletedBy: auth.currentUser?.uid || null,
+        });
+        try {
+            await logAudit("notification_soft_deleted", { notificationId: id });
+        } catch {}
+        toastSuccess("Alert moved to Recently Deleted");
         allDocs = allDocs.filter((d) => d.id !== id);
         renderNotifications();
         closeDetailModal();
@@ -944,6 +954,10 @@ function bindGlobalEvents() {
     // 10. Select All Checkbox
     document.getElementById("notifications-select-all")?.addEventListener("change", (e) => {
         const checked = Boolean(e.target.checked);
+        if (checked && list) {
+            list.classList.add("notifications-list--selecting");
+            selectModeBtn?.classList.add("notification-btn--active");
+        }
         list?.querySelectorAll(".notification-select").forEach((cb) => {
             cb.checked = checked;
         });
@@ -973,21 +987,33 @@ function bindGlobalEvents() {
         }
     });
 
-    // 12. Bulk Delete Selected
+    // 12. Bulk Delete Selected (Soft Delete)
     document.getElementById("notifications-delete-selected")?.addEventListener("click", async () => {
         const ids = getSelectedIds();
         if (!ids.length) return;
 
         const ok = await confirmDanger({
-            title: `Delete ${ids.length} alert(s)?`,
-            text: "This will permanently remove the selected alerts.",
-            confirmText: "Delete",
+            title: `Move ${ids.length} alert(s) to Recently Deleted?`,
+            text: "The selected alerts will be moved to Recently Deleted where they can be restored if needed.",
+            confirmText: "Move to Trash",
         });
         if (!ok) return;
 
         try {
-            await Promise.all(ids.map((id) => deleteDoc(doc(db, "notifications", id))));
-            toastSuccess(`${ids.length} alert(s) deleted`);
+            const batch = writeBatch(db);
+            const uid = auth.currentUser?.uid || null;
+            ids.forEach((id) => {
+                batch.update(doc(db, "notifications", id), {
+                    isDeleted: true,
+                    deletedAt: serverTimestamp(),
+                    deletedBy: uid,
+                });
+            });
+            await batch.commit();
+            try {
+                await logAudit("notifications_bulk_soft_deleted", { count: ids.length, ids });
+            } catch {}
+            toastSuccess(`${ids.length} alert(s) moved to Recently Deleted`);
             allDocs = allDocs.filter((d) => !ids.includes(d.id));
             renderNotifications();
         } catch (err) {
@@ -996,10 +1022,16 @@ function bindGlobalEvents() {
         }
     });
 
-    // 13. Card Click Delegation
+    // 13. Card Click and Change Delegation
+    list?.addEventListener("change", (e) => {
+        if (e.target.matches(".notification-select")) {
+            syncBulkControls();
+        }
+    });
+
     list?.addEventListener("click", (e) => {
         // Individual checkbox change
-        if (e.target.matches(".notification-select")) {
+        if (e.target.matches(".notification-select") || e.target.closest(".notification-card__select")) {
             syncBulkControls();
             return;
         }
@@ -1026,10 +1058,11 @@ function bindGlobalEvents() {
                 handleDeleteSingle(id);
                 return;
             }
+            return;
         }
 
-        // Clicking anywhere else on card opens detail modal
-        if (docSnap && !e.target.closest(".notification-card__select")) {
+        // Clicking anywhere else on card opens detail modal (ignore clicks on links or actions)
+        if (docSnap && !e.target.closest("a") && !e.target.closest(".notification-card__actions") && !e.target.closest(".notification-card__select")) {
             openDetailModal(docSnap);
         }
     });
@@ -1097,6 +1130,7 @@ export async function loadNotificationsTable(isSilent = false) {
             allDocs = snap.docs.filter((docSnap) => {
                 const d = docSnap.data();
                 if (d?.archivedAt) return false;
+                if (d?.isDeleted || d?.deletedAt) return false;
 
                 // Role-based notification filtering:
                 const audience = String(d?.audience || "").toLowerCase().trim();

@@ -32,6 +32,7 @@ export default defineConfig({
         notifications: path.resolve(__dirname, 'notifications.html'),
         settings: path.resolve(__dirname, 'settings.html'),
         aiManagement: path.resolve(__dirname, 'ai-management.html'),
+        recentlyDeleted: path.resolve(__dirname, 'recently-deleted.html'),
       },
     },
   },

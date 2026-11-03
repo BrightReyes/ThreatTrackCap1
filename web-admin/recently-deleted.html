@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Admin | Recently Deleted</title>
+        <meta
+            name="description"
+            content="View recently deleted incident reports and notifications, with the option to restore or permanently delete them."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+            rel="stylesheet"
+        />
+        <script>
+            if (localStorage.getItem("sidebar-collapsed") === "true") {
+                document.documentElement.classList.add(
+                    "sidebar-collapsed-initial",
+                );
+            }
+            const cachedRole = localStorage.getItem("tt_admin_role");
+            if (cachedRole === "police" || cachedRole === "head_police") {
+                document.documentElement.classList.add("admin-role-police");
+            }
+        </script>
+        <link rel="icon" type="image/x-icon" href="/assets/image 10.png" />
+        <link rel="stylesheet" href="/css/base.css" />
+        <link rel="stylesheet" href="/css/dashboard.css" />
+        <link rel="stylesheet" href="/css/incidents.css" />
+        <link rel="stylesheet" href="/css/notifications.css" />
+        <link rel="stylesheet" href="/css/admin-readability.css" />
+        <link rel="stylesheet" href="/css/recently-deleted.css" />
+    </head>
+    <body>
+        <div id="page-recently-deleted" class="admin-dashboard" hidden>
+            <aside
+                class="admin-dashboard__sidebar admin-dashboard__sidebar--gradient"
+                aria-label="Main navigation"
+            >
+                <div class="sidebar__top">
+                    <div class="sidebar__brand">
+                        <div class="sidebar__brand-left">
+                            <button
+                                type="button"
+                                id="sidebar-toggle"
+                                class="sidebar-toggle"
+                                aria-label="Collapse sidebar"
+                            >
+                                <span
+                                    class="sidebar-toggle__icon material-symbols-outlined"
+                                    >close</span
+                                >
+                                <img
+                                    src="/assets/image 10.png"
+                                    alt="ThreatTrack logo"
+                                    class="sidebar-toggle__logo-img"
+                                />
+                            </button>
+                        </div>
+
+                        <div class="sidebar__brand-right">
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
+                            <span class="sidebar__badge">Admin</span>
+                        </div>
+                    </div>
+
+                    <nav class="sidebar__nav">
+                        <a href="dashboard.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">dashboard</span>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="incidents.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">warning</span>
+                            <span>Incidents</span>
+                        </a>
+                        <a href="analytics.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">query_stats</span>
+                            <span>Analytics</span>
+                        </a>
+                        <a href="notifications.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">notifications</span>
+                            <span>Notifications</span>
+                        </a>
+                        <a href="ai-management.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">psychology</span>
+                            <span>AI Management</span>
+                        </a>
+                        <a href="users.html" class="sidebar__link">
+                            <span class="sidebar__icon material-symbols-outlined">group</span>
+                            <span>Users</span>
+                        </a>
+                        <a href="operation.html" class="sidebar__link" data-role-nav="police">
+                            <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
+                            <span>Operation</span>
+                        </a>
+                        <a href="recently-deleted.html" class="sidebar__link sidebar__link--active" aria-current="page">
+                            <span class="sidebar__icon material-symbols-outlined">auto_delete</span>
+                            <span>Recently Deleted</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div class="sidebar__footer">
+                    <span id="user-email" class="sidebar__user-email"></span>
+                    <button
+                        type="button"
+                        id="btn-signout"
+                        class="sidebar__signout"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </aside>
+
+            <div class="admin-dashboard__shell">
+                <!-- Unified Header with Live Philippines Time Clock -->
+                <header class="admin-dashboard__header">
+                    <div class="admin-dashboard__header-left">
+                        <h1 class="admin-dashboard__title">Recently Deleted</h1>
+                        <p class="admin-dashboard__tagline">
+                            Deleted incident reports and alerts stay here safely so you can bring them back anytime or delete them forever.
+                        </p>
+                    </div>
+                    <div class="admin-dashboard__header-right">
+                        <div
+                            class="admin-dashboard__clock"
+                            role="timer"
+                            aria-label="Current time, Philippines (PHT)"
+                        >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
+                            <div class="admin-dashboard__clock-line">
+                                <time
+                                    id="dashboard-clock-time"
+                                    class="admin-dashboard__clock-time"
+                                    >--:--:-- --</time
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <main class="admin-dashboard__main deleted-main">
+                    <!-- Everyday English Callout Banner -->
+                    <div class="deleted-notice-banner" role="status">
+                        <div class="deleted-notice-banner__icon">
+                            <span class="material-symbols-outlined">verified_user</span>
+                        </div>
+                        <div class="deleted-notice-banner__content">
+                            <h2 class="deleted-notice-banner__title">Deleted items are saved here safely</h2>
+                            <p class="deleted-notice-banner__text">
+                                Emergency information is very important. When a report or alert is deleted, it is kept here so it is not lost by accident. You can bring any item back to the live list with one click.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 1. Overview Cards -->
+                    <section class="incidents-panel incidents-panel--stats" aria-label="Deleted records summary">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">analytics</span>
+                                <h2 class="incidents-panel__title">Overview</h2>
+                            </div>
+                            <span class="incidents-panel__meta">Live updates</span>
+                        </div>
+
+                        <div class="incidents-panel__stats-wrap">
+                            <div class="incidents-stats">
+                                <!-- Card 1: Total Deleted -->
+                                <article
+                                    class="stat-card stat-card--interactive stat-card--active"
+                                    id="card-stat-total"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Show all deleted records"
+                                    data-filter-type="all"
+                                >
+                                    <div class="stat-card__accent" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">auto_delete</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Total Deleted</p>
+                                            <p id="stat-total-deleted" class="stat-card__value">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">All items you can restore</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Card 2: Deleted Incidents -->
+                                <article
+                                    class="stat-card stat-card--interactive"
+                                    id="card-stat-incidents"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Filter deleted incident reports"
+                                    data-filter-type="incident"
+                                >
+                                    <div class="stat-card__accent" style="background: #dc2626;" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap" style="background: #fef2f2; color: #dc2626;">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">warning</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Deleted Incidents</p>
+                                            <p id="stat-deleted-incidents" class="stat-card__value">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Emergency reports</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+
+                                <!-- Card 3: Deleted Alerts -->
+                                <article
+                                    class="stat-card stat-card--interactive"
+                                    id="card-stat-notifications"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-label="Filter deleted alerts and notifications"
+                                    data-filter-type="notification"
+                                >
+                                    <div class="stat-card__accent" style="background: #d97706;" aria-hidden="true"></div>
+                                    <div class="stat-card__summary">
+                                        <div class="stat-card__icon-wrap" style="background: #fffbeb; color: #d97706;">
+                                            <span class="stat-card__icon material-symbols-outlined" aria-hidden="true">notifications</span>
+                                        </div>
+                                        <div class="stat-card__content">
+                                            <p class="stat-card__label">Deleted Alerts</p>
+                                            <p id="stat-deleted-notifications" class="stat-card__value">0</p>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card__footer">
+                                        <span class="stat-card__hint">Notices and alerts</span>
+                                        <span class="stat-card__action-icon material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                                    </div>
+                                </article>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 2. Main List Panel -->
+                    <section class="incidents-panel incidents-panel--reports" aria-label="Recoverable items list">
+                        <div class="incidents-panel__accent" aria-hidden="true"></div>
+                        <div class="incidents-panel__head incidents-panel__head--accented">
+                            <div class="incidents-panel__title-group">
+                                <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">restore_from_trash</span>
+                                <h2 class="incidents-panel__title">Deleted Items</h2>
+                                <span id="deleted-filter-pill" class="incidents-filter-pill" hidden>Filtered</span>
+                            </div>
+                            <p class="incidents-panel__meta" id="deleted-count">
+                                Loading deleted items…
+                            </p>
+                        </div>
+
+                        <!-- Filters & Toolbar -->
+                        <div class="incidents-panel__filters">
+                            <div class="incidents-toolbar__primary">
+                                <div class="incidents-search-wrap">
+                                    <span class="material-symbols-outlined incidents-search-icon" aria-hidden="true">search</span>
+                                    <input
+                                        id="deleted-search"
+                                        type="search"
+                                        class="incidents-search-input"
+                                        placeholder="Search by code, title, citizen ID, or barangay…"
+                                        aria-label="Search deleted items"
+                                    />
+                                    <button
+                                        type="button"
+                                        id="deleted-search-clear"
+                                        class="incidents-search-clear"
+                                        aria-label="Clear search"
+                                        title="Clear search"
+                                    >
+                                        <span class="material-symbols-outlined">close</span>
+                                    </button>
+                                </div>
+
+                                <div class="incidents-toolbar__filters">
+                                    <div class="incidents-filter-group">
+                                        <label for="deleted-type-filter" class="incidents-filter-label">
+                                            <span class="material-symbols-outlined">category</span>
+                                            <span>Type</span>
+                                        </label>
+                                        <select id="deleted-type-filter" class="incidents-select">
+                                            <option value="all">All Deleted Items</option>
+                                            <option value="incident">Incidents Only</option>
+                                            <option value="notification">Alerts Only</option>
+                                        </select>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        id="btn-refresh-vault"
+                                        class="deleted-refresh-btn"
+                                        title="Refresh list"
+                                        aria-label="Refresh deleted items list"
+                                    >
+                                        <span class="material-symbols-outlined">sync</span>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Bulk Selection Bar -->
+                            <div id="deleted-bulk-bar" class="deleted-bulk-bar" hidden>
+                                <div class="deleted-bulk-bar__info">
+                                    <label class="deleted-checkbox-label">
+                                        <input type="checkbox" id="deleted-select-all" />
+                                        <span id="deleted-selected-count">Select all</span>
+                                    </label>
+                                </div>
+                                <div class="deleted-bulk-bar__actions">
+                                    <button
+                                        type="button"
+                                        id="btn-bulk-restore"
+                                        class="deleted-action-btn deleted-action-btn--restore"
+                                    >
+                                        <span class="material-symbols-outlined">settings_backup_restore</span>
+                                        <span>Restore Selected</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        id="btn-bulk-purge"
+                                        class="deleted-action-btn deleted-action-btn--danger"
+                                    >
+                                        <span class="material-symbols-outlined">delete_forever</span>
+                                        <span>Delete Forever</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Deleted Items Container -->
+                        <div id="deleted-items-container" class="deleted-items-container">
+                            <div class="notifications-empty">
+                                <span class="material-symbols-outlined notifications-empty__icon refresh-spin">progress_activity</span>
+                                <p class="notifications-empty__title">Loading deleted items…</p>
+                                <p class="notifications-empty__sub">Please wait a moment…</p>
+                            </div>
+                        </div>
+
+                        <!-- Pagination Footer -->
+                        <div id="deleted-pagination" class="incidents-pagination" hidden>
+                            <span id="deleted-pagination-info" class="incidents-pagination__info">
+                                Showing 0 of 0
+                            </span>
+                            <div class="incidents-pagination__controls">
+                                <button
+                                    type="button"
+                                    id="btn-pagination-prev"
+                                    class="incidents-pagination__btn"
+                                    disabled
+                                >
+                                    <span class="material-symbols-outlined">chevron_left</span>
+                                    <span>Previous</span>
+                                </button>
+                                <span id="deleted-pagination-current" class="incidents-pagination__current">
+                                    Page 1 of 1
+                                </span>
+                                <button
+                                    type="button"
+                                    id="btn-pagination-next"
+                                    class="incidents-pagination__btn"
+                                    disabled
+                                >
+                                    <span>Next</span>
+                                    <span class="material-symbols-outlined">chevron_right</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <!-- Detail Modal -->
+        <div id="deleted-detail-modal" class="notification-modal-backdrop" hidden>
+            <div
+                class="notification-modal"
+                role="dialog"
+                aria-labelledby="detail-modal-title"
+                aria-modal="true"
+            >
+                <div class="notification-modal__header">
+                    <div class="notification-modal__title-group">
+                        <span class="material-symbols-outlined notification-modal__icon">visibility</span>
+                        <h2 id="detail-modal-title" class="notification-modal__title">Deleted Item Details</h2>
+                    </div>
+                    <button
+                        type="button"
+                        class="notification-modal__close"
+                        data-close-modal
+                        aria-label="Close dialog"
+                    >
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div class="notification-modal__body">
+                    <div class="deleted-modal-meta-grid">
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Type</span>
+                            <span id="detail-record-type" class="deleted-modal-meta-val">—</span>
+                        </div>
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Report Code</span>
+                            <span id="detail-ref-code" class="deleted-modal-meta-val font-mono">—</span>
+                        </div>
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Citizen User ID</span>
+                            <span id="detail-user-id" class="deleted-modal-meta-val font-mono">—</span>
+                        </div>
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Barangay</span>
+                            <span id="detail-barangay" class="deleted-modal-meta-val">—</span>
+                        </div>
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Time Deleted</span>
+                            <span id="detail-deleted-at" class="deleted-modal-meta-val">—</span>
+                        </div>
+                        <div class="deleted-modal-meta-item">
+                            <span class="deleted-modal-meta-label">Deleted By</span>
+                            <span id="detail-deleted-by" class="deleted-modal-meta-val">—</span>
+                        </div>
+                    </div>
+
+                    <div class="deleted-modal-content-box">
+                        <h3 class="deleted-modal-subtitle">Original Message</h3>
+                        <p id="detail-headline" class="deleted-modal-headline">—</p>
+                        <p id="detail-body" class="deleted-modal-body">—</p>
+                    </div>
+
+                    <div id="detail-location-wrap" class="deleted-modal-content-box" style="display: none;">
+                        <h3 class="deleted-modal-subtitle">Location Coordinates</h3>
+                        <p id="detail-location-text" class="deleted-modal-coords font-mono">—</p>
+                    </div>
+                </div>
+                <div class="notification-modal__footer">
+                    <button
+                        type="button"
+                        class="notification-btn notification-btn--ghost"
+                        data-close-modal
+                    >
+                        Close
+                    </button>
+                    <button
+                        type="button"
+                        id="detail-btn-purge"
+                        class="notification-btn notification-btn--danger"
+                    >
+                        <span class="material-symbols-outlined">delete_forever</span>
+                        <span>Delete Forever</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="detail-btn-restore"
+                        class="notification-btn notification-btn--primary"
+                        style="background: #059669;"
+                    >
+                        <span class="material-symbols-outlined">settings_backup_restore</span>
+                        <span>Restore This Item</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/js/recently-deleted.js"></script>
+    </body>
+</html>

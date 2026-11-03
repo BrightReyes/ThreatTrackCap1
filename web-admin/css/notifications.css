@@ -452,13 +452,22 @@
     z-index: 2;
 }
 
-.notifications-list--selecting .notification-card__select {
-    display: grid;
+.notification-select {
+    width: 20px;
+    height: 20px;
+    accent-color: #dc2626;
+    cursor: pointer;
 }
 
-.notifications-list--selecting .notification-card__icon-wrap {
-    opacity: 0;
-    pointer-events: none;
+.notifications-list--selecting .notification-card__select,
+.notification-card:has(.notification-select:checked) .notification-card__select {
+    display: grid !important;
+}
+
+.notifications-list--selecting .notification-card__icon-wrap,
+.notification-card:has(.notification-select:checked) .notification-card__icon-wrap {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .notification-card:has(.notification-select:checked) {
@@ -645,6 +654,10 @@
     color: #64748b;
     cursor: pointer;
     transition: all 0.15s ease;
+}
+
+.notification-action-btn * {
+    pointer-events: none;
 }
 
 .notification-action-btn:hover {

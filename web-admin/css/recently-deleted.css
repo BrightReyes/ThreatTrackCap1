@@ -1,0 +1,633 @@
+/* ==========================================================================
+   ThreatTrack Recently Deleted & Data Recovery Stylesheet
+   Operational recovery vault for soft-deleted incidents and alerts
+   ========================================================================== */
+
+.deleted-main {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+/* Overview Cards 3-Column Symmetrical Layout (Full Width & Centered) */
+.deleted-main .incidents-stats {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 18px !important;
+    margin: 0 !important;
+    width: 100% !important;
+}
+
+@media (max-width: 900px) {
+    .deleted-main .incidents-stats {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ==========================================================================
+   Overview Cards: Interactive Hover & Active Glow Effect
+   ========================================================================== */
+.deleted-main .stat-card {
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.22s ease,
+                background-color 0.22s ease;
+}
+
+.deleted-main .stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.deleted-main .stat-card:hover .stat-card__action-icon {
+    transform: translateX(4px);
+    color: #0f172a;
+}
+
+.deleted-main .stat-card:active {
+    transform: translateY(-1px);
+}
+
+.deleted-main .stat-card:focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+}
+
+/* Base Active Glow */
+.deleted-main .stat-card.stat-card--active {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25), 0 12px 28px -4px rgba(220, 38, 38, 0.12) !important;
+    background: #fffdfd !important;
+}
+
+/* Total Deleted Card Glow (Dark Slate) */
+.deleted-main #card-stat-total.stat-card--active {
+    border-color: #0f172a !important;
+    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.22), 0 12px 28px -4px rgba(15, 23, 42, 0.1) !important;
+    background: #ffffff !important;
+}
+
+/* Incidents Card Glow (Emergency Red) */
+.deleted-main #card-stat-incidents.stat-card--active {
+    border-color: #dc2626 !important;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.28), 0 12px 28px -4px rgba(220, 38, 38, 0.14) !important;
+    background: #fffdfd !important;
+}
+
+/* Alerts Card Glow (Warning Amber) */
+.deleted-main #card-stat-notifications.stat-card--active {
+    border-color: #d97706 !important;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.28), 0 12px 28px -4px rgba(217, 119, 6, 0.14) !important;
+    background: #fffdfb !important;
+}
+
+.deleted-main .stat-card.stat-card--active .stat-card__action-icon {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   1. Emergency Protection Callout Banner
+   ========================================================================== */
+.deleted-notice-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #059669;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.04);
+}
+
+.deleted-notice-banner__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #059669;
+    flex-shrink: 0;
+}
+
+.deleted-notice-banner__icon .material-symbols-outlined {
+    font-size: 22px;
+}
+
+.deleted-notice-banner__content {
+    flex: 1;
+}
+
+.deleted-notice-banner__title {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+.deleted-notice-banner__text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+/* ==========================================================================
+   2. Bulk Operations Bar
+   ========================================================================== */
+.deleted-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 18px;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    margin-top: 14px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.deleted-bulk-bar__info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.deleted-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #92400e;
+    cursor: pointer;
+    user-select: none;
+}
+
+.deleted-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #d97706;
+    cursor: pointer;
+}
+
+.deleted-bulk-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   3. Deleted Items Container & Cards
+   ========================================================================== */
+.deleted-items-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+    min-height: 280px;
+}
+
+.deleted-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #f59e0b;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+    cursor: pointer;
+}
+
+.deleted-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -3px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+    border-left-color: #d97706;
+}
+
+.deleted-card--incident {
+    border-left-color: #dc2626;
+}
+.deleted-card--incident:hover {
+    border-left-color: #b91c1c;
+}
+
+.deleted-card--notification {
+    border-left-color: #3b82f6;
+}
+.deleted-card--notification:hover {
+    border-left-color: #2563eb;
+}
+
+.deleted-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.deleted-card__header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.deleted-card__select {
+    width: 16px;
+    height: 16px;
+    accent-color: #dc2626;
+    cursor: pointer;
+}
+
+.deleted-card__type-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.deleted-card__type-pill--incident {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.deleted-card__type-pill--notification {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #dbeafe;
+}
+
+.deleted-card__code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.deleted-card__deleted-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #b45309;
+    font-weight: 600;
+}
+
+.deleted-card__deleted-time .material-symbols-outlined {
+    font-size: 14px;
+}
+
+.deleted-card__body-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.deleted-card__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.4;
+}
+
+.deleted-card__summary {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #475569;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.deleted-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.deleted-card__meta-pills {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.deleted-meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.deleted-meta-pill--user {
+    background: #f8fafc;
+    color: #334155;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.deleted-meta-pill--barangay {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #dcfce7;
+}
+
+.deleted-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.deleted-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.deleted-action-btn * {
+    pointer-events: none;
+}
+
+.deleted-action-btn .material-symbols-outlined {
+    font-size: 16px;
+}
+
+.deleted-action-btn--restore {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.deleted-action-btn--restore:hover {
+    background: #059669;
+    color: #ffffff;
+    border-color: #059669;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+}
+
+.deleted-action-btn--danger {
+    background: #fef2f2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.deleted-action-btn--danger:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #dc2626;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+}
+
+.deleted-action-btn--ghost {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
+.deleted-action-btn--ghost:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+/* ==========================================================================
+   4. Modal Metadata Grid
+   ========================================================================== */
+.deleted-modal-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.deleted-modal-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.deleted-modal-meta-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+}
+
+.deleted-modal-meta-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.deleted-modal-content-box {
+    padding: 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 14px;
+}
+
+.deleted-modal-subtitle {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #475569;
+    letter-spacing: 0.03em;
+}
+
+.deleted-modal-headline {
+    margin: 0 0 6px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.deleted-modal-body {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #334155;
+    white-space: pre-wrap;
+}
+
+.deleted-modal-coords {
+    margin: 0;
+    font-size: 12px;
+    color: #0284c7;
+    background: #f0f9ff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+/* ==========================================================================
+   5. Responsive Breakpoints
+   ========================================================================== */
+@media (max-width: 768px) {
+    .deleted-card__header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .deleted-card__footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .deleted-card__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+/* ==========================================================================
+   6. Recovery Toolbar Refresh Button & Filter Layout
+   ========================================================================== */
+.deleted-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 42px;
+    padding: 0 16px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.deleted-refresh-btn:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
+}
+
+.deleted-refresh-btn:active {
+    transform: translateY(0);
+    background: #f1f5f9;
+}
+
+.deleted-refresh-btn:focus-visible {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.deleted-refresh-btn .material-symbols-outlined {
+    font-size: 19px;
+    color: #64748b;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s ease;
+}
+
+.deleted-refresh-btn:hover .material-symbols-outlined {
+    color: #0f172a;
+    transform: rotate(180deg);
+}
+
+.deleted-refresh-btn.is-refreshing {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.deleted-refresh-btn.is-refreshing .material-symbols-outlined {
+    animation: deletedRefreshSpin 0.7s linear infinite;
+    color: #dc2626;
+}
+
+@keyframes deletedRefreshSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Detail Modal Backdrop & Viewport Centering
+   ========================================================================== */
+#deleted-detail-modal.notification-modal-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 99999 !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 20px !important;
+}
+
+#deleted-detail-modal[hidden] {
+    display: none !important;
+}
+
+#deleted-detail-modal .notification-modal {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 620px !important;
+    max-height: calc(100vh - 40px) !important;
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.25) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    animation: nmSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+

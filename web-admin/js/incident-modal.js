@@ -2,7 +2,6 @@ import {
     addDoc,
     collection,
     deleteField,
-    deleteDoc,
     doc,
     getDoc,
     onSnapshot,
@@ -2048,19 +2047,27 @@ export function initIncidentModal() {
 
         if (action === "delete") {
             const ok = await confirmDanger({
-                title: "Delete incident?",
-                text: "This permanently deletes the incident from the active list.",
-                confirmText: "Delete",
+                title: "Move incident to Recently Deleted?",
+                text: "The report will be safely moved to Recently Deleted. It can be restored at any time.",
+                confirmText: "Move to Trash",
             });
             if (!ok) return;
 
             button.disabled = true;
             try {
-                await deleteDoc(doc(db, "incidents", id));
+                await updateDoc(doc(db, "incidents", id), {
+                    isDeleted: true,
+                    deletedAt: serverTimestamp(),
+                    deletedBy: auth.currentUser?.uid || null,
+                    deletedByEmail: auth.currentUser?.email || null,
+                });
+                try {
+                    await logAudit("incident_soft_deleted", { incidentId: id });
+                } catch {}
                 removeRowFromTable(id);
-                toastSuccess("Incident deleted");
+                toastSuccess("Incident moved to Recently Deleted");
             } catch (err) {
-                console.error("[incident-modal] delete", err);
+                console.error("[incident-modal] soft-delete error", err);
                 toastError(err?.message || "Failed to delete incident");
                 button.disabled = false;
             }

@@ -629,7 +629,11 @@ export async function loadIncidentsTable() {
   );
 
   const snap = await getDocs(q);
-  allDocs = snap.docs.filter((docSnap) => hasIncidentAccess(docSnap.data()));
+
+  allDocs = snap.docs.filter((docSnap) => {
+    const d = docSnap.data() || {};
+    return !d.isDeleted && !d.deletedAt && !d.archivedAt && hasIncidentAccess(d);
+  });
 
   // Check initial URL filter query (e.g. ?filter=today from Dashboard)
   const urlParams = new URLSearchParams(window.location.search);
