@@ -6,9 +6,20 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+// [QA-FIX #11] With edge-to-edge on, RN 0.81 Modals are drawn under the
+// Android navigation bar (ReactModalHostView forces it), so bottom sheets need
+// the bottom inset added to their own bottom padding.
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+// [QA-FIX #11] The sheet's own bottom padding, whichever key the caller used.
+const getBasePaddingBottom = (style) => {
+  const flat = StyleSheet.flatten(style) || {};
+  const value = flat.paddingBottom ?? flat.paddingVertical ?? flat.padding ?? 0;
+  return typeof value === 'number' ? value : 0;
+};
 
 const SmoothModal = ({
   visible,
@@ -18,6 +29,7 @@ const SmoothModal = ({
   overlayStyle,
   contentStyle,
 }) => {
+  const insets = useSafeAreaInsets();
   const [isMounted, setIsMounted] = useState(visible);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -94,11 +106,10 @@ const SmoothModal = ({
       animationType="none"
       onRequestClose={onRequestClose}
     >
-      <KeyboardAvoidingView
-        style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        enabled={Platform.OS === 'ios'}
-      >
+      {/* Keyboard-controller's version works on Android edge-to-edge too, so
+          bottom-sheet inputs (reset email, barangay search, password change)
+          stay above the keyboard on both platforms. */}
+      <KeyboardAvoidingView style={styles.keyboardContainer} behavior="padding">
         <Animated.View
           style={[
             styles.overlay,
@@ -114,6 +125,10 @@ const SmoothModal = ({
           <Animated.View
             style={[
               contentStyle,
+              // [QA-FIX #11] Bottom sheets only; centered dialogs don't touch the nav bar.
+              position === 'bottom' && insets.bottom > 0
+                ? { paddingBottom: getBasePaddingBottom(contentStyle) + insets.bottom }
+                : null,
               {
                 opacity: contentOpacity,
                 transform: [

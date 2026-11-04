@@ -3,7 +3,6 @@ import {
   Animated,
   Easing,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   StatusBar,
   Text,
@@ -11,11 +10,15 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+// [QA-FIX #11] RN's SafeAreaView is a no-op on Android; the bottom inset now
+// keeps "Back to Home" clear of the system navigation bar.
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HOLD_DURATION = 3000;
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
 const SOSGatewayScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const holdProgress = useRef(new Animated.Value(0)).current;
   const [isHolding, setIsHolding] = useState(false);
   const completedRef = useRef(false);
@@ -69,7 +72,7 @@ const SOSGatewayScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingBottom: insets.bottom }]}>
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
@@ -147,7 +150,7 @@ const SOSGatewayScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

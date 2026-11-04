@@ -513,7 +513,10 @@ export function evaluateIncidentLegitimacy(data = {}) {
     }
 
     // 5. Evidence & Direct Distress Signals
-    const hasMedia = Boolean(data.mediaUrl || data.imageUrl || data.photoDataUrl || (Array.isArray(data.images) && data.images.length > 0));
+    // [QA-FIX #6] hasEvidencePhoto added: new mobile reports keep the photo in
+    // incident_evidence/{id} and only flag it on the incident. Without this,
+    // reports with photos would lose the +25 media credibility score.
+    const hasMedia = Boolean(data.mediaUrl || data.imageUrl || data.photoURL || data.photoDataUrl || data.hasEvidencePhoto === true || (Array.isArray(data.photoUrls) && data.photoUrls.length > 0) || (Array.isArray(data.images) && data.images.length > 0));
     if (hasMedia) {
         credibilityScore += 25;
         reasons.push("Photographic / media evidence attached");

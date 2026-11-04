@@ -1,17 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, AppState } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+// [QA-FIX #11] Safe-area insets for edge-to-edge Android (bottom bars were
+// drawn under the system navigation buttons).
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableFreeze, enableScreens } from 'react-native-screens';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './utils/firebase';
-import { handleLogout as authLogout, syncEmailVerification } from './utils/auth';
-import { registerForPushNotificationsAsync, addNotificationResponseReceivedListener } from './utils/notifications';
+import { handleLogout as authLogout, syncEmailVerification, isSignupInProgress } from './utils/auth';
+import {
+  registerForPushNotificationsAsync,
+  addNotificationResponseReceivedListener,
+  getLastNotificationResponse,
+  unregisterPushToken,
+} from './utils/notifications';
+import { withTimeout } from './utils/async';
 import LoginScreen from './LoginScreen';
 import SignUpScreen from './SignUpScreen';
 import MainNavigator from './navigation/MainNavigator';
 
 enableScreens(true);
 enableFreeze(true);
+
+// [QA-FIX #16] Navigation ref so a notification tap can open a screen from
+// outside the navigator, including a tap that cold-started the app.
+const navigationRef = createNavigationContainerRef();
+
+// [QA-FIX #16] Where a tapped notification should lead. nearby_incident pushes
+// come from the sendNearbyIncidentAlert Cloud Function and are listed in
+// Alerts; everything else is about the user's own report (Status).
+const getNotificationTarget = (data) => {
+  if (!data || typeof data !== 'object') return null;
+  if (data.type === 'nearby_incident') return 'Alerts';
+  return 'Status';
+};
 
 // Simple Error Boundary Component to prevent unexpected unhandled crashes
 class ErrorBoundary extends React.Component {
@@ -46,14 +70,45 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('login');
+  // [QA-FIX #16] A notification target waiting for the navigator to be ready
+  // (cold start, or a tap that arrived while the user was still logging in).
+  const pendingNotificationTargetRef = useRef(null);
+
+  // [QA-FIX #16] Navigate now if possible, otherwise remember it for onReady.
+  const openNotificationTarget = useCallback((data) => {
+    const target = getNotificationTarget(data);
+    if (!target) return;
+    if (navigationRef.isReady()) {
+      navigationRef.navigate(target);
+    } else {
+      pendingNotificationTargetRef.current = target;
+    }
+  }, []);
+
+  const handleNavigationReady = useCallback(() => {
+    const target = pendingNotificationTargetRef.current;
+    if (target) {
+      pendingNotificationTargetRef.current = null;
+      navigationRef.navigate(target);
+    }
+  }, []);
 
   useEffect(() => {
     let responseSubscription = null;
+    let isActive = true;
 
     // Listen to Firebase authentication state changes.
     // AsyncStorage persistence automatically checks for an existing session on app startup.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
+        // [QA-FIX #2] While SignUpScreen is creating the account, the new user
+        // is briefly signed in. Ignore that so SignUpScreen stays mounted and
+        // can show "Account Created"; handleSignup signs out when it's done.
+        // (This also skips the push-permission prompt mid-signup.)
+        if (isSignupInProgress()) {
+          setIsLoadingAuth(false);
+          return;
+        }
         setIsAuthenticated(true);
         // Automatically ensure verification state is synchronized with Firestore profile
         syncEmailVerification().catch((syncErr) => {
@@ -79,16 +134,24 @@ export default function App() {
     });
 
     try {
+      // [QA-FIX #16] A notification tap used to only log; it now opens the screen.
       responseSubscription = addNotificationResponseReceivedListener((response) => {
-        const data = response?.notification?.request?.content?.data;
-        console.log('[PUSH] Notification tapped with data:', data);
+        openNotificationTarget(response?.notification?.request?.content?.data);
       });
     } catch (e) {
       // Ignore if not supported in environment
     }
 
+    // [QA-FIX #16] Handle the notification that launched the app from a closed state.
+    getLastNotificationResponse().then((response) => {
+      if (isActive && response) {
+        openNotificationTarget(response?.notification?.request?.content?.data);
+      }
+    });
+
     // Clean up the subscriptions on unmount to prevent memory leaks
     return () => {
+      isActive = false;
       unsubscribe();
       if (appStateSub?.remove) {
         appStateSub.remove();
@@ -97,14 +160,26 @@ export default function App() {
         responseSubscription.remove();
       }
     };
+  }, [openNotificationTarget]);
+
+  // Stable callbacks so child effects (e.g. SignUpScreen's BackHandler) don't
+  // re-subscribe every time App re-renders.
+  const handleLoginSuccess = useCallback(() => {
+    setIsAuthenticated(true);
   }, []);
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
+  const goToSignUp = useCallback(() => setCurrentScreen('signup'), []);
+  const goToLogin = useCallback(() => setCurrentScreen('login'), []);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
+      // [QA-FIX #5d] Detach this phone's push token before signing out, so a
+      // logged-out phone stops receiving that user's alerts. Capped at 3 s
+      // because Firestore writes never settle while offline; logout must not hang.
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await withTimeout(unregisterPushToken(uid), 3000);
+      }
       await authLogout();
     } catch (error) {
       console.error('[AUTH] Sign out error:', error);
@@ -112,7 +187,7 @@ export default function App() {
       setIsAuthenticated(false);
       setCurrentScreen('login');
     }
-  };
+  }, []);
 
   if (isLoadingAuth) {
     return (
@@ -125,22 +200,30 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {!isAuthenticated ? (
-        <View style={styles.container}>
-          {currentScreen === 'login' ? (
-            <LoginScreen 
-              onNavigateToSignUp={() => setCurrentScreen('signup')}
-              onLoginSuccess={handleLoginSuccess}
-            />
-          ) : (
-            <SignUpScreen onNavigateToLogin={() => setCurrentScreen('login')} />
-          )}
-        </View>
-      ) : (
-        <NavigationContainer>
-          <MainNavigator onLogout={handleLogout} />
-        </NavigationContainer>
-      )}
+      {/* [QA-FIX #11] Provides safe-area insets to every screen/component. */}
+      <SafeAreaProvider>
+      {/* Edge-to-edge Android: the window no longer resizes for the keyboard,
+          so keyboard insets come from this provider instead. */}
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent>
+        {!isAuthenticated ? (
+          <View style={styles.container}>
+            {currentScreen === 'login' ? (
+              <LoginScreen
+                onNavigateToSignUp={goToSignUp}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            ) : (
+              <SignUpScreen onNavigateToLogin={goToLogin} />
+            )}
+          </View>
+        ) : (
+          // [QA-FIX #16] ref + onReady let notification taps navigate.
+          <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
+            <MainNavigator onLogout={handleLogout} />
+          </NavigationContainer>
+        )}
+      </KeyboardProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

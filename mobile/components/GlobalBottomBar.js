@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+// [QA-FIX #11] Bottom inset so the bar clears Android's 3-button / gesture nav.
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * GlobalBottomBar
@@ -12,19 +14,16 @@ const GlobalBottomBar = ({ navigation, activeTab = 'Home', userLocation = null }
   const isHome = activeTab === 'Home';
   const isReports = activeTab === 'Status' || activeTab === 'Reports';
 
-  const handleSOSPress = async () => {
-    try {
-      if (userLocation) {
-        navigation.navigate('SOSReport', { userLocation });
-        return;
-      }
-      const { getCurrentLocation } = require('../utils/location');
-      const location = await getCurrentLocation();
-      navigation.navigate('SOSReport', { userLocation: location });
-    } catch (error) {
-      console.error('[SOS] Error obtaining location for emergency dispatch:', error);
-      navigation.navigate('SOSReport');
-    }
+  const insets = useSafeAreaInsets();
+
+  // [QA-FIX #3, #4] Open the SOS screen immediately. It used to await a GPS
+  // fix first (no timeout), so the button could do nothing for many seconds.
+  // SOSReportScreen now always takes its own fresh fix; a location passed here
+  // is only an instant preview. Callers must pass a REAL fix or nothing (Home
+  // used to pass its Valenzuela-center map default, which could be submitted
+  // as the emergency location).
+  const handleSOSPress = () => {
+    navigation.navigate('SOSReport', userLocation ? { userLocation } : undefined);
   };
 
   const handleNavigate = (screenName) => {
@@ -40,7 +39,8 @@ const GlobalBottomBar = ({ navigation, activeTab = 'Home', userLocation = null }
         end={{ x: 1, y: 0 }}
         style={styles.topLaserLine}
       />
-      <View style={styles.bottomNavBar}>
+      {/* [QA-FIX #11] Keep the original 16px bottom padding, plus the system nav inset. */}
+      <View style={[styles.bottomNavBar, { paddingBottom: 16 + insets.bottom }]}>
         <TouchableOpacity
           style={styles.navBottomItem}
           onPress={() => handleNavigate('Home')}

@@ -7,15 +7,19 @@
  */
 
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import { doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
+import { auth, db } from './firebase';
 
 // Configure foreground presentation behavior
+// [QA-FIX #19] SDK 54 replaced the deprecated `shouldShowAlert` with
+// `shouldShowBanner` + `shouldShowList`.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -50,6 +54,13 @@ export async function setupNotificationChannels() {
   }
 }
 
+// [QA-FIX #5c] EAS project id, required by getExpoPushTokenAsync in
+// standalone builds (without it the Expo token call throws).
+const getEasProjectId = () =>
+  Constants?.expoConfig?.extra?.eas?.projectId ||
+  Constants?.easConfig?.projectId ||
+  undefined;
+
 /**
  * Request notification permissions and register the device FCM push token with Firebase
  * @param {string} userId - Current authenticated user UID
@@ -80,7 +91,8 @@ export async function registerForPushNotificationsAsync(userId) {
       return { fcmToken: null, pushToken: null };
     }
 
-    // 1. Get native Firebase Cloud Messaging (FCM) device token
+    // 1. Get native Firebase Cloud Messaging (FCM) device token.
+    //    Needs mobile/google-services.json in the build (see app.json).
     try {
       const deviceTokenData = await Notifications.getDevicePushTokenAsync();
       fcmToken = deviceTokenData?.data || null;
@@ -88,34 +100,63 @@ export async function registerForPushNotificationsAsync(userId) {
       console.log('[Notifications] Native FCM token resolution note:', fcmErr?.message);
     }
 
-    // 2. Get Expo Push Token as reliable fallback
+    // 2. Get the Expo push token too (kept separately, see below).
     try {
-      const expoTokenData = await Notifications.getExpoPushTokenAsync();
+      const projectId = getEasProjectId();
+      const expoTokenData = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
       pushToken = expoTokenData?.data || null;
     } catch (expoErr) {
       console.log('[Notifications] Expo push token resolution note:', expoErr?.message);
     }
 
-    const activeToken = fcmToken || pushToken;
-
-    // 3. Sync token into Firestore user record so Cloud Functions can dispatch alerts
-    if (userId && activeToken) {
-      const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, {
-        fcmToken: activeToken,
-        pushToken: activeToken,
+    // [QA-FIX #5c] Each token goes in its own field. Before, the Expo token was
+    // written into `fcmToken` when no FCM token existed, but the Cloud Function
+    // sends with admin.messaging() (FCM), which rejects Expo tokens.
+    // [QA-FIX #5d] Only write while this user is still the signed-in user, so a
+    // registration that finishes after logout can't re-attach the token.
+    if (userId && (fcmToken || pushToken) && auth.currentUser?.uid === userId) {
+      const updates = {
         pushNotificationsEnabled: true,
         lastTokenRegisteredAt: serverTimestamp(),
-      }).catch((updateErr) => {
-        console.warn('[Notifications] Failed updating user fcmToken in Firestore:', updateErr?.message);
+      };
+      if (fcmToken) {
+        updates.fcmToken = fcmToken;
+        updates.pushToken = fcmToken;
+      }
+      if (pushToken) {
+        updates.expoPushToken = pushToken;
+      }
+      // [QA-FIX #5a] This write used to be rejected by firestore.rules because
+      // these fields were missing from the owner-update allow-list.
+      await updateDoc(doc(db, 'users', userId), updates).catch((updateErr) => {
+        console.warn('[Notifications] Failed updating push tokens in Firestore:', updateErr?.message);
       });
-      console.log('[Notifications] Push notification token successfully registered for user:', userId);
     }
 
     return { fcmToken, pushToken };
   } catch (error) {
     console.error('[Notifications] Error registering for push notifications:', error);
     return { fcmToken: null, pushToken: null };
+  }
+}
+
+/**
+ * [QA-FIX #5d] Detach this device's push tokens from the user's profile.
+ * Called on logout BEFORE signOut (the rules need the user to be signed in).
+ * Never throws: logout must always succeed even when offline.
+ * @param {string} userId
+ */
+export async function unregisterPushToken(userId) {
+  if (!userId) return;
+  try {
+    await updateDoc(doc(db, 'users', userId), {
+      fcmToken: deleteField(),
+      pushToken: deleteField(),
+      expoPushToken: deleteField(),
+      pushNotificationsEnabled: false,
+    });
+  } catch (error) {
+    console.warn('[Notifications] Unable to clear push token on logout:', error?.message || error);
   }
 }
 
@@ -143,7 +184,9 @@ export async function scheduleLocalNotification({
         color: '#dc2626',
         priority: Notifications.AndroidNotificationPriority.HIGH,
       },
-      trigger: null, // deliver immediately
+      // [QA-FIX #19] Deliver immediately on the requested Android channel.
+      // `channelId` was accepted before but never used.
+      trigger: Platform.OS === 'android' ? { channelId } : null,
     });
   } catch (error) {
     console.warn('[Notifications] Failed to schedule local notification:', error?.message);
@@ -162,4 +205,16 @@ export function addNotificationReceivedListener(callback) {
  */
 export function addNotificationResponseReceivedListener(callback) {
   return Notifications.addNotificationResponseReceivedListener(callback);
+}
+
+/**
+ * [QA-FIX #16] The notification that cold-started the app (if any), so a tap
+ * on a notification while the app was closed still opens the right screen.
+ */
+export async function getLastNotificationResponse() {
+  try {
+    return await Notifications.getLastNotificationResponseAsync();
+  } catch (_) {
+    return null;
+  }
 }

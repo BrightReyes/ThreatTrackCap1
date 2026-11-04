@@ -340,7 +340,15 @@ service cloud.firestore {
                         'falseReportAcknowledged',
                         'falseReportAcknowledgedAt',
                         'notificationPreferences',
-                        'notificationPreferencesUpdatedAt'
+                        'notificationPreferencesUpdatedAt',
+                        // [QA-FIX #5a] Push token fields written by the mobile app
+                        // (utils/notifications.js). Without these the token save
+                        // was silently rejected and no push could ever be delivered.
+                        'fcmToken',
+                        'expoPushToken',
+                        'pushToken',
+                        'pushNotificationsEnabled',
+                        'lastTokenRegisteredAt'
                       ])) ||
                    (canManageTargetUserProfile(resource.data.get('role', 'user')) &&
                     canManageTargetUserProfile(request.resource.data.get('role', 'user')) &&
@@ -434,6 +442,32 @@ service cloud.firestore {
 
       // Users can delete their own pending incidents
       allow delete: if isOwner(resource.data.reporterId) && resource.data.status == 'pending';
+    }
+
+    // === INCIDENT EVIDENCE COLLECTION ===
+    // [QA-FIX #6] Evidence photos (inline base64 JPEG) live here, one doc per
+    // incident with the same id, instead of inside the public incident doc.
+    // Home listens to the latest 50 incidents; with photos inside them that
+    // could be ~30 MB of downloads. This keeps everything on the free Spark
+    // plan (Firestore only, no Cloud Storage / Cloud Functions needed).
+    match /incident_evidence/{incidentId} {
+      // Only the reporter and staff can see the photo.
+      allow read: if isAuthenticated() &&
+                  (resource.data.reporterId == request.auth.uid ||
+                   isAdmin() || isPoliceAdmin());
+
+      // Written by the app in the SAME batch as the incident. getAfter() sees
+      // the incident from that batch and confirms it belongs to the uploader.
+      // Photo format/size checks are the existing isValidInlineEvidencePhoto().
+      allow create: if isAuthenticated() &&
+                    request.resource.data.reporterId == request.auth.uid &&
+                    request.resource.data.incidentId == incidentId &&
+                    request.resource.data.keys().hasAll(['photoDataUrl']) &&
+                    getAfter(/databases/$(database)/documents/incidents/$(incidentId)).data.reporterId == request.auth.uid &&
+                    isValidInlineEvidencePhoto();
+
+      // Staff clear evidence when an incident is marked done or purged.
+      allow update, delete: if isAdmin() || isPoliceAdmin();
     }
 
     // === INCIDENTS ARCHIVE COLLECTION ===

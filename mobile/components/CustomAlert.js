@@ -137,12 +137,21 @@ const CustomAlert = ({
     }
   }, [radarOpacity, radarScale, visible]);
 
+  // [QA-FIX #14] Latest callbacks/buttons kept in refs. Parents pass a new
+  // `buttons` array and `onClose` function on every render; with those in the
+  // effect deps, each parent re-render (e.g. every GPS ping on Home during an
+  // SOS) restarted the timer, so auto-close alerts could stay up forever.
+  const onCloseRef = useRef(onClose);
+  const buttonsRef = useRef(buttons);
+  onCloseRef.current = onClose;
+  buttonsRef.current = buttons;
+
   // Auto-close handling
   useEffect(() => {
     if (visible && autoCloseDelay > 0) {
       timerRef.current = setTimeout(() => {
-        if (buttons.length === 0) {
-          onClose();
+        if (!buttonsRef.current || buttonsRef.current.length === 0) {
+          onCloseRef.current?.();
         }
       }, autoCloseDelay);
     }
@@ -152,16 +161,19 @@ const CustomAlert = ({
         clearTimeout(timerRef.current);
       }
     };
-  }, [visible, autoCloseDelay, buttons, onClose]);
+  }, [visible, autoCloseDelay]);
 
   const handleButtonPress = (button) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
+    // [QA-FIX #13] Close first, THEN run the button action. The old order
+    // (onPress, then onClose) hid any alert the action opened right away,
+    // e.g. "Submit Without Photo" / "Retry" follow-up alerts.
+    onClose();
     if (button.onPress) {
       button.onPress();
     }
-    onClose();
   };
 
   const handleManualClose = () => {

@@ -5,7 +5,7 @@
  */
 
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { withTimeout } from './async';
 
 // Note: Alert dialogs should be handled by calling screens using CustomAlert
 // This utility file focuses on location logic only
@@ -44,14 +44,42 @@ export const checkLocationPermission = async () => {
   }
 };
 
+// [QA-FIX #4] One place that shapes a location result. The extra fields
+// (accuracy, isApproximate, timestamp) are additive; existing callers only
+// read latitude/longitude/latitudeDelta/longitudeDelta.
+const toLocationResult = (position, isApproximate) => ({
+  latitude: position.coords.latitude,
+  longitude: position.coords.longitude,
+  accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+  isApproximate,
+  timestamp: position.timestamp || null,
+  latitudeDelta: 0.0922,
+  longitudeDelta: 0.0421,
+});
+
 /**
- * Get the user's current location
- * @returns {Promise<Object|null>} Location object or null if failed
+ * Get the user's current location.
+ *
+ * [QA-FIX #4] Bounded wait. getCurrentPositionAsync has no timeout of its own
+ * and can hang for a long time indoors or with weak GPS, which froze the SOS
+ * buttons and left "Locking location..." spinning. Now it waits at most
+ * `timeoutMs`, then falls back to the phone's last known position (flagged
+ * `isApproximate: true`). It never invents a default location: with no fix
+ * at all it returns null and the caller decides what to show.
+ *
+ * @param {Object} [options]
+ * @param {number} [options.timeoutMs=12000] Max wait for a fresh fix.
+ * @param {number} [options.accuracy] expo-location Accuracy (default Balanced).
+ * @returns {Promise<Object|null>} { latitude, longitude, accuracy, isApproximate,
+ *   timestamp, latitudeDelta, longitudeDelta } or null if no fix is available.
  */
-export const getCurrentLocation = async () => {
+export const getCurrentLocation = async ({
+  timeoutMs = 12000,
+  accuracy = Location.Accuracy.Balanced,
+} = {}) => {
   try {
     const hasPermission = await checkLocationPermission();
-    
+
     if (!hasPermission) {
       const granted = await requestLocationPermission();
       if (!granted) {
@@ -59,16 +87,33 @@ export const getCurrentLocation = async () => {
       }
     }
 
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+    let location = null;
+    try {
+      location = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy }),
+        timeoutMs,
+        null
+      );
+    } catch (positionError) {
+      // e.g. location services switched off; try the cached fix below.
+      console.warn('Current position unavailable:', positionError?.message || positionError);
+    }
 
-    return {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      latitudeDelta: 0.0922,
-      longitudeDelta: 0.0421,
-    };
+    if (location?.coords) {
+      return toLocationResult(location, false);
+    }
+
+    // [QA-FIX #4] Fallback: last known position (instant, may be older or less precise).
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown?.coords) {
+        return toLocationResult(lastKnown, true);
+      }
+    } catch (lastKnownError) {
+      console.warn('Last known position unavailable:', lastKnownError?.message || lastKnownError);
+    }
+
+    return null;
   } catch (error) {
     console.error('Error getting current location:', error);
     // Calling screens should handle showing user-friendly error messages
@@ -131,7 +176,7 @@ export const getFastLocation = async () => {
  * @param {Function} callback Function to call when location changes
  * @returns {Promise<Object>} Location subscription object
  */
-export const watchLocation = async (callback) => {
+export const watchLocation = async (callback, { accuracy = Location.Accuracy.Balanced } = {}) => {
   try {
     const hasPermission = await checkLocationPermission();
     
@@ -144,7 +189,8 @@ export const watchLocation = async (callback) => {
 
     const subscription = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.Balanced,
+        // [QA-FIX #3] Accuracy is now configurable (SOS tracking asks for High).
+        accuracy,
         timeInterval: 10000, // Update every 10 seconds
         distanceInterval: 50, // Update every 50 meters
       },
@@ -152,6 +198,8 @@ export const watchLocation = async (callback) => {
         callback({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
+          // [QA-FIX #3] Additive: lets the SOS stream report fix accuracy.
+          accuracy: Number.isFinite(location.coords.accuracy) ? location.coords.accuracy : null,
         });
       }
     );
@@ -226,12 +274,19 @@ export const isLocationEnabled = async () => {
  * @param {number} longitude Longitude coordinate
  * @returns {Promise<string|null>} Address string or null if failed
  */
-export const getAddressFromCoordinates = async (latitude, longitude) => {
+export const getAddressFromCoordinates = async (latitude, longitude, { timeoutMs = 2500 } = {}) => {
   try {
-    const addresses = await Location.reverseGeocodeAsync({
-      latitude,
-      longitude,
-    });
+    // [QA-FIX #9] Bounded wait. Reverse geocoding goes over the network and
+    // used to block SOS/report submission with no limit (forever when offline).
+    // On timeout this returns null and callers use their fallback address.
+    const addresses = await withTimeout(
+      Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      }),
+      timeoutMs,
+      null
+    );
 
     if (addresses && addresses.length > 0) {
       const address = addresses[0];

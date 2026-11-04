@@ -10,7 +10,7 @@ import {
   Image,
   StatusBar,
 } from 'react-native';
-import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { auth, db } from '../utils/firebase';
@@ -142,6 +142,11 @@ const getStatusMeta = (status) => {
   return STATUS_META[status] || STATUS_META.pending;
 };
 
+// [QA-FIX #6] Photos of new reports live in incident_evidence/{incidentId}
+// (flag: hasEvidencePhoto); older reports still carry an inline photoDataUrl.
+const getInlinePhotoUri = (incident) => incident?.photoDataUrl || incident?.photoURL || null;
+const hasAnyEvidencePhoto = (incident) => Boolean(getInlinePhotoUri(incident) || incident?.hasEvidencePhoto === true);
+
 const StatusScreen = ({ navigation }) => {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +154,9 @@ const StatusScreen = ({ navigation }) => {
   const [stats, setStats] = useState({ verified: 0, under_review: 0, rejected: 0, total: 0 });
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  // [QA-FIX #6] Evidence photos loaded on demand, cached per incident id
+  // (null = no photo found, e.g. cleared after the report was marked done).
+  const [evidencePhotos, setEvidencePhotos] = useState({});
 
   // Pagination & Filter States
   const [activeFilter, setActiveFilter] = useState('all');
@@ -426,6 +434,36 @@ const StatusScreen = ({ navigation }) => {
     return 'Location not specified';
   };
 
+  // [QA-FIX #6] Load the photo only when the details sheet opens, so the
+  // reports list never downloads photos (one read per opened report).
+  const selectedIncidentId = selectedIncident?.id;
+  const selectedNeedsEvidence = Boolean(
+    detailsVisible &&
+    selectedIncident?.hasEvidencePhoto === true &&
+    !getInlinePhotoUri(selectedIncident)
+  );
+  useEffect(() => {
+    if (!selectedNeedsEvidence || !selectedIncidentId) return undefined;
+    if (Object.prototype.hasOwnProperty.call(evidencePhotos, selectedIncidentId)) return undefined;
+    let cancelled = false;
+    getDoc(doc(db, 'incident_evidence', selectedIncidentId))
+      .then((snap) => {
+        if (cancelled) return;
+        const uri = snap.exists() ? snap.data()?.photoDataUrl || null : null;
+        setEvidencePhotos((prev) => ({ ...prev, [selectedIncidentId]: uri }));
+      })
+      .catch((error) => {
+        // Not cached on error, so reopening the report retries.
+        console.warn('Unable to load evidence photo:', error?.code || error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedNeedsEvidence, selectedIncidentId, evidencePhotos]);
+
+  const selectedPhotoUri = getInlinePhotoUri(selectedIncident) ||
+    (selectedIncidentId ? evidencePhotos[selectedIncidentId] || null : null);
+
   const handleIncidentPress = (incident) => {
     setSelectedIncident(incident);
     setDetailsVisible(true);
@@ -623,7 +661,9 @@ const StatusScreen = ({ navigation }) => {
           </View>
 
           {/* Evidence Photo Preview if available */}
-          {selectedIncident.photoDataUrl ? (
+          {/* [QA-FIX #6] Inline photo (older reports) or the one loaded from
+              incident_evidence (new reports). */}
+          {selectedPhotoUri ? (
             <View style={styles.detailsPhotoSection}>
               <View style={styles.detailsPhotoHeader}>
                 <Text style={styles.detailsSectionLabel}>Photo Evidence Attached</Text>
@@ -634,7 +674,7 @@ const StatusScreen = ({ navigation }) => {
               </View>
               <View style={styles.detailsPhotoWrapper}>
                 <Image
-                  source={{ uri: selectedIncident.photoDataUrl }}
+                  source={{ uri: selectedPhotoUri }}
                   style={styles.detailsPhotoImage}
                   resizeMode="cover"
                 />
@@ -850,7 +890,8 @@ const StatusScreen = ({ navigation }) => {
                     </Text>
 
                     {/* Photo attached indicator if image is present */}
-                    {incident.photoDataUrl ? (
+                    {/* [QA-FIX #6] Legacy inline photo or hasEvidencePhoto flag. */}
+                    {hasAnyEvidencePhoto(incident) ? (
                       <View style={styles.photoAttachedBadge}>
                         <Ionicons name="camera-outline" size={13} color="#991b1b" />
                         <Text style={styles.photoAttachedText}>Photo Evidence Attached</Text>

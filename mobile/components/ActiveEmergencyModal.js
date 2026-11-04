@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
+import { withTimeout } from '../utils/async';
 import SmoothModal from './SmoothModal';
 import { computeInitialDistanceAndEta } from '../utils/responderEta';
 
@@ -126,6 +127,8 @@ const ActiveEmergencyModal = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [confirmSafeVisible, setConfirmSafeVisible] = React.useState(false);
   const [isResolving, setIsResolving] = React.useState(false);
+  // [QA-FIX #7] Shown inside the confirm card when "I'm safe" could not be saved.
+  const [resolveError, setResolveError] = React.useState('');
 
   useEffect(() => {
     let animation;
@@ -178,31 +181,49 @@ const ActiveEmergencyModal = ({
   } = computeInitialDistanceAndEta(incident);
 
   const handleSafePress = () => {
+    setResolveError('');
     setConfirmSafeVisible(true);
   };
 
+  // [QA-FIX #7] Only report "safe" after the write succeeds. Before, a failed
+  // write was swallowed and onResolveSafe() still ran: the SOS vanished on the
+  // phone and GPS stopped, while responders still saw it as active.
+  // Offline note: Firestore applies the change locally right away (Home's
+  // listener then closes the SOS) and sends it when back online; the 12 s cap
+  // only stops the button from spinning forever while that happens.
   const handleConfirmSafeResolution = async () => {
+    if (isResolving) return;
     setIsResolving(true);
+    setResolveError('');
     try {
       if (incident.id) {
         const incidentRef = doc(db, 'incidents', incident.id);
-        await updateDoc(incidentRef, {
-          status: 'done',
-          responseStatus: 'completed',
-          liveStreamingActive: false,
-          distressResolvedAt: serverTimestamp(),
-          completedAt: serverTimestamp(),
-          resolutionReason: 'user_marked_safe',
-        });
+        const result = await withTimeout(
+          updateDoc(incidentRef, {
+            status: 'done',
+            responseStatus: 'completed',
+            liveStreamingActive: false,
+            distressResolvedAt: serverTimestamp(),
+            completedAt: serverTimestamp(),
+            resolutionReason: 'user_marked_safe',
+          }).then(() => 'saved'),
+          12000,
+          'pending'
+        );
+        if (result === 'pending') {
+          setResolveError('Weak connection: your "I am safe" update is queued and will be sent automatically when you are back online.');
+          return;
+        }
       }
-    } catch (err) {
-      console.warn('Could not update safe status in Firestore:', err.message);
-    } finally {
-      setIsResolving(false);
       setConfirmSafeVisible(false);
       if (onResolveSafe) {
         onResolveSafe();
       }
+    } catch (err) {
+      console.warn('Could not update safe status in Firestore:', err?.message || err);
+      setResolveError('Could not reach the server, so responders still see this SOS as active. Please check your connection and tap "Try Again".');
+    } finally {
+      setIsResolving(false);
     }
   };
 
@@ -287,8 +308,9 @@ const ActiveEmergencyModal = ({
             </View>
             <View style={styles.distressTitleBlock}>
               <Text style={styles.distressBadge}>● LIVE DISTRESS STREAMING</Text>
-              <Text style={styles.distressTitle}>Continuous GPS Active</Text>
-              <Text style={styles.distressSubtitle}>First responders have your live position</Text>
+              {/* [QA-FIX #10] Honest copy: streaming is foreground-only. */}
+              <Text style={styles.distressTitle}>Live GPS While App Is Open</Text>
+              <Text style={styles.distressSubtitle}>Keep ThreatTrack open until you are safe</Text>
             </View>
           </View>
 
@@ -386,6 +408,10 @@ const ActiveEmergencyModal = ({
             <Text style={styles.confirmMessage}>
               Are you sure you want to end distress tracking? This will stop continuous GPS streaming and mark your emergency report resolved.
             </Text>
+            {/* [QA-FIX #7] Visible failure instead of silently "resolving". */}
+            {resolveError ? (
+              <Text style={styles.confirmErrorText}>{resolveError}</Text>
+            ) : null}
 
             <View style={styles.confirmActions}>
               <TouchableOpacity
@@ -396,7 +422,7 @@ const ActiveEmergencyModal = ({
               >
                 <Ionicons name="checkmark-circle" size={18} color="#ffffff" style={{ marginRight: 6 }} />
                 <Text style={styles.confirmSafeBtnText}>
-                  {isResolving ? 'Resolving...' : 'Yes, I Am Safe'}
+                  {isResolving ? 'Resolving...' : (resolveError ? 'Try Again' : 'Yes, I Am Safe')}
                 </Text>
               </TouchableOpacity>
 
@@ -872,6 +898,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
     marginBottom: 20,
+  },
+  // [QA-FIX #7] Error line for a failed "I am safe" update.
+  confirmErrorText: {
+    fontSize: 13,
+    color: '#b91c1c',
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
+    marginTop: -10,
+    marginBottom: 16,
   },
   confirmActions: {
     width: '100%',

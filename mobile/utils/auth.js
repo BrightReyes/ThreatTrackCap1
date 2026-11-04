@@ -21,6 +21,15 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
+// [QA-FIX #2] Signup lock. createUserWithEmailAndPassword signs the new user in
+// immediately, which fires App.js onAuthStateChanged and used to swap the
+// SignUpScreen for the main app before the profile was written (and before the
+// "Account Created" alert could show). App.js now ignores signed-in events
+// while this flag is set. It is module-level (not persisted), so a killed app
+// always restarts with the lock released.
+let signupInProgress = false;
+export const isSignupInProgress = () => signupInProgress;
+
 export const validateEmail = (email) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -63,9 +72,14 @@ export const handleLogin = async (email, password) => {
     // Firebase authentication
     const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
     const user = userCredential.user;
-    await reload(user);
+    // [QA-FIX #20] Removed `await reload(user)` here: a fresh sign-in already
+    // returns an up-to-date emailVerified, so the reload was an extra round trip.
 
     let profile = null;
+    // [QA-FIX #1] Declared at function scope. It used to be a `const` inside
+    // the `if (userSnap.exists())` block but was read in the return statement
+    // below, which threw a ReferenceError on every login.
+    let isAlreadyVerified = false;
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
 
@@ -76,7 +90,7 @@ export const handleLogin = async (email, password) => {
         lastLoginAt: new Date().toISOString(),
       };
 
-      const isAlreadyVerified = Boolean(
+      isAlreadyVerified = Boolean(
         profile.isVerified === true ||
         profile.emailVerified === true ||
         String(profile.verificationStatus || '').toLowerCase() === 'approved'
@@ -112,7 +126,8 @@ export const handleLogin = async (email, password) => {
         accountStatus: profile?.accountStatus || 'active',
       },
       profile,
-      token: await user.getIdToken(true)
+      // [QA-FIX #20] Removed `token: await user.getIdToken(true)`. No caller
+      // used it, and forcing a token refresh cost another network call.
     };
   } catch (error) {
     // Handle Firebase errors
@@ -130,21 +145,19 @@ export const handleLogin = async (email, password) => {
 
 export const handleSignup = async (email, password, userData = {}) => {
   const cleanEmail = String(email || '').trim().toLowerCase();
-  console.log('[AUTH] handleSignup called with:', { email: cleanEmail, userData });
+  // [QA-FIX #20] Removed console.log calls that printed the citizen's email,
+  // name, phone and address (PII) to device logs.
 
   // Validate inputs
   if (!cleanEmail || !password) {
-    console.log('[AUTH] Validation failed: missing email or password');
     throw new Error('Please fill in all fields');
   }
 
   if (!validateEmail(cleanEmail)) {
-    console.log('[AUTH] Validation failed: invalid email');
     throw new Error('Please enter a valid email');
   }
 
   if (!validatePassword(password)) {
-    console.log('[AUTH] Validation failed: password too short');
     throw new Error('Password must be at least 6 characters');
   }
 
@@ -168,16 +181,24 @@ export const handleSignup = async (email, password, userData = {}) => {
     throw new Error('Please acknowledge the false report policy');
   }
 
+  // [QA-FIX #2] Hold the signup lock for the whole create -> profile -> email ->
+  // signOut sequence so App.js doesn't mount the main app mid-signup.
+  signupInProgress = true;
+  let createdUser = null;
   try {
-    console.log('[AUTH] Creating user with Firebase...');
     // Create user with Firebase
     const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
     const user = userCredential.user;
-    console.log('[AUTH] User created:', user.uid);
+    createdUser = user;
 
     const displayName = `${userData.firstName} ${userData.lastName}`.trim();
     if (displayName) {
-      await updateProfile(user, { displayName });
+      try {
+        await updateProfile(user, { displayName });
+      } catch (displayNameErr) {
+        // [QA-FIX #2] Non-fatal: the Firestore profile below also stores the name.
+        console.warn('[AUTH] Unable to set display name:', displayNameErr?.code || displayNameErr);
+      }
     }
 
     // Save additional user data to Firestore
@@ -205,26 +226,40 @@ export const handleSignup = async (email, password, userData = {}) => {
       lastReportAt: null,
     };
 
-    console.log('[AUTH] Saving user data to Firestore...');
-    await setDoc(doc(db, 'users', user.uid), userDoc);
-    console.log('[AUTH] User data saved successfully');
+    try {
+      await setDoc(doc(db, 'users', user.uid), userDoc);
+    } catch (profileError) {
+      // [QA-FIX #2] Roll back the auth account if the profile can't be saved.
+      // Before, the account stayed behind without a profile: the email could
+      // not be registered again and every report was blocked ("Profile Required").
+      try {
+        await user.delete();
+      } catch (rollbackError) {
+        console.warn('[AUTH] Signup rollback failed:', rollbackError?.code || rollbackError);
+        try { await signOut(auth); } catch (_) { /* already signed out */ }
+      }
+      createdUser = null;
+      const saveErr = new Error('We could not save your profile. Please check your connection and try again.');
+      saveErr.code = 'app/profile-save-failed';
+      throw saveErr;
+    }
 
     let verificationEmailSent = false;
     try {
       await sendEmailVerification(user);
       verificationEmailSent = true;
-      console.log('[AUTH] Verification email sent');
     } catch (verificationError) {
-      console.error('[AUTH] Verification email failed:', verificationError);
+      console.warn('[AUTH] Verification email failed:', verificationError?.code || verificationError);
     }
 
-    // Explicitly sign out so App.js onAuthStateChanged does NOT prematurely
-    // unmount SignUpScreen before the citizen reads their confirmation alert.
+    // Sign out so the citizen returns to Login after reading the confirmation
+    // alert. The signup lock stops App.js from reacting before this point.
     try {
       await signOut(auth);
     } catch (signOutErr) {
       console.warn('[AUTH] Post-signup sign-out warning:', signOutErr);
     }
+    createdUser = null;
 
     return {
       success: true,
@@ -237,14 +272,24 @@ export const handleSignup = async (email, password, userData = {}) => {
       },
     };
   } catch (error) {
+    // [QA-FIX #2] If something unexpected failed after the account was created,
+    // still sign out so the user isn't left half signed in on the signup screen.
+    if (createdUser) {
+      try { await signOut(auth); } catch (_) { /* ignore */ }
+    }
     // Handle Firebase errors
     if (error.code === 'auth/email-already-in-use') {
       throw new Error('An account with this email already exists');
     } else if (error.code === 'auth/weak-password') {
       throw new Error('Password should be at least 6 characters');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('No internet connection. Please check your connection and try again.');
     } else {
       throw new Error(error.message);
     }
+  } finally {
+    // [QA-FIX #2] Always release the lock, even on failure.
+    signupInProgress = false;
   }
 };
 
@@ -317,9 +362,15 @@ export const getReportEligibility = async () => {
     };
   }
 
-  await reload(currentUser);
-  await currentUser.getIdToken(true);
-
+  // [QA-FIX #9] Faster eligibility check. Before, this always ran reload() +
+  // a forced getIdToken(true) + getDoc + getDocs + profile writes one after
+  // another, which made SOS/report submit slow and failed outright on a weak
+  // connection. Now:
+  //   1. read the profile first;
+  //   2. reload the auth user only when the profile isn't already verified
+  //      (the only case where a fresh emailVerified value matters);
+  //   3. run the prior-report check in parallel with that reload;
+  //   4. self-heal profile writes are fire-and-forget (they never block a report).
   const profileRef = doc(db, 'users', currentUser.uid);
   const profileSnap = await getDoc(profileRef);
   const profile = profileSnap.exists() ? profileSnap.data() : null;
@@ -330,18 +381,38 @@ export const getReportEligibility = async () => {
     String(profile?.verificationStatus || '').toLowerCase() === 'approved'
   );
 
+  const needsPriorReportCheck = Boolean(profile) && !(Number(profile?.reportCount || 0) > 0);
+  const [, priorReportFromQuery] = await Promise.all([
+    isProfileAlreadyVerified
+      ? Promise.resolve()
+      : reload(currentUser).catch((reloadErr) => {
+        console.warn('[AUTH] Unable to refresh verification state:', reloadErr?.code || reloadErr);
+      }),
+    needsPriorReportCheck
+      ? getDocs(query(
+        collection(db, 'incidents'),
+        where('reporterId', '==', currentUser.uid),
+        limit(1)
+      ))
+        .then((snap) => !snap.empty)
+        .catch((queryErr) => {
+          console.warn('[AUTH] Prior report query error:', queryErr);
+          return false;
+        })
+      : Promise.resolve(false),
+  ]);
+
   if (profileSnap.exists() && profile.emailVerified !== currentUser.emailVerified) {
     // Only synchronize if Firebase Auth is verified; never revoke an HQ administrative override
     if (currentUser.emailVerified || !isProfileAlreadyVerified) {
-      try {
-        await updateDoc(profileRef, {
-          emailVerified: currentUser.emailVerified,
-          isVerified: currentUser.emailVerified,
-          lastVerificationCheckAt: new Date().toISOString(),
-        });
-      } catch (profileUpdateError) {
+      // [QA-FIX #9] Fire-and-forget: the report must not wait on this write.
+      updateDoc(profileRef, {
+        emailVerified: currentUser.emailVerified,
+        isVerified: currentUser.emailVerified,
+        lastVerificationCheckAt: new Date().toISOString(),
+      }).catch((profileUpdateError) => {
         console.warn('[AUTH] Unable to update verification metadata:', profileUpdateError);
-      }
+      });
     }
   }
 
@@ -355,15 +426,15 @@ export const getReportEligibility = async () => {
 
   // If citizen account is already verified by HQ or email, ensure false report policy acknowledgment is populated
   if (isProfileAlreadyVerified && profile.falseReportAcknowledged !== true) {
-    try {
-      await updateDoc(profileRef, {
-        falseReportAcknowledged: true,
-        falseReportAcknowledgedAt: new Date().toISOString(),
-      });
-      profile.falseReportAcknowledged = true;
-    } catch (healErr) {
+    // [QA-FIX #9] Fire-and-forget self-heal. The local value is set right away
+    // so the policy check below passes without waiting for the write.
+    profile.falseReportAcknowledged = true;
+    updateDoc(profileRef, {
+      falseReportAcknowledged: true,
+      falseReportAcknowledgedAt: new Date().toISOString(),
+    }).catch((healErr) => {
       console.warn('[AUTH] Unable to auto-heal falseReportAcknowledged:', healErr);
-    }
+    });
   }
 
   const isSuspendedOrBanned =
@@ -400,20 +471,8 @@ export const getReportEligibility = async () => {
   }
 
   // Check if user has already submitted at least one report
-  let hasPriorReport = Number(profile.reportCount || 0) > 0;
-  if (!hasPriorReport) {
-    try {
-      const q = query(
-        collection(db, 'incidents'),
-        where('reporterId', '==', currentUser.uid),
-        limit(1)
-      );
-      const snap = await getDocs(q);
-      hasPriorReport = !snap.empty;
-    } catch (queryErr) {
-      console.warn('[AUTH] Prior report query error:', queryErr);
-    }
-  }
+  // [QA-FIX #9] The query result now comes from the parallel check above.
+  const hasPriorReport = Number(profile.reportCount || 0) > 0 || priorReportFromQuery === true;
 
   const isAccountVerified = Boolean(
     currentUser.emailVerified ||

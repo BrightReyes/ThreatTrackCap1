@@ -1,12 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   ScrollView,
   Image,
@@ -18,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { handleSignup } from './utils/auth';
 import CustomAlert from './components/CustomAlert';
 import SmoothModal from './components/SmoothModal';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import FormField from './components/FormField';
+import KeyboardAwareForm from './components/KeyboardAwareForm';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 const APP_LOGO = require('./assets/icons/Threat Track Logo Red.png');
@@ -73,7 +74,14 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
+
+  // Explicit "Next" chaining. Focus only moves when the user presses Next.
+  const emailRef = useRef(null);
+  const phoneRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
+  const focusEmail = useCallback(() => emailRef.current?.focus(), []);
+  const focusPhone = useCallback(() => phoneRef.current?.focus(), []);
+  const focusConfirmPassword = useCallback(() => confirmPasswordRef.current?.focus(), []);
 
   // Barangay Searchable Modal States
   const [barangayModalVisible, setBarangayModalVisible] = useState(false);
@@ -215,17 +223,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
     <>
       <StatusBar barStyle="light-content" backgroundColor="#991b1b" translucent />
       <View style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          enabled={Platform.OS === 'ios'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-          >
+        <KeyboardAwareForm contentContainerStyle={styles.scrollContent}>
             {/* Branded ThreatTrack Crimson Hero Banner */}
             <LinearGradient
               colors={['#991b1b', '#dc2626']}
@@ -267,72 +265,54 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
                 </View>
 
                 {/* Full Name */}
-                <Text style={styles.fieldLabel}>Full Legal Name</Text>
-                <View style={[styles.inputWrap, focusedField === 'fullName' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="person-outline"
-                    size={19}
-                    color={focusedField === 'fullName' ? '#dc2626' : '#64748b'}
-                    style={styles.inputLeadingIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="e.g. Juan Dela Cruz"
-                    placeholderTextColor="#94a3b8"
-                    value={fullName}
-                    onChangeText={setFullName}
-                    onFocus={() => setFocusedField('fullName')}
-                    onBlur={() => setFocusedField(null)}
-                    autoCapitalize="words"
-                    editable={!loading}
-                  />
-                </View>
+                <FormField
+                  label="Full Legal Name"
+                  icon="person-outline"
+                  placeholder="e.g. Juan Dela Cruz"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={focusEmail}
+                  editable={!loading}
+                />
 
                 {/* Email Address */}
-                <Text style={styles.fieldLabel}>Email Address</Text>
-                <View style={[styles.inputWrap, focusedField === 'email' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="mail-outline"
-                    size={19}
-                    color={focusedField === 'email' ? '#dc2626' : '#64748b'}
-                    style={styles.inputLeadingIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="name@example.com"
-                    placeholderTextColor="#94a3b8"
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!loading}
-                  />
-                </View>
+                <FormField
+                  ref={emailRef}
+                  label="Email Address"
+                  icon="mail-outline"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                  textContentType="emailAddress"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={focusPhone}
+                  editable={!loading}
+                />
 
                 {/* Phone Number */}
-                <Text style={styles.fieldLabel}>Mobile Phone Number</Text>
-                <View style={[styles.inputWrap, focusedField === 'phone' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="call-outline"
-                    size={19}
-                    color={focusedField === 'phone' ? '#dc2626' : '#64748b'}
-                    style={styles.inputLeadingIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="0917 123 4567"
-                    placeholderTextColor="#94a3b8"
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    onFocus={() => setFocusedField('phone')}
-                    onBlur={() => setFocusedField(null)}
-                    keyboardType="phone-pad"
-                    editable={!loading}
-                  />
-                </View>
+                <FormField
+                  ref={phoneRef}
+                  label="Mobile Phone Number"
+                  icon="call-outline"
+                  placeholder="0917 123 4567"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  textContentType="telephoneNumber"
+                  returnKeyType="done"
+                  editable={!loading}
+                />
               </View>
 
               {/* SECTION 2: VALENZUELA RESIDENCY */}
@@ -373,27 +353,21 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
                 </TouchableOpacity>
 
                 {/* Complete Street Address */}
-                <Text style={styles.fieldLabel}>Street Address / House No.</Text>
-                <View style={[styles.inputWrap, styles.addressWrap, focusedField === 'address' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="home-outline"
-                    size={19}
-                    color={focusedField === 'address' ? '#dc2626' : '#64748b'}
-                    style={[styles.inputLeadingIcon, { marginTop: 4 }]}
-                  />
-                  <TextInput
-                    style={[styles.textInput, styles.addressInput]}
-                    placeholder="House no., street, subdivision, or landmark"
-                    placeholderTextColor="#94a3b8"
-                    value={address}
-                    onChangeText={setAddress}
-                    onFocus={() => setFocusedField('address')}
-                    onBlur={() => setFocusedField(null)}
-                    multiline
-                    textAlignVertical="top"
-                    editable={!loading}
-                  />
-                </View>
+                <FormField
+                  label="Street Address / House No."
+                  icon="home-outline"
+                  wrapStyle={styles.addressWrap}
+                  inputStyle={styles.addressInput}
+                  iconStyle={styles.addressIcon}
+                  placeholder="House no., street, subdivision, or landmark"
+                  value={address}
+                  onChangeText={setAddress}
+                  autoComplete="street-address"
+                  textContentType="fullStreetAddress"
+                  multiline
+                  textAlignVertical="top"
+                  editable={!loading}
+                />
               </View>
 
               {/* SECTION 3: SECURITY & LEGAL COMPLIANCE */}
@@ -409,72 +383,65 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
                 </View>
 
                 {/* Password */}
-                <Text style={styles.fieldLabel}>Account Password</Text>
-                <View style={[styles.inputWrap, focusedField === 'password' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={19}
-                    color={focusedField === 'password' ? '#dc2626' : '#64748b'}
-                    style={styles.inputLeadingIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Minimum 6 characters"
-                    placeholderTextColor="#94a3b8"
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    editable={!loading}
-                  />
-                  <TouchableOpacity
-                    style={styles.passwordEyeButton}
-                    onPress={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color="#64748b"
-                    />
-                  </TouchableOpacity>
-                </View>
+                <FormField
+                  label="Account Password"
+                  icon="lock-closed-outline"
+                  placeholder="Minimum 6 characters"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={focusConfirmPassword}
+                  editable={!loading}
+                  trailing={
+                    <TouchableOpacity
+                      style={styles.passwordEyeButton}
+                      onPress={() => setShowPassword((prev) => !prev)}
+                      disabled={loading}
+                      accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
+                  }
+                />
 
                 {/* Confirm Password */}
-                <Text style={styles.fieldLabel}>Confirm Password</Text>
-                <View style={[styles.inputWrap, focusedField === 'confirmPassword' && styles.inputWrapFocused]}>
-                  <Ionicons
-                    name="shield-outline"
-                    size={19}
-                    color={focusedField === 'confirmPassword' ? '#dc2626' : '#64748b'}
-                    style={styles.inputLeadingIcon}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Re-type your password"
-                    placeholderTextColor="#94a3b8"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    onFocus={() => setFocusedField('confirmPassword')}
-                    onBlur={() => setFocusedField(null)}
-                    secureTextEntry={!showConfirmPassword}
-                    autoCapitalize="none"
-                    editable={!loading}
-                  />
-                  <TouchableOpacity
-                    style={styles.passwordEyeButton}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color="#64748b"
-                    />
-                  </TouchableOpacity>
-                </View>
+                <FormField
+                  ref={confirmPasswordRef}
+                  label="Confirm Password"
+                  icon="shield-outline"
+                  placeholder="Re-type your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  returnKeyType="done"
+                  editable={!loading}
+                  trailing={
+                    <TouchableOpacity
+                      style={styles.passwordEyeButton}
+                      onPress={() => setShowConfirmPassword((prev) => !prev)}
+                      disabled={loading}
+                      accessibilityLabel={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      <Ionicons
+                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
+                  }
+                />
 
                 {/* False Reporting Legal Warning Card & Checkbox */}
                 <TouchableOpacity
@@ -534,8 +501,7 @@ const SignUpScreen = ({ onNavigateToLogin }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAwareForm>
       </View>
 
       {/* Valenzuela Barangay Searchable Modal (SmoothModal) */}
@@ -627,9 +593,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  keyboardView: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -756,35 +719,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 6,
   },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
-    paddingHorizontal: 13,
-    minHeight: 48,
-    marginBottom: 14,
-  },
-  inputWrapFocused: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fffdfd',
-  },
   inputLeadingIcon: {
     marginRight: 10,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
-    paddingVertical: 10,
   },
   addressWrap: {
     minHeight: 80,
     alignItems: 'flex-start',
     paddingTop: 10,
+  },
+  addressIcon: {
+    marginTop: 4,
   },
   addressInput: {
     minHeight: 60,

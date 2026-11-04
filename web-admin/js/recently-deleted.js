@@ -412,6 +412,16 @@ async function handlePurgeRecord(item) {
 
         await deleteDoc(ref);
 
+        // [QA-FIX #6] Purging an incident also removes its evidence photo doc
+        // (incident_evidence/{id}). Best effort; a missing doc is fine.
+        if (item.recordType === "incident") {
+            try {
+                await deleteDoc(doc(db, "incident_evidence", item.id));
+            } catch (evidenceErr) {
+                console.warn("[recently-deleted] evidence cleanup skipped", evidenceErr);
+            }
+        }
+
         try {
             await logAudit(`${item.recordType}_permanently_purged`, { id: item.id, code: item.code });
         } catch {}

@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
-  ScrollView,
   Image,
   StatusBar,
 } from 'react-native';
@@ -17,6 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { handleLogin, handleResetPassword } from './utils/auth';
 import CustomAlert from './components/CustomAlert';
 import SmoothModal from './components/SmoothModal';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import FormField from './components/FormField';
+import KeyboardAwareForm from './components/KeyboardAwareForm';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 const APP_LOGO = require('./assets/icons/Threat Track Logo Red.png');
@@ -26,13 +25,13 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [focusedField, setFocusedField] = useState(null); // 'email' | 'password' | null
+  const passwordRef = useRef(null);
+  const focusPassword = useCallback(() => passwordRef.current?.focus(), []);
 
   // Forgot Password Modal States
   const [forgotModalVisible, setForgotModalVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [resetFocused, setResetFocused] = useState(false);
 
   // Custom Alert State
   const [alertConfig, setAlertConfig] = useState({
@@ -115,17 +114,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
     <>
       <StatusBar barStyle="light-content" backgroundColor="#991b1b" translucent />
       <View style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          enabled={Platform.OS === 'ios'}
-          style={styles.keyboardView}
-        >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-          >
+        <KeyboardAwareForm contentContainerStyle={styles.scrollContent}>
             {/* Branded ThreatTrack Crimson Hero Banner */}
             <LinearGradient
               colors={['#991b1b', '#dc2626']}
@@ -175,73 +164,59 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
               </View>
 
               {/* Email Address Field */}
-              <Text style={styles.fieldLabel}>Email Address</Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  focusedField === 'email' && styles.inputWrapFocused,
-                ]}
-              >
-                <Ionicons
-                  name="mail-outline"
-                  size={19}
-                  color={focusedField === 'email' ? '#dc2626' : '#64748b'}
-                  style={styles.inputLeadingIcon}
-                />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="name@example.com"
-                  placeholderTextColor="#94a3b8"
-                  value={email}
-                  onChangeText={setEmail}
-                  onFocus={() => setFocusedField('email')}
-                  onBlur={() => setFocusedField(null)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-              </View>
+              <FormField
+                label="Email Address"
+                icon="mail-outline"
+                labelStyle={styles.fieldLabel}
+                wrapStyle={styles.inputWrap}
+                inputStyle={styles.textInput}
+                placeholder="name@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={focusPassword}
+                editable={!loading}
+              />
 
               {/* Password Field */}
-              <Text style={styles.fieldLabel}>Password</Text>
-              <View
-                style={[
-                  styles.inputWrap,
-                  focusedField === 'password' && styles.inputWrapFocused,
-                ]}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={19}
-                  color={focusedField === 'password' ? '#dc2626' : '#64748b'}
-                  style={styles.inputLeadingIcon}
-                />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter your account password"
-                  placeholderTextColor="#94a3b8"
-                  value={password}
-                  onChangeText={setPassword}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField(null)}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  editable={!loading}
-                />
-                <TouchableOpacity
-                  style={styles.passwordEyeButton}
-                  onPress={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                  accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color="#64748b"
-                  />
-                </TouchableOpacity>
-              </View>
+              <FormField
+                ref={passwordRef}
+                label="Password"
+                icon="lock-closed-outline"
+                labelStyle={styles.fieldLabel}
+                wrapStyle={styles.inputWrap}
+                inputStyle={styles.textInput}
+                placeholder="Enter your account password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="go"
+                onSubmitEditing={onLogin}
+                editable={!loading}
+                trailing={
+                  <TouchableOpacity
+                    style={styles.passwordEyeButton}
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    disabled={loading}
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+                }
+              />
 
               {/* Forgot Password Link */}
               <TouchableOpacity
@@ -285,8 +260,7 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAwareForm>
       </View>
 
       {/* Forgot Password Recovery SmoothModal */}
@@ -316,28 +290,23 @@ const LoginScreen = ({ onNavigateToSignUp, onLoginSuccess }) => {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.modalFieldLabel}>Account Email</Text>
-        <View style={[styles.inputWrap, resetFocused && styles.inputWrapFocused]}>
-          <Ionicons
-            name="mail-outline"
-            size={19}
-            color={resetFocused ? '#dc2626' : '#64748b'}
-            style={styles.inputLeadingIcon}
-          />
-          <TextInput
-            style={styles.textInput}
-            placeholder="name@example.com"
-            placeholderTextColor="#94a3b8"
-            value={resetEmail}
-            onChangeText={setResetEmail}
-            onFocus={() => setResetFocused(true)}
-            onBlur={() => setResetFocused(false)}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!resetLoading}
-          />
-        </View>
+        <FormField
+          label="Account Email"
+          icon="mail-outline"
+          labelStyle={styles.modalFieldLabel}
+          wrapStyle={styles.inputWrap}
+          inputStyle={styles.textInput}
+          placeholder="name@example.com"
+          value={resetEmail}
+          onChangeText={setResetEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          returnKeyType="send"
+          onSubmitEditing={onSubmitResetPassword}
+          editable={!resetLoading}
+        />
 
         <TouchableOpacity
           style={[styles.modalSubmitButtonTouch, resetLoading && styles.loginButtonDisabled]}
@@ -381,9 +350,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  keyboardView: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -516,13 +482,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     minHeight: 50,
     marginBottom: 16,
-  },
-  inputWrapFocused: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fffdfd',
-  },
-  inputLeadingIcon: {
-    marginRight: 10,
   },
   textInput: {
     flex: 1,

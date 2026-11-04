@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -12,13 +11,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getReportEligibility, resendEmailVerification, acknowledgeFalseReportPolicy } from '../utils/auth';
 import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
+import { withTimeout } from '../utils/async';
 import CustomAlert from '../components/CustomAlert';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import KeyboardAwareForm from '../components/KeyboardAwareForm';
 import QuickDescriptionChips, { detectActiveQuickTags } from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
@@ -132,19 +135,26 @@ const SEVERITY_CONFIG = {
 
 const DESCRIPTION_MIN_LENGTH = 10;
 const DESCRIPTION_MAX_LENGTH = 2000;
-const MAX_INLINE_PHOTO_CHARS = 650 * 1024;
 const IMAGE_PICKER_OPTIONS = {
   mediaTypes: ['images'],
   allowsEditing: true,
   aspect: [4, 3],
   quality: 0.85,
 };
+// Photo compression is unchanged from before the QA pass: the photo is still
+// stored as inline base64 (free Spark plan, no Cloud Storage), capped at 650 KB
+// by the isValidInlineEvidencePhoto Firestore rule. [QA-FIX #6] only moved WHERE
+// it is stored (incident_evidence/{id} instead of inside the incident doc).
+const MAX_INLINE_PHOTO_CHARS = 650 * 1024;
 const INLINE_PHOTO_VARIANTS = [
   { width: 900, compress: 0.45 },
   { width: 720, compress: 0.35 },
   { width: 560, compress: 0.28 },
   { width: 420, compress: 0.22 },
 ];
+// [QA-FIX #9] Max wait for the server to confirm the report write. After this
+// the write stays queued in Firestore and is sent once the phone is back online.
+const REPORT_WRITE_CONFIRM_TIMEOUT_MS = 15000;
 const CONFIRM_REPORT_MESSAGE =
   'By continuing, you declare that this report is true and accurate.\n\nFalse reporting may result in penalties, including account suspension and possible legal action under Philippine law.';
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
@@ -201,6 +211,8 @@ const getImageContentType = (asset) => {
 };
 
 const ReportIncidentScreen = ({ navigation }) => {
+  // [QA-FIX #11] Bottom inset for the Back / Next / Submit bar.
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [incidentType, setIncidentType] = useState('');
   const [reportingAs, setReportingAs] = useState('');
@@ -209,6 +221,8 @@ const ReportIncidentScreen = ({ navigation }) => {
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [processingImage, setProcessingImage] = useState(false);
+  // [QA-FIX #6] Guards against a second submit while one is running.
+  const submittingRef = useRef(false);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -238,9 +252,11 @@ const ReportIncidentScreen = ({ navigation }) => {
     });
   };
 
-  const hideAlert = () => {
-    setAlertConfig({ ...alertConfig, visible: false });
-  };
+  // [QA-FIX #13] Functional update so a newer alert opened from a button's
+  // onPress (e.g. the photo-upload fallback) isn't overwritten.
+  const hideAlert = useCallback(() => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const showReportEligibilityAlert = (eligibility) => {
     if (eligibility?.needsEmailVerification) {
@@ -329,7 +345,8 @@ const ReportIncidentScreen = ({ navigation }) => {
     }
   };
 
-  const buildInlineEvidenceImage = async (asset) => {
+  // Unchanged original logic: shrink until the base64 JPEG fits the 650 KB cap.
+  const buildEvidenceImage = async (asset) => {
     let lastResult = null;
 
     for (const variant of INLINE_PHOTO_VARIANTS) {
@@ -376,9 +393,9 @@ const ReportIncidentScreen = ({ navigation }) => {
 
     setProcessingImage(true);
     try {
-      const inlineImage = await buildInlineEvidenceImage(asset);
+      const evidenceImage = await buildEvidenceImage(asset);
       setImage({
-        ...inlineImage,
+        ...evidenceImage,
         fileName: asset.fileName || null,
         originalMimeType: getImageContentType(asset),
       });
@@ -513,9 +530,21 @@ const ReportIncidentScreen = ({ navigation }) => {
     );
   };
 
-  const handleConfirmedSubmit = async () => {
+  // [QA-FIX #6] `skipPhoto` is set by the "Submit without photo" fallback.
+  const handleConfirmedSubmit = async ({ skipPhoto = false } = {}) => {
     const trimmedDescription = description.trim();
 
+    // [QA-FIX #6] Ignore re-entry while a submit is already running.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await runConfirmedSubmit(trimmedDescription, skipPhoto);
+    } finally {
+      submittingRef.current = false;
+    }
+  };
+
+  const runConfirmedSubmit = async (trimmedDescription, skipPhoto) => {
     setLoading(true);
 
     let eligibility;
@@ -594,19 +623,72 @@ const ReportIncidentScreen = ({ navigation }) => {
         reporterAccountStatus: eligibility.profile?.accountStatus || 'active',
       };
 
-      if (image) {
-        incidentData.photoDataUrl = image.dataUrl;
-        incidentData.photoMimeType = image.mimeType;
-        incidentData.photoStorage = 'firestore_inline';
-        incidentData.photoSizeChars = image.sizeChars;
-        incidentData.photoWidth = image.width;
-        incidentData.photoHeight = image.height;
+      // [QA-FIX #6] Free-tier (Spark) photo storage. The photo is no longer put
+      // inside the public incident doc (Home downloads the latest 50 incidents,
+      // so inline photos could cost ~30 MB). Instead it goes into
+      // incident_evidence/{incidentId}, written in the SAME atomic batch as the
+      // incident: either both are saved or neither is. The incident only gets
+      // a `hasEvidencePhoto` flag. Firestore only; no Cloud Storage or Cloud
+      // Functions (both need the paid Blaze plan).
+      const incidentRef = doc(collection(db, 'incidents'));
+      const attachPhoto = Boolean(image?.dataUrl) && !skipPhoto;
+      const batch = writeBatch(db);
+
+      if (attachPhoto) {
+        incidentData.hasEvidencePhoto = true;
+        incidentData.photoStorage = 'firestore_evidence_doc';
+        batch.set(doc(db, 'incident_evidence', incidentRef.id), {
+          incidentId: incidentRef.id,
+          reporterId: currentUser.uid,
+          // Same fields/limits the old inline photo used (isValidInlineEvidencePhoto rule).
+          photoDataUrl: image.dataUrl,
+          photoMimeType: image.mimeType,
+          photoStorage: 'firestore_inline',
+          photoSizeChars: image.sizeChars,
+          photoWidth: image.width,
+          photoHeight: image.height,
+          createdAt: serverTimestamp(),
+        });
+      }
+      batch.set(incidentRef, incidentData);
+
+      // [QA-FIX #9] Same create as before, but the wait for server
+      // confirmation is capped. If it times out, the batch stays queued in
+      // Firestore and is sent automatically once back online.
+      let writeResult;
+      try {
+        writeResult = await withTimeout(
+          batch.commit().then(() => 'confirmed'),
+          REPORT_WRITE_CONFIRM_TIMEOUT_MS,
+          'pending'
+        );
+      } catch (writeError) {
+        if (attachPhoto) {
+          console.error('Error saving report with evidence photo:', writeError?.code || writeError);
+          // [QA-FIX #6] Never lose the report because of the photo: nothing
+          // was saved (atomic batch), so offer a retry or sending without it.
+          setLoading(false);
+          showAlert(
+            "Photo Couldn't Be Attached",
+            'Your report has not been sent yet because the evidence photo could not be saved. You can try again or send the report without the photo.',
+            'warning',
+            [
+              { text: 'Retry', onPress: () => handleConfirmedSubmit() },
+              { text: 'Submit Without Photo', onPress: () => handleConfirmedSubmit({ skipPhoto: true }) },
+              { text: 'Cancel', style: 'cancel' },
+            ],
+            0,
+          );
+          return;
+        }
+        throw writeError;
       }
 
-      await addDoc(collection(db, 'incidents'), incidentData);
-
       const isFirstGrace = eligibility?.isFirstReportGracePeriod;
-      const baseSuccess = image
+      const photoAttached = attachPhoto;
+      const baseSuccess = writeResult === 'pending'
+        ? 'Your connection is weak, so your report is saved on this phone and will be sent automatically once you are back online. Keep ThreatTrack open.'
+        : photoAttached
         ? 'Your report has been submitted securely with photo evidence attached.'
         : 'Your report has been submitted securely. Your identity remains protected.';
       const successMessage = isFirstGrace
@@ -614,9 +696,9 @@ const ReportIncidentScreen = ({ navigation }) => {
         : baseSuccess;
 
       showAlert(
-        'Report Submitted',
+        writeResult === 'pending' ? 'Report Queued' : 'Report Submitted',
         successMessage,
-        'success',
+        writeResult === 'pending' ? 'warning' : 'success',
         [
           {
             text: 'OK',
@@ -718,7 +800,7 @@ const ReportIncidentScreen = ({ navigation }) => {
           </View>
         </LinearGradient>
 
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareForm style={styles.scrollView}>
           {currentStep === 1 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
@@ -1032,9 +1114,10 @@ const ReportIncidentScreen = ({ navigation }) => {
           )}
 
           <View style={styles.spacer} />
-        </ScrollView>
+        </KeyboardAwareForm>
 
-        <View style={styles.buttonContainer}>
+        {/* [QA-FIX #11] Original 20px bottom padding + system navigation inset. */}
+        <View style={[styles.buttonContainer, { paddingBottom: 20 + insets.bottom }]}>
           <TouchableOpacity
             style={[styles.button, styles.backButton]}
             onPress={handleBack}

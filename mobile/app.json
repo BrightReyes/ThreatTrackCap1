@@ -24,7 +24,14 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow ThreatTrack to access your location to track incidents and dispatch emergency assistance."
+          "locationWhenInUsePermission": "Allow ThreatTrack to access your location while you use the app to track incidents and dispatch emergency assistance."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#dc2626",
+          "defaultChannel": "threattrack-alerts"
         }
       ]
     ],
@@ -41,11 +48,9 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
         "CAMERA",
         "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE"
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {

@@ -1,22 +1,27 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Linking,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+// [QA-FIX #11] RN's SafeAreaView does nothing on Android; insets now come from
+// react-native-safe-area-context (header top + footer bottom padding).
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getReportEligibility, resendEmailVerification, acknowledgeFalseReportPolicy } from '../utils/auth';
-import { getCurrentLocation, getAddressFromCoordinates, watchLocation } from '../utils/location';
+// [QA-FIX #8] watchLocation import removed with the dead streaming code.
+import { getCurrentLocation, getAddressFromCoordinates } from '../utils/location';
+import { withTimeout } from '../utils/async';
 import CustomAlert from '../components/CustomAlert';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import KeyboardAwareForm from '../components/KeyboardAwareForm';
 import QuickDescriptionChips, { detectActiveQuickTags } from '../components/QuickDescriptionChips';
 
 const INCIDENT_TYPES = [
@@ -140,7 +145,30 @@ const isValidReportLocation = (location) => {
   );
 };
 
+// [QA-FIX #4] Max wait for a fresh SOS fix before falling back to last known.
+const SOS_FIX_TIMEOUT_MS = 10000;
+// [QA-FIX #9] Max wait for the server to confirm the SOS write. Firestore keeps
+// the write queued and sends it once the connection is back, so after this we
+// tell the user it's queued instead of spinning forever.
+const SOS_WRITE_CONFIRM_TIMEOUT_MS = 15000;
+const NATIONAL_EMERGENCY_HOTLINE = '911';
+
+const isOfflineError = (error) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return code === 'unavailable' ||
+    code === 'auth/network-request-failed' ||
+    message.includes('offline') ||
+    message.includes('network');
+};
+
+const formatAccuracy = (location) => {
+  const accuracy = Number(location?.accuracy);
+  return Number.isFinite(accuracy) && accuracy > 0 ? ` (±${Math.round(accuracy)} m)` : '';
+};
+
 const SOSReportScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const passedLocation = route?.params?.userLocation;
   const hasPassedLocation = isValidReportLocation(passedLocation);
 
@@ -149,16 +177,18 @@ const SOSReportScreen = ({ navigation, route }) => {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
+  // [QA-FIX #3] A passed-in location is only a preview: it may be a cached fix.
+  // A fresh fix is always requested on mount and replaces it.
   const [currentLocation, setCurrentLocation] = useState(hasPassedLocation ? passedLocation : null);
+  const [locationIsApproximate, setLocationIsApproximate] = useState(hasPassedLocation);
+  const isMountedRef = useRef(true);
+  // [QA-FIX #3] Prevents a double submit (e.g. "I've Verified" + main button).
+  const submittingRef = useRef(false);
 
-  const [activeSOSIncidentId, setActiveSOSIncidentId] = useState(route?.params?.activeIncidentId || null);
-  const [isStreamingGPS, setIsStreamingGPS] = useState(Boolean(route?.params?.activeIncidentId));
-  const [streamCount, setStreamCount] = useState(0);
-  const [lastStreamTime, setLastStreamTime] = useState('');
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const lastSyncedCoordsRef = useRef(null);
-  const lastSyncTimeRef = useRef(0);
-  const locationTrailRef = useRef([]);
+  // [QA-FIX #8] Removed SOSReportScreen's own GPS-streaming state, effect,
+  // pulse animation, handleStopDistressTracking and handleClose. Nothing ever
+  // passed `activeIncidentId`, so it never ran, and if it had it would have
+  // been a second writer next to HomeScreen. HomeScreen owns live SOS tracking.
 
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -175,119 +205,23 @@ const SOSReportScreen = ({ navigation, route }) => {
   const locationReady = isValidReportLocation(currentLocation);
 
   useEffect(() => {
-    let animation;
-    if (isStreamingGPS) {
-      animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.25,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      animation.start();
-    }
-    return () => {
-      if (animation) {
-        animation.stop();
-      }
-    };
-  }, [isStreamingGPS]);
-
-  useEffect(() => {
+    isMountedRef.current = true;
+    // [QA-FIX #3] Always take a fresh fix, even when a location was passed in.
+    // Before, any passed location (including Home's Valenzuela-center default)
+    // skipped GPS entirely and could be submitted as the emergency location.
     const initializeLocation = async () => {
       try {
-        if (!hasPassedLocation) {
-          await getLocationAutomatically();
-        }
+        await getLocationAutomatically();
       } finally {
-        setLocationLoading(false);
+        if (isMountedRef.current) setLocationLoading(false);
       }
     };
 
     initializeLocation();
-  }, []);
-
-  useEffect(() => {
-    let locationSubscription = null;
-    let isSubscribed = true;
-
-    if (activeSOSIncidentId && isStreamingGPS) {
-      const startTracking = async () => {
-        try {
-          const sub = await watchLocation(async (newCoords) => {
-            if (!isSubscribed) return;
-            setCurrentLocation(newCoords);
-            setStreamCount((prev) => prev + 1);
-            setLastStreamTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-
-            // Firebase Free-Usage Guard (Spark plan): Only write if user moved >= ~10m or 20s elapsed
-            const now = Date.now();
-            const lastCoords = lastSyncedCoordsRef.current;
-            const hasMoved = !lastCoords ||
-              Math.abs(newCoords.latitude - lastCoords.latitude) > 0.0001 ||
-              Math.abs(newCoords.longitude - lastCoords.longitude) > 0.0001;
-            const timeSinceLastSync = now - lastSyncTimeRef.current;
-
-            if (hasMoved || timeSinceLastSync >= 20000) {
-              lastSyncedCoordsRef.current = newCoords;
-              lastSyncTimeRef.current = now;
-
-              try {
-                const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
-                const updatePayload = {
-                  'location.latitude': newCoords.latitude,
-                  'location.longitude': newCoords.longitude,
-                  lastGpsStreamAt: serverTimestamp(),
-                };
-
-                // Track physical displacement breadcrumbs (capped at last 15 points)
-                if (hasMoved) {
-                  const newBreadcrumb = {
-                    latitude: newCoords.latitude,
-                    longitude: newCoords.longitude,
-                    timestamp: now,
-                  };
-                  const currentTrail = locationTrailRef.current || [];
-                  const updatedTrail = [...currentTrail.slice(-14), newBreadcrumb];
-                  locationTrailRef.current = updatedTrail;
-                  updatePayload.locationTrail = updatedTrail;
-                }
-
-                await updateDoc(incidentRef, updatePayload);
-              } catch (firestoreErr) {
-                // Warning only: avoids popup LogBox modal while awaiting manual rules paste in Firebase Console
-                console.warn('GPS stream sync waiting for Firestore rule update:', firestoreErr.message);
-              }
-            }
-          });
-
-          if (isSubscribed) {
-            locationSubscription = sub;
-          } else if (sub && typeof sub.remove === 'function') {
-            sub.remove();
-          }
-        } catch (locationErr) {
-          console.warn('Location watcher warning:', locationErr.message);
-        }
-      };
-
-      startTracking();
-    }
-
     return () => {
-      isSubscribed = false;
-      if (locationSubscription && typeof locationSubscription.remove === 'function') {
-        locationSubscription.remove();
-      }
+      isMountedRef.current = false;
     };
-  }, [activeSOSIncidentId, isStreamingGPS]);
+  }, []);
 
   const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000) => {
     setAlertConfig({
@@ -300,9 +234,11 @@ const SOSReportScreen = ({ navigation, route }) => {
     });
   };
 
-  const hideAlert = () => {
-    setAlertConfig({ ...alertConfig, visible: false });
-  };
+  // [QA-FIX #13] Functional update so a newer alert opened from a button's
+  // onPress isn't overwritten by a stale copy of alertConfig.
+  const hideAlert = useCallback(() => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const showReportEligibilityAlert = (eligibility) => {
     if (eligibility?.needsEmailVerification) {
@@ -380,81 +316,42 @@ const SOSReportScreen = ({ navigation, route }) => {
     );
   };
 
+  // [QA-FIX #3, #4] Fresh high-accuracy fix, bounded to SOS_FIX_TIMEOUT_MS.
+  // getCurrentLocation falls back to the last known position (isApproximate).
+  // If nothing at all is available, keep any preview that was passed in
+  // (marked approximate) rather than wiping it.
   const getLocationAutomatically = async () => {
     try {
-      const location = await getCurrentLocation();
-      setCurrentLocation(isValidReportLocation(location) ? location : null);
+      const location = await getCurrentLocation({
+        timeoutMs: SOS_FIX_TIMEOUT_MS,
+        accuracy: Location.Accuracy.High,
+      });
+      if (!isMountedRef.current) return;
+      if (isValidReportLocation(location)) {
+        setCurrentLocation(location);
+        setLocationIsApproximate(location.isApproximate === true);
+      } else if (!isValidReportLocation(passedLocation)) {
+        setCurrentLocation(null);
+      } else {
+        setCurrentLocation(passedLocation);
+        setLocationIsApproximate(true);
+      }
     } catch (error) {
       console.error('Error getting location:', error);
-      setCurrentLocation(null);
+      if (isMountedRef.current && !isValidReportLocation(passedLocation)) {
+        setCurrentLocation(null);
+      }
     }
   };
 
   const retryLocationLock = async () => {
     setLocationLoading(true);
     await getLocationAutomatically();
-    setLocationLoading(false);
+    if (isMountedRef.current) setLocationLoading(false);
   };
 
   const handleIncidentTypeChange = (type) => {
     setIncidentType(type);
-  };
-
-  const handleStopDistressTracking = async () => {
-    try {
-      setIsStreamingGPS(false);
-      if (activeSOSIncidentId) {
-        const incidentRef = doc(db, 'incidents', activeSOSIncidentId);
-        await updateDoc(incidentRef, {
-          status: 'done',
-          responseStatus: 'completed',
-          liveStreamingActive: false,
-          distressResolvedAt: serverTimestamp(),
-          completedAt: serverTimestamp(),
-          resolutionReason: 'user_marked_safe',
-        });
-      }
-      showAlert(
-        'Distress Signal Ended',
-        'Live GPS streaming has stopped. Glad you are safe!',
-        'success',
-        [
-          {
-            text: 'View Status',
-            onPress: () => {
-              setActiveSOSIncidentId(null);
-              navigation.navigate('Status');
-            },
-          },
-        ]
-      );
-    } catch (err) {
-      console.error('Error stopping distress tracking:', err);
-      setActiveSOSIncidentId(null);
-      navigation.navigate('Status');
-    }
-  };
-
-  const handleClose = () => {
-    if (isStreamingGPS && activeSOSIncidentId) {
-      showAlert(
-        'Live GPS is Active',
-        'First responders are currently tracking your location. Do you want to stop live tracking and exit?',
-        'warning',
-        [
-          {
-            text: 'Keep Streaming',
-            style: 'cancel',
-          },
-          {
-            text: 'Stop & Exit',
-            onPress: () => handleStopDistressTracking(),
-          },
-        ]
-      );
-    } else {
-      navigation.goBack();
-    }
   };
 
   const handleSubmit = async () => {
@@ -479,6 +376,9 @@ const SOSReportScreen = ({ navigation, route }) => {
       return;
     }
 
+    // [QA-FIX #3] Ignore a second tap while a submit is already running.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
 
     try {
@@ -493,6 +393,7 @@ const SOSReportScreen = ({ navigation, route }) => {
 
       let locationAddress = 'Valenzuela City, Philippines';
       try {
+        // [QA-FIX #9] Geocoding is now capped at ~2.5 s (see utils/location.js).
         const address = await getAddressFromCoordinates(reportLocation.latitude, reportLocation.longitude);
         if (address) {
           locationAddress = address;
@@ -517,6 +418,10 @@ const SOSReportScreen = ({ navigation, route }) => {
           latitude: reportLocation.latitude,
           longitude: reportLocation.longitude,
           address: locationAddress,
+          // [QA-FIX #3] Additive: fix accuracy in metres + whether it was a
+          // cached (approximate) fix, so responders know how precise it is.
+          ...(Number.isFinite(reportLocation.accuracy) ? { accuracy: reportLocation.accuracy } : {}),
+          isApproximate: locationIsApproximate,
         },
         initialLocation: {
           latitude: reportLocation.latitude,
@@ -542,10 +447,33 @@ const SOSReportScreen = ({ navigation, route }) => {
         lastGpsStreamAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, 'incidents'), incidentData);
+      // [QA-FIX #9] Same create as before (addDoc == doc() + setDoc), but the
+      // wait for server confirmation is capped. On a weak connection the write
+      // stays queued in Firestore and is sent automatically when back online.
+      const incidentRef = doc(collection(db, 'incidents'));
+      const writeResult = await withTimeout(
+        setDoc(incidentRef, incidentData).then(() => 'confirmed'),
+        SOS_WRITE_CONFIRM_TIMEOUT_MS,
+        'pending'
+      );
+
+      if (writeResult === 'pending') {
+        showAlert(
+          'SOS Queued – Weak Connection',
+          `Your SOS is saved on this phone and will be sent automatically as soon as you are back online. Keep ThreatTrack open.\n\nIf you are in immediate danger, call ${NATIONAL_EMERGENCY_HOTLINE} now.`,
+          'warning',
+          [
+            { text: `Call ${NATIONAL_EMERGENCY_HOTLINE}`, onPress: () => Linking.openURL(`tel:${NATIONAL_EMERGENCY_HOTLINE}`) },
+            { text: 'View on Home', onPress: () => navigation.navigate('Home') },
+          ],
+          0
+        );
+        return;
+      }
 
       const isFirstGrace = eligibility?.isFirstReportGracePeriod;
-      const baseSOSSuccess = 'Emergency report sent! Live GPS tracking and distress stream are now active on your Home screen.';
+      // [QA-FIX #10] Honest copy: live GPS sharing is foreground-only.
+      const baseSOSSuccess = 'Emergency report sent! Your live location is shared from the Home screen while ThreatTrack is open. Keep the app open until you are safe.';
       const sosSuccessMsg = isFirstGrace
         ? `${baseSOSSuccess}\n\n⚠️ Notice: This was your 1st report grace period. Please verify your email before submitting future reports.`
         : baseSOSSuccess;
@@ -563,16 +491,32 @@ const SOSReportScreen = ({ navigation, route }) => {
       );
     } catch (error) {
       console.error('Error submitting SOS report:', error);
-      showAlert('Error', 'Failed to submit SOS report. Please try again.', 'error');
+      // [QA-FIX #9] Clear offline message with a direct hotline option.
+      if (isOfflineError(error)) {
+        showAlert(
+          'No Connection',
+          `ThreatTrack could not reach the server, so your SOS was not sent. Check your mobile data or Wi-Fi and try again.\n\nIf you are in immediate danger, call ${NATIONAL_EMERGENCY_HOTLINE} now.`,
+          'error',
+          [
+            { text: `Call ${NATIONAL_EMERGENCY_HOTLINE}`, onPress: () => Linking.openURL(`tel:${NATIONAL_EMERGENCY_HOTLINE}`) },
+            { text: 'Try Again', style: 'cancel' },
+          ],
+          0
+        );
+      } else {
+        showAlert('Error', 'Failed to submit SOS report. Please try again.', 'error');
+      }
     } finally {
-      setLoading(false);
+      submittingRef.current = false;
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
   return (
     <>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.headerContainer}>
+      {/* [QA-FIX #11] Plain View + explicit insets (RN SafeAreaView is a no-op on Android). */}
+      <View style={styles.container}>
+        <View style={[styles.headerContainer, { paddingTop: Math.max(34, insets.top + 10) }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.sosBadge}>
               <Text style={styles.sosBadgeText}>SOS</Text>
@@ -588,17 +532,20 @@ const SOSReportScreen = ({ navigation, route }) => {
           <View style={styles.statusStrip}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>
+              {/* [QA-FIX #3] Show precision so the user knows what responders get. */}
               {locationLoading
-                ? 'Locking location...'
+                ? (locationReady ? `Refining location...${formatAccuracy(currentLocation)}` : 'Locking location...')
                 : locationReady
-                ? 'Location ready'
+                ? (locationIsApproximate
+                  ? `Approximate location (last known)${formatAccuracy(currentLocation)}`
+                  : `Location ready${formatAccuracy(currentLocation)}`)
                 : 'Location unavailable'}
             </Text>
           </View>
         </View>
 
 
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareForm style={styles.scrollView}>
               <View style={styles.content}>
                 <View style={styles.summaryPanel}>
                   <View>
@@ -736,9 +683,10 @@ const SOSReportScreen = ({ navigation, route }) => {
 
                 <View style={styles.bottomSpacing} />
               </View>
-            </ScrollView>
+            </KeyboardAwareForm>
 
-        <View style={styles.footer}>
+        {/* [QA-FIX #11] Original 18px bottom padding + system navigation inset. */}
+        <View style={[styles.footer, { paddingBottom: 18 + insets.bottom }]}>
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -757,7 +705,7 @@ const SOSReportScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
 
       <CustomAlert
         visible={alertConfig.visible}

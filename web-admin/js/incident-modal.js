@@ -1,6 +1,7 @@
 import {
     addDoc,
     collection,
+    deleteDoc,
     deleteField,
     doc,
     getDoc,
@@ -120,7 +121,36 @@ function markRowOpened(incidentId) {
     code?.setAttribute("title", "Opened incident");
 }
 
-function buildPhotosHtml(data) {
+// [QA-FIX #6] Evidence photos of new mobile reports live in
+// incident_evidence/{incidentId} (Firestore, free Spark plan) instead of inside
+// the incident doc. Loaded once per opened incident and cached here so every
+// re-render of the detail view can show them.
+const evidencePhotoCache = new Map();
+
+async function loadIncidentEvidencePhoto(incidentId, data) {
+    if (!incidentId || data?.hasEvidencePhoto !== true || evidencePhotoCache.has(incidentId)) return;
+    try {
+        const snap = await getDoc(doc(db, "incident_evidence", incidentId));
+        const url = snap.exists() ? snap.data()?.photoDataUrl : null;
+        if (url) evidencePhotoCache.set(incidentId, String(url));
+    } catch (err) {
+        console.warn("[incident-modal] unable to load evidence photo", err);
+    }
+}
+
+// [QA-FIX #6] Delete the evidence doc once the incident no longer needs it
+// (marked done / purged). Best effort: a failure never blocks the status change.
+export async function clearIncidentEvidenceDoc(incidentId) {
+    if (!incidentId) return;
+    evidencePhotoCache.delete(incidentId);
+    try {
+        await deleteDoc(doc(db, "incident_evidence", incidentId));
+    } catch (err) {
+        console.warn("[incident-modal] unable to clear evidence photo", err);
+    }
+}
+
+function buildPhotosHtml(data, docId = null) {
     const urls = [];
     if (Array.isArray(data.photoUrls)) {
         data.photoUrls.forEach((u) => {
@@ -129,6 +159,10 @@ function buildPhotosHtml(data) {
     }
     if (data.photoURL) urls.push(String(data.photoURL));
     if (data.photoDataUrl) urls.push(String(data.photoDataUrl));
+    // [QA-FIX #6] Photo from incident_evidence/{id}, if loaded.
+    if (docId && data.hasEvidencePhoto === true && evidencePhotoCache.has(docId)) {
+        urls.push(evidencePhotoCache.get(docId));
+    }
     const unique = [...new Set(urls)];
     if (!unique.length && data.hadInlineEvidence && data.evidenceClearedReason === "incident_marked_done") {
         return `<div class="incident-evidence-empty incident-evidence-empty--cleared">
@@ -155,13 +189,13 @@ function buildPhotosHtml(data) {
         .join("")}</div>`;
 }
 
-function buildEvidenceReviewPanel(data = {}) {
+function buildEvidenceReviewPanel(data = {}, docId = null) {
     return `<section class="incident-evidence-panel" aria-label="Evidence photos">
     <div class="incident-evidence-panel__header">
       <p class="incident-evidence-panel__eyebrow">Evidence</p>
       <h3>Photo Review</h3>
     </div>
-    ${buildPhotosHtml(data)}
+    ${buildPhotosHtml(data, docId)}
   </section>`;
 }
 
@@ -511,7 +545,9 @@ function buildModerationActions(d = {}, { canDispatch = false, isHeadPolice = fa
 
 function buildStatusUpdatePayload(nextStatus, currentData = {}, options = {}) {
     const moderatedBy = auth.currentUser?.uid || null;
-    const hasInlineEvidence = Boolean(currentData.photoDataUrl);
+    // [QA-FIX #6] hasEvidencePhoto = inline photo stored in incident_evidence/{id}
+    // (still Firestore inline data, so it gets the same "Evidence Cleared" record).
+    const hasInlineEvidence = Boolean(currentData.photoDataUrl || currentData.hasEvidencePhoto);
     const firestore = {
         status: nextStatus,
         moderatedBy,
@@ -557,6 +593,15 @@ function buildStatusUpdatePayload(nextStatus, currentData = {}, options = {}) {
                 updatedAt: null,
             },
         });
+
+        // [QA-FIX #6] New mobile reports keep the photo in
+        // incident_evidence/{id} and only set `hasEvidencePhoto` on the
+        // incident. Clear the flag here; the evidence doc itself is deleted by
+        // clearIncidentEvidenceDoc() right after this update succeeds.
+        if (currentData.hasEvidencePhoto) {
+            firestore.hasEvidencePhoto = deleteField();
+            local.hasEvidencePhoto = undefined;
+        }
 
         if (hasInlineEvidence) {
             Object.assign(firestore, {
@@ -882,7 +927,7 @@ function renderIncidentDetail(docId, d, responderOptions = null, reporterUser = 
 
     <!-- SIDEBAR: Evidence, Citizen Narrative & Dispatch Moderation -->
     <aside class="incident-review-side">
-      ${buildEvidenceReviewPanel(d)}
+      ${buildEvidenceReviewPanel(d, docId)}
 
       <!-- Citizen Narrative (under Evidence Photo Review) -->
       <section class="incident-card" aria-label="Incident Description">
@@ -1472,6 +1517,11 @@ export function initIncidentModal() {
                         doc(db, "incidents", currentIncidentId),
                         statusUpdate.firestore,
                     );
+                    // [QA-FIX #6] "Done" clears evidence: also delete the separate
+                    // incident_evidence doc (flag was cleared in the update above).
+                    if (nextStatus === "done" && currentData.hasEvidencePhoto) {
+                        await clearIncidentEvidenceDoc(currentIncidentId);
+                    }
 
                     // Dynamic in-app notification when incident is marked as done (with edge-case protection)
                     if (nextStatus === "done" && previous !== "done") {
@@ -1752,6 +1802,8 @@ export function initIncidentModal() {
                 }
             }
             currentReporterUser = reporterUser;
+            // [QA-FIX #6] Fetch the evidence photo (if any) before the first render.
+            await loadIncidentEvidencePhoto(snap.id, currentData);
             body.innerHTML = renderIncidentDetail(snap.id, currentData, null, currentReporterUser);
             bindActionHandlers();
             loadResponderOptions();

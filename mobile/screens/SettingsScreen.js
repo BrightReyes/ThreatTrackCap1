@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   StatusBar,
-  TextInput,
   ActivityIndicator,
   Linking,
   Platform,
@@ -18,6 +17,8 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
+// [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
+import FormField from '../components/FormField';
 import GlobalBottomBar from '../components/GlobalBottomBar';
 import { auth, db } from '../utils/firebase';
 import { resendEmailVerification, syncEmailVerification } from '../utils/auth';
@@ -70,7 +71,10 @@ const SettingsScreen = ({ navigation, onLogout }) => {
   const [profile, setProfile] = useState(null);
   const [profileVisible, setProfileVisible] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [focusedInput, setFocusedInput] = useState(null);
+  const newPasswordRef = useRef(null);
+  const confirmNewPasswordRef = useRef(null);
+  const focusNewPassword = useCallback(() => newPasswordRef.current?.focus(), []);
+  const focusConfirmNewPassword = useCallback(() => confirmNewPasswordRef.current?.focus(), []);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -151,9 +155,10 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     setAlertConfig({ visible: true, title, message, type, buttons });
   };
 
-  const hideAlert = () => {
-    setAlertConfig({ ...alertConfig, visible: false });
-  };
+  // [QA-FIX #13] Functional update: never overwrite a newer alert with a stale copy.
+  const hideAlert = useCallback(() => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const handleLogout = () => {
     showAlert('Confirm Logout', 'Are you sure you want to end your ThreatTrack session?', 'warning', [
@@ -162,15 +167,10 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     ]);
   };
 
-  const handleSOSPress = async () => {
-    try {
-      const { getCurrentLocation } = require('../utils/location');
-      const location = await getCurrentLocation();
-      navigation.navigate('SOSReport', { userLocation: location });
-    } catch (error) {
-      console.error('Error getting location for SOS:', error);
-      navigation.navigate('SOSReport');
-    }
+  // [QA-FIX #4] Open SOS immediately. It used to await a GPS fix (no timeout)
+  // first, so the button could appear dead. SOSReportScreen gets its own fix.
+  const handleSOSPress = () => {
+    navigation.navigate('SOSReport');
   };
 
   const closeSupportModal = () => {
@@ -222,7 +222,6 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     setShowCurrentPassword(false);
     setShowNewPassword(false);
     setShowConfirmPassword(false);
-    setFocusedInput(null);
   };
 
   const handleChangePassword = async () => {
@@ -696,67 +695,95 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.passwordForm}>
           {/* Current Password */}
-          <Text style={styles.passwordLabel}>Current Password</Text>
-          <View style={[styles.passwordInputWrap, focusedInput === 'current' && styles.passwordInputWrapFocused]}>
-            <Ionicons name="lock-closed-outline" size={18} color={focusedInput === 'current' ? '#dc2626' : '#94a3b8'} />
-            <TextInput
-              style={styles.passwordInput}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry={!showCurrentPassword}
-              placeholder="Enter your current password"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="none"
-              editable={!passwordLoading}
-              onFocus={() => setFocusedInput('current')}
-              onBlur={() => setFocusedInput(null)}
-            />
-            <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)} disabled={passwordLoading}>
-              <Ionicons name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          <FormField
+            label="Current Password"
+            icon="lock-closed-outline"
+            labelStyle={styles.passwordLabel}
+            wrapStyle={styles.passwordInputWrap}
+            inputStyle={styles.passwordInput}
+            iconStyle={styles.passwordIcon}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry={!showCurrentPassword}
+            placeholder="Enter your current password"
+            autoCapitalize="none"
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={focusNewPassword}
+            editable={!passwordLoading}
+            trailing={
+              <TouchableOpacity
+                onPress={() => setShowCurrentPassword((prev) => !prev)}
+                disabled={passwordLoading}
+                accessibilityLabel={showCurrentPassword ? 'Hide password' : 'Show password'}
+              >
+                <Ionicons name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
+              </TouchableOpacity>
+            }
+          />
 
           {/* New Password */}
-          <Text style={styles.passwordLabel}>New Password</Text>
-          <View style={[styles.passwordInputWrap, focusedInput === 'new' && styles.passwordInputWrapFocused]}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={focusedInput === 'new' ? '#dc2626' : '#94a3b8'} />
-            <TextInput
-              style={styles.passwordInput}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showNewPassword}
-              placeholder="At least 6 characters"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="none"
-              editable={!passwordLoading}
-              onFocus={() => setFocusedInput('new')}
-              onBlur={() => setFocusedInput(null)}
-            />
-            <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} disabled={passwordLoading}>
-              <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          <FormField
+            ref={newPasswordRef}
+            label="New Password"
+            icon="shield-checkmark-outline"
+            labelStyle={styles.passwordLabel}
+            wrapStyle={styles.passwordInputWrap}
+            inputStyle={styles.passwordInput}
+            iconStyle={styles.passwordIcon}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            secureTextEntry={!showNewPassword}
+            placeholder="At least 6 characters"
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={focusConfirmNewPassword}
+            editable={!passwordLoading}
+            trailing={
+              <TouchableOpacity
+                onPress={() => setShowNewPassword((prev) => !prev)}
+                disabled={passwordLoading}
+                accessibilityLabel={showNewPassword ? 'Hide password' : 'Show password'}
+              >
+                <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
+              </TouchableOpacity>
+            }
+          />
 
           {/* Confirm New Password */}
-          <Text style={styles.passwordLabel}>Confirm New Password</Text>
-          <View style={[styles.passwordInputWrap, focusedInput === 'confirm' && styles.passwordInputWrapFocused]}>
-            <Ionicons name="checkmark-circle-outline" size={18} color={focusedInput === 'confirm' ? '#dc2626' : '#94a3b8'} />
-            <TextInput
-              style={styles.passwordInput}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              placeholder="Re-enter your new password"
-              placeholderTextColor="#94a3b8"
-              autoCapitalize="none"
-              editable={!passwordLoading}
-              onFocus={() => setFocusedInput('confirm')}
-              onBlur={() => setFocusedInput(null)}
-            />
-            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} disabled={passwordLoading}>
-              <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          <FormField
+            ref={confirmNewPasswordRef}
+            label="Confirm New Password"
+            icon="checkmark-circle-outline"
+            labelStyle={styles.passwordLabel}
+            wrapStyle={styles.passwordInputWrap}
+            inputStyle={styles.passwordInput}
+            iconStyle={styles.passwordIcon}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry={!showConfirmPassword}
+            placeholder="Re-enter your new password"
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="done"
+            onSubmitEditing={handleChangePassword}
+            editable={!passwordLoading}
+            trailing={
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword((prev) => !prev)}
+                disabled={passwordLoading}
+                accessibilityLabel={showConfirmPassword ? 'Hide password' : 'Show password'}
+              >
+                <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#64748b" />
+              </TouchableOpacity>
+            }
+          />
 
           <TouchableOpacity
             style={[styles.passwordSubmitButton, passwordLoading && styles.passwordSubmitButtonDisabled]}
@@ -1520,22 +1547,19 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '800',
     marginLeft: 2,
+    marginBottom: 0,
+    textTransform: 'none',
+    letterSpacing: 0,
   },
   passwordInputWrap: {
     minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
     backgroundColor: '#f8fafc',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
     paddingHorizontal: 14,
     marginBottom: 4,
   },
-  passwordInputWrapFocused: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fff8f8',
+  passwordIcon: {
+    marginRight: 0,
   },
   passwordInput: {
     flex: 1,

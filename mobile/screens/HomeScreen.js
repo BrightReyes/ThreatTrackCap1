@@ -11,8 +11,11 @@ import {
   Image,
   Animated,
   StatusBar,
+  AppState,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+// [QA-FIX #6] useFocusEffect import removed: the focus-refetch it powered was
+// tearing down and re-downloading the live incidents listener on every return to Home.
+import * as Location from 'expo-location';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import ActiveEmergencyModal from '../components/ActiveEmergencyModal';
@@ -413,6 +416,16 @@ const HomeScreen = ({ navigation }) => {
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // [QA-FIX #3] The last REAL GPS fix (null until the phone reports one).
+  // `userLocation` above starts as the Valenzuela map center and is also
+  // replaced by it when the user is outside the city, so it must never be sent
+  // as an emergency location. Only this value is handed to the SOS screen.
+  const [lastRealFix, setLastRealFix] = useState(null);
+  // [QA-FIX #10] True while ThreatTrack is not in the foreground. GPS streaming
+  // is foreground-only, so the SOS card says "Paused" instead of "Live".
+  const [isAppInBackground, setIsAppInBackground] = useState(AppState.currentState !== 'active');
+  // [QA-FIX #17] Throttle for the remote heatmap fallback (see fetchHeatmapData).
+  const lastRemoteHeatmapRef = useRef({ key: null, at: 0 });
 
   const hotspotCircles = useMemo(() => {
     return buildGeographicHotspotCircles(incidents, heatmapDays);
@@ -574,10 +587,28 @@ const HomeScreen = ({ navigation }) => {
     return () => unsubscribe();
   }, []);
 
-  // Background GPS streaming watcher while SOS report is active
+  // [QA-FIX #10] Track foreground/background so the SOS UI is honest about
+  // when live location is (and isn't) being shared.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      setIsAppInBackground(nextState !== 'active');
+    });
+    return () => sub?.remove?.();
+  }, []);
+
+  // Foreground GPS streaming watcher while SOS report is active.
+  // [QA-FIX #8] HomeScreen is the ONLY writer of live SOS coordinates (the
+  // unused duplicate in SOSReportScreen was removed). It runs while the app is
+  // open; see [QA-FIX #10] for how the UI says so.
   useEffect(() => {
     let locationSubscription = null;
     let isSubscribed = true;
+
+    // [QA-FIX #8] Reset per-incident tracking state. These refs used to keep
+    // the previous SOS's breadcrumb trail, which was then written into a new SOS.
+    lastSyncedCoordsRef.current = null;
+    lastSyncTimeRef.current = 0;
+    locationTrailRef.current = [];
 
     if (activeSOSIncident && activeSOSIncident.id && activeSOSIncident.liveStreamingActive !== false) {
       const startStreaming = async () => {
@@ -585,6 +616,8 @@ const HomeScreen = ({ navigation }) => {
           const sub = await watchLocation(async (newCoords) => {
             if (!isSubscribed) return;
             setUserLocation(newCoords);
+            // [QA-FIX #3] Streamed coordinates are real fixes.
+            setLastRealFix(newCoords);
             setDistressPingsCount((prev) => prev + 1);
             const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             setLastDistressBroadcastTime(timeStr);
@@ -608,6 +641,14 @@ const HomeScreen = ({ navigation }) => {
                   'location.longitude': newCoords.longitude,
                   lastGpsStreamAt: serverTimestamp(),
                 };
+                // [QA-FIX #3] Share fix accuracy (metres) with responders. It is
+                // nested in `location`, which the live-GPS rule already allows.
+                if (Number.isFinite(newCoords.accuracy)) {
+                  updatePayload['location.accuracy'] = newCoords.accuracy;
+                }
+                // [QA-FIX #3] A streamed fix is live, so clear the "approximate"
+                // flag SOSReportScreen sets when it had to use a cached fix.
+                updatePayload['location.isApproximate'] = false;
 
                 // Track physical displacement breadcrumbs (capped at last 15 points)
                 if (hasMoved) {
@@ -629,7 +670,8 @@ const HomeScreen = ({ navigation }) => {
                 console.warn('GPS stream sync pending Firestore rules update:', syncErr.message);
               }
             }
-          });
+          // [QA-FIX #3] High accuracy while an SOS is active (was Balanced).
+          }, { accuracy: Location.Accuracy.High });
 
           if (isSubscribed) {
             locationSubscription = sub;
@@ -662,9 +704,11 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
-  const hideAlert = () => {
-    setAlertConfig({ ...alertConfig, visible: false });
-  };
+  // [QA-FIX #13] Functional update. Spreading a captured `alertConfig` could
+  // overwrite a newer alert that a button's onPress had just opened.
+  const hideAlert = useCallback(() => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   const openHomeModal = (type, item = null) => {
     setHomeModal({ visible: true, type, item });
@@ -674,15 +718,11 @@ const HomeScreen = ({ navigation }) => {
     setHomeModal({ visible: false, type: null, item: null });
   };
 
-  const handleSOSPress = async () => {
-    try {
-      const location = await getCurrentLocation();
-      navigation.navigate('SOSReport', { userLocation: location });
-    } catch (error) {
-      console.error('Error getting location for SOS:', error);
-      // Navigate anyway without location, SOS screen will handle it
-      navigation.navigate('SOSReport');
-    }
+  // [QA-FIX #3, #4] Open SOS immediately (it used to await a GPS fix with no
+  // timeout first). SOSReportScreen takes its own fresh fix; a real last fix,
+  // if any, is passed only as an instant preview. Never the map default.
+  const handleSOSPress = () => {
+    navigation.navigate('SOSReport', lastRealFix ? { userLocation: lastRealFix } : undefined);
   };
 
   const handleCallPrecinct = () => {
@@ -803,16 +843,10 @@ const HomeScreen = ({ navigation }) => {
     };
   }, [loading, radarRipple1, radarRipple2, progressRunner]);
 
-  // Refresh incidents when screen comes into focus (after reporting incident)
-  useFocusEffect(
-    useCallback(() => {
-      // Refresh incidents by re-fetching when user returns to Home
-      if (!loading) {
-        console.log('HomeScreen focused - refreshing incidents');
-        fetchIncidents();
-      }
-    }, [loading])
-  );
+  // [QA-FIX #6] Removed the useFocusEffect that called fetchIncidents() on
+  // every focus. fetchIncidents() sets up a live onSnapshot listener that stays
+  // subscribed while Home is in the stack, so new reports already appear. The
+  // refetch tore it down and downloaded all 50 incidents again on every return.
 
   const initializeApp = async () => {
     try {
@@ -823,6 +857,9 @@ const HomeScreen = ({ navigation }) => {
         try {
           const loc = await getFastLocation();
           if (loc) {
+            // [QA-FIX #3] Remember the real fix even when outside the city
+            // (the map below is clamped to Valenzuela, the SOS location is not).
+            setLastRealFix(loc);
             const isNearValenzuela =
               loc.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
               loc.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
@@ -856,6 +893,8 @@ const HomeScreen = ({ navigation }) => {
       getCurrentLocation()
         .then((accurateLoc) => {
           if (accurateLoc) {
+            // [QA-FIX #3] Real fix for the SOS preview, inside or outside the city.
+            setLastRealFix(accurateLoc);
             const isNearValenzuela =
               accurateLoc.latitude >= VALENZUELA_BOUNDS.southWest.latitude - 0.05 &&
               accurateLoc.latitude <= VALENZUELA_BOUNDS.northEast.latitude + 0.05 &&
@@ -1187,14 +1226,23 @@ const HomeScreen = ({ navigation }) => {
     const bounds = getBoundsFromRegion(region);
     const localHeatmapPoints = buildHeatmapPointsFromIncidents(incidents, bounds, days);
 
-    if (localHeatmapPoints.length > 0) {
+    // [QA-FIX #17] Local data first. The remote result used to be fetched on
+    // every incidents snapshot and every map pan, then thrown away whenever
+    // local points existed (which is almost always). Now the network call is
+    // only a fallback for an empty local set.
+    if (localHeatmapPoints.length > 0 || heatmapEndpointUnavailableRef.current) {
       setHeatmapData(localHeatmapPoints);
-    }
-
-    if (heatmapEndpointUnavailableRef.current) {
-      setHeatmapData(localHeatmapPoints);
+      setHeatmapLoading(false);
       return;
     }
+
+    // [QA-FIX #17] Throttle the fallback: same bounds + days at most once a minute.
+    const remoteKey = `${days}:${bounds.north.toFixed(3)}:${bounds.south.toFixed(3)}:${bounds.east.toFixed(3)}:${bounds.west.toFixed(3)}`;
+    const nowMs = Date.now();
+    if (lastRemoteHeatmapRef.current.key === remoteKey && nowMs - lastRemoteHeatmapRef.current.at < 60000) {
+      return;
+    }
+    lastRemoteHeatmapRef.current = { key: remoteKey, at: nowMs };
 
     setHeatmapLoading(true);
     try {
@@ -1269,21 +1317,32 @@ const HomeScreen = ({ navigation }) => {
   }, [incidents, mapReady, heatmapDays]);
 
   // Get recent incidents for the list (top 3)
-  const recentIncidents = incidents.slice(0, 3);
-  const precinctsByDistance = precincts
-    .map((precinct) => ({
-      ...precinct,
-      distance: getPrecinctDistance(precinct),
-    }))
-    .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-  const incidentsByPriority = [...incidents].sort((a, b) => {
+  // [QA-FIX #18] Memoized. These were rebuilt and re-sorted on every render,
+  // and during an SOS every GPS ping re-renders Home.
+  const recentIncidents = useMemo(() => incidents.slice(0, 3), [incidents]);
+  const precinctsByDistance = useMemo(() => precincts
+    .map((precinct) => {
+      const coord = getPrecinctCoordinate(precinct);
+      const distance = typeof precinct?.distance === 'number'
+        ? precinct.distance
+        : (userLocation && coord ? calculateDistance(userLocation, coord) : null);
+      return { ...precinct, distance };
+    })
+    .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)),
+  [precincts, userLocation]);
+  const incidentsByPriority = useMemo(() => [...incidents].sort((a, b) => {
     const severityDifference = (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3);
     if (severityDifference !== 0) return severityDifference;
 
     const dateA = getIncidentDate(a.timestamp)?.getTime() || 0;
     const dateB = getIncidentDate(b.timestamp)?.getTime() || 0;
     return dateB - dateA;
-  });
+  }), [incidents]);
+
+  // [QA-FIX #18] Stable handler for the memoized MapOverlays component.
+  const handlePrecinctMarkerPress = useCallback((precinct) => {
+    setHomeModal({ visible: true, type: 'nearest', item: precinct });
+  }, []);
 
   const renderModalHeader = (eyebrow, title, subtitle) => (
     <View style={styles.homeModalHeader}>
@@ -1601,7 +1660,8 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={userLocation} />
+        {/* [QA-FIX #3] Real fix only (null while loading -> SOS gets its own fix). */}
+        <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={lastRealFix} />
       </View>
     );
   }
@@ -1689,8 +1749,11 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.activeStickyTitle} numberOfLines={1}>
               {activeSOSIncident.typeLabel || activeSOSIncident.type || 'Emergency Report'}
             </Text>
+            {/* [QA-FIX #10] Honest status: GPS sharing only runs while the app is open. */}
             <Text style={styles.activeStickyMeta} numberOfLines={1}>
-              Live GPS active • Tap to track
+              {isAppInBackground
+                ? 'Paused – app in background • Open to resume'
+                : 'Live GPS while app is open • Tap to track'}
             </Text>
           </View>
           <View style={styles.activeStickyArrowWrap}>
@@ -1824,120 +1887,17 @@ const HomeScreen = ({ navigation }) => {
                 rotateEnabled={false}
                 mapPadding={{ top: 0, right: 0, bottom: 0, left: 0 }}
               >
-                {/* Valenzuela City Boundary Outline */}
-                <Polygon
-                  coordinates={VALENZUELA_BOUNDARY}
-                  strokeColor="#38bdf8"
-                  strokeWidth={2.5}
-                  fillColor="rgba(56, 189, 248, 0.08)"
-                  tappable={false}
+                {/* [QA-FIX #18] Overlays moved into the memoized MapOverlays component
+                    (bottom of this file) so GPS pings / alerts / timers that re-render
+                    HomeScreen no longer re-render every polygon, circle and marker. */}
+                <MapOverlays
+                  hotspotCircles={hotspotCircles}
+                  showHeatmap={showHeatmap}
+                  heatmapData={heatmapData}
+                  precincts={precincts}
+                  tracksPcpViewChanges={tracksPcpViewChanges}
+                  onPrecinctPress={handlePrecinctMarkerPress}
                 />
-
-                {/* Geodesically Perfect Hotspot Circles (mathematically true circles at all zoom levels) */}
-                {showHeatmap &&
-                  hotspotCircles.map((hotspot) => {
-                    const isHigh = hotspot.severity === 'high';
-                    const isMedium = hotspot.severity === 'medium';
-
-                    const auraFill = isHigh
-                      ? 'rgba(220, 38, 38, 0.14)'
-                      : isMedium
-                      ? 'rgba(249, 115, 22, 0.12)'
-                      : 'rgba(234, 179, 8, 0.10)';
-
-                    const coreFill = isHigh
-                      ? 'rgba(220, 38, 38, 0.35)'
-                      : isMedium
-                      ? 'rgba(249, 115, 22, 0.30)'
-                      : 'rgba(234, 179, 8, 0.25)';
-
-                    const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#eab308';
-                    const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#ca8a04';
-
-                    return (
-                      <React.Fragment key={`hotspot-circle-${hotspot.id}`}>
-                        {/* Outer atmospheric aura */}
-                        <Circle
-                          center={hotspot.center}
-                          radius={hotspot.auraRadius}
-                          fillColor={auraFill}
-                          strokeColor="transparent"
-                          strokeWidth={0}
-                          zIndex={14}
-                        />
-                        {/* Core hotspot zone - mathematically perfect vector circle */}
-                        <Circle
-                          center={hotspot.center}
-                          radius={hotspot.radius}
-                          fillColor={coreFill}
-                          strokeColor={strokeColor}
-                          strokeWidth={2}
-                          zIndex={15}
-                        />
-                        {/* Center Cluster Count Badge (Identical to Admin Map Cluster Indicator) */}
-                        <Marker
-                          coordinate={hotspot.center}
-                          anchor={{ x: 0.5, y: 0.5 }}
-                          zIndex={18}
-                          tracksViewChanges={false}
-                        >
-                          <View style={[styles.hotspotClusterBadge, { borderColor: strokeColor }]}>
-                            <Text style={[styles.hotspotClusterCountText, { color: centerColor }]}>
-                              {hotspot.count}
-                            </Text>
-                          </View>
-                        </Marker>
-                      </React.Fragment>
-                    );
-                  })}
-
-                {/* Heatmap Layer - Hardware-accelerated GPU overlay for ambient glow */}
-                {showHeatmap && heatmapData && heatmapData.length > 0 && (
-                  <Heatmap
-                    points={heatmapData}
-                    radius={HEATMAP_NATIVE_RADIUS}
-                    opacity={0.4}
-                    maxIntensity={1}
-                    gradient={HEATMAP_GRADIENT}
-                  />
-                )}
-
-                {/* Precinct & Sub-station Tactical Markers (Official Police Pin Logo) */}
-                {precincts.map((precinct) => {
-                  const coordinate = getPrecinctCoordinate(precinct);
-
-                  if (!coordinate) return null;
-
-                  const pinKey = precinct.id || precinct.code || precinct.name;
-                  const displayLabel = precinct.code || (precinct.name && precinct.name.includes('PCP') ? precinct.name.split(' ').slice(-2).join(' ') : 'POLICE');
-
-                  return (
-                    <Marker
-                      key={`precinct-marker-${pinKey}`}
-                      coordinate={coordinate}
-                      title={precinct.name}
-                      description={precinct.address}
-                      anchor={{ x: 0.5, y: 0.85 }}
-                      zIndex={25}
-                      tracksViewChanges={tracksPcpViewChanges}
-                      onPress={() => openHomeModal('nearest', precinct)}
-                    >
-                      <View style={styles.pcpPinWrapper}>
-                        <Image
-                          source={POLICE_STATION_ICON}
-                          style={styles.pcpPinMarkerImage}
-                          resizeMode="contain"
-                        />
-                        <View style={styles.pcpPinCalloutPill}>
-                          <View style={styles.pcpPinLiveDot} />
-                          <Text style={styles.pcpPinCalloutText} numberOfLines={1}>
-                            {displayLabel}
-                          </Text>
-                        </View>
-                      </View>
-                    </Marker>
-                  );
-                })}
               </MapView>
 
               {/* Quick Recenter Valenzuela Button */}
@@ -2138,7 +2098,8 @@ const HomeScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={userLocation} />
+      {/* [QA-FIX #3] Pass only a real GPS fix (never the Valenzuela-center map default). */}
+      <GlobalBottomBar navigation={navigation} activeTab="Home" userLocation={lastRealFix} />
     </View>
 
     <SmoothModal
@@ -2178,6 +2139,137 @@ const HomeScreen = ({ navigation }) => {
   </>
   );
 };
+
+// [QA-FIX #18] Map overlays (city boundary, hotspot circles, heatmap, precinct
+// pins), moved out of HomeScreen's render unchanged. React.memo means they only
+// re-render when their own data changes, not on every HomeScreen state update.
+const MapOverlays = React.memo(function MapOverlays({
+  hotspotCircles,
+  showHeatmap,
+  heatmapData,
+  precincts,
+  tracksPcpViewChanges,
+  onPrecinctPress,
+}) {
+  return (
+    <>
+    {/* Valenzuela City Boundary Outline */}
+    <Polygon
+      coordinates={VALENZUELA_BOUNDARY}
+      strokeColor="#38bdf8"
+      strokeWidth={2.5}
+      fillColor="rgba(56, 189, 248, 0.08)"
+      tappable={false}
+    />
+
+    {/* Geodesically Perfect Hotspot Circles (mathematically true circles at all zoom levels) */}
+    {showHeatmap &&
+      hotspotCircles.map((hotspot) => {
+        const isHigh = hotspot.severity === 'high';
+        const isMedium = hotspot.severity === 'medium';
+
+        const auraFill = isHigh
+          ? 'rgba(220, 38, 38, 0.14)'
+          : isMedium
+          ? 'rgba(249, 115, 22, 0.12)'
+          : 'rgba(234, 179, 8, 0.10)';
+
+        const coreFill = isHigh
+          ? 'rgba(220, 38, 38, 0.35)'
+          : isMedium
+          ? 'rgba(249, 115, 22, 0.30)'
+          : 'rgba(234, 179, 8, 0.25)';
+
+        const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#eab308';
+        const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#ca8a04';
+
+        return (
+          <React.Fragment key={`hotspot-circle-${hotspot.id}`}>
+            {/* Outer atmospheric aura */}
+            <Circle
+              center={hotspot.center}
+              radius={hotspot.auraRadius}
+              fillColor={auraFill}
+              strokeColor="transparent"
+              strokeWidth={0}
+              zIndex={14}
+            />
+            {/* Core hotspot zone - mathematically perfect vector circle */}
+            <Circle
+              center={hotspot.center}
+              radius={hotspot.radius}
+              fillColor={coreFill}
+              strokeColor={strokeColor}
+              strokeWidth={2}
+              zIndex={15}
+            />
+            {/* Center Cluster Count Badge (Identical to Admin Map Cluster Indicator) */}
+            <Marker
+              coordinate={hotspot.center}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={18}
+              tracksViewChanges={false}
+            >
+              <View style={[styles.hotspotClusterBadge, { borderColor: strokeColor }]}>
+                <Text style={[styles.hotspotClusterCountText, { color: centerColor }]}>
+                  {hotspot.count}
+                </Text>
+              </View>
+            </Marker>
+          </React.Fragment>
+        );
+      })}
+
+    {/* Heatmap Layer - Hardware-accelerated GPU overlay for ambient glow */}
+    {showHeatmap && heatmapData && heatmapData.length > 0 && (
+      <Heatmap
+        points={heatmapData}
+        radius={HEATMAP_NATIVE_RADIUS}
+        opacity={0.4}
+        maxIntensity={1}
+        gradient={HEATMAP_GRADIENT}
+      />
+    )}
+
+    {/* Precinct & Sub-station Tactical Markers (Official Police Pin Logo) */}
+    {precincts.map((precinct) => {
+      const coordinate = getPrecinctCoordinate(precinct);
+
+      if (!coordinate) return null;
+
+      const pinKey = precinct.id || precinct.code || precinct.name;
+      const displayLabel = precinct.code || (precinct.name && precinct.name.includes('PCP') ? precinct.name.split(' ').slice(-2).join(' ') : 'POLICE');
+
+      return (
+        <Marker
+          key={`precinct-marker-${pinKey}`}
+          coordinate={coordinate}
+          title={precinct.name}
+          description={precinct.address}
+          anchor={{ x: 0.5, y: 0.85 }}
+          zIndex={25}
+          tracksViewChanges={tracksPcpViewChanges}
+          onPress={() => onPrecinctPress(precinct)}
+        >
+          <View style={styles.pcpPinWrapper}>
+            <Image
+              source={POLICE_STATION_ICON}
+              style={styles.pcpPinMarkerImage}
+              resizeMode="contain"
+            />
+            <View style={styles.pcpPinCalloutPill}>
+              <View style={styles.pcpPinLiveDot} />
+              <Text style={styles.pcpPinCalloutText} numberOfLines={1}>
+                {displayLabel}
+              </Text>
+            </View>
+          </View>
+        </Marker>
+      );
+    })}
+    </>
+  );
+});
 
 // Dark map style for night mode
 const darkMapStyle = [
