@@ -240,6 +240,14 @@ const SOSReportScreen = ({ navigation, route }) => {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  // [POPUP-FIX #22] Reset the stack to Home instead of pushing it. A push kept this
+  // screen (and its closing CustomAlert Modal) mounted but detached underneath
+  // Home, so the "SOS Dispatched" popup stayed stuck on top. Resetting also
+  // keeps Back from returning to an already-submitted SOS form.
+  const goHomeAfterSubmit = () => {
+    navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+  };
+
   const showReportEligibilityAlert = (eligibility) => {
     if (eligibility?.needsEmailVerification) {
       showAlert(
@@ -464,7 +472,7 @@ const SOSReportScreen = ({ navigation, route }) => {
           'warning',
           [
             { text: `Call ${NATIONAL_EMERGENCY_HOTLINE}`, onPress: () => Linking.openURL(`tel:${NATIONAL_EMERGENCY_HOTLINE}`) },
-            { text: 'View on Home', onPress: () => navigation.navigate('Home') },
+            { text: 'View on Home', onPress: goHomeAfterSubmit },
           ],
           0
         );
@@ -485,7 +493,7 @@ const SOSReportScreen = ({ navigation, route }) => {
         [
           {
             text: 'View on Home',
-            onPress: () => navigation.navigate('Home'),
+            onPress: goHomeAfterSubmit,
           },
         ]
       );

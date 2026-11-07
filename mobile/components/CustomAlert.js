@@ -44,6 +44,16 @@ const CustomAlert = ({
   const radarScale = useRef(new Animated.Value(1)).current;
   const radarOpacity = useRef(new Animated.Value(0.55)).current;
   const [isMounted, setIsMounted] = useState(visible);
+  // [POPUP-FIX #22] isMounted mirrored in a ref so the visibility effect doesn't
+  // depend on it (which replayed the entrance animation), plus a fallback timer
+  // that unmounts the Modal even if the native exit-animation callback never
+  // fires (e.g. the owning screen was detached by a navigation push). Without
+  // it the Android Modal window stayed on top of the next screen forever.
+  const isMountedRef = useRef(visible);
+  const exitFallbackRef = useRef(null);
+  isMountedRef.current = isMounted;
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
 
   const isSOS = Boolean(
     title?.toLowerCase().includes('sos') ||
@@ -52,6 +62,10 @@ const CustomAlert = ({
 
   // Entrance & Exit springs
   useEffect(() => {
+    if (exitFallbackRef.current) {
+      clearTimeout(exitFallbackRef.current);
+      exitFallbackRef.current = null;
+    }
     if (visible) {
       setIsMounted(true);
       Animated.parallel([
@@ -75,7 +89,11 @@ const CustomAlert = ({
           useNativeDriver: true,
         }),
       ]).start();
-    } else if (isMounted) {
+    } else if (isMountedRef.current) {
+      exitFallbackRef.current = setTimeout(() => {
+        exitFallbackRef.current = null;
+        setIsMounted(false);
+      }, 220);
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
@@ -95,9 +113,16 @@ const CustomAlert = ({
           easing: Easing.in(Easing.quad),
           useNativeDriver: true,
         }),
-      ]).start(() => setIsMounted(false));
+      ]).start(() => {
+        // Ignore if the alert was re-opened while the exit was running.
+        if (!visibleRef.current) setIsMounted(false);
+      });
     }
-  }, [fadeAnim, isMounted, scaleAnim, translateAnim, visible]);
+  }, [fadeAnim, scaleAnim, translateAnim, visible]);
+
+  useEffect(() => () => {
+    if (exitFallbackRef.current) clearTimeout(exitFallbackRef.current);
+  }, []);
 
   // Looping Radar Wave animation
   useEffect(() => {

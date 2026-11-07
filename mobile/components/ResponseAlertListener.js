@@ -25,8 +25,34 @@ const formatDistance = (dist) => {
 // refs, new alerts are queued and shown one after another, dispatch alerts are
 // de-duplicated per incident, and the system notification is only scheduled
 // when ThreatTrack isn't in the foreground.
+//
+// [POPUP-FIX #23] "Help is on the way" kept re-popping after Acknowledge /
+// Track Status. Causes and fixes:
+//  - the incident listener popped for EVERY already-responding incident in its
+//    first snapshot (all docs arrive as `added`), queueing one popup per
+//    incident on every launch. Now the first snapshot only seeds state and we
+//    pop only when an incident newly transitions into a dispatch;
+//  - acknowledging an incident-sourced popup never persisted anything, and the
+//    matching notification doc (dropped by the duplicate window) stayed unread
+//    and popped on the next launch. Now acknowledging marks every unread
+//    dispatch notification for that incident as read;
+//  - an unread backlog is collapsed to the newest alert per incident, and
+//    alerts older than STALE_ALERT_MS are marked read without a popup.
 const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 const NEXT_ALERT_DELAY_MS = 350; // let the previous popup finish its close animation
+const STALE_ALERT_MS = 12 * 60 * 60 * 1000;
+
+const markNotificationDocRead = async (notificationId) => {
+  if (!notificationId || String(notificationId).startsWith('resp_')) return;
+  try {
+    await updateDoc(doc(db, 'notifications', notificationId), {
+      read: true,
+      readAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error marking response notification read:', error);
+  }
+};
 
 const ResponseAlertListener = () => {
   const navigation = useNavigation();
@@ -42,6 +68,8 @@ const ResponseAlertListener = () => {
   });
   const preferencesLoadedRef = useRef(false);
   const pendingNotificationDocsRef = useRef(null);
+  const latestNotificationDocsRef = useRef([]);
+  const incidentStateRef = useRef(new Map());
   const nextTimerRef = useRef(null);
   const isMountedRef = useRef(true);
 
@@ -73,6 +101,13 @@ const ResponseAlertListener = () => {
     if (popup.incidentId) {
       const lastShownAt = recentIncidentAlertsRef.current.get(popup.incidentId);
       if (lastShownAt && Date.now() - lastShownAt < DUPLICATE_WINDOW_MS) {
+        // [POPUP-FIX #23] If this incident's alert was already acknowledged, a
+        // late duplicate notification doc would otherwise stay unread and pop
+        // on the next launch. (Active/queued ones are handled by markRead.)
+        const stillPending =
+          activeRef.current?.incidentId === popup.incidentId ||
+          queueRef.current.some((entry) => entry.popup.incidentId === popup.incidentId);
+        if (!stillPending) markNotificationDocRead(popup.id);
         return;
       }
       recentIncidentAlertsRef.current.set(popup.incidentId, Date.now());
@@ -82,18 +117,45 @@ const ResponseAlertListener = () => {
   }, [showNextQueued]);
 
   const processNotificationDocs = useCallback((docs) => {
-    const unreadList = docs
-      .filter((item) => (
-        isPopupNotification(item) &&
-        isAllowedByPreferences(item, preferencesRef.current) &&
-        !item.readAt &&
-        !shownRef.current.has(item.id)
-      ))
+    latestNotificationDocsRef.current = docs;
+    const now = Date.now();
+    const candidates = docs.filter((item) => (
+      isPopupNotification(item) &&
+      isAllowedByPreferences(item, preferencesRef.current) &&
+      !isNotificationRead(item) &&
+      !shownRef.current.has(item.id)
+    ));
+
+    // [POPUP-FIX #23] Collapse the backlog: newest unread alert per incident,
+    // older duplicates and stale alerts are marked read without a popup.
+    const newestByIncident = new Map();
+    const silenced = [];
+    candidates.forEach((item) => {
+      shownRef.current.add(item.id);
+      const sentAt = getTimeValue(item.sentAt || item.timestamp);
+      // sentAt 0 = server timestamp not resolved yet, i.e. brand new.
+      if (sentAt && now - sentAt > STALE_ALERT_MS) {
+        silenced.push(item);
+        return;
+      }
+      const key = item.incidentId || item.id;
+      const existing = newestByIncident.get(key);
+      if (!existing) {
+        newestByIncident.set(key, item);
+      } else if (getTimeValue(existing.sentAt || existing.timestamp) < sentAt) {
+        silenced.push(existing);
+        newestByIncident.set(key, item);
+      } else {
+        silenced.push(item);
+      }
+    });
+    silenced.forEach((item) => markNotificationDocRead(item.id));
+
+    const unreadList = [...newestByIncident.values()]
       // Oldest first so queued alerts appear in the order they happened.
       .sort((a, b) => getTimeValue(a.sentAt || a.timestamp) - getTimeValue(b.sentAt || b.timestamp));
 
     unreadList.forEach((unreadResponse) => {
-      shownRef.current.add(unreadResponse.id);
 
       const responder = unreadResponse.responder || {};
       const response = unreadResponse.response || {};
@@ -202,17 +264,37 @@ const ResponseAlertListener = () => {
     const incidentsRef = collection(db, 'incidents');
     const q = query(incidentsRef, where('reporterId', '==', currentUser.uid));
 
+    let isFirstSnapshot = true;
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        const seedOnly = isFirstSnapshot;
+        isFirstSnapshot = false;
         snapshot.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            incidentStateRef.current.delete(change.doc.id);
+            return;
+          }
           if (change.type === 'modified' || change.type === 'added') {
             const data = change.doc.data();
             const status = String(data.status || '').toLowerCase().trim();
             const responseStatus = String(data.responseStatus || data.response?.status || '').toLowerCase().trim();
             const isResponding = status === 'responding' || responseStatus === 'help_on_the_way';
+            const respondedAtSec = data.respondedAt?.seconds || data.response?.respondedAt?.seconds || null;
 
-            if (isResponding) {
+            // [POPUP-FIX #23] Only a NEW dispatch pops: the first snapshot just
+            // records state (missed dispatches come from unread notification
+            // docs instead), and later updates to an already-responding
+            // incident (GPS trail, ETA, etc.) are ignored.
+            const prev = incidentStateRef.current.get(change.doc.id);
+            incidentStateRef.current.set(change.doc.id, { responding: isResponding, respondedAtSec });
+            const isNewDispatch = isResponding && !seedOnly && (
+              !prev ||
+              !prev.responding ||
+              Boolean(respondedAtSec && prev.respondedAtSec && respondedAtSec !== prev.respondedAtSec)
+            );
+
+            if (isNewDispatch) {
               const responder = data.responder || {};
               const response = data.response || {};
               const stationName =
@@ -226,7 +308,7 @@ const ResponseAlertListener = () => {
                 : null;
               const trafficStr = response.trafficLevel || responder.trafficLevel || null;
 
-              const eventKey = `resp_${change.doc.id}_${data.respondedAt?.seconds || data.updatedAt?.seconds || 'active'}`;
+              const eventKey = `resp_${change.doc.id}_${respondedAtSec || 'active'}`;
               if (!shownRef.current.has(eventKey)) {
                 shownRef.current.add(eventKey);
 
@@ -278,19 +360,24 @@ const ResponseAlertListener = () => {
     if (nextTimerRef.current) clearTimeout(nextTimerRef.current);
     nextTimerRef.current = setTimeout(showNextQueued, NEXT_ALERT_DELAY_MS);
 
-    if (!current.id) return;
-
-    // Only update notification doc if it corresponds to an actual Firestore notification ID
-    if (!current.id.startsWith('resp_')) {
-      try {
-        await updateDoc(doc(db, 'notifications', current.id), {
-          read: true,
-          readAt: serverTimestamp(),
-        });
-      } catch (error) {
-        console.error('Error marking response notification read:', error);
-      }
+    // [POPUP-FIX #23] Persist the acknowledgement for the whole incident: the
+    // popup's own notification doc plus any other unread dispatch notification
+    // for the same incident (incl. when the popup came from the incident
+    // listener), so none of them re-pop on the next launch.
+    const idsToMark = new Set();
+    if (current.id && !current.id.startsWith('resp_')) idsToMark.add(current.id);
+    if (current.incidentId) {
+      latestNotificationDocsRef.current.forEach((item) => {
+        if (
+          item.incidentId === current.incidentId &&
+          isPopupNotification(item) &&
+          !isNotificationRead(item)
+        ) {
+          idsToMark.add(item.id);
+        }
+      });
     }
+    await Promise.all([...idsToMark].map(markNotificationDocRead));
   }, [showNextQueued]);
 
   const handleTrackStatus = useCallback(() => {
@@ -329,6 +416,8 @@ const isPopupNotification = (item) => {
   if (item?.type === 'response_update') return true;
   return item?.type === 'police_urgent_report' && item?.severity === 'high';
 };
+
+const isNotificationRead = (item) => Boolean(item?.readAt) || item?.read === true;
 
 const isAllowedByPreferences = (item, preferences) => {
   if (preferences.pushNotifications === false) return false;

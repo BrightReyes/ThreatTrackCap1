@@ -34,6 +34,7 @@ Then rebuild the APK. See [Before the next build](#before-the-next-build).
   - [P0: Broken before the fix](#p0-broken-before-the-fix)
   - [P1: Not robust](#p1-not-robust)
   - [P2: Optimization and cleanup](#p2-optimization-and-cleanup)
+- [Part 3: Tester bug reports (popups)](#part-3-tester-bug-reports-popups)
 - [Files changed](#files-changed)
 - [Not changed (known gaps)](#not-changed-known-gaps)
 - [Verification](#verification)
@@ -277,6 +278,36 @@ Numbers match the QA report.
 
 ---
 
+## Part 3: Tester bug reports (popups)
+
+Numbers are the tester's bug-report numbers, not the QA finding numbers above. Search for `[POPUP-FIX #22]` or `[POPUP-FIX #23]`.
+
+**Status: fixed in code. Not yet tested on a device** (see the checklist below).
+
+#### Bug #23: "Help is on the way" kept popping up after Acknowledge / Track Status
+- **Was:**
+  - **Every launch:** the incident listener queued one popup for *every* incident that was already responding, because Firestore reports all docs as `added` in the first snapshot. Tapping Acknowledge or Track Status showed the next one 350 ms later, so it looked like the same popup reopening.
+  - **Not saved:** acknowledging a popup that came from the incident listener saved nothing. The matching notification doc was dropped by the 2-minute duplicate check, stayed unread, and popped again on the next launch.
+- **Now:**
+  - **New dispatches only:** the first incident snapshot only records state. A popup appears only when an incident newly becomes "responding", or gets a new `respondedAt`. Later updates (GPS trail, ETA) don't pop anything.
+  - **Missed dispatches:** dispatches that happened while the app was closed still come from unread notification docs.
+  - **Acknowledgement is saved:** Acknowledge and Track Status mark **every** unread dispatch notification for that incident as read (`read: true`, `readAt`). A late duplicate that arrives after you acknowledged is marked read too.
+  - **Backlog:** only the newest unread alert per incident is shown. Older duplicates, and alerts older than **12 hours** (`STALE_ALERT_MS`), are marked read without a popup.
+  - **Read check:** a notification counts as read if it has either `readAt` or `read: true`.
+- **File:** `components/ResponseAlertListener.js`
+
+#### Bug #22: "SOS Dispatched!" popup stuck on top of Home
+- **Was:**
+  - **Hidden screen:** after the SOS Gateway → SOS Report flow, "View on Home" *pushed* Home. SOS Report stayed mounted underneath, detached (`detachInactiveScreens`), and its popup was still closing.
+  - **Stuck popup:** `CustomAlert` only removed its Modal when the exit animation finished. On the detached screen that never happened, so the Android Modal window stayed over Home and none of its buttons did anything.
+- **Now:**
+  - **Navigation:** "View on Home" (both on success and on "SOS Queued") resets the stack to Home. The SOS screens are removed, and Back no longer returns to a form you already sent.
+  - **CustomAlert close:** a 220 ms fallback timer always removes the Modal after `visible` turns false, even if the animation callback never runs. This applies to every popup in the app.
+  - **CustomAlert reopen:** if a popup is reopened while it's still closing, it stays open. The entrance animation no longer plays twice.
+- **Files:** `screens/SOSReportScreen.js`, `components/CustomAlert.js`
+
+---
+
 ## Files changed
 
 **Mobile (`mobile/`)**
@@ -294,12 +325,12 @@ Numbers match the QA report.
 | `utils/async.js` (**new**) | #4, #5d, #9 |
 | `components/FormField.js`, `components/KeyboardAwareForm.js` (**new**) | KEYBOARD |
 | `components/GlobalBottomBar.js` | #3, #4, #11 |
-| `components/CustomAlert.js` | #13, #14 |
-| `components/ResponseAlertListener.js` | #10, #12 |
+| `components/CustomAlert.js` | #13, #14, Bug #22 |
+| `components/ResponseAlertListener.js` | #10, #12, Bug #23 |
 | `components/ActiveEmergencyModal.js` | #7, #10 |
 | `components/SmoothModal.js` | KEYBOARD, #11 |
 | `screens/HomeScreen.js` | #3, #6, #8, #10, #13, #17, #18 |
-| `screens/SOSReportScreen.js` | KEYBOARD, #3, #4, #8, #9, #10, #11, #13 |
+| `screens/SOSReportScreen.js` | KEYBOARD, #3, #4, #8, #9, #10, #11, #13, Bug #22 |
 | `screens/ReportIncidentScreen.js` | KEYBOARD, #6, #9, #11, #13 |
 | `screens/SettingsScreen.js` | KEYBOARD, #4, #13 |
 | `screens/SOSGatewayScreen.js` | #11 |
@@ -388,6 +419,13 @@ After steps 1–2 and installing the new APK:
 - [ ] A dispatch update while the app is open shows the in-app popup. With the app in the background (but not closed), a local notification appears, and tapping it opens Status.
 - [ ] Two dispatch updates in a row: both popups show, one after the other, with no duplicate.
 - [ ] "Mark all read" works.
+
+**Popups (Bugs #22, #23)**
+- [ ] Bug #23: with an account that has several responding incidents, close and reopen the app. You get at most one popup per unread dispatch, not a stream of them.
+- [ ] Bug #23: tap **Acknowledge**, then restart the app. The popup does not come back.
+- [ ] Bug #23: dispatch one new incident from the web admin. Exactly one popup appears. **Track Status** opens Status, and the popup doesn't return.
+- [ ] Bug #22: SOS Gateway → send an SOS → **View on Home**. The popup closes, Home is usable, and Back doesn't return to the SOS form.
+- [ ] Other popups (photo-upload fallback, Settings, auto-close alerts) still open and close normally.
 
 **Layout**
 - [ ] On 3-button navigation, the bottom bar, SOS footer, Report buttons and bottom sheets are not covered.
