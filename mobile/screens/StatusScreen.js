@@ -13,6 +13,7 @@ import {
 import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT } from '../theme/colors';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
@@ -46,9 +47,9 @@ const STATUS_META = {
   responding: {
     label: 'Help On The Way',
     shortLabel: 'Responding',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#1d4ed8',
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
     step: 3,
     assurance: 'A responder has acknowledged your report. Keep your phone reachable and stay in a safe place.',
   },
@@ -73,18 +74,18 @@ const STATUS_META = {
   pending: {
     label: 'Submitted',
     shortLabel: 'Submitted',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#475569',
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     step: 1,
     assurance: 'Your report was received and is waiting for review.',
   },
   submitted: {
     label: 'Submitted',
     shortLabel: 'Submitted',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#475569',
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     step: 1,
     assurance: 'Your report was received and is waiting for review.',
   },
@@ -414,15 +415,6 @@ const StatusScreen = ({ navigation }) => {
     }
   };
 
-  const getSeverityBackground = (severity) => {
-    switch (severity) {
-      case 'high': return '#fef2f2';
-      case 'medium': return '#fffbeb';
-      case 'low': return '#f0fdf4';
-      default: return '#f3f4f6';
-    }
-  };
-
   const getLocationDisplay = (location) => {
     if (!location) return 'Location not specified';
     if (location.address) {
@@ -540,7 +532,7 @@ const StatusScreen = ({ navigation }) => {
         <View style={styles.detailsHeader}>
           <View style={styles.detailsTitleBlock}>
             <View style={styles.detailsEyebrowBadge}>
-              <Ionicons name="shield-checkmark" size={13} color="#991b1b" />
+              <Ionicons name="shield-checkmark" size={13} color="#7f1d1d" />
               <Text style={styles.detailsEyebrow}>INCIDENT DOSSIER</Text>
             </View>
             <Text style={styles.detailsTitle}>{formatIncidentType(selectedIncident)}</Text>
@@ -701,7 +693,7 @@ const StatusScreen = ({ navigation }) => {
           {/* Assurance Box */}
           <View style={styles.assuranceCard}>
             <View style={styles.assuranceTitleRow}>
-              <Ionicons name="shield-checkmark-outline" size={17} color="#991b1b" />
+              <Ionicons name="shield-checkmark-outline" size={17} color="#7f1d1d" />
               <Text style={styles.assuranceTitle}>Dispatcher Guidance</Text>
             </View>
             <Text style={styles.assuranceText}>
@@ -741,7 +733,7 @@ const StatusScreen = ({ navigation }) => {
         >
           {/* ThreatTrack Signature Gradient Header */}
           <LinearGradient
-            colors={['#7f1d1d', '#991b1b', '#dc2626']}
+            colors={BRAND_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.headerContainer}
@@ -750,10 +742,6 @@ const StatusScreen = ({ navigation }) => {
               <View style={styles.headerBrandBadge}>
                 <Ionicons name="shield-checkmark" size={13} color="#fee2e2" />
                 <Text style={styles.headerBrandBadgeText}>THREATTRACK CITIZEN PORTAL</Text>
-              </View>
-              <View style={styles.headerLiveBadge}>
-                <View style={styles.livePulseDot} />
-                <Text style={styles.headerLiveBadgeText}>LIVE DISPATCH</Text>
               </View>
             </View>
 
@@ -770,7 +758,7 @@ const StatusScreen = ({ navigation }) => {
             <View style={styles.statCard}>
               <View style={styles.statHeaderRow}>
                 <Text style={styles.statLabel}>Total</Text>
-                <Ionicons name="document-text-outline" size={14} color="#dc2626" />
+                <Ionicons name="document-text-outline" size={14} color="#7f1d1d" />
               </View>
               <Text style={styles.statNumber}>{stats.total}</Text>
               <Text style={styles.statSub}>Submitted</Text>
@@ -821,7 +809,7 @@ const StatusScreen = ({ navigation }) => {
                   >
                     {isSelected ? (
                       <LinearGradient
-                        colors={['#dc2626', '#991b1b']}
+                        colors={BRAND_GRADIENT}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.filterTabGradient}
@@ -861,12 +849,14 @@ const StatusScreen = ({ navigation }) => {
                     activeOpacity={0.86}
                   >
                     <View style={styles.incidentRowTop}>
-                      <View style={[styles.incidentTypeIconWrap, { backgroundColor: getSeverityBackground(incident.severity) }]}>
+                      {/* Neutral icon tile + small severity dot (red is for urgent UI only). */}
+                      <View style={[styles.incidentTypeIconWrap, { backgroundColor: '#f1f5f9' }]}>
                         <Ionicons
                           name={getIncidentIconName(incident.type)}
                           size={22}
-                          color={severityColor}
+                          color="#7f1d1d"
                         />
+                        <View style={[styles.incidentSeverityDot, { backgroundColor: severityColor }]} />
                       </View>
                       <View style={styles.incidentTitleBlock}>
                         <Text style={styles.incidentTitle} numberOfLines={1}>
@@ -893,7 +883,7 @@ const StatusScreen = ({ navigation }) => {
                     {/* [QA-FIX #6] Legacy inline photo or hasEvidencePhoto flag. */}
                     {hasAnyEvidencePhoto(incident) ? (
                       <View style={styles.photoAttachedBadge}>
-                        <Ionicons name="camera-outline" size={13} color="#991b1b" />
+                        <Ionicons name="camera-outline" size={13} color="#7f1d1d" />
                         <Text style={styles.photoAttachedText}>Photo Evidence Attached</Text>
                       </View>
                     ) : null}
@@ -916,7 +906,7 @@ const StatusScreen = ({ navigation }) => {
                       </View>
                       <View style={styles.detailsLinkRow}>
                         <Text style={styles.detailsLink}>Details</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#dc2626" />
+                        <Ionicons name="chevron-forward" size={14} color="#0f172a" />
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -925,7 +915,7 @@ const StatusScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIcon}>
-                  <Ionicons name="document-text-outline" size={32} color="#dc2626" />
+                  <Ionicons name="document-text-outline" size={32} color="#7f1d1d" />
                 </View>
                 <Text style={styles.emptyTitle}>
                   {activeFilter === 'all'
@@ -976,7 +966,7 @@ const StatusScreen = ({ navigation }) => {
                       <Ionicons
                         name="chevron-back"
                         size={16}
-                        color={currentPage === 1 ? '#9ca3af' : '#dc2626'}
+                        color={currentPage === 1 ? '#9ca3af' : '#0f172a'}
                       />
                       <Text
                         style={[
@@ -1024,7 +1014,7 @@ const StatusScreen = ({ navigation }) => {
                       <Ionicons
                         name="chevron-forward"
                         size={16}
-                        color={currentPage === totalPages ? '#9ca3af' : '#dc2626'}
+                        color={currentPage === totalPages ? '#9ca3af' : '#0f172a'}
                       />
                     </TouchableOpacity>
                   </View>
@@ -1114,29 +1104,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0.8,
   },
-  headerLiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-    borderRadius: 999,
-    paddingVertical: 4.5,
-    paddingHorizontal: 10,
-  },
-  livePulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#4ade80',
-  },
-  headerLiveBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-  },
   headerTitleBlock: {
     marginTop: 4,
   },
@@ -1169,8 +1136,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#fee2e2',
-    shadowColor: '#991b1b',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -1233,7 +1200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.2,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     paddingVertical: 7,
     paddingHorizontal: 13,
     borderRadius: 14,
@@ -1261,15 +1228,15 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   filterCountBadge: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 10,
   },
   filterCountText: {
-    color: '#dc2626',
+    color: '#334155',
     fontSize: 11,
     fontWeight: '900',
   },
@@ -1284,8 +1251,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
     borderWidth: 1.2,
-    borderColor: '#fee2e2',
-    shadowColor: '#991b1b',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
@@ -1304,7 +1271,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
+  },
+  incidentSeverityDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   incidentTitleBlock: {
     flex: 1,
@@ -1339,13 +1316,13 @@ const styles = StyleSheet.create({
   trackingTimeline: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderRadius: 16,
     paddingHorizontal: 8,
     paddingVertical: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   trackingStepWrap: {
     flex: 1,
@@ -1364,11 +1341,11 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   trackingDotActive: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
+    backgroundColor: '#334155',
+    borderColor: '#334155',
   },
   trackingDotCurrent: {
-    borderColor: '#991b1b',
+    borderColor: '#0f172a',
     borderWidth: 2.5,
   },
   trackingDotText: {
@@ -1388,7 +1365,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   trackingLabelActive: {
-    color: '#991b1b',
+    color: '#0f172a',
   },
   trackingLine: {
     position: 'absolute',
@@ -1400,7 +1377,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   trackingLineActive: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
   },
   incidentBody: {
     fontSize: 13.5,
@@ -1414,9 +1391,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 5,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingVertical: 3.5,
     paddingHorizontal: 8,
@@ -1425,7 +1402,7 @@ const styles = StyleSheet.create({
   photoAttachedText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#991b1b',
+    color: '#334155',
   },
   incidentRowBottom: {
     flexDirection: 'row',
@@ -1453,7 +1430,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   detailsLink: {
-    color: '#dc2626',
+    color: '#0f172a',
     fontWeight: '900',
     fontSize: 13,
   },
@@ -1462,12 +1439,12 @@ const styles = StyleSheet.create({
   paginationCard: {
     backgroundColor: '#ffffff',
     borderWidth: 1.2,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 14,
     marginTop: 6,
     marginBottom: 12,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -1485,15 +1462,15 @@ const styles = StyleSheet.create({
     color: '#4b5563',
   },
   paginationBadge: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 8,
     paddingVertical: 2,
     paddingHorizontal: 7,
   },
   paginationBadgeText: {
-    color: '#991b1b',
+    color: '#334155',
     fontSize: 10.5,
     fontWeight: '900',
     letterSpacing: 0.4,
@@ -1509,9 +1486,9 @@ const styles = StyleSheet.create({
   paginationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.2,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -1525,7 +1502,7 @@ const styles = StyleSheet.create({
   paginationButtonText: {
     fontSize: 12.5,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#0f172a',
   },
   paginationButtonTextDisabled: {
     color: '#9ca3af',
@@ -1543,7 +1520,7 @@ const styles = StyleSheet.create({
   },
   pageDotActive: {
     width: 18,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#0f172a',
   },
 
   // Empty State
@@ -1553,7 +1530,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 20,
     borderWidth: 1.2,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     paddingHorizontal: 20,
     marginTop: 6,
   },
@@ -1561,9 +1538,9 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 20,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.5,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -1584,9 +1561,9 @@ const styles = StyleSheet.create({
   },
   clearFilterButton: {
     marginTop: 16,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.2,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 16,
@@ -1594,7 +1571,7 @@ const styles = StyleSheet.create({
   clearFilterButtonText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#0f172a',
   },
 
   // Detail Modal Styles
@@ -1612,8 +1589,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 28,
     borderWidth: 1,
-    borderColor: '#fee2e2',
-    shadowColor: '#991b1b',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.22,
     shadowRadius: 22,
@@ -1624,7 +1601,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#fecaca',
+    backgroundColor: '#cbd5e1',
     marginBottom: 14,
   },
   detailsHeader: {
@@ -1645,7 +1622,7 @@ const styles = StyleSheet.create({
   },
   detailsEyebrow: {
     fontSize: 11,
-    color: '#991b1b',
+    color: '#64748b',
     fontWeight: '900',
     letterSpacing: 1.1,
   },
@@ -1664,7 +1641,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#991b1b',
+    backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1676,7 +1653,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 13,
     marginBottom: 12,
@@ -1706,13 +1683,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   responderCard: {
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#eff6ff',
     borderWidth: 1.5,
-    borderColor: '#fecaca',
+    borderColor: '#bfdbfe',
     borderRadius: 20,
     padding: 14,
     marginBottom: 14,
-    shadowColor: '#dc2626',
+    shadowColor: '#1d4ed8',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1727,7 +1704,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 15,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#1d4ed8',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 11,
@@ -1738,7 +1715,7 @@ const styles = StyleSheet.create({
   responderEyebrow: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#1d4ed8',
     letterSpacing: 1,
     marginBottom: 2,
   },
@@ -1764,14 +1741,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#bfdbfe',
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
   responderMetaLabel: {
     fontSize: 10.5,
     fontWeight: '900',
-    color: '#991b1b',
+    color: '#1e40af',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -1789,7 +1766,7 @@ const styles = StyleSheet.create({
   },
   responderTrafficNote: {
     fontSize: 11,
-    color: '#991b1b',
+    color: '#1e40af',
     fontStyle: 'italic',
     marginBottom: 8,
     lineHeight: 15,
@@ -1805,11 +1782,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   detailsInfoLabel: {
     fontSize: 11,
-    color: '#991b1b',
+    color: '#64748b',
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.7,
@@ -1830,7 +1807,7 @@ const styles = StyleSheet.create({
   },
   detailsSectionLabel: {
     fontSize: 11,
-    color: '#991b1b',
+    color: '#64748b',
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.7,
@@ -1845,7 +1822,7 @@ const styles = StyleSheet.create({
   detailsPhotoSection: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 13,
     marginBottom: 10,
@@ -1883,9 +1860,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   assuranceCard: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 14,
     marginBottom: 12,
@@ -1898,12 +1875,12 @@ const styles = StyleSheet.create({
   },
   assuranceTitle: {
     fontSize: 13,
-    color: '#991b1b',
+    color: '#0f172a',
     fontWeight: '900',
   },
   assuranceText: {
     fontSize: 12.5,
-    color: '#7f1d1d',
+    color: '#334155',
     fontWeight: '700',
     lineHeight: 18,
   },

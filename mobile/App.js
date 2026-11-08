@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StyleSheet, View, Text, ActivityIndicator, AppState } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { goToMainScreen } from './utils/navigation';
 // [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 // [QA-FIX #11] Safe-area insets for edge-to-edge Android (bottom bars were
@@ -79,7 +80,7 @@ export default function App() {
     const target = getNotificationTarget(data);
     if (!target) return;
     if (navigationRef.isReady()) {
-      navigationRef.navigate(target);
+      goToMainScreen(navigationRef, target);
     } else {
       pendingNotificationTargetRef.current = target;
     }
@@ -89,7 +90,7 @@ export default function App() {
     const target = pendingNotificationTargetRef.current;
     if (target) {
       pendingNotificationTargetRef.current = null;
-      navigationRef.navigate(target);
+      goToMainScreen(navigationRef, target);
     }
   }, []);
 

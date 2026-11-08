@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT, BRAND_GRADIENT_START, BRAND_GRADIENT_END } from '../theme/colors';
 // [QA-FIX #11] RN's SafeAreaView is a no-op on Android; the bottom inset now
 // keeps "Back to Home" clear of the system navigation bar.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,7 +76,7 @@ const SOSGatewayScreen = ({ navigation }) => {
   return (
     <View style={[styles.safeArea, { paddingBottom: insets.bottom }]}>
       <View style={styles.container}>
-        <View style={styles.header}>
+        <LinearGradient colors={BRAND_GRADIENT} start={BRAND_GRADIENT_START} end={BRAND_GRADIENT_END} style={styles.header}>
           <View style={styles.headerTopRow}>
             <View style={styles.sosBadge}>
               <Ionicons name="warning-outline" size={18} color="#dc2626" />
@@ -92,7 +94,7 @@ const SOSGatewayScreen = ({ navigation }) => {
           <Text style={styles.headerSubtitle}>
             Press and hold the SOS button for 3 seconds to continue to urgent reporting.
           </Text>
-        </View>
+        </LinearGradient>
 
         <View style={styles.content}>
           <View style={styles.holdPanel}>

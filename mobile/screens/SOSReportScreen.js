@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT, BRAND_GRADIENT_START, BRAND_GRADIENT_END } from '../theme/colors';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../utils/firebase';
 import { getReportEligibility, resendEmailVerification, acknowledgeFalseReportPolicy } from '../utils/auth';
@@ -524,7 +526,7 @@ const SOSReportScreen = ({ navigation, route }) => {
     <>
       {/* [QA-FIX #11] Plain View + explicit insets (RN SafeAreaView is a no-op on Android). */}
       <View style={styles.container}>
-        <View style={[styles.headerContainer, { paddingTop: Math.max(34, insets.top + 10) }]}>
+        <LinearGradient colors={BRAND_GRADIENT} start={BRAND_GRADIENT_START} end={BRAND_GRADIENT_END} style={[styles.headerContainer, { paddingTop: Math.max(34, insets.top + 10) }]}>
           <View style={styles.headerTopRow}>
             <View style={styles.sosBadge}>
               <Text style={styles.sosBadgeText}>SOS</Text>
@@ -550,7 +552,7 @@ const SOSReportScreen = ({ navigation, route }) => {
                 : 'Location unavailable'}
             </Text>
           </View>
-        </View>
+        </LinearGradient>
 
 
             <KeyboardAwareForm style={styles.scrollView}>
@@ -599,7 +601,7 @@ const SOSReportScreen = ({ navigation, route }) => {
                           <Ionicons
                             name={getIncidentIconName(type.id)}
                             size={22}
-                            color={isSelected ? '#ffffff' : '#b91c1c'}
+                            color={isSelected ? '#ffffff' : '#7f1d1d'}
                           />
                         </View>
                         <View style={styles.incidentTextWrap}>
@@ -828,11 +830,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 14,
     marginBottom: 14,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 12,
@@ -840,7 +842,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#991b1b',
+    color: '#64748b',
     fontWeight: '900',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
@@ -898,12 +900,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
   },
   incidentIconBadgeSelected: {
     backgroundColor: '#dc2626',
@@ -969,7 +971,7 @@ const styles = StyleSheet.create({
   infoBox: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 12,
   },
@@ -1021,7 +1023,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#fee2e2',
+    borderTopColor: '#e2e8f0',
   },
   submitButton: {
     minHeight: 56,

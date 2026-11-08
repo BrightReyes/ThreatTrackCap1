@@ -25,6 +25,8 @@ import { auth, db } from '../utils/firebase';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 import GlobalBottomBar from '../components/GlobalBottomBar';
+import { goToMainScreen } from '../utils/navigation';
+import { BRAND_GRADIENT } from '../theme/colors';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 12;
 
@@ -260,29 +262,22 @@ const AlertsScreen = ({ navigation }) => {
     return 'notifications';
   };
 
-  const getAlertColor = (type, priority) => {
-    if (priority === 'high') return '#dc2626';
+  // Same semantic palette as the rest of the app: red = urgent/SOS/rejected,
+  // blue = responder on the way, green = verified/resolved, amber = crime
+  // advisories, slate = general notices.
+  const getAlertTone = (type, priority) => {
     const val = String(type || '').toLowerCase();
-    if (val === 'police_urgent_report' || val.includes('sos') || val === 'response_update') return '#dc2626';
-    if (val === 'crime' || val === 'theft') return '#ea580c';
-    if (val === 'safety' || val === 'report_verified') return '#10b981';
-    if (val === 'report_rejected') return '#ef4444';
-    if (val === 'precinct' || val.includes('police')) return '#0284c7';
-    if (val === 'meeting' || val === 'community') return '#0284c7';
-    return '#64748b';
+    if (val === 'report_rejected' || val.includes('rejected')) return { color: '#dc2626', bg: '#fef2f2' };
+    if (val.includes('resolved') || val.includes('verified') || val === 'safety') return { color: '#047857', bg: '#ecfdf5' };
+    if (val === 'response_update' || val.includes('dispatch')) return { color: '#1d4ed8', bg: '#eff6ff' };
+    if (priority === 'high' || val === 'police_urgent_report' || val.includes('sos')) return { color: '#dc2626', bg: '#fef2f2' };
+    if (val === 'crime' || val === 'theft') return { color: '#c2410c', bg: '#fff7ed' };
+    if (val === 'precinct' || val.includes('police') || val === 'meeting' || val === 'community') return { color: '#1d4ed8', bg: '#eff6ff' };
+    return { color: '#475569', bg: '#f1f5f9' };
   };
 
-  const getAlertBgColor = (type, priority) => {
-    if (priority === 'high') return '#fef2f2';
-    const val = String(type || '').toLowerCase();
-    if (val === 'police_urgent_report' || val.includes('sos') || val === 'response_update') return '#fef2f2';
-    if (val === 'crime' || val === 'theft') return '#fff7ed';
-    if (val === 'safety' || val === 'report_verified') return '#ecfdf5';
-    if (val === 'report_rejected') return '#fef2f2';
-    if (val === 'precinct' || val.includes('police')) return '#f0f9ff';
-    if (val === 'meeting' || val === 'community') return '#f0f9ff';
-    return '#f8fafc';
-  };
+  const getAlertColor = (type, priority) => getAlertTone(type, priority).color;
+  const getAlertBgColor = (type, priority) => getAlertTone(type, priority).bg;
 
   // Filter calculations
   const unreadCount = notifications.filter((a) => !a.read && !a.readAt).length;
@@ -347,7 +342,7 @@ const AlertsScreen = ({ navigation }) => {
           {selectedNotification.responder?.precinctName ? (
             <View style={styles.responderCard}>
               <View style={styles.responderCardHeader}>
-                <Ionicons name="shield-checkmark" size={18} color="#0284c7" />
+                <Ionicons name="shield-checkmark" size={18} color="#1d4ed8" />
                 <Text style={styles.responderCardTitle}>Assigned Response Unit</Text>
               </View>
               <Text style={styles.responderName}>{selectedNotification.responder.precinctName}</Text>
@@ -363,7 +358,7 @@ const AlertsScreen = ({ navigation }) => {
                 {selectedNotification.response?.etaMinutes ? (
                   <View style={styles.responderMetric}>
                     <Text style={styles.responderMetricLabel}>ESTIMATED ETA</Text>
-                    <Text style={[styles.responderMetricValue, { color: '#dc2626' }]}>
+                    <Text style={[styles.responderMetricValue, { color: '#1d4ed8' }]}>
                       {selectedNotification.response.etaMinutes} min
                     </Text>
                   </View>
@@ -389,7 +384,7 @@ const AlertsScreen = ({ navigation }) => {
           {/* Time Received */}
           <View style={styles.notificationInfoRow}>
             <View style={styles.notificationInfoIcon}>
-              <Ionicons name="time-outline" size={18} color="#dc2626" />
+              <Ionicons name="time-outline" size={18} color="#7f1d1d" />
             </View>
             <View style={styles.notificationInfoCopy}>
               <Text style={styles.notificationInfoLabel}>Time Received</Text>
@@ -415,7 +410,7 @@ const AlertsScreen = ({ navigation }) => {
           {/* Linked Report Notice */}
           {isLinkedToReport ? (
             <View style={styles.notificationLinkedPanel}>
-              <Ionicons name="document-text-outline" size={18} color="#dc2626" />
+              <Ionicons name="document-text-outline" size={18} color="#7f1d1d" />
               <Text style={styles.notificationLinkedText}>
                 This notification is connected to your active incident report.
               </Text>
@@ -423,55 +418,59 @@ const AlertsScreen = ({ navigation }) => {
           ) : null}
         </ScrollView>
 
-        {/* Modal Action Buttons */}
+        {/* Modal Action Buttons: one full-width primary action on top, two
+            secondary actions below. Three buttons in one row overflowed
+            ("View Repor", overlapping icons) on narrow phones. */}
         <View style={styles.notificationDetailActions}>
           {isLinkedToReport ? (
             <TouchableOpacity
-              style={[styles.notificationDetailButton, styles.notificationDetailPrimary]}
+              style={styles.notificationDetailPrimaryTouch}
               onPress={() => {
                 setSelectedNotification(null);
-                navigation.navigate('Status');
+                goToMainScreen(navigation, 'Status');
               }}
               activeOpacity={0.86}
             >
-              <Ionicons name="document-text" size={17} color="#ffffff" />
-              <Text style={styles.notificationDetailPrimaryText}>View Report</Text>
+              <LinearGradient
+                colors={BRAND_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.notificationDetailPrimary}
+              >
+                <Ionicons name="document-text" size={17} color="#ffffff" />
+                <Text style={styles.notificationDetailPrimaryText} numberOfLines={1}>
+                  View Report
+                </Text>
+              </LinearGradient>
             </TouchableOpacity>
           ) : null}
 
-          <TouchableOpacity
-            style={[styles.notificationDetailButton, styles.notificationDetailSecondary]}
-            onPress={() => toggleNotificationReadStatus(selectedNotification)}
-            activeOpacity={0.86}
-          >
-            <Ionicons
-              name={isCurrentlyRead ? 'mail-unread-outline' : 'checkmark-done-outline'}
-              size={17}
-              color="#475569"
-            />
-            <Text style={styles.notificationDetailSecondaryText}>
-              {isCurrentlyRead ? 'Mark as Unread' : 'Mark as Read'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.notificationDetailButton,
-              isLinkedToReport ? styles.notificationDetailSecondary : styles.notificationDetailPrimary,
-            ]}
-            onPress={() => setSelectedNotification(null)}
-            activeOpacity={0.86}
-          >
-            <Text
-              style={
-                isLinkedToReport
-                  ? styles.notificationDetailSecondaryText
-                  : styles.notificationDetailPrimaryText
-              }
+          <View style={styles.notificationDetailSecondaryRow}>
+            <TouchableOpacity
+              style={[styles.notificationDetailButton, styles.notificationDetailSecondary]}
+              onPress={() => toggleNotificationReadStatus(selectedNotification)}
+              activeOpacity={0.86}
             >
-              Close
-            </Text>
-          </TouchableOpacity>
+              <Ionicons
+                name={isCurrentlyRead ? 'mail-unread-outline' : 'checkmark-done-outline'}
+                size={17}
+                color="#7f1d1d"
+              />
+              <Text style={styles.notificationDetailSecondaryText} numberOfLines={1}>
+                {isCurrentlyRead ? 'Mark Unread' : 'Mark Read'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.notificationDetailButton, styles.notificationDetailSecondary]}
+              onPress={() => setSelectedNotification(null)}
+              activeOpacity={0.86}
+            >
+              <Text style={styles.notificationDetailSecondaryText} numberOfLines={1}>
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SmoothModal>
     );
@@ -483,7 +482,7 @@ const AlertsScreen = ({ navigation }) => {
         <View style={styles.headerNew}>
           <View style={styles.headerTitleRow}>
             <View style={styles.headerIcon}>
-              <Ionicons name="notifications" size={22} color="#dc2626" />
+              <Ionicons name="notifications" size={22} color="#7f1d1d" />
             </View>
             <View style={styles.headerCopy}>
               <Text style={styles.headerNewTitle}>Safety Alerts</Text>
@@ -520,7 +519,7 @@ const AlertsScreen = ({ navigation }) => {
           <View style={styles.headerNew}>
             <View style={styles.headerTitleRow}>
               <View style={styles.headerIcon}>
-                <Ionicons name="notifications" size={22} color="#dc2626" />
+                <Ionicons name="notifications" size={22} color="#7f1d1d" />
                 {unreadCount > 0 && <View style={styles.headerUnreadDot} />}
               </View>
               <View style={styles.headerCopy}>
@@ -576,7 +575,7 @@ const AlertsScreen = ({ navigation }) => {
                 onPress={markAllRead}
                 activeOpacity={0.8}
               >
-                <Ionicons name="checkmark-done" size={14} color="#dc2626" style={{ marginRight: 4 }} />
+                <Ionicons name="checkmark-done" size={14} color="#7f1d1d" style={{ marginRight: 4 }} />
                 <Text style={styles.markAllReadText}>Mark all read</Text>
               </TouchableOpacity>
             )}
@@ -604,8 +603,9 @@ const AlertsScreen = ({ navigation }) => {
                       styles.notificationCard,
                       {
                         borderLeftColor: accentColor,
-                        backgroundColor: isUnread ? '#fffbfb' : '#ffffff',
-                        borderColor: isUnread ? '#fee2e2' : '#f1f5f9',
+                        backgroundColor: '#ffffff',
+                        // Unread = stronger neutral border + red dot by the title.
+                        borderColor: isUnread ? '#cbd5e1' : '#e2e8f0',
                       },
                     ]}
                   >
@@ -672,7 +672,7 @@ const AlertsScreen = ({ navigation }) => {
                   <View style={styles.emptyRadarRingOuter} />
                   <View style={styles.emptyRadarRingInner} />
                   <View style={styles.emptyIconBadge}>
-                    <Ionicons name="shield-checkmark" size={32} color="#dc2626" />
+                    <Ionicons name="shield-checkmark" size={32} color="#7f1d1d" />
                   </View>
                 </View>
                 <Text style={styles.emptyTitle}>
@@ -700,7 +700,7 @@ const AlertsScreen = ({ navigation }) => {
                 ) : (
                   <TouchableOpacity
                     style={styles.emptyActionButton}
-                    onPress={() => navigation.navigate('Home')}
+                    onPress={() => goToMainScreen(navigation, 'Home')}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="map-outline" size={16} color="#ffffff" style={{ marginRight: 6 }} />
@@ -776,9 +776,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 13,
@@ -839,8 +839,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   tabActive: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fef2f2',
+    borderColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
   },
   tabText: {
     fontSize: 12.5,
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   tabTextActive: {
-    color: '#dc2626',
+    color: '#0f172a',
     fontWeight: '900',
   },
   markAllReadBtn: {
@@ -857,12 +857,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
   },
   markAllReadText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#dc2626',
+    color: '#0f172a',
   },
 
   // Content Area
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -1030,10 +1030,10 @@ const styles = StyleSheet.create({
     borderRadius: 29,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
@@ -1083,7 +1083,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
   notificationDetailHeader: {
@@ -1103,7 +1103,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 13,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   notificationDetailTitleBlock: {
     flex: 1,
@@ -1135,9 +1135,9 @@ const styles = StyleSheet.create({
   notificationMessagePanel: {
     margin: 16,
     marginBottom: 12,
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 14,
   },
@@ -1150,9 +1150,9 @@ const styles = StyleSheet.create({
   responderCard: {
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#eff6ff',
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: '#bfdbfe',
     borderRadius: 16,
     padding: 14,
   },
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   responderCardTitle: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#0284c7',
+    color: '#1d4ed8',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
@@ -1179,7 +1179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e0f2fe',
+    borderTopColor: '#dbeafe',
     paddingTop: 8,
   },
   responderMetric: {
@@ -1194,7 +1194,7 @@ const styles = StyleSheet.create({
   responderMetricValue: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#0284c7',
+    color: '#1d4ed8',
   },
   notificationMetaGrid: {
     flexDirection: 'row',
@@ -1238,7 +1238,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -1248,14 +1248,14 @@ const styles = StyleSheet.create({
   },
   notificationInfoLabel: {
     fontSize: 10.5,
-    color: '#dc2626',
+    color: '#64748b',
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   notificationInfoText: {
     fontSize: 13,
-    color: '#334151',
+    color: '#334155',
     fontWeight: '700',
   },
   notificationLinkedPanel: {
@@ -1264,22 +1264,21 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 4,
     marginBottom: 14,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     padding: 10,
     gap: 8,
   },
   notificationLinkedText: {
     flex: 1,
-    color: '#dc2626',
+    color: '#334155',
     fontSize: 13,
     fontWeight: '700',
     lineHeight: 18,
   },
   notificationDetailActions: {
-    flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -1288,22 +1287,35 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
     backgroundColor: '#ffffff',
   },
+  notificationDetailSecondaryRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   notificationDetailButton: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 46,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 6,
+    paddingHorizontal: 10,
   },
-  notificationDetailPrimary: {
-    backgroundColor: '#dc2626',
-    shadowColor: '#dc2626',
+  notificationDetailPrimaryTouch: {
+    borderRadius: 14,
+    shadowColor: '#991b1b',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
+  },
+  notificationDetailPrimary: {
+    minHeight: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   notificationDetailSecondary: {
     backgroundColor: '#ffffff',
@@ -1316,7 +1328,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   notificationDetailSecondaryText: {
-    color: '#334151',
+    color: '#334155',
     fontSize: 13.5,
     fontWeight: '800',
   },

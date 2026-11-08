@@ -20,9 +20,9 @@ const STATUS_META = {
   responding: {
     label: 'Help On The Way',
     shortLabel: 'Responding',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#1d4ed8',
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
     step: 3,
     assurance: 'A responder has acknowledged your report. Keep your phone reachable and stay in a safe place.',
   },
@@ -37,7 +37,7 @@ const STATUS_META = {
   },
   under_review: {
     label: 'Under Review',
-    shortLabel: 'Review',
+    shortLabel: 'Under Review',
     color: '#b45309',
     backgroundColor: '#fffbeb',
     borderColor: '#fde68a',
@@ -47,18 +47,18 @@ const STATUS_META = {
   pending: {
     label: 'Submitted',
     shortLabel: 'Submitted',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#475569',
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     step: 1,
     assurance: 'Your report was received and is waiting for review.',
   },
   submitted: {
     label: 'Submitted',
     shortLabel: 'Submitted',
-    color: '#dc2626',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    color: '#475569',
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
     step: 1,
     assurance: 'Your report was received and is waiting for review.',
   },
@@ -82,7 +82,7 @@ const STATUS_META = {
   },
 };
 
-const getStatusMeta = (status) => {
+export const getStatusMeta = (status) => {
   return STATUS_META[status] || STATUS_META.under_review;
 };
 
@@ -158,6 +158,8 @@ const ActiveEmergencyModal = ({
 
   if (!incident) return null;
 
+  // Regular reports get a read-only preview: no live GPS card, no "I Am Safe".
+  const isSOS = incident.isSOSReport === true;
   const displayStatus = incident.status || 'under_review';
   const meta = getStatusMeta(displayStatus);
   const currentStep = meta.step || 2;
@@ -297,7 +299,29 @@ const ActiveEmergencyModal = ({
           })}
         </View>
 
-        {/* UNIFIED LIVE DISTRESS GPS STREAM CARD */}
+        {/* Regular report: responder info only (no GPS stream, no "I Am Safe") */}
+        {!isSOS && hasResponder && (
+          <View style={[styles.responderBox, styles.responderBoxStandalone]}>
+            <Text style={styles.responderEyebrow}>ASSIGNED UNIT</Text>
+            <Text style={styles.responderName}>{stationName || responder.precinctName || responder.name}</Text>
+            <View style={styles.emergencyEtaRow}>
+              <View style={styles.emergencyEtaPill}>
+                <Text style={styles.emergencyEtaPillLabel}>INITIAL DISTANCE</Text>
+                <Text style={styles.emergencyEtaPillValue}>{distanceText}</Text>
+              </View>
+              <View style={styles.emergencyEtaPill}>
+                <Text style={styles.emergencyEtaPillLabel}>EST. ARRIVAL</Text>
+                <Text style={styles.emergencyEtaPillValue}>{etaText}</Text>
+              </View>
+            </View>
+            {trafficNote ? (
+              <Text style={styles.emergencyTrafficNote}>{trafficNote}</Text>
+            ) : null}
+          </View>
+        )}
+
+        {/* UNIFIED LIVE DISTRESS GPS STREAM CARD (SOS only) */}
+        {isSOS && (
         <View style={styles.distressStreamCard}>
           <View style={styles.distressHeader}>
             <View style={styles.beaconContainer}>
@@ -360,6 +384,7 @@ const ActiveEmergencyModal = ({
             <Text style={styles.safeButtonText}>I Am Safe Now (End Distress Stream)</Text>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Severity & Report ID */}
         <View style={styles.gridRow}>
@@ -397,7 +422,7 @@ const ActiveEmergencyModal = ({
       </ScrollView>
 
       {/* ThreatTrack-Themed "I Am Safe" Confirmation Overlay */}
-      {confirmSafeVisible && (
+      {isSOS && confirmSafeVisible && (
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
             <View style={styles.confirmIconWrap}>
@@ -461,7 +486,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#fecaca',
+    backgroundColor: '#cbd5e1',
     marginBottom: 14,
   },
   header: {
@@ -476,7 +501,7 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: 13,
-    color: '#dc2626',
+    color: '#64748b',
     fontWeight: '900',
     letterSpacing: 1.2,
     marginBottom: 4,
@@ -496,7 +521,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -508,7 +533,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 12,
     marginBottom: 12,
@@ -565,12 +590,12 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   trackingDotActive: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
   },
   trackingDotCurrent: {
     borderWidth: 2,
     borderColor: '#ffffff',
-    shadowColor: '#dc2626',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
@@ -602,7 +627,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   trackingLineActive: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
   },
 
   // Distress Stream Card
@@ -693,13 +718,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#bfdbfe',
     padding: 10,
     marginBottom: 10,
   },
+  responderBoxStandalone: {
+    marginBottom: 14,
+  },
   responderEyebrow: {
     fontSize: 11,
-    color: '#dc2626',
+    color: '#1d4ed8',
     fontWeight: '900',
     letterSpacing: 0.8,
     marginBottom: 2,
@@ -717,17 +745,17 @@ const styles = StyleSheet.create({
   },
   emergencyEtaPill: {
     flex: 1,
-    backgroundColor: '#fff5f5',
+    backgroundColor: '#eff6ff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#bfdbfe',
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   emergencyEtaPillLabel: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#991b1b',
+    color: '#1e40af',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -739,7 +767,7 @@ const styles = StyleSheet.create({
   },
   emergencyTrafficNote: {
     fontSize: 10,
-    color: '#991b1b',
+    color: '#1e40af',
     fontStyle: 'italic',
     marginTop: 2,
     lineHeight: 14,
@@ -808,7 +836,7 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#991b1b',
+    color: '#64748b',
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -829,7 +857,7 @@ const styles = StyleSheet.create({
   },
   detailSectionLabel: {
     fontSize: 12,
-    color: '#dc2626',
+    color: '#64748b',
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 0.8,

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  ActivityIndicator,
   Linking,
   Image,
   Animated,
@@ -18,9 +17,12 @@ import {
 import * as Location from 'expo-location';
 import { collection, query, where, getDocs, onSnapshot, orderBy, limit, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
-import ActiveEmergencyModal from '../components/ActiveEmergencyModal';
-import MapView, { Marker, Polygon, Heatmap, Circle } from '../components/maps';
+import { onAuthStateChanged } from 'firebase/auth';
+import { goToMainScreen } from '../utils/navigation';
+import ActiveEmergencyModal, { getStatusMeta } from '../components/ActiveEmergencyModal';
+import MapView, { Marker, Polygon, Circle } from '../components/maps';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT } from '../theme/colors';
 import { auth, db } from '../utils/firebase';
 import { getCurrentLocation, getFastLocation, requestLocationPermission, calculateDistance, formatDistance, watchLocation } from '../utils/location';
 import CustomAlert from '../components/CustomAlert';
@@ -47,9 +49,6 @@ const VALENZUELA_CENTER = {
 };
 
 const DEFAULT_HEATMAP_DAYS = 7;
-const HEATMAP_NATIVE_RADIUS = 50;
-const MAX_HEATMAP_MARKERS = 45;
-const HEATMAP_GRID_SIZE = 0.002;
 const HEATMAP_VISIBLE_STATUSES = new Set([
   'verified',
   'under_review',
@@ -72,11 +71,6 @@ const INCIDENT_TYPE_LABELS = {
   suspicious_activity: 'Suspicious Activity / Persons',
 };
 
-const PRECINCT_CONTACTS = [
-  { label: 'Station Desk', number: '8352-4000', tel: '8352-4000' },
-  { label: 'Mobile Hotline', number: '0906-419-7676', tel: '09064197676' },
-  { label: 'Mobile Hotline', number: '0998-598-7868', tel: '09985987868' },
-];
 
 const normalizePrecinctForMap = (precinct) => {
   const latitude = Number(precinct?.location?.latitude ?? precinct?.latitude ?? precinct?.lat);
@@ -115,14 +109,50 @@ const getPrecinctMergeKeys = (precinct) => {
   return keys.length > 0 ? keys : ['id:unknown'];
 };
 
-const setMergedPrecinct = (precinctsByKey, precinctKeyAliases, precinct) => {
-  const mergeKeys = getPrecinctMergeKeys(precinct);
-  const existingPrimaryKey = mergeKeys
-    .map((key) => precinctKeyAliases.get(key))
-    .find(Boolean);
-  const primaryKey = existingPrimaryKey || mergeKeys[0];
+// Two entries this close are the same building listed under different
+// names/codes (e.g. "Balangkas Police Sub-station (PCP 5)" vs "PCP 5"), and
+// render as stacked duplicate pins. Distinct Valenzuela precincts are 400 m+ apart.
+const PRECINCT_DUPLICATE_RADIUS_KM = 0.075;
 
-  precinctsByKey.set(primaryKey, precinct);
+const findNearbyPrecinctKey = (precinctsByKey, precinct) => {
+  const coord = getPrecinctCoordinate(precinct);
+  if (!coord) return null;
+  for (const [key, existing] of precinctsByKey) {
+    // Two admin-managed (Firestore) precincts are never merged by distance:
+    // the admin team may deliberately add separate posts close together.
+    // Proximity only folds duplicates into the built-in directory entries.
+    if (precinct._adminManaged && existing._adminManaged) continue;
+    const existingCoord = getPrecinctCoordinate(existing);
+    if (existingCoord && calculateDistance(coord, existingCoord) <= PRECINCT_DUPLICATE_RADIUS_KM) {
+      return key;
+    }
+  }
+  return null;
+};
+
+/**
+ * Adds a precinct, merging it into an existing entry that matches by
+ * code/id/name/sourceId OR sits within PRECINCT_DUPLICATE_RADIUS_KM.
+ * - preferIncoming=true (Firestore/admin data): incoming fields win, so admin
+ *   coordinates and names override the built-in list.
+ * - preferIncoming=false (secondary directories): the existing entry's
+ *   name/code/coordinates are kept; incoming only fills missing fields.
+ */
+const setMergedPrecinct = (precinctsByKey, precinctKeyAliases, precinct, { preferIncoming = true } = {}) => {
+  const mergeKeys = getPrecinctMergeKeys(precinct);
+  const existingPrimaryKey =
+    mergeKeys.map((key) => precinctKeyAliases.get(key)).find(Boolean) ||
+    findNearbyPrecinctKey(precinctsByKey, precinct);
+  const primaryKey = existingPrimaryKey || mergeKeys[0];
+  const existing = existingPrimaryKey ? precinctsByKey.get(existingPrimaryKey) : null;
+
+  const merged = !existing
+    ? precinct
+    : preferIncoming
+    ? { ...existing, ...precinct }
+    : { ...precinct, ...existing };
+
+  precinctsByKey.set(primaryKey, merged);
   mergeKeys.forEach((key) => precinctKeyAliases.set(key, primaryKey));
 };
 
@@ -140,11 +170,13 @@ const getMapPrecincts = (firestorePrecincts = []) => {
     .map(normalizePrecinctForMap)
     .filter(Boolean)
     .forEach((precinct) => {
+      // Substations duplicate PCP 5 / PCP 10 / HQ at the same spot: keep the
+      // baseline name and (OSM-checked) coordinates, drop the second pin.
       setMergedPrecinct(precinctsByKey, precinctKeyAliases, {
         ...precinct,
         category: 'police_substation',
         source: 'Substation Directory',
-      });
+      }, { preferIncoming: false });
     });
 
   // 3. Dynamic Firestore-managed precincts
@@ -155,6 +187,7 @@ const getMapPrecincts = (firestorePrecincts = []) => {
       setMergedPrecinct(precinctsByKey, precinctKeyAliases, {
         ...precinct,
         source: precinct.source || 'Firestore',
+        _adminManaged: true,
       });
     });
 
@@ -218,9 +251,10 @@ const buildGeographicHotspotCircles = (sourceIncidents, days = DEFAULT_HEATMAP_D
     return [];
   }
 
-  // Group into spatial clusters within 260m
+  // Group into spatial clusters within ~120m (about one street block), so
+  // incidents a few streets apart stay separate hotspots.
   const clusters = [];
-  const CLUSTER_DISTANCE_KM = 0.26;
+  const CLUSTER_DISTANCE_KM = 0.12;
 
   validIncidents.forEach((incident) => {
     const lat = Number(incident?.location?.latitude ?? incident?.latitude);
@@ -260,19 +294,37 @@ const buildGeographicHotspotCircles = (sourceIncidents, days = DEFAULT_HEATMAP_D
 
   return clusters.map((cluster) => {
     const count = cluster.points.length;
-    let radius = 130; // base meter radius
-    let auraRadius = 180;
+    // Neighborhood-street scale radii in meters (originally 130-380 m, which
+    // read as a whole barangay; 45-120 m was too small to notice).
+    let radius = 98;
+    let auraRadius = 150;
     let severity = 'low';
 
     if (count >= 5 || cluster.hasHigh) {
-      radius = 280;
-      auraRadius = 380;
+      radius = 170;
+      auraRadius = 245;
       severity = 'high';
     } else if (count >= 2) {
-      radius = 190;
-      auraRadius = 260;
+      radius = 130;
+      auraRadius = 195;
       severity = 'medium';
     }
+
+    // Grow to cover how far the cluster's incidents actually spread, so a
+    // hotspot along one street stays tight and a wider one is still covered.
+    let spreadMeters = 0;
+    cluster.points.forEach((p) => {
+      const d = calculateDistance(
+        { latitude: cluster.latitude, longitude: cluster.longitude },
+        {
+          latitude: Number(p?.location?.latitude ?? p?.latitude),
+          longitude: Number(p?.location?.longitude ?? p?.longitude),
+        }
+      ) * 1000;
+      if (Number.isFinite(d) && d > spreadMeters) spreadMeters = d;
+    });
+    radius = Math.max(radius, Math.min(spreadMeters + 50, 260));
+    auraRadius = Math.max(auraRadius, radius * 1.4);
 
     return {
       id: cluster.id,
@@ -284,8 +336,68 @@ const buildGeographicHotspotCircles = (sourceIncidents, days = DEFAULT_HEATMAP_D
       auraRadius,
       count,
       severity,
+      // Individual incident spots (capped) so the glow follows where the
+      // incidents actually happened instead of being a perfect disc.
+      points: cluster.points.slice(0, MAX_HOTSPOT_SUBPOINTS).map((p) => ({
+        latitude: Number(p?.location?.latitude ?? p?.latitude),
+        longitude: Number(p?.location?.longitude ?? p?.longitude),
+      })),
     };
   });
+};
+
+// Overlay budget: each hotspot draws 6 falloff + 1 core Circle, plus 2 per
+// incident spot. 40 hotspots x (7 + 2*6) stays well under ~800 overlays.
+const MAX_HOTSPOT_SUBPOINTS = 6;
+const MAX_RENDERED_HOTSPOTS = 40;
+
+// Neutral incident icon styling (red is reserved for urgent UI; severity is
+// shown with a badge or a small colored dot instead of a red icon).
+const NEUTRAL_ICON_COLOR = '#7f1d1d';
+const NEUTRAL_ICON_TILE = {
+  backgroundColor: '#f1f5f9',
+  borderWidth: 1,
+  borderColor: '#e2e8f0',
+};
+
+// Active-report auto-open guard, shared across HomeScreen mounts for the app
+// session (see autoOpenedReportIdsRef in HomeScreen).
+const AUTO_OPENED_REPORT_IDS_REF = { current: new Set() };
+const SOS_AUTO_OPEN_WINDOW_MS = 2 * 60 * 1000;
+
+// Soft radial falloff: stacked stroke-less circles whose translucent fills
+// add up toward the center, so the hotspot fades out instead of ending at a
+// hard edge. Each entry = [fraction of auraRadius, alpha multiplier].
+// A flatter curve (edge 0.6 vs 0.35 before) keeps the outer glow visible
+// when zoomed out instead of fading to nothing.
+const HOTSPOT_FALLOFF_LAYERS = [
+  [1.0, 0.6],
+  [0.85, 0.7],
+  [0.7, 0.8],
+  [0.55, 0.9],
+  [0.4, 1.0],
+  [0.26, 1.1],
+];
+
+const HOTSPOT_RGB = {
+  high: '220, 38, 38',
+  medium: '249, 115, 22',
+  low: '234, 179, 8',
+};
+
+const HOTSPOT_CORE_RGB = {
+  high: '153, 27, 27',
+  medium: '234, 88, 12',
+  low: '202, 138, 4',
+};
+
+// Per-layer base alpha. Stacked, the center reaches ~0.77 / 0.70 / 0.65
+// opacity and the outer edge ~0.12 / 0.10 / 0.09, so hotspots stay
+// recognizable at city zoom while the map still shows through.
+const HOTSPOT_LAYER_ALPHA = {
+  high: 0.2,
+  medium: 0.17,
+  low: 0.15,
 };
 
 const SEVERITY_ORDER = {
@@ -294,31 +406,6 @@ const SEVERITY_ORDER = {
   low: 2,
 };
 
-const HEATMAP_GRADIENT = {
-  colors: ['#fbbf24', '#f59e0b', '#f97316', '#ef4444', '#991b1b'],
-  startPoints: [0.01, 0.25, 0.55, 0.8, 1.0],
-  colorMapSize: 256,
-};
-
-const getNormalizedHeatmapWeight = (weight) => {
-  const numericWeight = Number(weight);
-  const safeWeight = Number.isFinite(numericWeight) ? numericWeight : 0.35;
-  return Math.min(Math.max(safeWeight, 0.12), 1);
-};
-
-const getHeatmapMarkerRadius = (weight) => {
-  const normalizedWeight = getNormalizedHeatmapWeight(weight);
-  return 55 + normalizedWeight * 95;
-};
-
-const getHeatmapMarkerPoints = (points) => {
-  if (!points || points.length === 0) return [];
-
-  return [...points]
-    .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
-    .sort((a, b) => getNormalizedHeatmapWeight(b.weight) - getNormalizedHeatmapWeight(a.weight))
-    .slice(0, MAX_HEATMAP_MARKERS);
-};
 
 // Valenzuela City bounds matching web-admin admin-map.js with tight city bounding
 const VALENZUELA_BOUNDS = {
@@ -400,7 +487,7 @@ const VALENZUELA_BOUNDARY = [
   { latitude: 14.7340427, longitude: 120.9495509 },
 ];
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = ({ navigation, route }) => {
   // State management
   const [userLocation, setUserLocation] = useState(VALENZUELA_CENTER);
   const [incidents, setIncidents] = useState([]);
@@ -410,8 +497,6 @@ const HomeScreen = ({ navigation }) => {
   const [riskStats, setRiskStats] = useState({ high: 0, medium: 0, low: 0 });
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
-  const [heatmapData, setHeatmapData] = useState(null);
-  const [heatmapLoading, setHeatmapLoading] = useState(false);
   const [heatmapDays, setHeatmapDays] = useState(DEFAULT_HEATMAP_DAYS);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [mapRegion, setMapRegion] = useState(VALENZUELA_CENTER);
@@ -424,11 +509,17 @@ const HomeScreen = ({ navigation }) => {
   // [QA-FIX #10] True while ThreatTrack is not in the foreground. GPS streaming
   // is foreground-only, so the SOS card says "Paused" instead of "Live".
   const [isAppInBackground, setIsAppInBackground] = useState(AppState.currentState !== 'active');
-  // [QA-FIX #17] Throttle for the remote heatmap fallback (see fetchHeatmapData).
-  const lastRemoteHeatmapRef = useRef({ key: null, at: 0 });
 
+  // Capped to the most severe/largest hotspots: each one draws several
+  // native Circle overlays, and too many make the map stutter on Android.
   const hotspotCircles = useMemo(() => {
-    return buildGeographicHotspotCircles(incidents, heatmapDays);
+    const SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
+    return buildGeographicHotspotCircles(incidents, heatmapDays)
+      .sort((a, b) =>
+        (SEVERITY_RANK[a.severity] ?? 3) - (SEVERITY_RANK[b.severity] ?? 3) ||
+        b.count - a.count
+      )
+      .slice(0, MAX_RENDERED_HOTSPOTS);
   }, [incidents, heatmapDays]);
 
   useEffect(() => {
@@ -441,8 +532,6 @@ const HomeScreen = ({ navigation }) => {
   const mapRef = useRef(null);
   const unsubscribeRef = useRef(null);
   const notificationsUnsubscribeRef = useRef(null);
-  const heatmapRequestIdRef = useRef(0);
-  const heatmapDebounceTimerRef = useRef(null);
   const heatmapEndpointUnavailableRef = useRef(false);
   const rotationValue = useRef(new Animated.Value(0)).current;
   const radarRipple1 = useRef(new Animated.Value(0)).current;
@@ -498,94 +587,162 @@ const HomeScreen = ({ navigation }) => {
     };
   }, [activeSOSIncident]);
 
-  // Real-time listener for user's active SOS report
+  // Ids the user marked safe this session. A queued (offline) or stale
+  // snapshot can still show them as active, so ignore them explicitly.
+  const resolvedReportIdsRef = useRef(new Set());
+  // SOS ids whose tracking modal was already auto-opened. Module-level (not a
+  // ref) so it survives Home being unmounted/remounted when switching between
+  // Home and Reports; a ref reset on remount and re-popped the modal.
+  const autoOpenedReportIdsRef = AUTO_OPENED_REPORT_IDS_REF;
+
+  // Real-time listener for the user's active report (SOS or regular).
+  // SOS reports get live GPS streaming + "I Am Safe"; regular reports only
+  // show the card and a read-only preview.
   useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
+    let unsubscribeSnapshot = null;
+
+    const clearActive = () => {
       setActiveSOSIncident(null);
       setEmergencyModalVisible(false);
+    };
+
+    const getDocMillis = (d) => {
+      if (!d) return 0;
+      if (d.timestamp?.toMillis) return d.timestamp.toMillis();
+      if (d.timestamp?.toDate) return d.timestamp.toDate().getTime();
+      if (d.timestamp) {
+        const t = new Date(d.timestamp).getTime();
+        if (!Number.isNaN(t)) return t;
+      }
+      if (d.reportedAt?.toMillis) return d.reportedAt.toMillis();
+      if (d.reportedAt?.toDate) return d.reportedAt.toDate().getTime();
+      if (d.reportedAt) {
+        const t = new Date(d.reportedAt).getTime();
+        if (!Number.isNaN(t)) return t;
+      }
+      if (d.clientTimestamp) {
+        const t = new Date(d.clientTimestamp).getTime();
+        if (!Number.isNaN(t)) return t;
+      }
+      return 0;
+    };
+
+    const isReportActive = (d, millis) => {
+      const rawStatus = String(d.status || '').toLowerCase().trim();
+      const rawResponseStatus = String(
+        d.responseStatus || d.response?.status || ''
+      ).toLowerCase().trim();
+      const isTerminal =
+        ['done', 'completed', 'resolved', 'closed', 'rejected', 'spam', 'cancelled', 'deleted'].includes(rawStatus) ||
+        ['completed', 'resolved', 'closed', 'rejected'].includes(rawResponseStatus);
+      const isSafe = d.liveStreamingActive === false || Boolean(d.distressResolvedAt);
+      const isDeleted = d.isDeleted === true || Boolean(d.deletedAt);
+      // Pending server timestamps resolve to 0 here only if every fallback is
+      // missing; treat that as "just now" rather than stale.
+      const isStale = millis > 0 && Date.now() - millis > 24 * 60 * 60 * 1000;
+      return !isTerminal && !isSafe && !isDeleted && !isStale;
+    };
+
+    const subscribe = (uid) => {
+      const q = query(collection(db, 'incidents'), where('reporterId', '==', uid));
+
+      unsubscribeSnapshot = onSnapshot(
+        q,
+        (snapshot) => {
+          // Most recent active report; an active SOS always wins over a
+          // regular report because it drives live GPS + "I Am Safe".
+          let best = null;
+          let bestMillis = -1;
+          let bestIsSOS = false;
+
+          snapshot.forEach((docSnap) => {
+            if (resolvedReportIdsRef.current.has(docSnap.id)) return;
+            const data = docSnap.data();
+            const m = getDocMillis(data);
+            if (!isReportActive(data, m)) return;
+            const isSOS = data.isSOSReport === true;
+            const effectiveMillis = m > 0 ? m : Date.now();
+            if (
+              !best ||
+              (isSOS && !bestIsSOS) ||
+              (isSOS === bestIsSOS && effectiveMillis >= bestMillis)
+            ) {
+              best = { id: docSnap.id, ...data };
+              bestMillis = effectiveMillis;
+              bestIsSOS = isSOS;
+            }
+          });
+
+          if (!best) {
+            clearActive();
+            return;
+          }
+
+          setActiveSOSIncident(best);
+          // Auto-open only for an SOS that was just sent. Older active SOS
+          // reports (app relaunch, Home remount) just show the card.
+          const isFreshSOS = bestIsSOS && Date.now() - bestMillis <= SOS_AUTO_OPEN_WINDOW_MS;
+          if (!autoOpenedReportIdsRef.current.has(best.id)) {
+            autoOpenedReportIdsRef.current.add(best.id);
+            if (isFreshSOS) setEmergencyModalVisible(true);
+          }
+        },
+        (error) => {
+          // Keep the last known card; a transient error shouldn't hide it.
+          console.warn('Active report listener error:', error?.code || error?.message || error);
+        }
+      );
+    };
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+      if (!user) {
+        clearActive();
+        return;
+      }
+      subscribe(user.uid);
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
+  }, []);
+
+  // "Track Status" (dispatch popup) navigates here with the incident id.
+  // Open that report's tracking preview once the active-report listener has
+  // it; if it isn't the active report (e.g. already resolved), fall back to
+  // the Reports page after a short wait.
+  const openActiveReportId = route?.params?.openActiveReportId;
+  const openActiveReportAt = route?.params?.openActiveReportAt;
+  // Depend on the active report's id, not the object: every GPS/status
+  // snapshot creates a new object, which used to restart the fallback timer
+  // so it could never fire while an SOS was streaming.
+  const activeReportId = activeSOSIncident?.id || null;
+  useEffect(() => {
+    if (!openActiveReportAt) return undefined;
+
+    const clearRequest = () => {
+      navigation.setParams({ openActiveReportId: undefined, openActiveReportAt: undefined });
+    };
+
+    const matches = activeReportId &&
+      (!openActiveReportId || activeReportId === openActiveReportId);
+    if (matches) {
+      setEmergencyModalVisible(true);
+      clearRequest();
       return undefined;
     }
 
-    const incidentsRef = collection(db, 'incidents');
-    const q = query(
-      incidentsRef,
-      where('reporterId', '==', currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const getDocMillis = (d) => {
-        if (!d) return 0;
-        if (d.timestamp?.toMillis) return d.timestamp.toMillis();
-        if (d.timestamp?.toDate) return d.timestamp.toDate().getTime();
-        if (d.timestamp) {
-          const t = new Date(d.timestamp).getTime();
-          if (!Number.isNaN(t)) return t;
-        }
-        if (d.reportedAt?.toMillis) return d.reportedAt.toMillis();
-        if (d.reportedAt?.toDate) return d.reportedAt.toDate().getTime();
-        if (d.reportedAt) {
-          const t = new Date(d.reportedAt).getTime();
-          if (!Number.isNaN(t)) return t;
-        }
-        if (d.clientTimestamp) {
-          const t = new Date(d.clientTimestamp).getTime();
-          if (!Number.isNaN(t)) return t;
-        }
-        return 0;
-      };
-
-      let latestSOSDoc = null;
-      let latestMillis = -1;
-
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.isSOSReport === true) {
-          const m = getDocMillis(data);
-          if (m >= latestMillis) {
-            latestMillis = m;
-            latestSOSDoc = { id: docSnap.id, ...data };
-          }
-        }
-      });
-
-      if (latestSOSDoc) {
-        const rawStatus = String(latestSOSDoc.status || '').toLowerCase().trim();
-        const rawResponseStatus = String(
-          latestSOSDoc.responseStatus || latestSOSDoc.response?.status || ''
-        ).toLowerCase().trim();
-
-        const isTerminal =
-          ['done', 'completed', 'resolved', 'closed', 'rejected', 'spam', 'cancelled'].includes(rawStatus) ||
-          ['completed', 'resolved', 'closed', 'rejected'].includes(rawResponseStatus);
-
-        const isSafe =
-          latestSOSDoc.liveStreamingActive === false ||
-          Boolean(latestSOSDoc.distressResolvedAt);
-
-        // Discard if older than 24 hours
-        const isStale = latestMillis > 0 && Date.now() - latestMillis > 24 * 60 * 60 * 1000;
-
-        if (!isTerminal && !isSafe && !isStale) {
-          setActiveSOSIncident((prev) => {
-            if (!prev || prev.id !== latestSOSDoc.id) {
-              setEmergencyModalVisible(true);
-            }
-            return latestSOSDoc;
-          });
-        } else {
-          // Immediately vanish when marked done/completed or resolved
-          setActiveSOSIncident(null);
-          setEmergencyModalVisible(false);
-        }
-      } else {
-        setActiveSOSIncident(null);
-        setEmergencyModalVisible(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    const timer = setTimeout(() => {
+      clearRequest();
+      goToMainScreen(navigation, 'Status');
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [openActiveReportAt, openActiveReportId, activeReportId, navigation]);
 
   // [QA-FIX #10] Track foreground/background so the SOS UI is honest about
   // when live location is (and isn't) being shared.
@@ -610,7 +767,13 @@ const HomeScreen = ({ navigation }) => {
     lastSyncTimeRef.current = 0;
     locationTrailRef.current = [];
 
-    if (activeSOSIncident && activeSOSIncident.id && activeSOSIncident.liveStreamingActive !== false) {
+    // Live GPS streaming is SOS-only; regular reports just show the card.
+    if (
+      activeSOSIncident &&
+      activeSOSIncident.id &&
+      activeSOSIncident.isSOSReport === true &&
+      activeSOSIncident.liveStreamingActive !== false
+    ) {
       const startStreaming = async () => {
         try {
           const sub = await watchLocation(async (newCoords) => {
@@ -725,10 +888,6 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('SOSReport', lastRealFix ? { userLocation: lastRealFix } : undefined);
   };
 
-  const handleCallPrecinct = () => {
-    openHomeModal('call');
-  };
-
   // Initialize location and data on mount
   useEffect(() => {
     initializeApp();
@@ -774,20 +933,20 @@ const HomeScreen = ({ navigation }) => {
         notificationsUnsubscribeRef.current();
         notificationsUnsubscribeRef.current = null;
       }
-      if (heatmapDebounceTimerRef.current) {
-        clearTimeout(heatmapDebounceTimerRef.current);
-      }
     };
   }, []);
 
-  // Recalculate nearest precinct when location or precincts change
+  // Recalculate nearest precinct when the real GPS fix or precincts change.
+  // Uses lastRealFix, not userLocation: userLocation falls back to the city
+  // center before GPS locks or when outside Valenzuela, which made the
+  // "nearest" distance measure from the wrong place.
   useEffect(() => {
-    if (userLocation && precincts.length > 0) {
+    if (lastRealFix && precincts.length > 0) {
       findNearestPrecinct();
-    } else if (precincts.length === 0) {
+    } else {
       setNearestPrecinct(null);
     }
-  }, [userLocation, precincts]);
+  }, [lastRealFix, precincts]);
 
   // Radar ripple and progress animations while loading
   useEffect(() => {
@@ -981,7 +1140,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const findNearestPrecinct = () => {
-    if (!userLocation || precincts.length === 0) return;
+    if (!lastRealFix || precincts.length === 0) return;
 
     let nearest = null;
     let minDistance = Infinity;
@@ -989,7 +1148,7 @@ const HomeScreen = ({ navigation }) => {
     precincts.forEach((precinct) => {
       const coord = getPrecinctCoordinate(precinct);
       if (coord) {
-        const distance = calculateDistance(userLocation, coord);
+        const distance = calculateDistance(lastRealFix, coord);
         if (distance < minDistance) {
           minDistance = distance;
           nearest = { ...precinct, distance, location: coord };
@@ -1101,15 +1260,6 @@ const HomeScreen = ({ navigation }) => {
 
   const getIncidentIcon = (type) => getIncidentIconName(type);
 
-  const getSeverityBackground = (severity) => {
-    switch (severity) {
-      case 'high': return '#fef2f2';
-      case 'medium': return '#fff7ed';
-      case 'low': return '#fefce8';
-      default: return '#f8fafc';
-    }
-  };
-
   const formatIncidentType = (incident) => {
     return incident.typeLabel || INCIDENT_TYPE_LABELS[incident.type] || 'Incident';
   };
@@ -1129,21 +1279,12 @@ const HomeScreen = ({ navigation }) => {
     return date.toLocaleDateString();
   };
 
-  const getBoundsFromRegion = (region) => ({
-    north: region.latitude + region.latitudeDelta / 2,
-    south: region.latitude - region.latitudeDelta / 2,
-    east: region.longitude + region.longitudeDelta / 2,
-    west: region.longitude - region.longitudeDelta / 2,
-  });
-
+  // Straight-line distance from the user's real GPS fix. Google Maps shows the
+  // road route, which is usually longer (one-ways, rivers, NLEX crossings).
   const getPrecinctDistance = (precinct) => {
-    if (typeof precinct?.distance === 'number') {
-      return precinct.distance;
-    }
-
     const coord = getPrecinctCoordinate(precinct);
-    if (userLocation && coord) {
-      return calculateDistance(userLocation, coord);
+    if (lastRealFix && coord) {
+      return calculateDistance(lastRealFix, coord);
     }
 
     return null;
@@ -1165,156 +1306,11 @@ const HomeScreen = ({ navigation }) => {
     confirmPrecinctNavigation(precinct);
   };
 
-  const handlePrecinctCall = (contact) => {
-    closeHomeModal();
-    Linking.openURL(`tel:${contact.tel}`);
-  };
-
-  const buildHeatmapPointsFromIncidents = (sourceIncidents, bounds, days) => {
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
-    const gridCells = new Map();
-    let maxCount = 0;
-
-    sourceIncidents.forEach((incident) => {
-      const location = incident.location;
-      const latitude = Number(location?.latitude);
-      const longitude = Number(location?.longitude);
-      const incidentDate = getIncidentHeatmapDate(incident);
-      const status = incident.status || 'verified';
-
-      if (
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude) ||
-        !incidentDate ||
-        !HEATMAP_VISIBLE_STATUSES.has(status) ||
-        incidentDate < startDate ||
-        incidentDate > endDate ||
-        latitude < bounds.south ||
-        latitude > bounds.north ||
-        longitude < bounds.west ||
-        longitude > bounds.east
-      ) {
-        return;
-      }
-
-      const cellLat = (Math.floor(latitude / HEATMAP_GRID_SIZE) + 0.5) * HEATMAP_GRID_SIZE;
-      const cellLng = (Math.floor(longitude / HEATMAP_GRID_SIZE) + 0.5) * HEATMAP_GRID_SIZE;
-      const cellKey = `${cellLat.toFixed(3)}_${cellLng.toFixed(3)}`;
-      const currentCount = (gridCells.get(cellKey)?.count || 0) + 1;
-
-      gridCells.set(cellKey, {
-        latitude: cellLat,
-        longitude: cellLng,
-        count: currentCount,
-      });
-      maxCount = Math.max(maxCount, currentCount);
-    });
-
-    return Array.from(gridCells.values()).map((cell) => ({
-      latitude: cell.latitude,
-      longitude: cell.longitude,
-      weight: maxCount > 0 ? cell.count / maxCount : 0.5,
-    }));
-  };
-
-  const fetchHeatmapData = async (region = mapRegion, days = DEFAULT_HEATMAP_DAYS) => {
-    if (!region) return;
-
-    const requestId = heatmapRequestIdRef.current + 1;
-    heatmapRequestIdRef.current = requestId;
-    const bounds = getBoundsFromRegion(region);
-    const localHeatmapPoints = buildHeatmapPointsFromIncidents(incidents, bounds, days);
-
-    // [QA-FIX #17] Local data first. The remote result used to be fetched on
-    // every incidents snapshot and every map pan, then thrown away whenever
-    // local points existed (which is almost always). Now the network call is
-    // only a fallback for an empty local set.
-    if (localHeatmapPoints.length > 0 || heatmapEndpointUnavailableRef.current) {
-      setHeatmapData(localHeatmapPoints);
-      setHeatmapLoading(false);
-      return;
-    }
-
-    // [QA-FIX #17] Throttle the fallback: same bounds + days at most once a minute.
-    const remoteKey = `${days}:${bounds.north.toFixed(3)}:${bounds.south.toFixed(3)}:${bounds.east.toFixed(3)}:${bounds.west.toFixed(3)}`;
-    const nowMs = Date.now();
-    if (lastRemoteHeatmapRef.current.key === remoteKey && nowMs - lastRemoteHeatmapRef.current.at < 60000) {
-      return;
-    }
-    lastRemoteHeatmapRef.current = { key: remoteKey, at: nowMs };
-
-    setHeatmapLoading(true);
-    try {
-      // Get Cloud Function URL - update this with your actual Firebase Functions URL
-      const functionsUrl = 'https://us-central1-threattrackcap1.cloudfunctions.net/getHeatmapData';
-
-      const response = await fetch(functionsUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bounds, days }),
-      });
-
-      if (!response.ok) {
-        const error = new Error(`HTTP error! status: ${response.status}`);
-        error.status = response.status;
-        throw error;
-      }
-
-      const result = await response.json();
-
-      if (requestId !== heatmapRequestIdRef.current) {
-        return;
-      }
-
-      if (result.success && result.data && result.data.cells) {
-        // Convert cells to heatmap points format
-        const heatmapPoints = result.data.cells.map((cell) => ({
-          latitude: cell.latitude,
-          longitude: cell.longitude,
-          weight: cell.weight || 0.5,
-        }));
-        setHeatmapData(localHeatmapPoints.length > 0 ? localHeatmapPoints : heatmapPoints);
-      } else {
-        console.log('No heatmap data returned:', result);
-        setHeatmapData(localHeatmapPoints);
-      }
-    } catch (error) {
-      if (error.status === 404) {
-        heatmapEndpointUnavailableRef.current = true;
-      } else {
-        console.log('Heatmap service unavailable, using local incident data:', error.message);
-      }
-
-      if (requestId === heatmapRequestIdRef.current) {
-        setHeatmapData(localHeatmapPoints);
-      }
-    } finally {
-      if (requestId === heatmapRequestIdRef.current) {
-        setHeatmapLoading(false);
-      }
-    }
-  };
-
+  // Hotspots are computed locally from incidents (hotspotCircles), so the
+  // time filter only needs to update the window.
   const handleSelectHeatmapDays = (days) => {
     setHeatmapDays(days);
-    if (mapReady && mapRegion) {
-      fetchHeatmapData(mapRegion, days);
-    }
   };
-
-  // Auto-load heatmap data when map region changes
-  useEffect(() => {
-    if (mapReady && mapRegion) {
-      fetchHeatmapData(mapRegion, heatmapDays);
-    }
-  }, [mapReady]);
-
-  useEffect(() => {
-    if (mapReady && mapRegion) {
-      fetchHeatmapData(mapRegion, heatmapDays);
-    }
-  }, [incidents, mapReady, heatmapDays]);
 
   // Get recent incidents for the list (top 3)
   // [QA-FIX #18] Memoized. These were rebuilt and re-sorted on every render,
@@ -1323,13 +1319,12 @@ const HomeScreen = ({ navigation }) => {
   const precinctsByDistance = useMemo(() => precincts
     .map((precinct) => {
       const coord = getPrecinctCoordinate(precinct);
-      const distance = typeof precinct?.distance === 'number'
-        ? precinct.distance
-        : (userLocation && coord ? calculateDistance(userLocation, coord) : null);
+      // Real GPS fix only (see getPrecinctDistance).
+      const distance = lastRealFix && coord ? calculateDistance(lastRealFix, coord) : null;
       return { ...precinct, distance };
     })
     .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)),
-  [precincts, userLocation]);
+  [precincts, lastRealFix]);
   const incidentsByPriority = useMemo(() => [...incidents].sort((a, b) => {
     const severityDifference = (SEVERITY_ORDER[a.severity] ?? 3) - (SEVERITY_ORDER[b.severity] ?? 3);
     if (severityDifference !== 0) return severityDifference;
@@ -1357,38 +1352,6 @@ const HomeScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderCallModal = () => (
-    <>
-      {renderModalHeader('PRECINCT CONTACT', 'Call Precinct', 'Valenzuela City Police Station')}
-      <View style={styles.homeModalHeroCard}>
-        <View style={styles.homeModalHeroIcon}>
-          <Ionicons name="call" size={24} color="#dc2626" />
-        </View>
-        <View style={styles.homeModalHeroCopy}>
-          <Text style={styles.homeModalHeroTitle}>Select a direct line</Text>
-          <Text style={styles.homeModalHeroText}>Choose the fastest available number for police assistance.</Text>
-        </View>
-      </View>
-      <View style={styles.callLineList}>
-        {PRECINCT_CONTACTS.map((contact) => (
-          <TouchableOpacity
-            key={contact.number}
-            style={styles.callLineButton}
-            onPress={() => handlePrecinctCall(contact)}
-          >
-            <View>
-              <Text style={styles.callLineLabel}>{contact.label}</Text>
-              <Text style={styles.callLineNumber}>{contact.number}</Text>
-            </View>
-            <View style={styles.callLineAction}>
-              <Text style={styles.callLineActionText}>Call</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </>
-  );
-
   const renderNearestModal = () => {
     const precinct = homeModal.item || nearestPrecinct;
 
@@ -1403,14 +1366,13 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.precinctFeatureAddress}>{precinct.address || 'Address unavailable'}</Text>
               <View style={styles.precinctFeatureMeta}>
                 <Text style={styles.precinctFeatureMetaText}>
-                  {getPrecinctDistance(precinct) !== null ? formatDistance(getPrecinctDistance(precinct)) : 'Distance unavailable'}
+                  {getPrecinctDistance(precinct) !== null
+                    ? `${formatDistance(getPrecinctDistance(precinct))} straight-line · road route may be longer`
+                    : 'Locating you…'}
                 </Text>
               </View>
             </View>
             <View style={styles.homeModalActionRow}>
-              <TouchableOpacity style={styles.homeModalSecondaryAction} onPress={() => openHomeModal('call')}>
-                <Text style={styles.homeModalSecondaryActionText}>Call</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.homeModalPrimaryAction} onPress={() => handlePrecinctNavigation(precinct)}>
                 <Text style={styles.homeModalPrimaryActionText}>Route</Text>
               </TouchableOpacity>
@@ -1446,7 +1408,7 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.modalListSubtext} numberOfLines={3}>{precinct.address || 'Address unavailable'}</Text>
               <View style={styles.modalListMetaRow}>
                 <Text style={styles.modalDistanceText}>
-                  {precinct.distance !== null ? formatDistance(precinct.distance) : 'Distance unavailable'}
+                  {precinct.distance !== null ? `${formatDistance(precinct.distance)} straight-line` : 'Locating you…'}
                 </Text>
                 <TouchableOpacity style={styles.modalRouteButton} onPress={() => handlePrecinctNavigation(precinct)}>
                   <Text style={styles.modalRouteButtonText}>Route</Text>
@@ -1468,18 +1430,12 @@ const HomeScreen = ({ navigation }) => {
         style={styles.modalListCard}
         onPress={() => openHomeModal('incident', incident)}
       >
-        <View style={[
-          styles.incidentModalIcon,
-          { 
-            backgroundColor: getSeverityBackground(incident.severity),
-            borderWidth: 1.5,
-            borderColor: severityColor,
-          }
-        ]}>
+        {/* Neutral icon tile; severity is shown by the badge next to it. */}
+        <View style={[styles.incidentModalIcon, NEUTRAL_ICON_TILE]}>
           <Ionicons
             name={getIncidentIconName(incident.type)}
             size={22}
-            color={severityColor}
+            color={NEUTRAL_ICON_COLOR}
           />
         </View>
         <View style={styles.modalListBody}>
@@ -1534,18 +1490,11 @@ const HomeScreen = ({ navigation }) => {
       <>
         {renderModalHeader('INCIDENT DETAIL', formatIncidentType(incident), formatTimeAgo(incident.timestamp))}
         <View style={styles.incidentDetailCard}>
-          <View style={[
-            styles.incidentDetailIcon,
-            { 
-              backgroundColor: getSeverityBackground(incident.severity),
-              borderWidth: 1.5,
-              borderColor: severityColor,
-            }
-          ]}>
+          <View style={[styles.incidentDetailIcon, NEUTRAL_ICON_TILE]}>
             <Ionicons
               name={getIncidentIconName(incident.type)}
               size={30}
-              color={severityColor}
+              color={NEUTRAL_ICON_COLOR}
             />
           </View>
           <View style={[styles.incidentDetailSeverity, { borderColor: severityColor }]}>
@@ -1572,8 +1521,6 @@ const HomeScreen = ({ navigation }) => {
 
   const renderHomeModalContent = () => {
     switch (homeModal.type) {
-      case 'call':
-        return renderCallModal();
       case 'nearest':
         return renderNearestModal();
       case 'precincts':
@@ -1737,12 +1684,12 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.activeStickyTopRow}>
               <View style={styles.activeStickyBadgeRow}>
                 <Text style={styles.activeStickyEyebrow} numberOfLines={1}>
-                  ● LIVE DISTRESS
+                  {activeSOSIncident.isSOSReport === true ? '● LIVE DISTRESS' : '● ACTIVE REPORT'}
                 </Text>
               </View>
               <View style={styles.activeStickyStatusPill}>
                 <Text style={styles.activeStickyStatusText} numberOfLines={1}>
-                  {String(activeSOSIncident.status || '').toLowerCase() === 'responding' ? 'RESPONDING' : 'UNDER REVIEW'}
+                  {getStatusMeta(String(activeSOSIncident.status || '').toLowerCase().trim()).shortLabel.toUpperCase()}
                 </Text>
               </View>
             </View>
@@ -1751,7 +1698,9 @@ const HomeScreen = ({ navigation }) => {
             </Text>
             {/* [QA-FIX #10] Honest status: GPS sharing only runs while the app is open. */}
             <Text style={styles.activeStickyMeta} numberOfLines={1}>
-              {isAppInBackground
+              {activeSOSIncident.isSOSReport !== true
+                ? 'Tap to view your report'
+                : isAppInBackground
                 ? 'Paused – app in background • Open to resume'
                 : 'Live GPS while app is open • Tap to track'}
             </Text>
@@ -1771,13 +1720,13 @@ const HomeScreen = ({ navigation }) => {
           {/* Header: Full width, spacious text layout */}
           <View style={styles.hotspotAdvisoryHeader}>
             <View style={styles.hotspotAdvisoryIconWrap}>
-              <Ionicons name="shield-checkmark" size={18} color="#dc2626" />
+              <Ionicons name="shield-checkmark" size={18} color="#7f1d1d" />
             </View>
             <View style={styles.hotspotAdvisoryCopy}>
               <Text style={styles.hotspotAdvisoryTitle}>Safety & Hotspot Radar</Text>
               <Text style={styles.hotspotAdvisorySubtitle}>
                 {showHeatmap
-                  ? `${hotspotCircles?.length || heatmapData?.length || 0} active cluster${(hotspotCircles?.length || heatmapData?.length || 0) === 1 ? '' : 's'} mapped in Valenzuela`
+                  ? `${hotspotCircles?.length || 0} active cluster${(hotspotCircles?.length || 0) === 1 ? '' : 's'} mapped in Valenzuela`
                   : 'Hotspot radar is currently on standby'}
               </Text>
             </View>
@@ -1830,21 +1779,22 @@ const HomeScreen = ({ navigation }) => {
                 );
               })}
             </View>
+          </View>
 
-            {/* Admin-Identical Severity Legend */}
-            <View style={styles.hotspotLegendBar}>
-              <View style={[styles.hotspotLegendPill, styles.legendPillHigh]}>
-                <View style={[styles.legendDot, styles.legendDotHigh]} />
-                <Text style={styles.legendTextHigh}>High</Text>
-              </View>
-              <View style={[styles.hotspotLegendPill, styles.legendPillMed]}>
-                <View style={[styles.legendDot, styles.legendDotMed]} />
-                <Text style={styles.legendTextMed}>Medium</Text>
-              </View>
-              <View style={[styles.hotspotLegendPill, styles.legendPillLow]}>
-                <View style={[styles.legendDot, styles.legendDotLow]} />
-                <Text style={styles.legendTextLow}>Low</Text>
-              </View>
+          {/* Severity legend for hotspot colors. Its own row: inside the
+              controls row it overflowed off the right edge of the screen. */}
+          <View style={styles.hotspotLegendBar}>
+            <View style={[styles.hotspotLegendPill, styles.legendPillHigh]}>
+              <View style={[styles.legendDot, styles.legendDotHigh]} />
+              <Text style={styles.legendTextHigh}>High</Text>
+            </View>
+            <View style={[styles.hotspotLegendPill, styles.legendPillMed]}>
+              <View style={[styles.legendDot, styles.legendDotMed]} />
+              <Text style={styles.legendTextMed}>Medium</Text>
+            </View>
+            <View style={[styles.hotspotLegendPill, styles.legendPillLow]}>
+              <View style={[styles.legendDot, styles.legendDotLow]} />
+              <Text style={styles.legendTextLow}>Low</Text>
             </View>
           </View>
         </View>
@@ -1860,6 +1810,10 @@ const HomeScreen = ({ navigation }) => {
                 cameraBoundary={VALENZUELA_BOUNDS}
                 showsUserLocation={true}
                 showsMyLocationButton={false}
+                // Hide Google's Android "Directions / Open in Maps" buttons
+                // that appear bottom-right when a marker is tapped; the
+                // precinct sheet already has a Route button.
+                toolbarEnabled={false}
                 customMapStyle={darkMapStyle}
                 onMapReady={() => {
                   setMapReady(true);
@@ -1873,13 +1827,6 @@ const HomeScreen = ({ navigation }) => {
                 onRegionChangeComplete={(region) => {
                   setMapRegion(region);
                   handleRegionChange(region);
-                  // Debounce heatmap fetch (450ms) to avoid lagging and rapid API calls while panning
-                  if (heatmapDebounceTimerRef.current) {
-                    clearTimeout(heatmapDebounceTimerRef.current);
-                  }
-                  heatmapDebounceTimerRef.current = setTimeout(() => {
-                    fetchHeatmapData(region, heatmapDays);
-                  }, 450);
                 }}
                 minZoomLevel={12.5}
                 maxZoomLevel={18}
@@ -1893,7 +1840,6 @@ const HomeScreen = ({ navigation }) => {
                 <MapOverlays
                   hotspotCircles={hotspotCircles}
                   showHeatmap={showHeatmap}
-                  heatmapData={heatmapData}
                   precincts={precincts}
                   tracksPcpViewChanges={tracksPcpViewChanges}
                   onPrecinctPress={handlePrecinctMarkerPress}
@@ -1920,16 +1866,10 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.radarLiveText}>VALENZUELA LIVE RADAR</Text>
               </View>
 
-              {heatmapLoading && (
-                <View style={styles.heatmapLoadingBadge}>
-                  <ActivityIndicator size="small" color="#ffffff" />
-                  <Text style={styles.heatmapLoadingText}>Updating heatmap</Text>
-                </View>
-              )}
             </View>
           ) : (
             <View style={styles.mapPlaceholder}>
-              <Ionicons name="location-outline" size={38} color="#dc2626" style={{ marginBottom: 6 }} />
+              <Ionicons name="location-outline" size={38} color="#7f1d1d" style={{ marginBottom: 6 }} />
               <Text style={styles.mapPlaceholderLabel}>Location Required</Text>
               <Text style={styles.mapPlaceholderSubtext}>Enable location to view map</Text>
               <TouchableOpacity 
@@ -1949,7 +1889,7 @@ const HomeScreen = ({ navigation }) => {
           activeOpacity={0.9}
         >
           <LinearGradient
-            colors={['#dc2626', '#991b1b']}
+            colors={BRAND_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.reportButtonGradient}
@@ -1969,44 +1909,9 @@ const HomeScreen = ({ navigation }) => {
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Quick Action Cards: Nearest Precinct + Call 911 */}
-        <View style={styles.quickCardsRow}>
-          <TouchableOpacity 
-            style={styles.quickCard} 
-            onPress={() => openHomeModal('nearest')}
-            activeOpacity={0.85}
-          >
-            <View style={styles.quickCardTopRow}>
-              <View style={styles.quickCardIconBadge}>
-                <Ionicons name="shield-checkmark" size={18} color="#dc2626" />
-              </View>
-              <Text style={styles.quickCardChip}>POLICE</Text>
-            </View>
-            <View style={styles.quickCardTextWrap}>
-              <Text style={styles.quickCardNumber}>{nearestPrecinct ? formatDistance(nearestPrecinct.distance) : '—'}</Text>
-              <Text style={styles.quickCardLabel}>Nearest Station</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.quickCard} 
-            onPress={handleCallPrecinct}
-            activeOpacity={0.85}
-          >
-            <View style={styles.quickCardTopRow}>
-              <View style={styles.quickCardIconBadge}>
-                <Ionicons name="call" size={18} color="#dc2626" />
-              </View>
-              <Text style={styles.quickCardChip}>24/7 HELP</Text>
-            </View>
-            <View style={styles.quickCardTextWrap}>
-              <Text style={styles.quickCardNumber}>Hotline</Text>
-              <Text style={styles.quickCardLabel}>Call Precinct</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Nearest Precinct Section */}
+        {/* Nearest Precinct Section (the separate "Nearest Station" quick card
+            duplicated this and was removed; tapping this card opens the same
+            precinct details sheet it used to). */}
         {nearestPrecinct && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -2016,16 +1921,20 @@ const HomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.precinctCard}>
+            <TouchableOpacity
+              style={styles.precinctCard}
+              onPress={() => openHomeModal('nearest')}
+              activeOpacity={0.85}
+            >
               <View style={styles.precinctIcon}>
-                <Ionicons name="shield" size={24} color="#dc2626" />
+                <Ionicons name="shield" size={24} color="#7f1d1d" />
               </View>
               <View style={styles.precinctInfo}>
                 <Text style={styles.precinctName}>{nearestPrecinct.name}</Text>
                 <View style={styles.precinctLocation}>
                   <Ionicons name="location" size={14} color="#dc2626" style={{ marginRight: 4 }} />
                   <Text style={styles.precinctAddress} numberOfLines={2}>
-                    {nearestPrecinct.address} • {formatDistance(nearestPrecinct.distance)}
+                    {nearestPrecinct.address} • {formatDistance(nearestPrecinct.distance)} straight-line
                   </Text>
                 </View>
               </View>
@@ -2036,9 +1945,9 @@ const HomeScreen = ({ navigation }) => {
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="navigate-circle" size={32} color="#dc2626" />
+                <Ionicons name="navigate-circle" size={32} color="#7f1d1d" />
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -2058,18 +1967,18 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.incidentCard}
                 onPress={() => openHomeModal('incident', incident)}
               >
-                <View style={[
-                  styles.incidentIcon,
-                  { 
-                    backgroundColor: getSeverityBackground(incident.severity),
-                    borderWidth: 1.5,
-                    borderColor: getMarkerColor(incident.severity),
-                  }
-                ]}>
+                {/* Neutral icon tile + small severity dot (red/orange/yellow). */}
+                <View style={[styles.incidentIcon, NEUTRAL_ICON_TILE]}>
                   <Ionicons
                     name={getIncidentIconName(incident.type)}
                     size={22}
-                    color={getMarkerColor(incident.severity)}
+                    color={NEUTRAL_ICON_COLOR}
+                  />
+                  <View
+                    style={[
+                      styles.incidentSeverityDot,
+                      { backgroundColor: getMarkerColor(incident.severity) },
+                    ]}
                   />
                 </View>
                 <View style={styles.incidentInfo}>
@@ -2118,6 +2027,9 @@ const HomeScreen = ({ navigation }) => {
       visible={emergencyModalVisible}
       onClose={() => setEmergencyModalVisible(false)}
       onResolveSafe={() => {
+        if (activeSOSIncident?.id) {
+          resolvedReportIdsRef.current.add(activeSOSIncident.id);
+        }
         setActiveSOSIncident(null);
         setEmergencyModalVisible(false);
       }}
@@ -2146,7 +2058,6 @@ const HomeScreen = ({ navigation }) => {
 const MapOverlays = React.memo(function MapOverlays({
   hotspotCircles,
   showHeatmap,
-  heatmapData,
   precincts,
   tracksPcpViewChanges,
   onPrecinctPress,
@@ -2167,41 +2078,67 @@ const MapOverlays = React.memo(function MapOverlays({
       hotspotCircles.map((hotspot) => {
         const isHigh = hotspot.severity === 'high';
         const isMedium = hotspot.severity === 'medium';
-
-        const auraFill = isHigh
-          ? 'rgba(220, 38, 38, 0.14)'
-          : isMedium
-          ? 'rgba(249, 115, 22, 0.12)'
-          : 'rgba(234, 179, 8, 0.10)';
-
-        const coreFill = isHigh
-          ? 'rgba(220, 38, 38, 0.35)'
-          : isMedium
-          ? 'rgba(249, 115, 22, 0.30)'
-          : 'rgba(234, 179, 8, 0.25)';
+        const severityKey = isHigh ? 'high' : isMedium ? 'medium' : 'low';
+        const rgb = HOTSPOT_RGB[severityKey];
+        const coreRgb = HOTSPOT_CORE_RGB[severityKey];
+        const baseAlpha = HOTSPOT_LAYER_ALPHA[severityKey];
 
         const strokeColor = isHigh ? '#dc2626' : isMedium ? '#f97316' : '#eab308';
         const centerColor = isHigh ? '#991b1b' : isMedium ? '#ea580c' : '#ca8a04';
 
+        // Each incident spot gets a small soft glow, so clusters look organic.
+        const spotRadius = Math.max(52, hotspot.radius * 0.4);
+        // A single-incident hotspot's spot sits exactly on its center, so it
+        // adds nothing visible; only draw spots for multi-incident clusters.
+        const spots = (hotspot.points || []).length > 1
+          ? hotspot.points.filter(
+              (p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)
+            )
+          : [];
+
         return (
           <React.Fragment key={`hotspot-circle-${hotspot.id}`}>
-            {/* Outer atmospheric aura */}
+            {/* Radial falloff: no outlines, opacity builds toward the center */}
+            {HOTSPOT_FALLOFF_LAYERS.map(([fraction, alphaMul], i) => (
+              <Circle
+                key={`hotspot-layer-${hotspot.id}-${i}`}
+                center={hotspot.center}
+                radius={hotspot.auraRadius * fraction}
+                fillColor={`rgba(${rgb}, ${(baseAlpha * alphaMul).toFixed(3)})`}
+                strokeColor="transparent"
+                strokeWidth={0}
+                zIndex={14}
+              />
+            ))}
+            {/* Incident spots: outer haze + hot center per reported location */}
+            {spots.map((p, i) => (
+              <React.Fragment key={`hotspot-spot-${hotspot.id}-${i}`}>
+                <Circle
+                  center={p}
+                  radius={spotRadius}
+                  fillColor={`rgba(${rgb}, ${(baseAlpha * 0.6).toFixed(3)})`}
+                  strokeColor="transparent"
+                  strokeWidth={0}
+                  zIndex={15}
+                />
+                <Circle
+                  center={p}
+                  radius={spotRadius * 0.45}
+                  fillColor={`rgba(${coreRgb}, ${(baseAlpha * 0.9).toFixed(3)})`}
+                  strokeColor="transparent"
+                  strokeWidth={0}
+                  zIndex={15}
+                />
+              </React.Fragment>
+            ))}
+            {/* Hot core at the cluster center */}
             <Circle
               center={hotspot.center}
-              radius={hotspot.auraRadius}
-              fillColor={auraFill}
+              radius={hotspot.radius * 0.22}
+              fillColor={`rgba(${coreRgb}, ${(baseAlpha * 1.4).toFixed(3)})`}
               strokeColor="transparent"
               strokeWidth={0}
-              zIndex={14}
-            />
-            {/* Core hotspot zone - mathematically perfect vector circle */}
-            <Circle
-              center={hotspot.center}
-              radius={hotspot.radius}
-              fillColor={coreFill}
-              strokeColor={strokeColor}
-              strokeWidth={2}
-              zIndex={15}
+              zIndex={16}
             />
             {/* Center Cluster Count Badge (Identical to Admin Map Cluster Indicator) */}
             <Marker
@@ -2220,16 +2157,9 @@ const MapOverlays = React.memo(function MapOverlays({
         );
       })}
 
-    {/* Heatmap Layer - Hardware-accelerated GPU overlay for ambient glow */}
-    {showHeatmap && heatmapData && heatmapData.length > 0 && (
-      <Heatmap
-        points={heatmapData}
-        radius={HEATMAP_NATIVE_RADIUS}
-        opacity={0.4}
-        maxIntensity={1}
-        gradient={HEATMAP_GRADIENT}
-      />
-    )}
+    {/* The native <Heatmap> layer was removed: its radius is in screen pixels,
+        so zoomed out it covered 1-2 km and spilled past the city border. The
+        meter-based hotspot glow above replaces it. */}
 
     {/* Precinct & Sub-station Tactical Markers (Official Police Pin Logo) */}
     {precincts.map((precinct) => {
@@ -2238,31 +2168,24 @@ const MapOverlays = React.memo(function MapOverlays({
       if (!coordinate) return null;
 
       const pinKey = precinct.id || precinct.code || precinct.name;
-      const displayLabel = precinct.code || (precinct.name && precinct.name.includes('PCP') ? precinct.name.split(' ').slice(-2).join(' ') : 'POLICE');
 
       return (
         <Marker
           key={`precinct-marker-${pinKey}`}
           coordinate={coordinate}
-          title={precinct.name}
-          description={precinct.address}
-          anchor={{ x: 0.5, y: 0.85 }}
+          // No title/description: tapping opens the precinct bottom sheet,
+          // so the native info bubble on the map is redundant.
+          anchor={PCP_PIN_ANCHOR}
           zIndex={25}
           tracksViewChanges={tracksPcpViewChanges}
           onPress={() => onPrecinctPress(precinct)}
         >
-          <View style={styles.pcpPinWrapper}>
+          <View style={styles.pcpPinWrapper} collapsable={false}>
             <Image
               source={POLICE_STATION_ICON}
               style={styles.pcpPinMarkerImage}
               resizeMode="contain"
             />
-            <View style={styles.pcpPinCalloutPill}>
-              <View style={styles.pcpPinLiveDot} />
-              <Text style={styles.pcpPinCalloutText} numberOfLines={1}>
-                {displayLabel}
-              </Text>
-            </View>
           </View>
         </Marker>
       );
@@ -2270,6 +2193,10 @@ const MapOverlays = React.memo(function MapOverlays({
     </>
   );
 });
+
+// The marker is just the pin icon (styles.pcpPinWrapper = icon size), so the
+// pin tip is at the bottom-center of the view.
+const PCP_PIN_ANCHOR = { x: 0.5, y: 0.95 };
 
 // Dark map style for night mode
 const darkMapStyle = [
@@ -2744,9 +2671,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 11,
@@ -2827,8 +2754,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   hotspotTimeChipActive: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fef2f2',
+    borderColor: '#0f172a',
+    backgroundColor: '#f1f5f9',
   },
   hotspotTimeChipText: {
     fontSize: 11.5,
@@ -2836,7 +2763,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   hotspotTimeChipTextActive: {
-    color: '#dc2626',
+    color: '#0f172a',
     fontWeight: '800',
   },
   mapPlaceholder: {
@@ -2880,23 +2807,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
-  },
-  heatmapLoadingBadge: {
-    position: 'absolute',
-    top: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(17, 24, 39, 0.82)',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  heatmapLoadingText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 6,
   },
   customMarker: {
     width: 40,
@@ -3000,68 +2910,6 @@ const styles = StyleSheet.create({
   },
 
   // Quick cards row
-  quickCardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    gap: 12,
-  },
-  quickCard: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: 'column',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 14,
-    elevation: 3,
-  },
-  quickCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  quickCardIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#fef2f2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#fee2e2',
-  },
-  quickCardChip: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#94a3b8',
-    letterSpacing: 0.5,
-    backgroundColor: '#f8fafc',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  quickCardTextWrap: {
-    alignItems: 'flex-start',
-  },
-  quickCardNumber: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0f172a',
-    marginBottom: 2,
-    letterSpacing: -0.2,
-  },
-  quickCardLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    fontWeight: '600',
-  },
   
   // Risk Cards
   riskSection: {
@@ -3124,7 +2972,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: '#dc2626',
+    color: '#0f172a',
     fontWeight: '700',
   },
   
@@ -3146,13 +2994,13 @@ const styles = StyleSheet.create({
   precinctIcon: {
     width: 44,
     height: 44,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
   },
   precinctIconText: {
     fontSize: 26,
@@ -3198,7 +3046,7 @@ const styles = StyleSheet.create({
   },
   navigateIconText: {
     fontSize: 18,
-    color: '#dc2626',
+    color: '#0f172a',
   },
   
   // Incident Cards (white)
@@ -3224,6 +3072,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 13,
+  },
+  incidentSeverityDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   incidentIconText: {
     color: '#ffffff',
@@ -3255,7 +3113,7 @@ const styles = StyleSheet.create({
   },
   incidentArrowText: {
     fontSize: 18,
-    color: '#dc2626',
+    color: '#0f172a',
   },
 
   // Home action modals
@@ -3273,8 +3131,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 28,
     borderWidth: 1,
-    borderColor: '#fee2e2',
-    shadowColor: '#dc2626',
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.22,
     shadowRadius: 22,
@@ -3285,7 +3143,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#fecaca',
+    backgroundColor: '#cbd5e1',
     marginBottom: 16,
   },
   homeModalHeader: {
@@ -3301,7 +3159,7 @@ const styles = StyleSheet.create({
   homeModalEyebrow: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#64748b',
     letterSpacing: 1.4,
     marginBottom: 6,
   },
@@ -3322,10 +3180,10 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 14,
@@ -3336,85 +3194,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
-  homeModalHeroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff7f7',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-  },
-  homeModalHeroIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: '#dc2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  homeModalHeroIconText: {
-    fontSize: 26,
-  },
-  homeModalHeroCopy: {
-    flex: 1,
-  },
-  homeModalHeroTitle: {
-    fontSize: 16,
-    color: '#111827',
-    fontWeight: '900',
-    marginBottom: 4,
-  },
-  homeModalHeroText: {
-    fontSize: 14,
-    color: '#6b7280',
-    lineHeight: 19,
-    fontWeight: '600',
-  },
-  callLineList: {
-    gap: 10,
-  },
-  callLineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#fee2e2',
-    borderRadius: 18,
-    padding: 15,
-  },
-  callLineLabel: {
-    fontSize: 14,
-    color: '#991b1b',
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  callLineNumber: {
-    fontSize: 18,
-    color: '#111827',
-    fontWeight: '900',
-  },
-  callLineAction: {
-    backgroundColor: '#dc2626',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  callLineActionText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '900',
-  },
+
   precinctFeatureCard: {
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 22,
     padding: 18,
     marginBottom: 14,
@@ -3441,13 +3226,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   precinctFeatureMeta: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
   precinctFeatureMetaText: {
-    color: '#dc2626',
+    color: '#334155',
     fontSize: 14,
     fontWeight: '900',
   },
@@ -3469,20 +3254,6 @@ const styles = StyleSheet.create({
   },
   homeModalPrimaryActionText: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  homeModalSecondaryAction: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#dc2626',
-    borderRadius: 16,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  homeModalSecondaryActionText: {
-    color: '#dc2626',
     fontSize: 15,
     fontWeight: '900',
   },
@@ -3510,7 +3281,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     marginRight: 12,
   },
   modalListIconImage: {
@@ -3546,23 +3317,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   modalDistanceText: {
-    color: '#dc2626',
+    color: '#334155',
     fontSize: 14,
     fontWeight: '900',
   },
   modalRouteButton: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
   modalRouteButtonText: {
-    color: '#dc2626',
+    color: '#0f172a',
     fontSize: 14,
     fontWeight: '900',
   },
   nearestBadge: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#0f172a',
     borderRadius: 999,
     paddingHorizontal: 11,
     paddingVertical: 6,
@@ -3603,7 +3374,7 @@ const styles = StyleSheet.create({
   incidentDetailCard: {
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 22,
     padding: 18,
   },
@@ -3638,12 +3409,12 @@ const styles = StyleSheet.create({
   },
   incidentDetailDivider: {
     height: 1,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#e2e8f0',
     marginVertical: 16,
   },
   incidentDetailLabel: {
     fontSize: 14,
-    color: '#dc2626',
+    color: '#64748b',
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -3781,42 +3552,21 @@ const styles = StyleSheet.create({
   },
 
   // Tactical PCP & Sub-station Official Pin Markers
+  // Android snapshots custom markers into a bitmap sized to this wrapper, so
+  // give it a fixed width with side padding: auto-sized text + elevation
+  // shadows were getting cropped ("PCP 1(", cut-off pill edges).
+  // Explicit width AND height: on the new architecture Android crops the
+  // marker bitmap to whatever size it measured first, so auto-sized content
+  // got cut. Keep in sync with PCP_PIN_ANCHOR.
   pcpPinWrapper: {
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pcpPinMarkerImage: {
-    width: 38,
-    height: 38,
-  },
-  pcpPinCalloutPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.94)',
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.75)',
-    marginTop: -2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
-    elevation: 5,
-    gap: 4,
-  },
-  pcpPinLiveDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#dc2626',
-  },
-  pcpPinCalloutText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    width: 32,
+    height: 32,
   },
 
   // Admin-Identical Hotspot Legend Bar

@@ -243,7 +243,7 @@ export default function QuickDescriptionChips({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Ionicons name="chatbubble-ellipses-outline" size={13} color="#dc2626" />
+        <Ionicons name="chatbubble-ellipses-outline" size={13} color="#7f1d1d" />
         <Text style={styles.headerLabel}>Quick situational details (tap to insert):</Text>
       </View>
       <ScrollView
@@ -264,7 +264,7 @@ export default function QuickDescriptionChips({
               activeOpacity={0.7}
             >
               {isSelected && (
-                <Ionicons name="checkmark" size={12} color="#dc2626" style={styles.checkIcon} />
+                <Ionicons name="checkmark" size={12} color="#0f172a" style={styles.checkIcon} />
               )}
               <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                 {tag.label}
@@ -303,19 +303,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1.2,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     paddingVertical: 5,
     paddingHorizontal: 11,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
   },
   chipSelected: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#dc2626',
+    backgroundColor: '#f1f5f9',
+    borderColor: '#0f172a',
   },
   checkIcon: {
     marginRight: 4,
@@ -323,10 +323,10 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 11.5,
     fontWeight: '700',
-    color: '#7f1d1d',
+    color: '#334155',
   },
   chipTextSelected: {
-    color: '#dc2626',
+    color: '#0f172a',
     fontWeight: '900',
   },
 });

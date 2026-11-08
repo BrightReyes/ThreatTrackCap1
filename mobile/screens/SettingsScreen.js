@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   StatusBar,
   ActivityIndicator,
   Linking,
@@ -15,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT } from '../theme/colors';
 import CustomAlert from '../components/CustomAlert';
 import SmoothModal from '../components/SmoothModal';
 // [KEYBOARD-FIX] Auto-clicking / keyboard bug fix (see mobile/QA_FIX_LOG.md, Part 1).
@@ -25,7 +25,7 @@ import { resendEmailVerification, syncEmailVerification } from '../utils/auth';
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight || 24) + 16;
 
-const SettingsIcon = ({ name, color = '#dc2626', bgColor = '#fef2f2' }) => (
+const SettingsIcon = ({ name, color = '#7f1d1d', bgColor = '#f1f5f9' }) => (
   <View style={[styles.settingIconWrapper, { backgroundColor: bgColor }]}>
     <Ionicons name={name} size={19} color={color} />
   </View>
@@ -34,7 +34,7 @@ const SettingsIcon = ({ name, color = '#dc2626', bgColor = '#fef2f2' }) => (
 const ProfileField = ({ icon, label, value }) => (
   <View style={styles.profileDetailRow}>
     <View style={styles.profileDetailIcon}>
-      <Ionicons name={icon} size={17} color="#dc2626" />
+      <Ionicons name={icon} size={17} color="#7f1d1d" />
     </View>
     <View style={styles.profileDetailCopy}>
       <Text style={styles.profileDetailLabel}>{label}</Text>
@@ -46,7 +46,7 @@ const ProfileField = ({ icon, label, value }) => (
 const SupportTopic = ({ icon, title, text }) => (
   <View style={styles.supportTopicRow}>
     <View style={styles.supportTopicIcon}>
-      <Ionicons name={icon} size={17} color="#dc2626" />
+      <Ionicons name={icon} size={17} color="#7f1d1d" />
     </View>
     <View style={styles.supportTopicCopy}>
       <Text style={styles.supportTopicTitle}>{title}</Text>
@@ -64,9 +64,6 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     buttons: [],
   });
 
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [highPriority, setHighPriority] = useState(true);
-  const [locationAlerts, setLocationAlerts] = useState(true);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileVisible, setProfileVisible] = useState(false);
@@ -124,11 +121,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
         const profileSnap = await getDoc(doc(db, 'users', currentUser.uid));
         if (profileSnap.exists()) {
           const profileData = profileSnap.data();
-          const prefs = profileData.notificationPreferences || {};
           setProfile(profileData);
-          setPushNotifications(prefs.pushNotifications !== false);
-          setHighPriority(prefs.highPriority !== false);
-          setLocationAlerts(prefs.locationAlerts !== false);
 
           if (auth.currentUser?.emailVerified && (!profileData.emailVerified || !profileData.isVerified)) {
             try {
@@ -179,22 +172,6 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
   const closeAboutModal = () => {
     setAboutVisible(false);
-  };
-
-  const handlePrecinctCall = async () => {
-    const phoneNumber = '83524000';
-    const telUrl = `tel:${phoneNumber}`;
-    try {
-      const supported = await Linking.canOpenURL(telUrl);
-      if (supported) {
-        await Linking.openURL(telUrl);
-      } else {
-        showAlert('Dialer Unavailable', `Unable to open dialer automatically. Please call ${phoneNumber} directly.`, 'info');
-      }
-    } catch (error) {
-      console.error('Precinct call error:', error);
-      showAlert('Dialer Error', 'Could not open the phone dialer.', 'error');
-    }
   };
 
   const handleSupportEmail = async () => {
@@ -267,51 +244,6 @@ const SettingsScreen = ({ navigation, onLogout }) => {
     }
   };
 
-  const saveNotificationPreference = async (key, value, rollback) => {
-    const currentUser = auth.currentUser;
-    if (!currentUser?.uid) {
-      rollback();
-      showAlert('Login required', 'Please sign in before changing notification settings.', 'warning');
-      return;
-    }
-
-    try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        [`notificationPreferences.${key}`]: value,
-        notificationPreferencesUpdatedAt: new Date().toISOString(),
-      });
-      setProfile((prev) => ({
-        ...(prev || {}),
-        notificationPreferences: {
-          ...(prev?.notificationPreferences || {}),
-          [key]: value,
-        },
-      }));
-    } catch (error) {
-      rollback();
-      console.error('Unable to save notification preference:', error);
-      showAlert('Setting not saved', 'Unable to update this notification setting right now.', 'error');
-    }
-  };
-
-  const handlePushNotificationsChange = (value) => {
-    const previous = pushNotifications;
-    setPushNotifications(value);
-    saveNotificationPreference('pushNotifications', value, () => setPushNotifications(previous));
-  };
-
-  const handleHighPriorityChange = (value) => {
-    const previous = highPriority;
-    setHighPriority(value);
-    saveNotificationPreference('highPriority', value, () => setHighPriority(previous));
-  };
-
-  const handleLocationAlertsChange = (value) => {
-    const previous = locationAlerts;
-    setLocationAlerts(value);
-    saveNotificationPreference('locationAlerts', value, () => setLocationAlerts(previous));
-  };
-
   const fullName = [profile?.firstName, profile?.middleName, profile?.lastName]
     .filter(Boolean)
     .join(' ')
@@ -333,7 +265,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
         <View style={styles.headerModern}>
           <View style={styles.headerTitleRow}>
             <View style={styles.headerIconWrapper}>
-              <Ionicons name="settings-outline" size={22} color="#dc2626" />
+              <Ionicons name="settings-outline" size={22} color="#7f1d1d" />
             </View>
             <View style={styles.headerCopy}>
               <Text style={styles.headerTitle}>Settings & Profile</Text>
@@ -363,7 +295,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               activeOpacity={0.88}
             >
               <LinearGradient
-                colors={['#dc2626', '#991b1b']}
+                colors={BRAND_GRADIENT}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.profileAvatar}
@@ -376,7 +308,10 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               <View style={styles.profileInfo}>
                 <View style={styles.profileHeaderLine}>
                   <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
-                  <Ionicons name="shield-checkmark" size={16} color="#dc2626" />
+                  {/* Only show the verified shield for verified accounts. */}
+                  {isAccountVerified ? (
+                    <Ionicons name="shield-checkmark" size={16} color="#047857" />
+                  ) : null}
                 </View>
 
                 <Text style={styles.profileEmail} numberOfLines={1}>{user?.email || 'citizen@threattrack.local'}</Text>
@@ -408,69 +343,10 @@ const SettingsScreen = ({ navigation, onLogout }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Section: Notification Preferences */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Ionicons name="notifications-outline" size={14} color="#dc2626" />
-              <Text style={styles.sectionTitle}>Emergency Alerts & Notifications</Text>
-            </View>
-
-            <View style={styles.settingsCard}>
-              <View style={styles.settingItem}>
-                <SettingsIcon name="notifications-outline" />
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Push Notifications</Text>
-                  <Text style={styles.settingDesc}>Real-time push alerts on incidents and broadcasts</Text>
-                </View>
-                <Switch
-                  value={pushNotifications}
-                  onValueChange={handlePushNotificationsChange}
-                  trackColor={{ true: '#dc2626', false: '#cbd5e1' }}
-                  thumbColor="#ffffff"
-                  ios_backgroundColor="#cbd5e1"
-                />
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.settingItem}>
-                <SettingsIcon name="flash-outline" />
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>High Priority Alerts</Text>
-                  <Text style={styles.settingDesc}>Critical warnings for immediate life-safety emergencies</Text>
-                </View>
-                <Switch
-                  value={highPriority}
-                  onValueChange={handleHighPriorityChange}
-                  trackColor={{ true: '#dc2626', false: '#cbd5e1' }}
-                  thumbColor="#ffffff"
-                  ios_backgroundColor="#cbd5e1"
-                />
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.settingItem}>
-                <SettingsIcon name="location-outline" />
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingLabel}>Location-based Alerts</Text>
-                  <Text style={styles.settingDesc}>Geofenced reports relevant to your Valenzuela zone</Text>
-                </View>
-                <Switch
-                  value={locationAlerts}
-                  onValueChange={handleLocationAlertsChange}
-                  trackColor={{ true: '#dc2626', false: '#cbd5e1' }}
-                  thumbColor="#ffffff"
-                  ios_backgroundColor="#cbd5e1"
-                />
-              </View>
-            </View>
-          </View>
-
           {/* Section: Privacy & Security */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Ionicons name="shield-outline" size={14} color="#dc2626" />
+              <Ionicons name="shield-outline" size={14} color="#7f1d1d" />
               <Text style={styles.sectionTitle}>Privacy & Security</Text>
             </View>
 
@@ -493,7 +369,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           {/* Section: Help & Information */}
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Ionicons name="help-buoy-outline" size={14} color="#dc2626" />
+              <Ionicons name="help-buoy-outline" size={14} color="#7f1d1d" />
               <Text style={styles.sectionTitle}>Support & Information</Text>
             </View>
 
@@ -506,7 +382,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 <SettingsIcon name="help-circle-outline" />
                 <View style={styles.settingContent}>
                   <Text style={styles.settingLabel}>Help & Support Desk</Text>
-                  <Text style={styles.settingDesc}>Emergency guides, precinct hotline, FAQs</Text>
+                  <Text style={styles.settingDesc}>Emergency guides and FAQs</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
@@ -526,23 +402,6 @@ const SettingsScreen = ({ navigation, onLogout }) => {
                 <Ionicons name="chevron-forward" size={18} color="#cbd5e1" />
               </TouchableOpacity>
 
-              <View style={styles.divider} />
-
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={handlePrecinctCall}
-                activeOpacity={0.7}
-              >
-                <SettingsIcon name="call-outline" color="#b91c1c" bgColor="#fef2f2" />
-                <View style={styles.settingContent}>
-                  <Text style={[styles.settingLabel, { color: '#991b1b' }]}>Police Precinct Hotline</Text>
-                  <Text style={styles.settingDesc}>Direct line: (02) 8352-4000</Text>
-                </View>
-                <View style={styles.callBadge}>
-                  <Ionicons name="call" size={12} color="#dc2626" />
-                  <Text style={styles.callBadgeText}>Call</Text>
-                </View>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -576,7 +435,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.profileModalHeader}>
           <LinearGradient
-            colors={['#dc2626', '#991b1b']}
+            colors={BRAND_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.profileModalAvatar}
@@ -677,7 +536,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.modalHeaderRow}>
           <View style={styles.modalHeaderIconBadge}>
-            <Ionicons name="lock-closed" size={20} color="#dc2626" />
+            <Ionicons name="lock-closed" size={20} color="#7f1d1d" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modalHeaderTitle}>Change Password</Text>
@@ -792,7 +651,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
             activeOpacity={0.88}
           >
             <LinearGradient
-              colors={['#dc2626', '#991b1b']}
+              colors={BRAND_GRADIENT}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.passwordSubmitGradient}
@@ -821,7 +680,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.modalHeaderRow}>
           <View style={styles.modalHeaderIconBadge}>
-            <Ionicons name="help-buoy" size={20} color="#dc2626" />
+            <Ionicons name="help-buoy" size={20} color="#7f1d1d" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modalHeaderTitle}>Help & Support</Text>
@@ -839,7 +698,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Emergency Alert Card */}
           <LinearGradient
-            colors={['#991b1b', '#b91c1c']}
+            colors={BRAND_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.supportEmergencyCard}
@@ -850,7 +709,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
             <View style={styles.supportEmergencyCopy}>
               <Text style={styles.supportEmergencyTitle}>In Immediate Danger?</Text>
               <Text style={styles.supportEmergencyText}>
-                Do not wait for report review. Broadcast an SOS alert or call Valenzuela police right now.
+                Do not wait for report review. Broadcast an SOS alert right now.
               </Text>
             </View>
           </LinearGradient>
@@ -866,17 +725,9 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               activeOpacity={0.86}
             >
               <Ionicons name="radio" size={18} color="#ffffff" />
-              <Text style={styles.supportActionTextWhite}>Trigger SOS Alert</Text>
+              <Text style={styles.supportActionTextWhite} numberOfLines={1}>Trigger SOS Alert</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.supportActionButtonOutline}
-              onPress={handlePrecinctCall}
-              activeOpacity={0.86}
-            >
-              <Ionicons name="call" size={18} color="#dc2626" />
-              <Text style={styles.supportActionTextRed}>Call Precinct</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Frequently Asked Help Topics */}
@@ -915,7 +766,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
             activeOpacity={0.86}
           >
             <View style={styles.supportTopicIcon}>
-              <Ionicons name="mail" size={17} color="#dc2626" />
+              <Ionicons name="mail" size={17} color="#7f1d1d" />
             </View>
             <View style={styles.supportContactCopy}>
               <Text style={styles.supportContactTitle}>ThreatTrack Help Desk</Text>
@@ -925,7 +776,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           </TouchableOpacity>
 
           <View style={styles.supportSafetyNote}>
-            <Ionicons name="information-circle" size={18} color="#991b1b" />
+            <Ionicons name="information-circle" size={18} color="#7f1d1d" />
             <Text style={styles.supportSafetyText}>
               Always prioritize personal safety before documenting evidence. Evacuate dangerous zones immediately.
             </Text>
@@ -946,7 +797,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
 
         <View style={styles.modalHeaderRow}>
           <View style={styles.modalHeaderIconBadge}>
-            <Ionicons name="information-circle" size={20} color="#dc2626" />
+            <Ionicons name="information-circle" size={20} color="#7f1d1d" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.modalHeaderTitle}>About ThreatTrack</Text>
@@ -965,7 +816,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
           {/* Hero Branding */}
           <View style={styles.aboutHero}>
             <View style={styles.aboutLogoBadge}>
-              <Ionicons name="shield-checkmark" size={32} color="#dc2626" />
+              <Ionicons name="shield-checkmark" size={32} color="#7f1d1d" />
             </View>
             <Text style={styles.aboutTitle}>ThreatTrack</Text>
             <View style={styles.aboutVersionBadge}>
@@ -1006,7 +857,7 @@ const SettingsScreen = ({ navigation, onLogout }) => {
               <Text style={styles.aboutInfoText}>Reports undergo validation to prevent disinformation.</Text>
             </View>
             <View style={styles.aboutInfoCard}>
-              <Ionicons name="lock-closed-outline" size={20} color="#dc2626" />
+              <Ionicons name="lock-closed-outline" size={20} color="#7f1d1d" />
               <Text style={styles.aboutInfoTitle}>Privacy Protected</Text>
               <Text style={styles.aboutInfoText}>Citizen identities are shielded on public danger feeds.</Text>
             </View>
@@ -1060,9 +911,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -1129,7 +980,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 13,
@@ -1267,22 +1118,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
-  },
-  callBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
-  },
-  callBadgeText: {
-    color: '#dc2626',
-    fontSize: 12,
-    fontWeight: '800',
   },
   logoutButton: {
     backgroundColor: '#ffffff',
@@ -1489,7 +1324,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 11,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1522,9 +1357,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1653,23 +1488,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  supportActionButtonOutline: {
-    flex: 1,
-    minHeight: 48,
-    borderRadius: 14,
-    backgroundColor: '#ffffff',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  supportActionTextRed: {
-    color: '#dc2626',
-    fontSize: 13,
-    fontWeight: '800',
-  },
   supportSectionTitle: {
     color: '#64748b',
     fontSize: 11.5,
@@ -1697,7 +1515,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 11,
@@ -1746,15 +1564,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     padding: 12,
   },
   supportSafetyText: {
     flex: 1,
-    color: '#991b1b',
+    color: '#334155',
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 16,
@@ -1765,7 +1583,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 18,
@@ -1775,9 +1593,9 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 18,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     borderWidth: 1.5,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1788,7 +1606,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   aboutVersionBadge: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 8,
@@ -1796,7 +1614,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   aboutVersionText: {
-    color: '#dc2626',
+    color: '#334155',
     fontSize: 11.5,
     fontWeight: '800',
   },

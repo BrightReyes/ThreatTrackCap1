@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -217,7 +218,7 @@ const CustomAlert = ({
         backgroundColor: '#fef2f2',
         borderColor: '#fca5a5',
         pulseColor: 'rgba(220, 38, 38, 0.45)',
-        buttonGradient: ['#7f1d1d', '#991b1b', '#dc2626'],
+        buttonGradient: BRAND_GRADIENT,
       };
     }
     if (type === 'dispatch') {
@@ -228,7 +229,7 @@ const CustomAlert = ({
         backgroundColor: '#fef2f2',
         borderColor: '#fca5a5',
         pulseColor: 'rgba(220, 38, 38, 0.45)',
-        buttonGradient: ['#7f1d1d', '#991b1b', '#dc2626'],
+        buttonGradient: BRAND_GRADIENT,
       };
     }
     switch (type) {
@@ -240,7 +241,7 @@ const CustomAlert = ({
           backgroundColor: '#ecfdf5',
           borderColor: '#6ee7b7',
           pulseColor: 'rgba(16, 185, 129, 0.4)',
-          buttonGradient: ['#991b1b', '#dc2626'], // ThreatTrack signature gradient
+          buttonGradient: BRAND_GRADIENT, // ThreatTrack signature gradient
         };
       case 'error':
         return {
@@ -250,7 +251,7 @@ const CustomAlert = ({
           backgroundColor: '#fef2f2',
           borderColor: '#fca5a5',
           pulseColor: 'rgba(220, 38, 38, 0.45)',
-          buttonGradient: ['#991b1b', '#dc2626'],
+          buttonGradient: BRAND_GRADIENT,
         };
       case 'warning':
         return {
@@ -260,7 +261,7 @@ const CustomAlert = ({
           backgroundColor: '#fffbeb',
           borderColor: '#fcd34d',
           pulseColor: 'rgba(217, 119, 6, 0.4)',
-          buttonGradient: ['#991b1b', '#dc2626'],
+          buttonGradient: BRAND_GRADIENT,
         };
       default:
         return {
@@ -270,7 +271,7 @@ const CustomAlert = ({
           backgroundColor: '#eff6ff',
           borderColor: '#93c5fd',
           pulseColor: 'rgba(37, 99, 235, 0.4)',
-          buttonGradient: ['#991b1b', '#dc2626'],
+          buttonGradient: BRAND_GRADIENT,
         };
     }
   };
@@ -301,7 +302,7 @@ const CustomAlert = ({
         >
           {/* ThreatTrack Signature Gradient Horizon Line */}
           <LinearGradient
-            colors={['#7f1d1d', '#991b1b', '#dc2626']}
+            colors={BRAND_GRADIENT}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.topHorizonGlow}
@@ -361,7 +362,7 @@ const CustomAlert = ({
               <View style={styles.dispatchCard}>
                 <View style={styles.dispatchHeader}>
                   <View style={styles.dispatchIconBadge}>
-                    <Ionicons name="navigate" size={15} color="#dc2626" />
+                    <Ionicons name="navigate" size={15} color="#7f1d1d" />
                   </View>
                   <View style={styles.dispatchTitleWrap}>
                     <Text style={styles.dispatchStationTitle} numberOfLines={2}>
@@ -387,7 +388,7 @@ const CustomAlert = ({
                   ) : null}
                   {dispatchInfo.traffic ? (
                     <View style={[styles.dispatchPill, styles.dispatchPillSlate]}>
-                      <Ionicons name="car" size={11} color="#475569" />
+                      <Ionicons name="car" size={11} color="#7f1d1d" />
                       <Text style={[styles.dispatchPillText, styles.dispatchTextSlate]}>
                         {dispatchInfo.traffic}
                       </Text>
@@ -427,7 +428,11 @@ const CustomAlert = ({
                     end={{ x: 1, y: 1 }}
                     style={styles.primaryGradient}
                   >
-                    <Text style={styles.primaryButtonText}>Acknowledge</Text>
+                    <Text style={styles.primaryButtonText}>
+                      {/* "Acknowledge" read oddly on simple errors like a
+                          missing field; use a plain label per alert type. */}
+                      {type === 'success' ? 'Done' : 'Got It'}
+                    </Text>
                     <View style={styles.btnIconBubble}>
                       <Ionicons
                         name={isSOS ? 'flash' : type === 'success' ? 'checkmark' : 'arrow-forward'}

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BRAND_GRADIENT } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -135,10 +136,11 @@ const SEVERITY_CONFIG = {
 
 const DESCRIPTION_MIN_LENGTH = 10;
 const DESCRIPTION_MAX_LENGTH = 2000;
+// No crop step: in an emergency the photo is attached as soon as it is taken
+// or picked. Compression below still caps the size for any aspect ratio.
 const IMAGE_PICKER_OPTIONS = {
   mediaTypes: ['images'],
-  allowsEditing: true,
-  aspect: [4, 3],
+  allowsEditing: false,
   quality: 0.85,
 };
 // Photo compression is unchanged from before the QA pass: the photo is still
@@ -241,7 +243,12 @@ const ReportIncidentScreen = ({ navigation }) => {
     getLocationAutomatically();
   }, []);
 
-  const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000) => {
+  // Action to run however the current alert is dismissed (OK, the X, or the
+  // Android back button). Used by the success alert to always leave the form.
+  const alertDismissActionRef = useRef(null);
+
+  const showAlert = (title, message, type = 'info', buttons = [], autoCloseDelay = 5000, onDismiss = null) => {
+    alertDismissActionRef.current = onDismiss;
     setAlertConfig({
       visible: true,
       title,
@@ -257,6 +264,22 @@ const ReportIncidentScreen = ({ navigation }) => {
   const hideAlert = useCallback(() => {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   }, []);
+
+  // CustomAlert's onClose: hide, then run the alert's dismiss action once.
+  const handleAlertClose = useCallback(() => {
+    const onDismiss = alertDismissActionRef.current;
+    alertDismissActionRef.current = null;
+    hideAlert();
+    if (onDismiss) onDismiss();
+  }, [hideAlert]);
+
+  // Alerts render in a native Modal, which shows above every screen. Hide any
+  // open alert when this screen loses focus so it can't pop up over Home or
+  // Reports while this screen is still mounted in the stack.
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', hideAlert);
+    return unsubscribe;
+  }, [navigation, hideAlert]);
 
   const showReportEligibilityAlert = (eligibility) => {
     if (eligibility?.needsEmailVerification) {
@@ -700,11 +723,15 @@ const ReportIncidentScreen = ({ navigation }) => {
         successMessage,
         writeResult === 'pending' ? 'warning' : 'success',
         [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
+          // No onPress: leaving the form is the dismiss action below, so OK,
+          // the X and the Android back button all do the same thing (and
+          // goBack can't run twice).
+          { text: 'OK' },
         ],
+        // No auto-close: auto-closing hid the alert without leaving the form,
+        // leaving a submitted form open behind other screens.
+        0,
+        () => navigation.goBack(),
       );
     } catch (error) {
       console.error('Error submitting incident:', error);
@@ -719,7 +746,7 @@ const ReportIncidentScreen = ({ navigation }) => {
     <>
       <View style={styles.container}>
         <LinearGradient
-          colors={['#7f1d1d', '#991b1b', '#dc2626']}
+          colors={BRAND_GRADIENT}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerContainer}
@@ -805,7 +832,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="layers-outline" size={19} color="#dc2626" />
+                  <Ionicons name="layers-outline" size={19} color="#7f1d1d" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Select incident category</Text>
@@ -829,7 +856,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     >
                       {isSelected ? (
                         <LinearGradient
-                          colors={['#dc2626', '#991b1b']}
+                          colors={BRAND_GRADIENT}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
                           style={styles.incidentIconBadgeSelectedGradient}
@@ -845,7 +872,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                           <Ionicons
                             name={getIncidentIconName(type.id)}
                             size={22}
-                            color="#b91c1c"
+                            color="#7f1d1d"
                           />
                         </View>
                       )}
@@ -892,7 +919,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="id-card-outline" size={19} color="#dc2626" />
+                  <Ionicons name="id-card-outline" size={19} color="#7f1d1d" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Who is reporting?</Text>
@@ -917,7 +944,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                       <View style={styles.reportingCardHeader}>
                         {isSelected ? (
                           <LinearGradient
-                            colors={['#dc2626', '#991b1b']}
+                            colors={BRAND_GRADIENT}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.reportingIconBadgeSelectedGradient}
@@ -933,7 +960,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                             <Ionicons
                               name={getReportingIconName(option.id)}
                               size={25}
-                              color="#b91c1c"
+                              color="#7f1d1d"
                             />
                           </View>
                         )}
@@ -949,7 +976,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                         </View>
                         {isSelected && (
                           <View style={styles.reportingCheckPill}>
-                            <Ionicons name="checkmark-circle" size={20} color="#dc2626" />
+                            <Ionicons name="checkmark-circle" size={20} color="#0f172a" />
                           </View>
                         )}
                       </View>
@@ -963,7 +990,7 @@ const ReportIncidentScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.roleAssuranceBox}>
-                <Ionicons name="shield-checkmark-outline" size={18} color="#991b1b" />
+                <Ionicons name="shield-checkmark-outline" size={18} color="#7f1d1d" />
                 <Text style={styles.roleAssuranceText}>
                   Your reporting role assists dispatchers in coordinating the correct emergency assistance. Citizen identity remains confidential from public views.
                 </Text>
@@ -975,7 +1002,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             <View style={styles.stepContent}>
               <View style={styles.stepHeading}>
                 <View style={styles.stepHeadingIcon}>
-                  <Ionicons name="document-text-outline" size={19} color="#dc2626" />
+                  <Ionicons name="document-text-outline" size={19} color="#7f1d1d" />
                 </View>
                 <View style={styles.stepHeadingCopy}>
                   <Text style={styles.stepHeadingTitle}>Details and evidence</Text>
@@ -1081,7 +1108,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     disabled={processingImage || loading}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="camera-outline" size={21} color="#dc2626" />
+                    <Ionicons name="camera-outline" size={21} color="#0f172a" />
                     <Text style={styles.photoActionText}>Take Photo</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1090,7 +1117,7 @@ const ReportIncidentScreen = ({ navigation }) => {
                     disabled={processingImage || loading}
                     activeOpacity={0.85}
                   >
-                    <Ionicons name="image-outline" size={21} color="#dc2626" />
+                    <Ionicons name="image-outline" size={21} color="#0f172a" />
                     <Text style={styles.photoActionText}>Choose Photo</Text>
                   </TouchableOpacity>
                 </View>
@@ -1104,7 +1131,7 @@ const ReportIncidentScreen = ({ navigation }) => {
 
               <View style={styles.infoBox}>
                 <View style={styles.infoIconBadge}>
-                  <Ionicons name="shield-checkmark-outline" size={18} color="#991b1b" />
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#7f1d1d" />
                 </View>
                 <Text style={styles.infoText}>
                   Verified Citizen Report • Encrypted dispatch routing to Valenzuela City Police and Barangay Operations Command.
@@ -1123,7 +1150,7 @@ const ReportIncidentScreen = ({ navigation }) => {
             onPress={handleBack}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={16} color="#991b1b" style={{ marginRight: 6 }} />
+            <Ionicons name="arrow-back" size={16} color="#7f1d1d" style={{ marginRight: 6 }} />
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
 
@@ -1134,7 +1161,7 @@ const ReportIncidentScreen = ({ navigation }) => {
               activeOpacity={0.88}
             >
               <LinearGradient
-                colors={['#dc2626', '#991b1b']}
+                colors={BRAND_GRADIENT}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
@@ -1155,7 +1182,7 @@ const ReportIncidentScreen = ({ navigation }) => {
               activeOpacity={0.88}
             >
               <LinearGradient
-                colors={['#dc2626', '#7f1d1d']}
+                colors={BRAND_GRADIENT}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
@@ -1183,7 +1210,7 @@ const ReportIncidentScreen = ({ navigation }) => {
         message={alertConfig.message}
         type={alertConfig.type}
         buttons={alertConfig.buttons}
-        onClose={hideAlert}
+        onClose={handleAlertClose}
         autoCloseDelay={alertConfig.autoCloseDelay}
       />
     </>
@@ -1274,7 +1301,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(254, 226, 226, 0.8)',
     borderRadius: 20,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 14,
@@ -1301,12 +1328,12 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   stepCircleCompleted: {
-    backgroundColor: '#dc2626',
-    borderColor: '#dc2626',
+    backgroundColor: '#334155',
+    borderColor: '#334155',
   },
   stepCircleCurrent: {
     backgroundColor: '#ffffff',
-    borderColor: '#991b1b',
+    borderColor: '#0f172a',
     borderWidth: 3,
   },
   stepNumber: {
@@ -1315,7 +1342,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
   stepNumberCurrent: {
-    color: '#991b1b',
+    color: '#0f172a',
     fontWeight: '900',
   },
   stepLine: {
@@ -1326,7 +1353,7 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   stepLineActive: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#334155',
   },
   stepBadgeRow: {
     flexDirection: 'row',
@@ -1337,13 +1364,13 @@ const styles = StyleSheet.create({
   stepCounterText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#991b1b',
+    color: '#334155',
     letterSpacing: 0.6,
   },
   stepDotSeparator: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#94a3b8',
   },
   stepLabel: {
     fontSize: 12,
@@ -1360,11 +1387,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 14,
     marginBottom: 16,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -1374,11 +1401,11 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     marginRight: 12,
   },
   stepHeadingCopy: {
@@ -1410,7 +1437,7 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
     borderRadius: 18,
     padding: 14,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -1431,12 +1458,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 15,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
   },
   incidentIconBadgeSelectedGradient: {
     width: 44,
@@ -1507,7 +1534,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     minHeight: 176,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
@@ -1515,10 +1542,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   reportingAsButtonSelected: {
-    borderColor: '#dc2626',
+    borderColor: '#0f172a',
     borderWidth: 2,
-    backgroundColor: '#fff7f7',
-    shadowColor: '#dc2626',
+    backgroundColor: '#f8fafc',
+    shadowColor: '#0f172a',
     shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 4,
@@ -1533,11 +1560,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 18,
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
   },
   reportingIconBadgeSelectedGradient: {
     width: 52,
@@ -1545,7 +1572,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#dc2626',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
@@ -1568,7 +1595,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   reportingAsLabelSelected: {
-    color: '#991b1b',
+    color: '#0f172a',
   },
   reportingAsTag: {
     alignSelf: 'stretch',
@@ -1584,8 +1611,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reportingAsTagSelected: {
-    backgroundColor: '#fef2f2',
-    color: '#991b1b',
+    backgroundColor: '#f1f5f9',
+    color: '#0f172a',
   },
   reportingAsDescription: {
     color: '#6b7280',
@@ -1597,9 +1624,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 16,
     padding: 14,
     marginTop: 16,
@@ -1607,7 +1634,7 @@ const styles = StyleSheet.create({
   roleAssuranceText: {
     flex: 1,
     fontSize: 12,
-    color: '#7f1d1d',
+    color: '#334155',
     fontWeight: '700',
     lineHeight: 18,
   },
@@ -1616,14 +1643,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
+    borderLeftColor: '#334155',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 16,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -1647,7 +1674,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryLabel: {
-    color: '#991b1b',
+    color: '#64748b',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.8,
@@ -1684,7 +1711,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     marginBottom: 18,
-    shadowColor: '#991b1b',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
     shadowRadius: 14,
@@ -1767,13 +1794,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#dc2626',
+    borderColor: '#cbd5e1',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    shadowColor: '#dc2626',
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -1785,15 +1812,15 @@ const styles = StyleSheet.create({
   photoActionText: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#dc2626',
+    color: '#0f172a',
   },
   processingPhotoBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1801,7 +1828,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   processingPhotoText: {
-    color: '#991b1b',
+    color: '#334155',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1811,7 +1838,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: '#e2e8f0',
     backgroundColor: '#111827',
   },
   previewImage: {
@@ -1860,9 +1887,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   infoBox: {
-    backgroundColor: '#fff7f7',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: '#e2e8f0',
     borderRadius: 18,
     padding: 15,
     marginTop: 6,
@@ -1874,14 +1901,14 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 12,
-    backgroundColor: '#fee2e2',
+    backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   infoText: {
     flex: 1,
     fontSize: 12.5,
-    color: '#7f1d1d',
+    color: '#334155',
     fontWeight: '700',
     lineHeight: 19,
   },
@@ -1895,7 +1922,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#fee2e2',
+    borderTopColor: '#e2e8f0',
     gap: 12,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -4 },
@@ -1913,14 +1940,14 @@ const styles = StyleSheet.create({
   backButton: {
     backgroundColor: '#ffffff',
     borderWidth: 1.5,
-    borderColor: '#fecaca',
+    borderColor: '#cbd5e1',
     flexDirection: 'row',
     paddingVertical: 14,
   },
   backButtonText: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#991b1b',
+    color: '#0f172a',
   },
   gradientButtonWrap: {
     overflow: 'hidden',

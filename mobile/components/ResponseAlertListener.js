@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
+import { goToMainScreen } from '../utils/navigation';
 import { auth, db } from '../utils/firebase';
 import CustomAlert from './CustomAlert';
 import { scheduleLocalNotification } from '../utils/notifications';
@@ -59,6 +60,7 @@ const ResponseAlertListener = () => {
   const shownRef = useRef(new Set());
   const [activeNotification, setActiveNotification] = useState(null);
   const activeRef = useRef(null);
+  const lastClosedIncidentIdRef = useRef(null);
   const queueRef = useRef([]);
   const recentIncidentAlertsRef = useRef(new Map());
   const preferencesRef = useRef({
@@ -66,7 +68,8 @@ const ResponseAlertListener = () => {
     highPriority: true,
     locationAlerts: true,
   });
-  const preferencesLoadedRef = useRef(false);
+  // Always "loaded": preferences are no longer read (see isAllowedByPreferences).
+  const preferencesLoadedRef = useRef(true);
   const pendingNotificationDocsRef = useRef(null);
   const latestNotificationDocsRef = useRef([]);
   const incidentStateRef = useRef(new Map());
@@ -193,41 +196,9 @@ const ResponseAlertListener = () => {
     });
   }, [enqueueAlert]);
 
-  // Load user notification preferences
-  useEffect(() => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return undefined;
-
-    const flushPendingDocs = () => {
-      if (pendingNotificationDocsRef.current) {
-        const pendingDocs = pendingNotificationDocsRef.current;
-        pendingNotificationDocsRef.current = null;
-        processNotificationDocs(pendingDocs);
-      }
-    };
-
-    return onSnapshot(
-      doc(db, 'users', currentUser.uid),
-      (snapshot) => {
-        const prefs = snapshot.data()?.notificationPreferences || {};
-        preferencesRef.current = {
-          pushNotifications: prefs.pushNotifications !== false,
-          highPriority: prefs.highPriority !== false,
-          locationAlerts: prefs.locationAlerts !== false,
-        };
-        // [QA-FIX #12] Notifications that arrived before the preferences were
-        // known are evaluated now, so a disabled category never pops up.
-        preferencesLoadedRef.current = true;
-        flushPendingDocs();
-      },
-      (error) => {
-        console.error('Error loading notification preferences:', error);
-        // Fall back to the defaults rather than holding alerts back forever.
-        preferencesLoadedRef.current = true;
-        flushPendingDocs();
-      }
-    );
-  }, [processNotificationDocs]);
+  // Notification preferences are no longer used (the Settings toggles were
+  // removed and isAllowedByPreferences always allows), so there is no
+  // users/{uid} listener anymore and alerts are never held back waiting for it.
 
   // REAL-TIME LISTENER 1: Watch notifications collection
   useEffect(() => {
@@ -353,6 +324,9 @@ const ResponseAlertListener = () => {
   const markRead = useCallback(async () => {
     const current = activeRef.current;
     if (!current) return;
+    // CustomAlert closes the popup (this function) BEFORE running a button's
+    // action, so remember which incident it was for "Track Status".
+    lastClosedIncidentIdRef.current = current.incidentId || null;
     activeRef.current = null;
     setActiveNotification(null);
 
@@ -380,12 +354,18 @@ const ResponseAlertListener = () => {
     await Promise.all([...idsToMark].map(markNotificationDocRead));
   }, [showNextQueued]);
 
+  // Opens the report's tracking preview on Home (the active report card).
+  // Home falls back to the Reports page if the report is no longer active.
   const handleTrackStatus = useCallback(() => {
+    const incidentId = activeRef.current?.incidentId || lastClosedIncidentIdRef.current;
     markRead();
     try {
-      navigation.navigate('Status');
+      goToMainScreen(navigation, 'Home', {
+        openActiveReportId: incidentId || null,
+        openActiveReportAt: Date.now(),
+      });
     } catch (navErr) {
-      console.warn('Navigation to Status failed:', navErr);
+      console.warn('Navigation to active report failed:', navErr);
     }
   }, [markRead, navigation]);
 
@@ -419,19 +399,11 @@ const isPopupNotification = (item) => {
 
 const isNotificationRead = (item) => Boolean(item?.readAt) || item?.read === true;
 
-const isAllowedByPreferences = (item, preferences) => {
-  if (preferences.pushNotifications === false) return false;
-
-  const isHighPriority =
-    item?.priority === 'high' ||
-    item?.severity === 'high' ||
-    item?.type === 'police_urgent_report';
-
-  if (isHighPriority && preferences.highPriority === false) return false;
-  if (item?.type === 'police_urgent_report' && preferences.locationAlerts === false) return false;
-
-  return true;
-};
+// The notification toggles were removed from Settings, so alerts are always
+// allowed. Preferences saved earlier (e.g. a toggle left off) are ignored on
+// purpose: otherwise a user who once turned one off would silently stop
+// getting dispatch alerts with no way to turn them back on.
+const isAllowedByPreferences = () => true;
 
 const getTimeValue = (value) => {
   if (!value) return 0;

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 // [QA-FIX #11] Bottom inset so the bar clears Android's 3-button / gesture nav.
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { goToMainScreen } from '../utils/navigation';
 
 /**
  * GlobalBottomBar
@@ -26,9 +27,11 @@ const GlobalBottomBar = ({ navigation, activeTab = 'Home', userLocation = null }
     navigation.navigate('SOSReport', userLocation ? { userLocation } : undefined);
   };
 
+  // Return to the existing Home/Reports screen instead of pushing a new copy
+  // (React Navigation 7 `navigate` pushes; see utils/navigation.js).
   const handleNavigate = (screenName) => {
     if (activeTab === screenName) return;
-    navigation.navigate(screenName);
+    goToMainScreen(navigation, screenName);
   };
 
   return (
