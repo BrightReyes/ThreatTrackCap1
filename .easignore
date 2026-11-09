@@ -1,0 +1,23 @@
+# EAS ignore for root repo
+web-admin/
+functions/
+promo-video/
+promo-video copy/
+Saas Demo/
+video-renders/
+.agent/
+.agents/
+android/
+MD FILES/
+*.mp4
+*.mp3
+*.wav
+*.apk
+
+# Mobile local caches
+mobile/android/
+mobile/ios/
+mobile/node_modules/
+mobile/.expo/
+mobile/*.log
+node_modules/
