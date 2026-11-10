@@ -22,6 +22,16 @@ const ADMIN_SUBSTATION_ID_CACHE_KEY = "tt_admin_substation_id";
 const ADMIN_SUBSTATION_NAME_CACHE_KEY = "tt_admin_substation_name";
 const ADMIN_AUTH_NOTICE_KEY = "tt_admin_auth_notice";
 const ADMIN_PROFILE_CACHE_KEY = "tt_admin_profile";
+export const DECISION_PLANS_STORAGE_KEY = "tt_decision_plans";
+
+/** Decision plans last until logout, so the next session starts fresh. */
+export function clearSavedDecisionPlans() {
+    try {
+        localStorage.removeItem(DECISION_PLANS_STORAGE_KEY);
+    } catch {
+        // Nothing was saved if storage is unavailable.
+    }
+}
 
 export function getCachedAdminProfile(uid) {
     try {

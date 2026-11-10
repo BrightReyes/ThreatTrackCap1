@@ -15,6 +15,7 @@ import {
     cacheAdminRole,
     cacheAdminJurisdiction,
     cacheAdminProfile,
+    clearSavedDecisionPlans,
 } from "./admin-auth.js";
 
 const pageLogin = document.getElementById("page-login");
@@ -170,6 +171,7 @@ onAuthStateChanged(auth, async (user) => {
     }
     cacheAdminRole(null);
     cacheAdminJurisdiction(null);
+    clearSavedDecisionPlans();
     pageLogin.hidden = false;
     showPendingAuthNotice();
 });

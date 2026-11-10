@@ -505,7 +505,7 @@ For the prototype, the call is made from the admin browser, so the key can be se
 There is no approval step, because it is only a draft. An admin can export it and take it through normal police or barangay channels.
 
 **Q: Are plans saved?**
-A plan stays on screen for that session and can be exported to PDF. Admin feedback is saved and given to Gemini as context for later plans, but it can never be cited as a source.
+A plan stays available in that browser while the admin moves between pages, is cleared on logout, and can be exported to PDF. Admin feedback is saved and given to Gemini as context for later plans, but it can never be cited as a source.
 
 **Q: How do you decide "Consider action"?**
 At least 5 reports, at least 2 confirmed by an admin, and a clear time pattern, where at least half of the reports fall within a three-hour window.

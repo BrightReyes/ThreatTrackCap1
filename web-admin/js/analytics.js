@@ -1,4 +1,4 @@
-import { initAdminPage, hasIncidentAccess } from "./admin-auth.js";
+import { DECISION_PLANS_STORAGE_KEY, initAdminPage, hasIncidentAccess } from "./admin-auth.js";
 import { initAdminCustomSelects } from "./admin-custom-select.js";
 import {
     collection,
@@ -1982,6 +1982,62 @@ function setDecisionPlanLanguage(lang) {
     if (incidentRows.length) renderHotspotDecisionSection(getSelectedRangeRows());
 }
 
+const SAVED_PLANS_VERSION = 1;
+let decisionPlanOwner = "";
+
+function omitRuntimeOnlyFields(key, value) {
+    return key === "allowedNumbers" || key === "term" ? undefined : value;
+}
+
+function saveDecisionPlans() {
+    if (!decisionPlanOwner) return;
+    try {
+        if (!perHotspotDecisionPlans.size) {
+            localStorage.removeItem(DECISION_PLANS_STORAGE_KEY);
+            return;
+        }
+        localStorage.setItem(DECISION_PLANS_STORAGE_KEY, JSON.stringify({
+            version: SAVED_PLANS_VERSION,
+            owner: decisionPlanOwner,
+            range: document.getElementById("analytics-range")?.value || "30d",
+            customStart: document.getElementById("analytics-custom-start")?.value || "",
+            customEnd: document.getElementById("analytics-custom-end")?.value || "",
+            plans: [...perHotspotDecisionPlans],
+        }, omitRuntimeOnlyFields));
+    } catch (error) {
+        console.warn("[analytics] could not save decision plans", error);
+    }
+}
+
+function applySavedRange(saved) {
+    const rangeEl = document.getElementById("analytics-range");
+    if (!rangeEl || ![...rangeEl.options].some((option) => option.value === saved.range)) return;
+    rangeEl.value = saved.range;
+    if (saved.range !== "custom") return;
+
+    const startEl = document.getElementById("analytics-custom-start");
+    const endEl = document.getElementById("analytics-custom-end");
+    const customBox = document.getElementById("analytics-custom-inputs");
+    if (startEl) startEl.value = saved.customStart;
+    if (endEl) endEl.value = saved.customEnd;
+    if (customBox) customBox.style.display = "flex";
+}
+
+/** Brings back this admin's plans, along with the date range they were made for. */
+function restoreDecisionPlans(uid) {
+    decisionPlanOwner = uid || "";
+    try {
+        const saved = JSON.parse(localStorage.getItem(DECISION_PLANS_STORAGE_KEY) || "null");
+        if (!saved || saved.version !== SAVED_PLANS_VERSION || saved.owner !== decisionPlanOwner || !Array.isArray(saved.plans)) {
+            return;
+        }
+        perHotspotDecisionPlans = new Map(saved.plans);
+        applySavedRange(saved);
+    } catch (error) {
+        console.warn("[analytics] could not restore decision plans", error);
+    }
+}
+
 function getPriorTypeCounts(hotspot) {
     const range = document.getElementById("analytics-range")?.value || "30d";
     let startMs = rangeStart(range);
@@ -2137,6 +2193,7 @@ async function handleGenerateSingleHotspot(hotspot, rank, btn, rows) {
             rank,
             summaryId: `hotspot_${Date.now()}`,
         });
+        saveDecisionPlans();
     } catch (err) {
         console.error("[analytics] decision plan failed", err);
         alert(t("knowledgeFailed"));
@@ -2748,11 +2805,13 @@ document.getElementById("analytics-range")?.addEventListener("change", (e) => {
         if (customBox) customBox.style.display = "none";
     }
     perHotspotDecisionPlans.clear();
+    saveDecisionPlans();
     renderAnalytics();
 });
 
 document.getElementById("analytics-custom-apply")?.addEventListener("click", () => {
     perHotspotDecisionPlans.clear();
+    saveDecisionPlans();
     renderAnalytics();
 });
 
@@ -2776,6 +2835,7 @@ applyDecisionPlanLanguage();
 initAdminPage({
     pageId: "page-analytics",
     onReady(user) {
+        restoreDecisionPlans(user?.uid);
         initAdminCustomSelects(document.getElementById("page-analytics"));
         currentAdminSessionId = user?.uid || "";
         updateGeminiKeyButtonUI();
