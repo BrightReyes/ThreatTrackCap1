@@ -481,40 +481,47 @@ function applyRoleNavigation(profile) {
     cacheAdminJurisdiction(profile);
 
     const operationHref = "operation.html";
-    const canUseOperations = isPoliceAdminRole(profile?.role);
+    const canUseOperations = isAllowedAdminRole(profile?.role);
 
     if (!canUseOperations) {
-        nav.querySelectorAll('.sidebar__link[href*="operation"], [data-role-nav="police"]').forEach((link) => {
+        nav.querySelectorAll('.sidebar__link[href*="operation"]').forEach((link) => {
             link.remove();
         });
         document.documentElement.classList.remove("admin-role-police");
         return;
     }
 
-    document.documentElement.classList.add("admin-role-police");
+    if (isPoliceAdminRole(profile?.role)) {
+        document.documentElement.classList.add("admin-role-police");
+    } else {
+        document.documentElement.classList.remove("admin-role-police");
+    }
+
+    const usersLink = nav.querySelector('.sidebar__link[href="users.html"]');
     let operationLink = nav.querySelector(`.sidebar__link[href="${operationHref}"]`);
 
     if (!operationLink) {
         operationLink = document.createElement("a");
         operationLink.href = operationHref;
         operationLink.className = "sidebar__link sidebar__link--role-visible";
-        operationLink.dataset.roleNav = "police";
         operationLink.innerHTML = `
             <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
-            <span>Operation</span>
+            <span>Operations</span>
         `;
 
-        const analyticsLink = nav.querySelector(
-            '.sidebar__link[href="analytics.html"]',
-        );
-        const settingsLink = nav.querySelector('.sidebar__link[href="settings.html"]');
-        nav.insertBefore(operationLink, analyticsLink || settingsLink || null);
+        if (usersLink) {
+            usersLink.insertAdjacentElement("afterend", operationLink);
+        } else {
+            nav.appendChild(operationLink);
+        }
     } else {
-        const analyticsLink = nav.querySelector(
-            '.sidebar__link[href="analytics.html"]',
-        );
-        if (analyticsLink && operationLink.nextElementSibling !== analyticsLink) {
-            nav.insertBefore(operationLink, analyticsLink);
+        // Guarantee Operations is placed directly under the Users page
+        if (usersLink && operationLink.previousElementSibling !== usersLink) {
+            usersLink.insertAdjacentElement("afterend", operationLink);
+        }
+        const textSpan = operationLink.querySelector("span:not(.sidebar__icon)");
+        if (textSpan && textSpan.textContent.trim() === "Operation") {
+            textSpan.textContent = "Operations";
         }
     }
 

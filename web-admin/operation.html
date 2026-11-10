@@ -3,9 +3,19 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Admin | Operation</title>
+        <title>Admin | Operations</title>
+        <meta
+            name="description"
+            content="ThreatTrack police operations and emergency broadcast console for direct station reporting and instant citizen notifications."
+        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+            href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
         />
         <script>
@@ -15,8 +25,13 @@
                         "sidebar-collapsed-initial",
                     );
                 }
-                const role = String(localStorage.getItem("tt_admin_role") || "").trim().toLowerCase();
-                if (role === "admin" || role === "user") {
+                const role = String(
+                    localStorage.getItem("tt_admin_role") || "",
+                )
+                    .trim()
+                    .toLowerCase();
+                // Block regular citizens from the Admin console; allow all authorized administrative roles
+                if (role === "user") {
                     window.location.replace("dashboard.html");
                     return;
                 }
@@ -60,11 +75,12 @@
                         </div>
 
                         <div class="sidebar__brand-right">
-                            <span class="sidebar__logo">ThreatTrack</span>
+                            <span class="sidebar__logo">Threat<span>Track</span></span>
                             <span class="sidebar__badge">Admin</span>
                         </div>
                     </div>
-                                        <nav class="sidebar__nav">
+
+                    <nav class="sidebar__nav">
                         <a href="dashboard.html" class="sidebar__link">
                             <span class="sidebar__icon material-symbols-outlined">dashboard</span>
                             <span>Dashboard</span>
@@ -89,9 +105,13 @@
                             <span class="sidebar__icon material-symbols-outlined">group</span>
                             <span>Users</span>
                         </a>
-                        <a href="operation.html" class="sidebar__link sidebar__link--active" aria-current="page" data-role-nav="police">
+                        <a
+                            href="operation.html"
+                            class="sidebar__link sidebar__link--active"
+                            aria-current="page"
+                        >
                             <span class="sidebar__icon material-symbols-outlined">emergency_home</span>
-                            <span>Operation</span>
+                            <span>Operations</span>
                         </a>
                         <a href="recently-deleted.html" class="sidebar__link">
                             <span class="sidebar__icon material-symbols-outlined">auto_delete</span>
@@ -115,9 +135,13 @@
             <div class="admin-dashboard__shell">
                 <header class="admin-dashboard__header">
                     <div class="admin-dashboard__header-left">
-                        <h1 class="admin-dashboard__title">Operation</h1>
+                        <div class="operation-header-pill">
+                            <span class="material-symbols-outlined">local_police</span>
+                            <span>Station Command Console</span>
+                        </div>
+                        <h1 class="admin-dashboard__title">Operations Dispatch</h1>
                         <p class="admin-dashboard__tagline">
-                            Add police reports from direct station reports
+                            Publish verified police reports, broadcast direct station alerts, and notify active citizens in real time
                         </p>
                     </div>
                     <div class="admin-dashboard__header-right">
@@ -126,238 +150,405 @@
                             role="timer"
                             aria-label="Current time, Philippines (PHT)"
                         >
+                            <div class="admin-dashboard__clock-meta">
+                                <span class="admin-dashboard__clock-tz-badge">PHT · UTC+8</span>
+                                <p
+                                    id="dashboard-clock-date"
+                                    class="admin-dashboard__clock-date"
+                                ></p>
+                            </div>
                             <div class="admin-dashboard__clock-line">
                                 <time
                                     id="dashboard-clock-time"
                                     class="admin-dashboard__clock-time"
-                                ></time>
-                                <span
-                                    class="admin-dashboard__clock-sep"
-                                    aria-hidden="true"
-                                    >.</span
-                                >
-                                <span class="admin-dashboard__clock-tz"
-                                    >PHT</span
-                                >
+                                >--:--:--</time>
                             </div>
-                            <p
-                                id="dashboard-clock-date"
-                                class="admin-dashboard__clock-date"
-                            ></p>
                         </div>
                     </div>
                 </header>
 
                 <main class="admin-dashboard__main operation-main">
+                    <!-- ThreatTrack Signature Tactical Gradient Hero Banner -->
                     <section
-                        class="operation-alert"
-                        aria-label="Police operation report"
+                        class="operation-hero-banner"
+                        aria-label="Direct station operations broadcast banner"
                     >
-                        <div class="operation-alert__icon">
-                            <span
-                                class="material-symbols-outlined"
-                                aria-hidden="true"
-                                >emergency</span
-                            >
+                        <div class="operation-hero__backdrop" aria-hidden="true"></div>
+                        <div class="operation-hero__content">
+                            <div class="operation-hero__badge-row">
+                                <span class="operation-hero__tag">
+                                    <span class="operation-hero__pulse"></span>
+                                    LIVE STATION DISPATCH
+                                </span>
+                                <span class="operation-hero__tag operation-hero__tag--sub">
+                                    VALENZUELA POLICE COMMAND
+                                </span>
+                            </div>
+                            <h2 class="operation-hero__title">
+                                Official Emergency &amp; Station Incident Logging
+                            </h2>
+                            <p class="operation-hero__subtitle">
+                                Verified reports recorded here are logged to the incident registry and dispatched to active citizens through the ThreatTrack notification network.
+                            </p>
+                            <div class="operation-hero__telemetry-row">
+                                <div class="telemetry-chip">
+                                    <span class="material-symbols-outlined">radar</span>
+                                    <span>Coverage: Valenzuela City</span>
+                                </div>
+                                <div class="telemetry-chip">
+                                    <span class="material-symbols-outlined">send_to_mobile</span>
+                                    <span>Audience: Active App Users</span>
+                                </div>
+                                <div class="telemetry-chip">
+                                    <span class="material-symbols-outlined">verified</span>
+                                    <span>Source: Police Command</span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <p class="operation-alert__eyebrow">
-                                Police operation
-                            </p>
-                            <h2>Add station report</h2>
-                            <p>
-                                Severity is assigned from the incident type.
-                                Added reports are saved to incidents and sent to
-                                active users through Notifications.
-                            </p>
+                        <div class="operation-hero__icon-wrap" aria-hidden="true">
+                            <span class="material-symbols-outlined">security_update_warning</span>
                         </div>
                     </section>
 
+                    <!-- Interactive Operations Dispatch Form & Live Preview Grid -->
                     <form
                         id="operation-report-form"
-                        class="operation-form"
+                        class="operation-form-grid"
                         novalidate
                     >
-                        <section
-                            class="operation-panel operation-incident-panel"
-                        >
-                            <div class="operation-panel__head">
-                                <div>
-                                    <h3>Incident</h3>
-                                    <p>
-                                        Classify the station report and describe
-                                        the event.
-                                    </p>
+                        <!-- Left Column: Input Panels -->
+                        <div class="operation-column-left">
+                            <!-- Incident Details Panel -->
+                            <section class="operation-card operation-card--incident">
+                                <div class="operation-card__accent" aria-hidden="true"></div>
+                                <div class="operation-card__head">
+                                    <div class="operation-card__title-group">
+                                        <span class="material-symbols-outlined operation-card__icon" aria-hidden="true">report</span>
+                                        <div>
+                                            <h3 class="operation-card__title">Incident Classification</h3>
+                                            <p class="operation-card__subtitle">Select incident category and summarize key details</p>
+                                        </div>
+                                    </div>
+                                    <span class="operation-status-badge">Required</span>
                                 </div>
-                            </div>
-                            <div class="operation-grid">
-                                <div class="operation-field">
-                                    <label for="operation-type">Type</label>
-                                    <select
-                                        id="operation-type"
-                                        name="type"
-                                        class="incidents-select"
-                                        required
-                                    >
-                                        <option value="">
-                                            Select incident type
-                                        </option>
-                                        <option value="robbery_holdup">
-                                            Robbery / Hold-up
-                                        </option>
-                                        <option value="physical_assault_injury">
-                                            Physical Assault / Injury
-                                        </option>
-                                        <option value="domestic_violence">
-                                            Domestic Violence
-                                        </option>
-                                        <option value="traffic_accident">
-                                            Traffic Accident
-                                        </option>
-                                        <option value="illegal_weapons">
-                                            Illegal Weapons
-                                        </option>
-                                        <option value="drug_related_activity">
-                                            Drug-Related Activity
-                                        </option>
-                                        <option value="public_disturbance">
-                                            Public Disturbance
-                                        </option>
-                                        <option value="suspicious_activity">
-                                            Suspicious Activity / Persons
-                                        </option>
-                                        <option value="theft_snatching">
-                                            Theft / Snatching
-                                        </option>
-                                        <option
-                                            value="vandalism_property_damage"
-                                        >
-                                            Vandalism / Property Damage
-                                        </option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="operation-field">
-                                <label for="operation-description"
-                                    >Description</label
-                                >
-                                <textarea
-                                    id="operation-description"
-                                    name="description"
-                                    class="operation-textarea"
-                                    rows="6"
-                                    maxlength="2000"
-                                    placeholder="Summarize what happened and what users should avoid."
-                                    required
-                                ></textarea>
-                            </div>
-                        </section>
 
-                        <section
-                            class="operation-panel operation-severity-panel"
-                        >
-                            <div class="operation-panel__head">
-                                <div>
-                                    <h3>Severity</h3>
+                                <div class="operation-card__body">
+                                    <!-- Incident Type -->
+                                    <div class="operation-field">
+                                        <label for="operation-type" class="operation-label">
+                                            Incident Type <span class="required-star">*</span>
+                                        </label>
+                                        <div class="operation-select-wrap">
+                                            <select
+                                                id="operation-type"
+                                                name="type"
+                                                class="operation-select incidents-select"
+                                                required
+                                            >
+                                                <option value="">Select incident type...</option>
+                                                <option value="robbery_holdup">Robbery / Hold-up (High Severity)</option>
+                                                <option value="physical_assault_injury">Physical Assault / Injury (High Severity)</option>
+                                                <option value="domestic_violence">Domestic Violence (High Severity)</option>
+                                                <option value="traffic_accident">Traffic Accident (Medium Severity)</option>
+                                                <option value="illegal_weapons">Illegal Weapons (High Severity)</option>
+                                                <option value="drug_related_activity">Drug-Related Activity (High Severity)</option>
+                                                <option value="public_disturbance">Public Disturbance (Medium Severity)</option>
+                                                <option value="suspicious_activity">Suspicious Activity / Persons (Medium Severity)</option>
+                                                <option value="theft_snatching">Theft / Snatching (Medium Severity)</option>
+                                                <option value="vandalism_property_damage">Vandalism / Property Damage (Low Severity)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Quick Narrative Starters -->
+                                    <div class="operation-quick-section">
+                                        <span class="operation-quick-label">Quick narrative presets:</span>
+                                        <div class="operation-chips-row" id="quick-narrative-chips">
+                                            <button type="button" class="quick-chip" data-preset="Robbery incident reported along main thoroughfare. Field patrol units dispatched. Advise citizens to take alternative routes and stay vigilant.">
+                                                Robbery Advisory
+                                            </button>
+                                            <button type="button" class="quick-chip" data-preset="Vehicular collision causing heavy traffic congestion. Emergency medical and traffic personnel on site. Drive carefully.">
+                                                Traffic Alert
+                                            </button>
+                                            <button type="button" class="quick-chip" data-preset="Public disturbance reported in the area. Law enforcement officers are securing the vicinity. Keep safe indoors.">
+                                                Disturbance Call
+                                            </button>
+                                            <button type="button" class="quick-chip" data-preset="Suspicious activity reported. Heightened police patrol active. Report any unusual movement immediately.">
+                                                Suspicious Activity
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Description -->
+                                    <div class="operation-field">
+                                        <div class="operation-label-split">
+                                            <label for="operation-description" class="operation-label">
+                                                Event Description <span class="required-star">*</span>
+                                            </label>
+                                            <span id="char-counter" class="operation-char-counter">0 / 2000</span>
+                                        </div>
+                                        <textarea
+                                            id="operation-description"
+                                            name="description"
+                                            class="operation-textarea"
+                                            rows="5"
+                                            maxlength="2000"
+                                            placeholder="Provide specific details: what happened, landmarks, suspect descriptions, and safety instructions for residents..."
+                                            required
+                                        ></textarea>
+                                    </div>
                                 </div>
-                            </div>
-                            <div
-                                class="operation-severity-card"
-                                aria-live="polite"
-                            >
-                                <input
-                                    id="operation-severity"
-                                    class="operation-severity-input"
-                                    type="hidden"
-                                    value=""
-                                    readonly
-                                />
-                                <span
-                                    class="operation-severity-card__icon material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >auto_awesome</span
-                                >
-                                <div class="operation-severity-card__body">
-                                    <span class="operation-severity-card__label"
-                                        >Severity</span
-                                    >
-                                    <span
-                                        id="operation-severity-pill"
-                                        class="operation-severity-pill"
-                                        data-severity="none"
-                                    >
-                                        Select an incident type
+                            </section>
+
+                            <!-- Location & Geocoding Panel -->
+                            <section class="operation-card operation-card--location">
+                                <div class="operation-card__accent" aria-hidden="true"></div>
+                                <div class="operation-card__head">
+                                    <div class="operation-card__title-group">
+                                        <span class="material-symbols-outlined operation-card__icon" aria-hidden="true">pin_drop</span>
+                                        <div>
+                                            <h3 class="operation-card__title">Incident Location</h3>
+                                            <p class="operation-card__subtitle">Provide location within Valenzuela City boundaries</p>
+                                        </div>
+                                    </div>
+                                    <span class="operation-status-badge">Geocoded</span>
+                                </div>
+
+                                <div class="operation-card__body">
+                                    <!-- Quick Location / Barangay Chips -->
+                                    <div class="operation-quick-section">
+                                        <span class="operation-quick-label">Covered Barangays &amp; Sector Hubs:</span>
+                                        <div class="operation-chips-row" id="quick-location-chips">
+                                            <button type="button" class="quick-chip" data-loc="Sampaguita St., Balangkas, Valenzuela City">
+                                                Balangkas 3S Center
+                                            </button>
+                                            <button type="button" class="quick-chip" data-loc="S. Bautista St., Mapulang Lupa, Valenzuela City">
+                                                Mapulang Lupa 3S Center
+                                            </button>
+                                            <button type="button" class="quick-chip" data-loc="Malinta, Valenzuela City">
+                                                Malinta Junction
+                                            </button>
+                                            <button type="button" class="quick-chip" data-loc="Karuhatan, Valenzuela City">
+                                                Karuhatan
+                                            </button>
+                                            <button type="button" class="quick-chip" data-loc="Gen. T. de Leon, Valenzuela City">
+                                                Gen. T. de Leon
+                                            </button>
+                                            <button type="button" class="quick-chip" data-loc="MacArthur Highway, Valenzuela City">
+                                                MacArthur Highway
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Address Input -->
+                                    <div class="operation-field">
+                                        <label for="operation-address" class="operation-label">
+                                            Street Address / Landmark <span class="required-star">*</span>
+                                        </label>
+                                        <div class="operation-input-wrap">
+                                            <span class="material-symbols-outlined operation-input-icon">location_on</span>
+                                            <input
+                                                id="operation-address"
+                                                name="address"
+                                                class="operation-input"
+                                                type="text"
+                                                placeholder="e.g., S. Bautista St., Mapulang Lupa, Valenzuela City"
+                                                autocomplete="off"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <!-- Live Geocode Status Card -->
+                                    <div class="operation-geocode-status-card">
+                                        <div class="geocode-status-header">
+                                            <span class="material-symbols-outlined geocode-status-icon">gps_fixed</span>
+                                            <span class="geocode-status-title">Geographic Coordinates</span>
+                                        </div>
+                                        <p id="operation-location-result" class="operation-location-result" aria-live="polite">
+                                            Coordinates will be verified and resolved from Valenzuela geographic maps upon blur or submit.
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Right Column: Live Citizen Notification Preview & Telemetry -->
+                        <div class="operation-column-right">
+                            <!-- Live Mobile Citizen Notification Preview Card -->
+                            <section class="operation-card operation-preview-card" aria-label="Live mobile preview">
+                                <div class="operation-preview-card__head">
+                                    <div class="operation-card__title-group">
+                                        <span class="material-symbols-outlined operation-card__icon" aria-hidden="true">smartphone</span>
+                                        <div>
+                                            <h3 class="operation-card__title">Live Citizen Alert Preview</h3>
+                                            <p class="operation-card__subtitle">Simulated view of citizen app notification</p>
+                                        </div>
+                                    </div>
+                                    <span class="preview-live-indicator">
+                                        <span class="preview-live-dot"></span> LIVE SYNC
                                     </span>
                                 </div>
-                            </div>
-                            <p
-                                id="operation-notification-hint"
-                                class="operation-hint"
-                            >
-                                Select an incident type to see notification
-                                behavior.
-                            </p>
-                        </section>
 
-                        <section
-                            class="operation-panel operation-location-panel"
-                        >
-                            <div class="operation-panel__head">
-                                <div>
-                                    <h3>Location</h3>
-                                    <p>
-                                        Address is geocoded when the report is
-                                        submitted.
+                                <div class="operation-mockup-wrap">
+                                    <!-- Mobile Notification Card Mockup -->
+                                    <div class="threattrack-mobile-card" id="mobile-preview-card">
+                                        <div class="mobile-card__header">
+                                            <div class="mobile-card__brand">
+                                                <img src="/assets/image 10.png" alt="ThreatTrack" class="mobile-card__logo" />
+                                                <span class="mobile-card__appname">ThreatTrack Alert</span>
+                                            </div>
+                                            <span class="mobile-card__time" id="preview-time">Just now</span>
+                                        </div>
+
+                                        <div class="mobile-card__body">
+                                            <div class="mobile-card__badge-row">
+                                                <span class="mobile-severity-badge" id="preview-severity-badge" data-severity="none">
+                                                    Normal Priority
+                                                </span>
+                                                <span class="mobile-type-badge" id="preview-type-badge">
+                                                    Police Advisory
+                                                </span>
+                                            </div>
+
+                                            <h4 class="mobile-card__title" id="preview-title">
+                                                Police Station Incident Report
+                                            </h4>
+
+                                            <p class="mobile-card__description" id="preview-description">
+                                                Select an incident type and write a description to preview how this alert will appear to Valenzuela residents...
+                                            </p>
+
+                                            <div class="mobile-card__footer">
+                                                <div class="mobile-card__location">
+                                                    <span class="material-symbols-outlined">location_on</span>
+                                                    <span id="preview-location">Valenzuela City</span>
+                                                </div>
+                                                <span class="mobile-card__verified">
+                                                    <span class="material-symbols-outlined">verified</span>
+                                                    Verified Police Alert
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <!-- Severity & Dispatch Assessment Card -->
+                            <section class="operation-card operation-card--severity">
+                                <div class="operation-card__accent" aria-hidden="true"></div>
+                                <div class="operation-card__head">
+                                    <div class="operation-card__title-group">
+                                        <span class="material-symbols-outlined operation-card__icon" aria-hidden="true">speed</span>
+                                        <div>
+                                            <h3 class="operation-card__title">Severity &amp; Broadcast Impact</h3>
+                                            <p class="operation-card__subtitle">Calculated automatically from classification</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="operation-card__body">
+                                    <div class="operation-severity-card" aria-live="polite">
+                                        <input
+                                            id="operation-severity"
+                                            class="operation-severity-input"
+                                            type="hidden"
+                                            value=""
+                                            readonly
+                                        />
+                                        <span
+                                            class="operation-severity-card__icon material-symbols-outlined"
+                                            aria-hidden="true"
+                                            >auto_awesome</span
+                                        >
+                                        <div class="operation-severity-card__body">
+                                            <span class="operation-severity-card__label">Dispatch Urgency</span>
+                                            <span
+                                                id="operation-severity-pill"
+                                                class="operation-severity-pill"
+                                                data-severity="none"
+                                            >
+                                                Select an incident type
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <p
+                                        id="operation-notification-hint"
+                                        class="operation-hint"
+                                    >
+                                        Select an incident type to evaluate push notification priority.
                                     </p>
                                 </div>
-                            </div>
-                            <div class="operation-field">
-                                <label for="operation-address">Address</label>
-                                <input
-                                    id="operation-address"
-                                    name="address"
-                                    class="operation-input"
-                                    type="text"
-                                    placeholder="Street, barangay, Valenzuela City"
-                                    autocomplete="off"
-                                    required
-                                />
-                            </div>
-                            <p
-                                id="operation-location-result"
-                                class="operation-location-result"
-                                aria-live="polite"
-                            >
-                                Coordinates will be resolved from the address
-                                when the report is submitted.
-                            </p>
-                        </section>
+                            </section>
 
-                        <section
-                            class="operation-actions"
-                            aria-label="Submit operation report"
-                        >
-                            <div>
-                                <p id="operation-feedback" aria-live="polite">
-                                    Ready to submit.
+                            <!-- Dispatcher Station Telemetry Card -->
+                            <section class="operation-card operation-card--telemetry">
+                                <div class="operation-card__accent" aria-hidden="true"></div>
+                                <div class="operation-card__head">
+                                    <div class="operation-card__title-group">
+                                        <span class="material-symbols-outlined operation-card__icon" aria-hidden="true">shield_person</span>
+                                        <div>
+                                            <h3 class="operation-card__title">Command Authorization</h3>
+                                            <p class="operation-card__subtitle">Dispatcher authentication record</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="operation-card__body">
+                                    <div class="telemetry-info-grid">
+                                        <div class="telemetry-item">
+                                            <span class="telemetry-label">Authorizing Role</span>
+                                            <span class="telemetry-value" id="telemetry-admin-role">Administrator</span>
+                                        </div>
+                                        <div class="telemetry-item">
+                                            <span class="telemetry-label">Assigned Station / LGU</span>
+                                            <span class="telemetry-value" id="telemetry-admin-jurisdiction">Valenzuela Headquarters</span>
+                                        </div>
+                                        <div class="telemetry-item">
+                                            <span class="telemetry-label">Audit Log</span>
+                                            <span class="telemetry-value text-emerald">Enabled &amp; Signed</span>
+                                        </div>
+                                        <div class="telemetry-item">
+                                            <span class="telemetry-label">Dispatch Status</span>
+                                            <span class="telemetry-value text-amber">Ready for Broadcast</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Full-Width Bottom Action Bar -->
+                        <div class="operation-actions-bar">
+                            <div class="operation-actions-left">
+                                <p id="operation-feedback" class="operation-feedback-msg" aria-live="polite">
+                                    Ready to submit. All entries are audited and published securely.
                                 </p>
                             </div>
-                            <button
-                                type="submit"
-                                id="operation-submit"
-                                class="operation-submit"
-                            >
-                                <span
-                                    id="operation-submit-icon"
-                                    class="material-symbols-outlined"
-                                    aria-hidden="true"
-                                    >assignment_add</span
+                            <div class="operation-actions-right">
+                                <button
+                                    type="button"
+                                    id="operation-reset"
+                                    class="operation-btn-reset"
                                 >
-                                <span id="operation-submit-text"
-                                    >Add Report</span
+                                    <span class="material-symbols-outlined">restart_alt</span>
+                                    <span>Clear Form</span>
+                                </button>
+                                <button
+                                    type="submit"
+                                    id="operation-submit"
+                                    class="operation-submit"
                                 >
-                            </button>
-                        </section>
+                                    <span
+                                        id="operation-submit-icon"
+                                        class="material-symbols-outlined"
+                                        aria-hidden="true"
+                                        >assignment_add</span
+                                    >
+                                    <span id="operation-submit-text">Add Report</span>
+                                </button>
+                            </div>
+                        </div>
                     </form>
                 </main>
             </div>
