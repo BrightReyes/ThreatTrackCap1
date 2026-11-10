@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BRAND_GRADIENT } from '../theme/colors';
 
 const { width } = Dimensions.get('window');
+const MAX_ROW_BUTTON_LABEL_LENGTH = 10;
 
 const parseMessage = (rawMessage) => {
   if (!rawMessage) return { body: '', notice: null };
@@ -278,6 +279,12 @@ const CustomAlert = ({
 
   const typeConfig = getTypeConfig();
   const parsed = parseMessage(message);
+  // A row only has room for two short labels; stack anything else so no
+  // button text is cut off.
+  const stackButtons =
+    buttons.length > 2 ||
+    buttons.some((button) => String(button.text || '').length > MAX_ROW_BUTTON_LABEL_LENGTH);
+  const rowButtonStyle = buttons.length > 1 && !stackButtons && styles.multiButton;
 
   if (!isMounted) return null;
 
@@ -415,7 +422,7 @@ const CustomAlert = ({
             ) : null}
 
             {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
+            <View style={[styles.buttonContainer, stackButtons && styles.buttonContainerStacked]}>
               {buttons.length === 0 ? (
                 <TouchableOpacity
                   activeOpacity={0.88}
@@ -450,10 +457,10 @@ const CustomAlert = ({
                       <TouchableOpacity
                         key={index}
                         activeOpacity={0.8}
-                        style={[styles.secondaryButton, buttons.length > 1 && styles.multiButton]}
+                        style={[styles.secondaryButton, rowButtonStyle]}
                         onPress={() => handleButtonPress(button)}
                       >
-                        <Text style={styles.secondaryButtonText} numberOfLines={1}>
+                        <Text style={styles.secondaryButtonText} numberOfLines={2}>
                           {button.text}
                         </Text>
                       </TouchableOpacity>
@@ -464,7 +471,7 @@ const CustomAlert = ({
                     <TouchableOpacity
                       key={index}
                       activeOpacity={0.88}
-                      style={[styles.primaryButtonTouch, buttons.length > 1 && styles.multiButton]}
+                      style={[styles.primaryButtonTouch, rowButtonStyle]}
                       onPress={() => handleButtonPress(button)}
                     >
                       <LinearGradient
@@ -473,7 +480,7 @@ const CustomAlert = ({
                         end={{ x: 1, y: 1 }}
                         style={styles.primaryGradient}
                       >
-                        <Text style={styles.primaryButtonText} numberOfLines={1}>
+                        <Text style={styles.primaryButtonText} numberOfLines={2}>
                           {button.text}
                         </Text>
                         <View style={styles.btnIconBubble}>
@@ -724,6 +731,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     marginTop: 18,
+  },
+  buttonContainerStacked: {
+    flexDirection: 'column',
   },
   singleButtonTouch: {
     width: '100%',

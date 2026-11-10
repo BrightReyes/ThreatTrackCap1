@@ -11,6 +11,7 @@ import {
     query,
     serverTimestamp,
     updateDoc,
+    where,
     writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
@@ -25,6 +26,8 @@ import { getBarangayNameById } from "../../shared/barangays.js";
 
 const LIST_LIMIT = 200;
 const PAGE_SIZE = 10;
+// Firestore allows 500 writes per batch; this leaves room for the admin record.
+const BROADCAST_BATCH_SIZE = 400;
 
 let allDocs = [];
 let currentSearch = "";
@@ -610,7 +613,7 @@ function openComposeModal() {
     const userWrap = document.getElementById("compose-user-wrap");
     const bgyWrap = document.getElementById("compose-barangay-wrap");
     if (userWrap) userWrap.style.display = "none";
-    if (bgyWrap) bgyWrap.style.display = "block";
+    if (bgyWrap) bgyWrap.style.display = "none";
 
     modal.hidden = false;
 }
@@ -623,6 +626,99 @@ function closeComposeModal() {
 /* ==========================================================================
    Dispatch New Notification (Composer Submission)
    ========================================================================== */
+function isActiveCitizen(docSnap) {
+    const data = docSnap.data() || {};
+    const statusOf = (value) => String(value || "active").trim().toLowerCase();
+    return (
+        String(data.role || "user").trim().toLowerCase() === "user" &&
+        statusOf(data.status) === "active" &&
+        statusOf(data.accountStatus) === "active" &&
+        data.disabled !== true &&
+        data.suspended !== true
+    );
+}
+
+// Citizens store the barangay name ("Gen. T. de Leon"); the form uses ids ("gen_t_de_leon").
+function barangayKey(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+async function findDirectRecipientId(emailOrId) {
+    if (emailOrId.includes("@")) {
+        const emails = [...new Set([emailOrId, emailOrId.toLowerCase()])];
+        const snap = await getDocs(query(collection(db, "users"), where("email", "in", emails), limit(1)));
+        return snap.empty ? null : snap.docs[0].id;
+    }
+    const snap = await getDoc(doc(db, "users", emailOrId));
+    return snap.exists() ? snap.id : null;
+}
+
+/**
+ * The mobile app only lists notifications whose userId is the signed-in citizen,
+ * so each citizen needs their own document, which also keeps read state per person.
+ * The one record without a userId is what admins see in this page's feed.
+ */
+async function publishCitizenBroadcast(adminRecord, barangayId) {
+    const usersSnap = await getDocs(collection(db, "users"));
+    const wantedBarangay = barangayKey(barangayId);
+    const recipients = usersSnap.docs.filter((userDoc) => (
+        isActiveCitizen(userDoc) &&
+        (!wantedBarangay || barangayKey(userDoc.data().barangay) === wantedBarangay)
+    ));
+
+    if (recipients.length === 0) {
+        throw new Error(
+            barangayId
+                ? "No active citizens are registered in that barangay, so the alert was not sent."
+                : "No active citizens were found, so the alert was not sent.",
+        );
+    }
+
+    const adminRecordRef = doc(collection(db, "notifications"));
+    const citizenCopy = {
+        title: adminRecord.title,
+        body: adminRecord.body,
+        type: adminRecord.type,
+        // The app styles "high" as its top level and does not know "critical".
+        priority: adminRecord.priority === "critical" ? "high" : adminRecord.priority,
+        severity: adminRecord.priority === "critical" ? "high" : adminRecord.priority,
+        read: false,
+        readAt: null,
+        // No sentAt on purpose: the admin feed orders by sentAt, which leaves these
+        // copies out instead of filling its 200-row window. The app falls back to timestamp.
+        timestamp: serverTimestamp(),
+        audience: "user",
+        source: "admin_broadcast",
+        broadcastId: adminRecordRef.id,
+        ...(adminRecord.barangayId
+            ? { barangayId: adminRecord.barangayId, barangayName: adminRecord.barangayName }
+            : {}),
+    };
+
+    let delivered = 0;
+    try {
+        for (let start = 0; start < recipients.length; start += BROADCAST_BATCH_SIZE) {
+            const batch = writeBatch(db);
+            if (start === 0) {
+                batch.set(adminRecordRef, { ...adminRecord, recipientCount: recipients.length });
+            }
+            const chunk = recipients.slice(start, start + BROADCAST_BATCH_SIZE);
+            chunk.forEach((userDoc) => {
+                batch.set(doc(collection(db, "notifications")), { ...citizenCopy, userId: userDoc.id });
+            });
+            await batch.commit();
+            delivered += chunk.length;
+        }
+    } catch (err) {
+        if (delivered === 0) throw err;
+        throw new Error(
+            `Only ${delivered} of ${recipients.length} citizens received this alert. Sending it again will duplicate it for them.`,
+        );
+    }
+
+    return { notificationId: adminRecordRef.id, recipientCount: recipients.length };
+}
+
 async function handleComposeSubmit(e) {
     e.preventDefault();
     const submitBtn = document.getElementById("compose-modal-submit");
@@ -639,7 +735,7 @@ async function handleComposeSubmit(e) {
     const type = typeSelect?.value || "broadcast";
     const priority = prioritySelect?.value || "normal";
     const audience = audienceSelect?.value || "all";
-    const barangayId = barangaySelect?.value || "";
+    const barangayId = audience === "barangay" ? barangaySelect?.value || "" : "";
     const barangayName = barangayId ? getBarangayNameById(barangayId) || humanizeType(barangayId) : "";
     const directUserId = userInput?.value.trim() || "";
     const body = bodyTextarea?.value.trim() || "";
@@ -659,6 +755,12 @@ async function handleComposeSubmit(e) {
     if (audience === "direct" && !directUserId) {
         toastError("Please enter the citizen's email or account ID.");
         userInput?.focus();
+        return;
+    }
+
+    if (audience === "barangay" && !barangayId) {
+        toastError("Please select which barangay should receive this alert.");
+        barangaySelect?.focus();
         return;
     }
 
@@ -684,27 +786,44 @@ async function handleComposeSubmit(e) {
             },
         };
 
-        if (audience === "direct") {
-            payload.userId = directUserId;
-        }
-
         if (barangayId) {
             payload.barangayId = barangayId;
             payload.barangayName = barangayName;
         }
 
-        const docRef = await addDoc(collection(db, "notifications"), payload);
+        let notificationId;
+        let recipientCount = 0;
+
+        if (audience === "all" || audience === "barangay") {
+            ({ notificationId, recipientCount } = await publishCitizenBroadcast(payload, barangayId));
+        } else {
+            if (audience === "direct") {
+                const recipientId = await findDirectRecipientId(directUserId);
+                if (!recipientId) {
+                    throw new Error("No citizen account matches that email or ID.");
+                }
+                payload.userId = recipientId;
+                recipientCount = 1;
+            }
+            const docRef = await addDoc(collection(db, "notifications"), payload);
+            notificationId = docRef.id;
+        }
 
         await logAudit("notification_broadcast_dispatched", {
-            notificationId: docRef.id,
+            notificationId,
             title,
             type,
             priority,
             audience,
             barangay: barangayName || "all",
+            recipientCount,
         });
 
-        toastSuccess("Alert sent out successfully!");
+        toastSuccess(
+            recipientCount > 0
+                ? `Alert sent to ${recipientCount} citizen${recipientCount === 1 ? "" : "s"}.`
+                : "Alert sent to police officers.",
+        );
         closeComposeModal();
 
         // Refresh feed to show new alert
@@ -883,7 +1002,7 @@ function bindGlobalEvents() {
         const userWrap = document.getElementById("compose-user-wrap");
         const bgyWrap = document.getElementById("compose-barangay-wrap");
         if (userWrap) userWrap.style.display = val === "direct" ? "block" : "none";
-        if (bgyWrap) bgyWrap.style.display = val === "direct" ? "none" : "block";
+        if (bgyWrap) bgyWrap.style.display = val === "barangay" ? "block" : "none";
     });
 
     // Character counter for message body

@@ -1502,9 +1502,6 @@ const HomeScreen = ({ navigation, route }) => {
               {getSeverityLabel(incident.severity)}
             </Text>
           </View>
-          <Text style={styles.incidentDetailDescription}>
-            {incident.description || 'No description provided.'}
-          </Text>
           <View style={styles.incidentDetailDivider} />
           <Text style={styles.incidentDetailLabel}>Location</Text>
           <Text style={styles.incidentDetailValue}>
@@ -3400,12 +3397,6 @@ const styles = StyleSheet.create({
   incidentDetailSeverityText: {
     fontSize: 14,
     fontWeight: '900',
-  },
-  incidentDetailDescription: {
-    fontSize: 15,
-    color: '#111827',
-    lineHeight: 22,
-    fontWeight: '700',
   },
   incidentDetailDivider: {
     height: 1,

@@ -154,6 +154,20 @@ const SOS_FIX_TIMEOUT_MS = 10000;
 // tell the user it's queued instead of spinning forever.
 const SOS_WRITE_CONFIRM_TIMEOUT_MS = 15000;
 const NATIONAL_EMERGENCY_HOTLINE = '911';
+// Same limits as the incident rules in firestore.rules.
+const SOS_DESCRIPTION_MIN_LENGTH = 10;
+const SOS_DESCRIPTION_MAX_LENGTH = 2000;
+
+// A short message like "tulong" must never block an SOS, so it is kept
+// alongside the standard text instead of being sent alone.
+const buildSosDescription = (text, incidentLabel) => {
+  const typed = String(text || '').trim();
+  if (typed.length >= SOS_DESCRIPTION_MIN_LENGTH) {
+    return typed.slice(0, SOS_DESCRIPTION_MAX_LENGTH);
+  }
+  const standard = `SOS quick report: ${incidentLabel || 'Incident'} reported via emergency flow.`;
+  return typed ? `${standard} Details: ${typed}` : standard;
+};
 
 const isOfflineError = (error) => {
   const code = String(error?.code || '');
@@ -412,8 +426,7 @@ const SOSReportScreen = ({ navigation, route }) => {
         console.error('Error getting address:', error);
       }
 
-      const safeDescription = description.trim() ||
-        `SOS quick report: ${selectedIncident?.label || 'Incident'} reported via emergency flow.`;
+      const safeDescription = buildSosDescription(description, selectedIncident?.label);
 
       const detectedQuickTags = detectActiveQuickTags(safeDescription);
       const incidentData = {
@@ -614,7 +627,7 @@ const SOSReportScreen = ({ navigation, route }) => {
                           >
                             {type.label}
                           </Text>
-                          <Text style={styles.incidentTypeDescription} numberOfLines={2}>
+                          <Text style={styles.incidentTypeDescription} numberOfLines={3}>
                             {type.description}
                           </Text>
                         </View>

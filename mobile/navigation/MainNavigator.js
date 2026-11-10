@@ -46,11 +46,11 @@ const urgentFlowOptions = {
 };
 
 // Stack Navigator with all screens
-const MainNavigator = ({ onLogout }) => {
+const MainNavigator = ({ onLogout, initialRouteName }) => {
   return (
     <>
       <Stack.Navigator
-        initialRouteName="SOSGateway"
+        initialRouteName={initialRouteName}
         detachInactiveScreens
         screenOptions={baseTransitionOptions}
       >

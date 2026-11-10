@@ -2,12 +2,14 @@ import {
     addDoc,
     collection,
     doc,
+    getDoc,
     limit,
     onSnapshot,
     orderBy,
     query,
     serverTimestamp,
     updateDoc,
+    where,
 } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
 import { logAudit } from "./audit.js";
@@ -47,6 +49,8 @@ import {
     const LISTEN_LIMIT = 30;
     const DISMISS_PREFIX = "threattrack:priority-alert-dismissed:";
     const ACTIONED_PREFIX = "threattrack:priority-alert-actioned:";
+    // Assignments made before stations had to confirm them should not all pop up at once.
+    const HQ_ASSIGNMENT_ALERTS_FROM_MS = Date.parse("2026-11-10T21:15:00+08:00");
 
     let listenerStarted = false;
 let alertOpen = false;
@@ -175,8 +179,7 @@ function markActioned(id, data) {
     } catch {}
 }
 
-function reportSortMs(data = {}) {
-    const ts = data.timestamp || data.reportedAt || data.clientTimestamp;
+function timestampMs(ts) {
     if (ts && typeof ts.toDate === "function") {
         const ms = ts.toDate().getTime();
         return Number.isFinite(ms) ? ms : 0;
@@ -189,6 +192,28 @@ function reportSortMs(data = {}) {
         return Number.isFinite(ms) ? ms : 0;
     }
     return 0;
+}
+
+function reportSortMs(data = {}) {
+    return timestampMs(data.timestamp || data.reportedAt || data.clientTimestamp);
+}
+
+/** First in, first out: an HQ assignment reaches a station when it is assigned. */
+function alertArrivalMs(data = {}) {
+    return isAwaitingMyConfirmation(data) ? timestampMs(data.assignedAt) : reportSortMs(data);
+}
+
+function mySubstationKey() {
+    return resolveIncidentSubstationId({ substationId: getCurrentAdminSubstationId() });
+}
+
+/** True when HQ assigned this case to the signed-in station and it has not confirmed yet. */
+function isAwaitingMyConfirmation(data = {}) {
+    if (!isSubstationPoliceAdminRole(getCurrentAdminRole())) return false;
+    if (data.assignedByHq !== true || data.substationAcknowledgedAt) return false;
+    const mine = mySubstationKey();
+    if (!mine || String(data.assignedSubstationId || "").toLowerCase() !== mine) return false;
+    return timestampMs(data.assignedAt) >= HQ_ASSIGNMENT_ALERTS_FROM_MS;
 }
 
 export function isIncidentAlreadyResponded(data = {}) {
@@ -249,8 +274,8 @@ export function determineAlertAudience(data = {}) {
  * - police_high: Urgent double-beep (high priority)
  * - barangay: Melodic 2-tone chime (standard notification)
  */
-function playAlertSound(data = {}) {
-    const audience = determineAlertAudience(data);
+function playAlertSound(data = {}, forPolice = false) {
+    const audience = forPolice ? "police" : determineAlertAudience(data);
     const isSos = data?.isSOSReport === true;
 
     let soundType = "barangay";
@@ -328,9 +353,19 @@ function playAlertSound(data = {}) {
     }
 }
 
+function isClosedForAlerts(data = {}) {
+    const status = String(data.status || "").toLowerCase().trim();
+    if (["done", "completed", "resolved", "closed", "rejected", "spam", "cancelled"].includes(status)) return true;
+    if (data.adminDismissed === true || data.resolutionReason === "user_marked_safe") return true;
+    return Boolean(data.isSOSReport && (data.liveStreamingActive === false || data.distressResolvedAt));
+}
+
 function isEligibleAlert(id, data = {}, options = {}) {
     if (options.preview === true) return true;
     if (!id) return false;
+
+    // An HQ assignment stays until the station confirms it, in any session.
+    if (isAwaitingMyConfirmation(data)) return !isClosedForAlerts(data);
 
     // Filter by audience against current admin role:
     // - Barangay Admin ("admin") only sees "barangay" audience (low / medium severity)
@@ -339,7 +374,6 @@ function isEligibleAlert(id, data = {}, options = {}) {
     const currentRole = getCurrentAdminRole();
     const isPolice = isPoliceAdminRole(currentRole);
     const isHeadPolice = isHeadPoliceAdminRole(currentRole);
-    const isSubstation = isSubstationPoliceAdminRole(currentRole);
     const isForPolice = audience === "police";
 
     if (isPolice && !isForPolice) return false;
@@ -348,11 +382,8 @@ function isEligibleAlert(id, data = {}, options = {}) {
     // Enforce jurisdiction: Barangay Admins only receive alerts for their assigned coverage
     if (!hasIncidentAccess(data)) return false;
 
+    if (isClosedForAlerts(data)) return false;
     const status = String(data.status || "").toLowerCase().trim();
-    if (["done", "completed", "resolved", "closed", "rejected", "spam", "cancelled"].includes(status)) return false;
-    if (data.adminDismissed === true) return false;
-    if (data.resolutionReason === "user_marked_safe") return false;
-    if (data.isSOSReport && (data.liveStreamingActive === false || Boolean(data.distressResolvedAt))) return false;
 
     // 1. If units are already dispatched or response is confirmed, NEVER trigger alert modal on any admin session
     if (isIncidentAlreadyResponded(data)) return false;
@@ -363,22 +394,7 @@ function isEligibleAlert(id, data = {}, options = {}) {
         return false;
     }
 
-    // 3. For Substation Police:
-    // If HQ assigned an emergency to a substation, only alert the targeted substation awaiting deployment confirmation
-    const isHqAssignedToMyStation = (() => {
-        if (!isSubstation) return false;
-        if (data.assignedByHq !== true) return false;
-        if (isIncidentAlreadyResponded(data)) return false;
-
-        const mySubstationId = getCurrentAdminSubstationId();
-        const targetSubstationId = data.assignedSubstationId || resolveIncidentSubstationId(data);
-        if (mySubstationId && targetSubstationId && mySubstationId !== targetSubstationId) {
-            return false;
-        }
-        return true;
-    })();
-
-    if (!canRespondToIncident(data) && !isHqAssignedToMyStation) return false;
+    if (!canRespondToIncident(data)) return false;
     if (isDismissed(id, data)) return false;
     if (wasActioned(id, data)) return false;
     return true;
@@ -405,7 +421,7 @@ function enqueuePriorityAlert(id, data = {}, options = {}, queueOptions = {}) {
         if (existing) {
             existing.data = data;
             existing.options = options;
-            existing.reportedAtMs = reportSortMs(data);
+            existing.reportedAtMs = alertArrivalMs(data);
             sortAlertQueue();
         }
         if (!queueOptions.deferProcess) {
@@ -419,10 +435,12 @@ function enqueuePriorityAlert(id, data = {}, options = {}, queueOptions = {}) {
         id,
         data,
         options,
-        reportedAtMs: reportSortMs(data),
+        reportedAtMs: alertArrivalMs(data),
         queuedAtMs: Date.now(),
     });
     sortAlertQueue();
+    updateQueueIndicator();
+    if (alertOpen) notifyQueuedEmergencyWaiting();
     if (!queueOptions.deferProcess) {
         processPriorityQueue();
     }
@@ -436,6 +454,15 @@ function removeQueuedAlert(id) {
     queuedAlertIds.delete(id);
     const index = alertQueue.findIndex((item) => item.id === id);
     if (index >= 0) alertQueue.splice(index, 1);
+    updateQueueIndicator();
+}
+
+function updateQueueIndicator() {
+    const el = activeAlert?.querySelector("[data-priority-queue]");
+    if (!el) return;
+    const waiting = alertQueue.length;
+    el.hidden = waiting === 0;
+    el.textContent = `${waiting} more alert${waiting === 1 ? "" : "s"} waiting in line`;
 }
 
 export function isOperatorBusyWithIncident() {
@@ -637,6 +664,7 @@ async function showPriorityAlert(id, data, options = {}) {
     const isHeadPolice = isHeadPoliceAdminRole(currentRole);
     const isSubstation = isSubstationPoliceAdminRole(currentRole);
     const isBarangay = currentRole === "admin";
+    const awaitingConfirmation = !isPreview && isAwaitingMyConfirmation(data);
 
     const typeLabel = getIncidentTypeLabel(data);
     const lat = Number(data.location?.latitude ?? data.latitude);
@@ -646,7 +674,10 @@ async function showPriorityAlert(id, data, options = {}) {
 
     // Candidates calculation:
     const substationCandidates = getSortedSubstationCandidates(lat, lng);
-    const closestSubstation = substationCandidates[0] || null;
+    const closestSubstation =
+        (awaitingConfirmation && substationCandidates.find((s) => s.substationId === mySubstationKey())) ||
+        substationCandidates[0] ||
+        null;
     const distanceKm = closestSubstation?.distanceKm ?? null;
 
     const locationText =
@@ -655,9 +686,11 @@ async function showPriorityAlert(id, data, options = {}) {
             ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
             : "Location attached");
 
-    const audience = determineAlertAudience(data);
+    const audience = awaitingConfirmation ? "police" : determineAlertAudience(data);
     let urgencyLabel;
-    if (data.isSOSReport) {
+    if (awaitingConfirmation) {
+        urgencyLabel = data.isSOSReport ? "SOS EMERGENCY (ASSIGNED BY HQ)" : "ASSIGNED BY HQ COMMAND";
+    } else if (data.isSOSReport) {
         urgencyLabel = isHeadPolice ? "SOS EMERGENCY (HQ COMMAND)" : "SOS EMERGENCY (YOUR SECTOR)";
     } else if (audience === "police") {
         urgencyLabel = isHeadPolice ? "HIGH PRIORITY (HQ COMMAND)" : "HIGH PRIORITY (YOUR SECTOR)";
@@ -733,7 +766,7 @@ async function showPriorityAlert(id, data, options = {}) {
         `;
         actionButtonsHtml = `
             <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--view" data-priority-action="view">View Report</button>
-            <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>
+            ${awaitingConfirmation ? "" : '<button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--dismiss" data-priority-action="dismiss">Dismiss</button>'}
             <button type="button" class="admin-priority-alert__btn admin-priority-alert__btn--primary" data-priority-action="respond">${isHqAssigned ? 'Confirm Deployment' : 'Respond Now'}</button>
         `;
     } else {
@@ -757,12 +790,13 @@ async function showPriorityAlert(id, data, options = {}) {
         <div class="admin-priority-alert__backdrop"></div>
         <section class="admin-priority-alert__panel" aria-label="Urgent incident alert">
             <div class="admin-priority-alert__signal" aria-hidden="true"></div>
+            <p data-priority-queue hidden style="margin:0 0 10px;padding:6px 10px;border:1px solid #fde68a;border-radius:6px;background:#fffbeb;color:#92400e;font-size:0.82rem;font-weight:700;"></p>
             <div class="admin-priority-alert__top">
                 <div>
                     <p class="admin-priority-alert__eyebrow">${escapeHtml(urgencyLabel)}</p>
                     <h2 class="admin-priority-alert__title">${escapeHtml(typeLabel)}</h2>
                 </div>
-                <button type="button" class="admin-priority-alert__close" data-priority-action="dismiss" aria-label="Dismiss">X</button>
+                ${awaitingConfirmation ? "" : '<button type="button" class="admin-priority-alert__close" data-priority-action="dismiss" aria-label="Dismiss">X</button>'}
             </div>
             ${legitimacyBannerHtml}
             ${data.description ? `<div style="margin:0 0 12px 0;font-size:0.875rem;color:#334155;background:#f8fafc;padding:8px 12px;border-radius:6px;border:1px solid #e2e8f0;line-height:1.4;"><strong>Report Note:</strong> ${escapeHtml(data.description)}</div>` : ""}
@@ -776,7 +810,7 @@ async function showPriorityAlert(id, data, options = {}) {
                     <strong id="admin-priority-grid-location">${escapeHtml(locationText)}</strong>
                 </div>
                 <div>
-                    <span>Closest outpost</span>
+                    <span>${awaitingConfirmation ? "Assigned outpost" : "Closest outpost"}</span>
                     <strong id="admin-priority-grid-outpost">${escapeHtml(closestSubstation?.substationName || "No outpost loaded")}</strong>
                 </div>
                 <div>
@@ -797,6 +831,12 @@ async function showPriorityAlert(id, data, options = {}) {
         liveAlertDocUnsub = onSnapshot(doc(db, "incidents", id), (snap) => {
             if (!snap.exists()) return;
             const liveData = snap.data();
+
+            // Reports outside the newest-reports feed only get updates here.
+            if (!isEligibleAlert(id, liveData)) {
+                syncIncidentQueueFromDoc(snap);
+                return;
+            }
 
             // Scenario A: Substation open modal receives HQ assignment
             if (isSubstation && liveData.assignedByHq === true) {
@@ -1066,6 +1106,8 @@ async function showPriorityAlert(id, data, options = {}) {
                     payload.respondingSubstationId = resolvedStationId;
                     payload.respondingSubstationName = mySubstationName;
                     payload.respondedAt = serverTimestamp();
+                    payload.substationAcknowledgedAt = serverTimestamp();
+                    payload.substationAcknowledgedBy = auth.currentUser?.uid || null;
                 } else {
                     payload.respondingBarangayName = myBrgyName;
                     payload.respondedAt = serverTimestamp();
@@ -1073,9 +1115,9 @@ async function showPriorityAlert(id, data, options = {}) {
 
                 await updateDoc(incidentRef, payload);
 
-                // Dispatch real-time user notification
+                // HQ already told the resident when it assigned this case.
                 const targetReporterId = data.reporterId || data.userId || data.reportedBy;
-                if (targetReporterId) {
+                if (targetReporterId && !awaitingConfirmation) {
                     try {
                         await addDoc(collection(db, "notifications"), {
                             userId: targetReporterId,
@@ -1106,7 +1148,7 @@ async function showPriorityAlert(id, data, options = {}) {
                     }
                 }
 
-                await logAudit("incident_responded", {
+                await logAudit(awaitingConfirmation ? "hq_assignment_confirmed" : "incident_responded", {
                     incidentId: id,
                     stationOrBarangay: isSubstation ? mySubstationName : myBrgyName,
                 });
@@ -1175,12 +1217,14 @@ async function showPriorityAlert(id, data, options = {}) {
                 if (feedback) feedback.textContent = "Preview mode: this would open the full incident report.";
                 return;
             }
-            markActioned(id, data);
+            if (!awaitingConfirmation) markActioned(id, data);
             closeActiveAlert({ showNext: false });
 
             // Fast in-place transition if incident report modal is present on current page (0ms reload)
             if (typeof window.threatTrackOpenIncident === "function") {
                 window.threatTrackOpenIncident(id);
+                // Comes back after the report is closed, until the station confirms it.
+                if (awaitingConfirmation) enqueuePriorityAlert(id, data, {}, { deferProcess: true });
                 try {
                     const newUrl = new URL(window.location.href);
                     newUrl.searchParams.set("incidentId", id);
@@ -1197,7 +1241,8 @@ async function showPriorityAlert(id, data, options = {}) {
     document.body.appendChild(root);
     initAdminCustomSelects(root);
     activeAlert = root;
-    playAlertSound(data);
+    updateQueueIndicator();
+    playAlertSound(data, awaitingConfirmation);
 
     // Dynamic Outpost Selection Listener
     const responderSelect = root.querySelector("#admin-priority-responder-select");
@@ -1313,9 +1358,45 @@ function syncIncidentQueueFromDoc(docSnap, queueOptions = {}) {
     }
 }
 
+/** Newer reports can push a waiting one out of the feed. It stays in line unless it really ended. */
+async function handleLeftFeed(docSnap) {
+    const id = docSnap.id;
+    if (activeAlertId !== id && !queuedAlertIds.has(id)) return;
+    try {
+        const fresh = await getDoc(docSnap.ref);
+        if (fresh.exists() && isEligibleAlert(id, fresh.data())) return;
+    } catch (error) {
+        console.warn("[admin-priority-alert] recheck", error);
+        return;
+    }
+    removeQueuedAlert(id);
+}
+
+function listenForHqAssignments() {
+    const mine = mySubstationKey();
+    if (!mine || !isSubstationPoliceAdminRole(getCurrentAdminRole())) return;
+
+    onSnapshot(
+        query(
+            collection(db, "incidents"),
+            where("assignedSubstationId", "==", mine),
+            where("assignedByHq", "==", true),
+        ),
+        (snap) => {
+            snap.docChanges().forEach((change) =>
+                syncIncidentQueueFromChange(change, {deferProcess: true}),
+            );
+            processPriorityQueue();
+        },
+        (error) => {
+            console.error("[admin-priority-alert] assignments listener", error);
+        },
+    );
+}
+
 function syncIncidentQueueFromChange(change, queueOptions = {}) {
     if (change.type === "removed") {
-        removeQueuedAlert(change.doc.id);
+        handleLeftFeed(change.doc);
         return;
     }
     syncIncidentQueueFromDoc(change.doc, queueOptions);
@@ -1327,6 +1408,7 @@ export function startAdminPriorityAlerts() {
     let initialSnapshotHandled = false;
 
     window.ThreatTrackPreviewSOS = showSosAlertPreview;
+    listenForHqAssignments();
 
     // Resume queue processing when operator closes or completes an incident in the detail modal
     window.addEventListener("incident-modal:closed", () => {

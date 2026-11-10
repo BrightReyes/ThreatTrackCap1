@@ -74,6 +74,10 @@ export default function App() {
   // [QA-FIX #16] A notification target waiting for the navigator to be ready
   // (cold start, or a tap that arrived while the user was still logging in).
   const pendingNotificationTargetRef = useRef(null);
+  // The SOS hold is only for a fresh app start with a saved session. A user who
+  // has just typed their password is not in that situation and goes to Home.
+  const [mainInitialRoute, setMainInitialRoute] = useState('Home');
+  const isAppStartAuthCheckRef = useRef(true);
 
   // [QA-FIX #16] Navigate now if possible, otherwise remember it for onReady.
   const openNotificationTarget = useCallback((data) => {
@@ -101,6 +105,10 @@ export default function App() {
     // Listen to Firebase authentication state changes.
     // AsyncStorage persistence automatically checks for an existing session on app startup.
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // The first callback reports the session saved from before the app started.
+      const isAppStartAuthCheck = isAppStartAuthCheckRef.current;
+      isAppStartAuthCheckRef.current = false;
+
       if (user) {
         // [QA-FIX #2] While SignUpScreen is creating the account, the new user
         // is briefly signed in. Ignore that so SignUpScreen stays mounted and
@@ -110,6 +118,7 @@ export default function App() {
           setIsLoadingAuth(false);
           return;
         }
+        if (isAppStartAuthCheck) setMainInitialRoute('SOSGateway');
         setIsAuthenticated(true);
         // Automatically ensure verification state is synchronized with Firestore profile
         syncEmailVerification().catch((syncErr) => {
@@ -121,6 +130,7 @@ export default function App() {
         });
       } else {
         setIsAuthenticated(false);
+        setMainInitialRoute('Home');
       }
       setIsLoadingAuth(false);
     });
@@ -220,7 +230,7 @@ export default function App() {
         ) : (
           // [QA-FIX #16] ref + onReady let notification taps navigate.
           <NavigationContainer ref={navigationRef} onReady={handleNavigationReady}>
-            <MainNavigator onLogout={handleLogout} />
+            <MainNavigator onLogout={handleLogout} initialRouteName={mainInitialRoute} />
           </NavigationContainer>
         )}
       </KeyboardProvider>

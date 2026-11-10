@@ -161,7 +161,7 @@ The sector or barangay comes from the first available source: saved ID, barangay
 | View Report | Opens full details |
 | Dismiss | **Requires a reason and notes**, and is saved to the audit log |
 
-HQ and the sector's substation get the alert at the same time, and **whoever acts first clears it for the other**. If HQ assigns first, the substation's popup closes and the case appears in its Incidents list as responding. Do not promise a second popup on the substation screen during the demo.
+HQ and the sector's substation get the alert at the same time, and whoever acts first handles it. When HQ assigns a case, the assigned station gets its own popup with sound and must press **Confirm Deployment**. Alerts wait in line, first in, first out, and the popup shows how many are waiting. An assigned case can't be dismissed, and it comes back until the station confirms it.
 
 **The credibility badge (`incident-legitimacy.js`)**
 
@@ -560,7 +560,6 @@ Use the testing you actually performed for your study, such as your test cases, 
 ## Part 7: Check tonight
 
 - [ ] Test SOS end to end on the APK you will use for the demo.
-- [ ] **Type at least 10 characters in the SOS details, or leave it blank.** The Firestore rules require 10 or more, and the SOS screen doesn't check this first, so something like "tulong" fails with a generic error. Quick chips are safe.
 - [ ] Generate one decision plan, then hover over "Decision plan draft" at the top. It should say **Reasoning written with Gemini**.
 - [ ] In AI Management, confirm the national laws are loaded. Add any real Valenzuela ordinances you have.
 - [ ] Mark at least 2 reports as verified in a demo hotspot with 5+ reports and a clear time pattern, or it won't reach Consider Action.
