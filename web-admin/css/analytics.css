@@ -4630,3 +4630,374 @@
     background: #f8fafc;
     color: #0f172a;
 }
+
+/* Hotspot decision plan draft: layout only, the look comes from the shared analytics classes */
+.dp-card {
+    gap: 14px;
+}
+
+.dp-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.dp-head__main {
+    display: grid;
+    flex: 1 1 260px;
+    gap: 4px;
+    justify-items: start;
+    min-width: 0;
+}
+
+.dp-head__main .analytics-solution-card__title {
+    overflow-wrap: anywhere;
+}
+
+.analytics-solution-card .dp-doc-title,
+.dp-print .dp-doc-title {
+    margin: 0 0 6px;
+    color: #0f172a;
+    font-size: 1.5rem !important;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+
+.dp-head__main .dp-area {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.dp-panel-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.dp-lang-toggle {
+    display: inline-flex;
+    padding: 3px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+}
+
+.dp-lang-toggle__btn {
+    padding: 6px 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #475569;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.dp-lang-toggle__btn:hover {
+    color: #0f172a;
+}
+
+.dp-lang-toggle__btn.is-active {
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.dp-live {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #991b1b;
+}
+
+.dp-panel,
+.analytics-action-plan-section.analytics-action-plan-section {
+    margin-top: 0;
+}
+
+.dp-fact {
+    color: #1e293b;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.dp-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.dp-stat strong {
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.dp-recs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dp-rec__title {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.dp-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dp-badge {
+    max-width: 100%;
+    cursor: help;
+    white-space: normal;
+}
+
+.dp-disclaimer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+
+.dp-disclaimer .material-symbols-outlined {
+    color: #64748b;
+    font-size: 16px;
+}
+
+.dp-reports {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.dp-reports__label,
+.dp-more {
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.dp-report {
+    color: #1d4ed8;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.dp-report:hover {
+    border-color: #1d4ed8;
+}
+
+.analytics-ai-actions-bar.dp-actions {
+    justify-content: flex-start;
+    border-radius: 8px;
+}
+
+.dp-actions .analytics-ai-act-btn {
+    font-family: inherit;
+}
+
+.analytics-ai-act-btn--pdf-plan {
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.analytics-ai-act-btn--pdf-plan:hover {
+    background: #1e293b;
+}
+
+.dp-actions__push {
+    margin-left: auto;
+}
+
+.dp-rec.analytics-tactical-card {
+    border-left: 5px solid #2563eb;
+}
+
+.dp-rec.analytics-tactical-card:hover {
+    transform: none;
+}
+
+.dp-badges__label {
+    align-self: center;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.dp-unknowns {
+    padding: 14px 18px;
+    background: #ffffff;
+    border: 1.5px solid #f59e0b;
+    border-left: 6px solid #d97706;
+    border-radius: 10px;
+}
+
+.dp-unknowns__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    color: #92400e;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.dp-unknowns__title .material-symbols-outlined {
+    color: #d97706;
+    font-size: 22px;
+}
+
+.dp-unknowns__list {
+    margin: 0;
+    padding-left: 22px;
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.dp-progress {
+    display: grid;
+    gap: 12px;
+    padding: 4px 2px;
+}
+
+.dp-progress__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.dp-progress__area {
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.dp-progress__count {
+    margin-left: auto;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.dp-progress__live {
+    display: grid;
+    gap: 10px;
+}
+
+.dp-progress__now {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+
+.dp-progress__track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #e2e8f0;
+}
+
+.dp-progress__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #2563eb;
+    transition: width 0.35s ease;
+}
+
+.dp-progress__steps {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dp-progress__step {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #94a3b8;
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.dp-progress__step .material-symbols-outlined {
+    flex-shrink: 0;
+    font-size: 19px;
+}
+
+.dp-progress__step--done {
+    color: #1e293b;
+}
+
+.dp-progress__step--done .material-symbols-outlined {
+    color: #059669;
+}
+
+.dp-progress__step--active {
+    color: #1d4ed8;
+    font-weight: 750;
+}
+
+.dp-progress__step--skipped,
+.dp-progress__step--fallback {
+    color: #475569;
+}
+
+.dp-progress__step--fallback .material-symbols-outlined {
+    color: #d97706;
+}
+
+.dp-progress__elapsed {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dp-progress__fill {
+        transition: none;
+    }
+}
+
+.dp-print {
+    padding: 8px;
+    color: #0f172a;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+}
+
+.dp-print > * + * {
+    margin-top: 14px;
+}
+
+.dp-print .material-symbols-outlined {
+    display: none;
+}

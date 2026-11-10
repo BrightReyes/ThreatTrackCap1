@@ -6,7 +6,7 @@ import {
     writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "../../shared/firebase.js";
-import { COVERED_SUBSTATIONS } from "../../shared/substations.js";
+import { COVERED_SUBSTATIONS, estimateTrafficAwareEta } from "../../shared/substations.js";
 import { getCurrentAdminRole, isHeadPoliceAdminRole } from "./admin-auth.js";
 import { logAudit } from "./audit.js";
 
@@ -103,66 +103,6 @@ export function calculateDistanceKm(from, to) {
 export function estimateEtaMinutes(distanceKm) {
     const estimate = estimateTrafficAwareEta(distanceKm);
     return estimate ? estimate.etaMinutes : null;
-}
-
-export function estimateTrafficAwareEta(distanceKm, now = new Date()) {
-    const n = Number(distanceKm);
-    if (!Number.isFinite(n)) return null;
-
-    const traffic = getValenzuelaTrafficProfile(now);
-    const roadDistanceKm = Math.max(n * traffic.routeFactor, n + 0.25);
-    const travelMinutes = Math.ceil((roadDistanceKm / traffic.speedKph) * 60);
-    const intersectionDelayMinutes = Math.ceil(
-        Math.min(8, Math.max(1, roadDistanceKm * 1.25)),
-    );
-    const etaMinutes = Math.max(
-        5,
-        Math.ceil(traffic.dispatchDelayMinutes + travelMinutes + intersectionDelayMinutes),
-    );
-
-    return {
-        etaMinutes,
-        roadDistanceKm: Number(roadDistanceKm.toFixed(2)),
-        trafficDelayMinutes:
-            traffic.dispatchDelayMinutes + intersectionDelayMinutes,
-        trafficLevel: traffic.label,
-        trafficSpeedKph: traffic.speedKph,
-    };
-}
-
-function getValenzuelaTrafficProfile(now = new Date()) {
-    const hour = now.getHours();
-    const day = now.getDay();
-    const isWeekend = day === 0 || day === 6;
-    const rushHour =
-        !isWeekend && ((hour >= 6 && hour < 10) || (hour >= 16 && hour < 20));
-    const daytime = hour >= 10 && hour < 16;
-    const evening = hour >= 20 && hour < 23;
-
-    if (rushHour) {
-        return {
-            label: "heavy traffic",
-            routeFactor: 1.45,
-            speedKph: 14,
-            dispatchDelayMinutes: 4,
-        };
-    }
-
-    if (daytime || evening) {
-        return {
-            label: "moderate traffic",
-            routeFactor: 1.35,
-            speedKph: 18,
-            dispatchDelayMinutes: 3,
-        };
-    }
-
-    return {
-        label: "light traffic",
-        routeFactor: 1.25,
-        speedKph: 24,
-        dispatchDelayMinutes: 3,
-    };
 }
 
 export function resolveIncidentCoordinates(incidentData = {}) {

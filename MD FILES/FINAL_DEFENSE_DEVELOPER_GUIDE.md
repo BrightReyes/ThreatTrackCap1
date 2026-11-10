@@ -18,7 +18,7 @@ Older files in `MD FILES` describe the design from earlier in the year. The syst
 | Photos go to Firebase Storage | Photos are compressed and saved in **Firestore**, in `incident_evidence/{incidentId}`, max 650 KB. |
 | Remote push notifications reach users | Users get alerts **while the app is running**. Remote push needs a server, so it is not active. |
 | The server creates admin notifications for routing | Routing happens **in the admin dashboard**, using the rules in section 3.3. |
-| Admins approve or reject AI plans inside the system | The plan screen offers **feedback, copy, PDF export and regenerate**. There is no approve button. The admin simply decides whether to act on the plan. |
+| Admins approve or reject AI plans inside the system | The plan is a **draft**. It offers export and feedback, with no approve button. |
 
 **How to say this confidently:**
 
@@ -42,7 +42,7 @@ Older files in `MD FILES` describe the design from earlier in the year. The syst
 | Login | Firebase Authentication | Accounts and email verification |
 | Security | Firestore Security Rules | Server-side checks on every read and write |
 | Maps | React Native Maps on mobile, Leaflet on web | Pins, hotspots, heat layer |
-| AI | Google Gemini API | Hotspot action plans only |
+| AI | Google Gemini API | Hotspot decision plan drafts only |
 
 ### The one idea that explains the whole system
 
@@ -250,10 +250,12 @@ A recommendation appears only with enough evidence: at least 3 reports, or 2 hig
 
 **For admins (dispatch ETA)**
 
-| Where | How ETA is computed |
-|---|---|
-| Alert popup | Distance ÷ 25 km/h, plus 2 minutes, minimum 3 minutes |
-| Incident details screen | Time-of-day estimate, minimum 5 minutes (below) |
+The alert popup, incident details screen and mobile app all use the same time-of-day estimate, with a minimum of 5 minutes:
+
+```text
+Road distance = straight-line distance × route factor
+ETA = dispatch delay + road travel time + intersection delay
+```
 
 | Time | Route factor | Speed | Dispatch delay |
 |---|---:|---:|---:|
@@ -269,32 +271,47 @@ An intersection delay of 1 to 8 minutes is also added. This is an **estimate**, 
 
 ### 3.6 AI-assisted decision plan
 
-> **Say this:** "The AI turns hotspot data into a draft action plan. Our code first calculates the risk score, so the numbers don't come from the AI. Then we give Gemini the hotspot's statistics, recent report details with phone numbers and emails removed, and the relevant laws and rules from our knowledge base. It returns a structured plan with actions, owners, time windows and legal references. The admin reads it and decides what to do. The AI cannot dispatch anyone or change a report."
+> **Say this:** "The decision plan is a one-page draft for authorities. Our code calculates every fact from the reports. A recommendation can only appear if it's on our approved list and a document in our knowledge base supports it. Gemini explains it in plain language and points to the supporting documents by ID. It doesn't decide staffing, schedules or assignments. Authorities do."
+
+**What the admin sees**
+
+Location, evidence level, what the reports show, how sure we are, recommendations with source badges, what we don't know, and links to the actual reports.
+
+**Who does what**
+
+| Code | Gemini |
+|---|---|
+| Counts, trends, time patterns, evidence level | Writes 3 to 5 short, everyday-English sentences explaining each recommendation |
+| Which recommendations are allowed | Chooses from the allowed list |
+| Retrieves sources and creates the badges | Returns source IDs only |
+| Checks all of Gemini's output | Writes the same explanation in Filipino |
 
 **Step by step**
 
-1. **Code computes the facts.** The Analytics page ranks hotspots and shows the top 6. The admin clicks generate for one hotspot, or for all.
-2. **Risk score (0 to 100), calculated by code:**
+1. **Count only valid reports.** Rejected, spam, deleted and false-alarm reports are left out. Admins see only hotspots in their jurisdiction.
+2. **Set the evidence level:**
 
-| Factor | Max | Based on |
-|---|---:|---|
-| Incident volume | 35 | Number of reports (full points at 25) |
-| Severity density | 30 | Share of high and medium reports |
-| Deadly modus | 20 | Weapons ×2, robbery ×1.5, drugs ×1.2, assault ×1 |
-| Time concentration | 15 | How clustered reports are at the peak hour |
+| Level | Condition | Result |
+|---|---|---|
+| Handle live case first | An SOS here is still active | No recommendations |
+| Monitor | 1 to 2 reports | No recommendations |
+| Verify reports | 3 or more reports, without the Consider Action evidence | Validation-type recommendations only |
+| Consider action | 5+ reports, 2+ confirmed by an admin, clear time pattern | All supported recommendations |
 
-**75+ Critical, 50+ High, 25+ Medium, below 25 Low.**
+3. **Retrieve sources for each recommendation.** It searches published knowledge, national laws and active rules. A recommendation with no matching source is removed.
+4. **Ask Gemini.** It gets the facts, up to 15 shortened report narratives with phones and emails removed, the allowed recommendations, and their sources.
+5. **Check the response.** A recommendation needs a valid source ID. Text is rejected if it has a number not in the data, a staffing count, an order such as "deploy," a legal reference in the sentence, or hard words such as "intimidation."
+6. **Fallback.** If Gemini fails or its wording is rejected, code writes the reasoning from the same facts, in the same layout, and the source badges still apply.
 
-3. **Retrieve context (RAG).** The system loads published knowledge documents, national laws (the seed file has 35), active rules, and earlier admin feedback for that area. Each document is scored by keyword: +10 for matching the crime type and +3 per matched term. The top 6 documents and up to 5 rules are used.
-4. **Prepare the evidence.** It includes crime type by time of day and up to 15 recent reports. Phone numbers and emails are removed, and each narrative is cut to 280 characters.
-5. **Call Gemini.** The prompt demands specific actions and allows citations only from retrieved documents. The response must follow a fixed JSON format, and temperature is low (0.25) for consistency. If one model fails, the next is tried.
-6. **Show the plan.** It lists patterns, evidence, legal citations, actions with owner, urgency, time window and checklist, plus public advisories in English and Filipino.
-7. **Fallback.** If Gemini fails, a rule-based plan is generated from the same data, so the feature still works. A label on the plan shows **Gemini Flash** or **Deterministic Rules**.
-8. **Human decision.** The admin can copy the plan, export it to PDF, regenerate it, or leave feedback. Feedback with a comment is included the next time a plan is generated for that area. Nothing in the plan is carried out automatically.
+**Why each plan is different:** recommendations use that hotspot's own counts, time pattern, trend, confirmed reports, SOS reports and details people mentioned. They also cover the second most common incident type, and are ranked by how well they fit the data.
 
-**What RAG means, simply:** instead of letting the AI answer from memory, we first look up the relevant laws and rules and hand them over with the question.
+**Two languages:** the English and Filipino toggle at the top of the section covers the whole AI Decision Support area. Each plan is prepared in both languages when generated, so switching is instant and doesn't call the AI again.
 
-**Files:** [analytics.js](../web-admin/js/analytics.js), [ai-management.js](../web-admin/js/ai-management.js)
+**"How sure are we?"** High needs 8+ reports, at least half confirmed, and 80% exact GPS. Moderate needs at least 5 reports with 2 confirmed, or 3 reports with 1 confirmed. Everything else is Low.
+
+**What a badge means:** the recommendation is grounded in that document in our knowledge base. It doesn't mean the law orders that action.
+
+**Files:** [decision-plan.js](../web-admin/js/decision-plan.js), [analytics.js](../web-admin/js/analytics.js), [ai-management.js](../web-admin/js/ai-management.js)
 
 ---
 
@@ -455,37 +472,43 @@ No. It recommends the nearest first, and a person confirms, because local knowle
 ### AI decision plan
 
 **Q: Does the AI make decisions?**
-No. It drafts a plan on the admin's screen. It cannot dispatch, change a report's status or close a case. The admin decides whether to act on it.
+No. It explains recommendations on a draft. It cannot dispatch, assign, change a report's status or close a case.
 
-**Q: How does an admin approve a plan?**
-There is no approval step in the system yet. The admin reviews the plan, then copies or exports it to coordinate through normal police or barangay channels. A formal approve-and-track workflow is future work.
-
-**Q: Are generated plans saved?**
-A plan stays on the admin's screen for that session, and can be exported to PDF. Our database rules reserve the saved-summary collection for the server functions, so permanent storage comes with deploying them. Admin feedback on plans is saved.
+**Q: Why doesn't the plan say how many officers to send?**
+The system doesn't know available staff or current operations. Staffing, schedule and assignment belong to the authorities, so code rejects any AI text that specifies them.
 
 **Q: Which AI do you use and why?**
-Google Gemini Flash. It's fast, supports structured JSON output, and has an accessible API.
+Google Gemini Flash. It's fast and supports structured output. The system tries several current model versions in order, because one can be busy.
 
 **Q: How do you prevent hallucination?**
-We reduce it, but can't eliminate it. Numbers are computed by code. We supply retrieved laws and rules, require a fixed output format, use low temperature, and instruct it to cite only retrieved documents. Admins must still check citations before acting.
+Every number comes from code and is checked against the reports. The AI can only choose approved recommendations and can only cite documents we retrieved, by ID, so it can't create a source. It can still misapply a real source, so authorities review the draft.
 
 **Q: What is RAG in your system?**
-Before calling Gemini, we retrieve relevant laws, ordinances, rules and past feedback from Firestore and include them in the prompt. Our retrieval is keyword-scored, and embeddings are a possible upgrade.
+For each recommendation, we retrieve matching laws, ordinances and rules from Firestore and give only those to Gemini. Retrieval is keyword-based, and embeddings are a possible upgrade.
 
-**Q: Where does the confidence number come from?**
-It's generated by the model, so it's not a measured accuracy. The risk score is the number we calculate and can fully explain.
+**Q: What does the badge prove?**
+That the recommendation is tied to that document in our knowledge base. Some action guidance in our seed data was written for this project as operational notes, so a badge doesn't mean that statute orders the action. Authorities should validate it, and local ordinances would make the basis stronger.
+
+**Q: Why are some recommendations missing?**
+If our knowledge base has no supporting source, the system doesn't recommend it. We chose no recommendation over an ungrounded one.
 
 **Q: What data goes to Gemini?**
-Hotspot statistics, report types and times, and up to 15 shortened report narratives. We don't send reporter accounts. Phone numbers and emails are automatically removed. Names written inside a description are not automatically detected, so stronger anonymization is needed before real deployment.
+Hotspot facts, recommendation options, sources and up to 15 shortened narratives. Reporter accounts aren't sent, and phone numbers and emails are removed. Names written inside a description aren't automatically detected, so stronger anonymization is needed before real deployment.
 
 **Q: What if Gemini is down?**
-The system generates a rule-based plan from the same statistics and knowledge, and it is labeled by source.
+Code writes the reasoning from the same facts and approved rules. The layout, sources and checks stay the same.
 
 **Q: Is the API key safe?**
-For the prototype, the call is made from the admin browser using an environment variable, which means it can be seen in the built web app. We know that isn't safe for production. It moves to the Cloud Function we've already written, which keeps the key on the server.
+For the prototype, the call is made from the admin browser, so the key can be seen in the built web app. We know that isn't safe for production. It would move to a server-side Cloud Function.
 
-**Q: How does the AI improve over time?**
-Admins give feedback on plans. That feedback is added to future prompts for the same hotspot, so what worked or failed is considered. The model itself isn't retrained.
+**Q: How does an admin approve a plan?**
+There is no approval step, because it is only a draft. An admin can export it and take it through normal police or barangay channels.
+
+**Q: Are plans saved?**
+A plan stays on screen for that session and can be exported to PDF. Admin feedback is saved and given to Gemini as context for later plans, but it can never be cited as a source.
+
+**Q: How do you decide "Consider action"?**
+At least 5 reports, at least 2 confirmed by an admin, and a clear time pattern, where at least half of the reports fall within a three-hour window.
 
 ### Security, privacy and limitations
 
@@ -538,11 +561,13 @@ Use the testing you actually performed for your study, such as your test cases, 
 
 - [ ] Test SOS end to end on the APK you will use for the demo.
 - [ ] **Type at least 10 characters in the SOS details, or leave it blank.** The Firestore rules require 10 or more, and the SOS screen doesn't check this first, so something like "tulong" fails with a generic error. Quick chips are safe.
-- [ ] Generate one AI plan and confirm its label says **Gemini Flash**, not **Deterministic Rules**.
+- [ ] Generate one decision plan, then hover over "Decision plan draft" at the top. It should say **Reasoning written with Gemini**.
+- [ ] In AI Management, confirm the national laws are loaded. Add any real Valenzuela ordinances you have.
+- [ ] Mark at least 2 reports as verified in a demo hotspot with 5+ reports and a clear time pattern, or it won't reach Consider Action.
 - [ ] Turn on the heat layer in Settings if you plan to show it, and make sure at least 3 reports fall in one area.
 - [ ] Make sure there are enough recent reports for the hotspot ranking to appear.
 - [ ] Confirm the Head Police, Substation and Barangay logins all work.
-- [ ] Decide where you will demo the admin. Vercel builds from git, and your redesigned **Operations** page and related edits are **not committed yet**, so they will not appear on the live site. They exist only on your local version.
+- [ ] Push the new decision plan and ETA changes, then test the live Vercel site. Vercel builds from git, so they won't appear there until they are pushed.
 - [ ] Confirm the browser allows sound, since alerts play audio. Click once on the dashboard first.
 - [ ] Bring mobile data as a backup for the venue Wi-Fi.
 - [ ] Know your study's actual test and evaluation results. They aren't in the code, so this guide can't supply them.

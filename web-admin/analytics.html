@@ -30,7 +30,7 @@
         <link rel="stylesheet" href="/css/base.css" />
         <link rel="stylesheet" href="/css/dashboard.css" />
         <link rel="stylesheet" href="/css/incidents.css?v=4" />
-        <link rel="stylesheet" href="/css/analytics.css?v=4" />
+        <link rel="stylesheet" href="/css/analytics.css?v=11" />
         <link rel="stylesheet" href="/css/admin-readability.css?v=4" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     </head>
@@ -503,20 +503,24 @@
                             <div class="incidents-panel__title-group">
                                 <span class="material-symbols-outlined incidents-panel__header-icon" aria-hidden="true">psychology</span>
                                 <div>
-                                    <h2 class="incidents-panel__title">AI Decision-Support Intelligence</h2>
-                                    <span class="incidents-panel__meta" style="display:block;font-size:0.8rem;margin-top:2px;">
+                                    <h2 class="incidents-panel__title" data-dp-text="panelTitle">AI Decision-Support Intelligence</h2>
+                                    <span class="incidents-panel__meta" style="display:block;font-size:0.8rem;margin-top:2px;" data-dp-text="panelSub">
                                         Grounded in incident evidence, official city ordinances, &amp; operational guidance
                                     </span>
                                 </div>
                             </div>
-                            <div>
+                            <div class="dp-panel-actions">
+                                <div class="dp-lang-toggle" role="group" aria-label="Language">
+                                    <button type="button" class="dp-lang-toggle__btn" data-dp-lang="en" aria-pressed="true">English</button>
+                                    <button type="button" class="dp-lang-toggle__btn" data-dp-lang="fil" aria-pressed="false">Filipino</button>
+                                </div>
                                 <button
                                     type="button"
                                     id="btn-generate-ai-summary"
                                     class="analytics-ai-btn"
                                 >
                                     <span class="material-symbols-outlined">auto_awesome</span>
-                                    <span>Generate All Hotspots</span>
+                                    <span data-dp-text="generateAll">Generate All Hotspots</span>
                                 </button>
                             </div>
                         </div>
@@ -528,8 +532,8 @@
                                 <div class="analytics-ai-placeholder-card">
                                     <span class="material-symbols-outlined analytics-ai-placeholder-icon">psychology</span>
                                     <div>
-                                        <h4>AI Decision-Support System Ready</h4>
-                                        <p>Click "Generate All Hotspots" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
+                                        <h4 data-dp-text="readyTitle">AI Decision-Support System Ready</h4>
+                                        <p data-dp-text="readyBody">Click "Generate All Hotspots" to synthesize strategic recommendations grounded in verified incident trends, registered Valenzuela City ordinances, and active operational rules.</p>
                                     </div>
                                 </div>
                             </div>
@@ -547,8 +551,8 @@
             <div class="analytics-modal__dialog" role="dialog" aria-labelledby="ai-feedback-title" aria-modal="true">
                 <div class="analytics-modal__header">
                     <div>
-                        <h3 id="ai-feedback-title">Rate AI Recommendation</h3>
-                        <p class="analytics-modal__subtitle">Provide operational feedback to refine future AI guidance.</p>
+                        <h3 id="ai-feedback-title" data-dp-text="fbTitle">Rate AI Recommendation</h3>
+                        <p class="analytics-modal__subtitle" data-dp-text="fbSub">Provide operational feedback to refine future AI guidance.</p>
                     </div>
                     <button type="button" id="ai-feedback-close" class="analytics-modal__close" aria-label="Close dialog">
                         <span class="material-symbols-outlined">close</span>
@@ -559,38 +563,39 @@
                     <input type="hidden" id="ai-feedback-hotspot-label" value="" />
 
                     <div class="analytics-form-group">
-                        <label class="analytics-form-label">How helpful was this decision brief?</label>
+                        <label class="analytics-form-label" data-dp-text="fbQuestion">How helpful was this decision brief?</label>
                         <div class="analytics-rating-options">
                             <label class="analytics-rating-btn">
                                 <input type="radio" name="ai-rating" value="helpful" checked />
                                 <span class="material-symbols-outlined">thumb_up</span>
-                                <span>Helpful &amp; Grounded</span>
+                                <span data-dp-text="fbHelpful">Helpful &amp; Grounded</span>
                             </label>
                             <label class="analytics-rating-btn">
                                 <input type="radio" name="ai-rating" value="unhelpful" />
                                 <span class="material-symbols-outlined">thumb_down</span>
-                                <span>Needs Improvement</span>
+                                <span data-dp-text="fbNeeds">Needs Improvement</span>
                             </label>
                         </div>
                     </div>
 
                     <div class="analytics-form-group">
-                        <label for="ai-feedback-category" class="analytics-form-label">Category</label>
+                        <label for="ai-feedback-category" class="analytics-form-label" data-dp-text="fbCategory">Category</label>
                         <select id="ai-feedback-category" class="analytics-form-select">
-                            <option value="accurate">Accurate &amp; Feasible</option>
-                            <option value="helpful_strategy">Helpful Strategy / Tactic</option>
-                            <option value="inaccurate_law">Inaccurate Law / Ordinance Citation</option>
-                            <option value="unrealistic_action">Unrealistic Operational Action</option>
-                            <option value="incomplete_data">Incomplete Incident Data Context</option>
-                            <option value="other">Other / General Comment</option>
+                            <option value="accurate" data-dp-text="fbCatAccurate">Accurate &amp; Feasible</option>
+                            <option value="helpful_strategy" data-dp-text="fbCatStrategy">Helpful Strategy / Tactic</option>
+                            <option value="inaccurate_law" data-dp-text="fbCatLaw">Inaccurate Law / Ordinance Citation</option>
+                            <option value="unrealistic_action" data-dp-text="fbCatAction">Unrealistic Operational Action</option>
+                            <option value="incomplete_data" data-dp-text="fbCatData">Incomplete Incident Data Context</option>
+                            <option value="other" data-dp-text="fbCatOther">Other / General Comment</option>
                         </select>
                     </div>
 
                     <div class="analytics-form-group">
-                        <label for="ai-feedback-comment" class="analytics-form-label">Officer Notes / Feedback (Optional)</label>
+                        <label for="ai-feedback-comment" class="analytics-form-label" data-dp-text="fbNotes">Officer Notes / Feedback (Optional)</label>
                         <textarea
                             id="ai-feedback-comment"
                             class="analytics-form-textarea"
+                            data-dp-placeholder="fbNotesHint"
                             placeholder="Share specific context, field observations, or why this recommendation worked or didn't work..."
                             maxlength="600"
                             rows="3"
@@ -598,10 +603,10 @@
                     </div>
                 </form>
                 <div class="analytics-modal__footer">
-                    <button type="button" id="ai-feedback-cancel" class="analytics-btn analytics-btn--ghost">Cancel</button>
+                    <button type="button" id="ai-feedback-cancel" class="analytics-btn analytics-btn--ghost" data-dp-text="fbCancel">Cancel</button>
                     <button type="button" id="ai-feedback-submit" class="analytics-btn analytics-btn--primary">
                         <span class="material-symbols-outlined">send</span>
-                        <span>Submit Feedback</span>
+                        <span data-dp-text="fbSubmit">Submit Feedback</span>
                     </button>
                 </div>
             </div>
@@ -614,11 +619,11 @@
             <div class="analytics-modal__backdrop"></div>
             <div class="analytics-modal__dialog" role="dialog" aria-labelledby="ai-cooldown-title" aria-modal="true" style="max-width: 420px; text-align: center; padding: 32px 24px;">
                 <span class="material-symbols-outlined" style="font-size: 48px; color: #f59e0b; margin-bottom: 16px; display: inline-block;">hourglass_top</span>
-                <h3 id="ai-cooldown-title" style="margin-bottom: 12px; color: #0f172a; font-size: 1.25rem;">Rate Limit Active</h3>
+                <h3 id="ai-cooldown-title" style="margin-bottom: 12px; color: #0f172a; font-size: 1.25rem;" data-dp-text="cdTitle">Rate Limit Active</h3>
                 <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 24px;">
-                    Please wait <strong id="ai-cooldown-seconds" style="color: #ef4444; font-size: 1.1rem;">20</strong> seconds before re-generating to prevent API spam and allow time to read the current plan.
+                    <span data-dp-text="cdWait">Please wait</span> <strong id="ai-cooldown-seconds" style="color: #ef4444; font-size: 1.1rem;">20</strong> <span data-dp-text="cdAfter">seconds before re-generating to prevent API spam and allow time to read the current plan.</span>
                 </p>
-                <button type="button" id="ai-cooldown-close-btn" class="analytics-btn analytics-btn--primary" style="width: 100%; justify-content: center;">
+                <button type="button" id="ai-cooldown-close-btn" class="analytics-btn analytics-btn--primary" style="width: 100%; justify-content: center;" data-dp-text="cdOk">
                     Okay, Got It
                 </button>
             </div>

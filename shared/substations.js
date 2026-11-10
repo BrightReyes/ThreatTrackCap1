@@ -121,6 +121,75 @@ export function findNearestCoveredSubstation(
 }
 
 /**
+ * The single web-side ETA formula: dispatch delay + road travel + intersection
+ * delay, using a time-of-day traffic profile. Keep the numbers in step with
+ * mobile/utils/responderEta.js, which the app uses for the same estimate.
+ *
+ * @param {number} distanceKm Straight-line distance
+ * @param {Date} [now]
+ * @returns {{ etaMinutes: number, roadDistanceKm: number, trafficDelayMinutes: number, trafficLevel: string, trafficSpeedKph: number } | null}
+ */
+export function estimateTrafficAwareEta(distanceKm, now = new Date()) {
+    const n = Number(distanceKm);
+    if (!Number.isFinite(n)) return null;
+
+    const traffic = getValenzuelaTrafficProfile(now);
+    const roadDistanceKm = Math.max(n * traffic.routeFactor, n + 0.25);
+    const travelMinutes = Math.ceil((roadDistanceKm / traffic.speedKph) * 60);
+    const intersectionDelayMinutes = Math.ceil(
+        Math.min(8, Math.max(1, roadDistanceKm * 1.25)),
+    );
+    const etaMinutes = Math.max(
+        5,
+        Math.ceil(traffic.dispatchDelayMinutes + travelMinutes + intersectionDelayMinutes),
+    );
+
+    return {
+        etaMinutes,
+        roadDistanceKm: Number(roadDistanceKm.toFixed(2)),
+        trafficDelayMinutes:
+            traffic.dispatchDelayMinutes + intersectionDelayMinutes,
+        trafficLevel: traffic.label,
+        trafficSpeedKph: traffic.speedKph,
+    };
+}
+
+function getValenzuelaTrafficProfile(now = new Date()) {
+    const hour = now.getHours();
+    const day = now.getDay();
+    const isWeekend = day === 0 || day === 6;
+    const rushHour =
+        !isWeekend && ((hour >= 6 && hour < 10) || (hour >= 16 && hour < 20));
+    const daytime = hour >= 10 && hour < 16;
+    const evening = hour >= 20 && hour < 23;
+
+    if (rushHour) {
+        return {
+            label: "heavy traffic",
+            routeFactor: 1.45,
+            speedKph: 14,
+            dispatchDelayMinutes: 4,
+        };
+    }
+
+    if (daytime || evening) {
+        return {
+            label: "moderate traffic",
+            routeFactor: 1.35,
+            speedKph: 18,
+            dispatchDelayMinutes: 3,
+        };
+    }
+
+    return {
+        label: "light traffic",
+        routeFactor: 1.25,
+        speedKph: 24,
+        dispatchDelayMinutes: 3,
+    };
+}
+
+/**
  * Returns candidate substations sorted nearest-first to a given coordinate,
  * including computed distance and ETA.
  *
@@ -144,9 +213,8 @@ export function getSortedSubstationCandidates(
                 Number.isFinite(lat) && Number.isFinite(lng)
                     ? calculateHaversineDistanceKm(lat, lng, s.latitude, s.longitude)
                     : null;
-            // Estimated urban police response speed: ~25 km/h + 2 min dispatch buffer
             const etaMinutes =
-                distanceKm != null ? Math.max(3, Math.round((distanceKm / 25) * 60 + 2)) : 5;
+                distanceKm != null ? (estimateTrafficAwareEta(distanceKm)?.etaMinutes ?? 5) : 5;
             return {
                 substationId: s.id,
                 substationName: s.name,
