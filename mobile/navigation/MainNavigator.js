@@ -46,11 +46,13 @@ const urgentFlowOptions = {
 };
 
 // Stack Navigator with all screens
-const MainNavigator = ({ onLogout, initialRouteName }) => {
+// This navigator mounts on every app start with a saved login and after every
+// login, so a signed-in user always lands on the SOS hold first.
+const MainNavigator = ({ onLogout }) => {
   return (
     <>
       <Stack.Navigator
-        initialRouteName={initialRouteName}
+        initialRouteName="SOSGateway"
         detachInactiveScreens
         screenOptions={baseTransitionOptions}
       >

@@ -293,33 +293,6 @@ function startDashboardActivityListener() {
     );
 }
 
-function startDashboardClock() {
-    const timeEl = document.getElementById("dashboard-clock-time");
-    const dateEl = document.getElementById("dashboard-clock-date");
-    if (!timeEl || !dateEl) return;
-
-    const tick = () => {
-        const now = new Date();
-        timeEl.textContent = new Intl.DateTimeFormat("en-PH", {
-            timeZone: DASHBOARD_CLOCK_TZ,
-            hour: "numeric",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-        }).format(now);
-        dateEl.textContent = new Intl.DateTimeFormat("en-PH", {
-            timeZone: DASHBOARD_CLOCK_TZ,
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        }).format(now);
-    };
-
-    tick();
-    window.setInterval(tick, 1000);
-}
-
 function bindCardNavigation(id, url) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -339,7 +312,6 @@ initAdminPage({
     onReady(user, profile) {
         updateDashboardWelcome(user, profile);
         initAdminCustomSelects(document.getElementById("page-dashboard"));
-        startDashboardClock();
         startTodayReportsListener();
         startDashboardActivityListener();
         requestAnimationFrame(() => {

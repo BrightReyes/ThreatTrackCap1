@@ -548,6 +548,8 @@ function applyRoleNavigation(profile) {
     }
 }
 
+let adminClockIntervalId = null;
+
 function startAdminClock() {
     const timeEl = document.getElementById("dashboard-clock-time");
     const dateEl = document.getElementById("dashboard-clock-date");
@@ -572,7 +574,11 @@ function startAdminClock() {
     };
 
     tick();
-    window.setInterval(tick, 1000);
+    // Guard against duplicate timers (idempotency and memory leak prevention)
+    if (adminClockIntervalId !== null) {
+        window.clearInterval(adminClockIntervalId);
+    }
+    adminClockIntervalId = window.setInterval(tick, 1000);
 }
 
 /**
